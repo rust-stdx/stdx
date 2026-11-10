@@ -92,36 +92,18 @@ impl CreatePromotionCodeParamsPromotionType {
 }
 
 #[cfg(feature = "promotion_codes")]
-impl<'de> serde::Deserialize<'de> for CreatePromotionCodeParamsPromotionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePromotionCodeParamsPromotionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "coupon" => CreatePromotionCodeParamsPromotionType::Coupon,
-                    other => CreatePromotionCodeParamsPromotionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePromotionCodeParamsPromotionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePromotionCodeParamsPromotionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePromotionCodeParamsPromotionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "coupon" => CreatePromotionCodeParamsPromotionType::Coupon,
+            other => CreatePromotionCodeParamsPromotionType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -294,47 +276,48 @@ impl crate::params::FormEncode for ListPromotionCodesParamsCreated {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PromotionCode {
     #[doc = "Whether the promotion code is currently active."]
-    #[serde(default)]
+    #[json(default)]
     pub active: bool,
     #[doc = "The customer-facing code."]
-    #[serde(default)]
+    #[json(default)]
     pub code: String,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "The customer who can use this promotion code."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<crate::Expandable<crate::promotion_codes::PromotionCodeCustomerExpanded>>,
     #[doc = "The account representing the customer who can use this promotion code."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_account: Option<String>,
     #[doc = "Date at which the promotion code can no longer be redeemed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<i64>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Maximum number of times this promotion code can be redeemed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub max_redemptions: Option<i64>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::promotion_codes::PromotionCodeObject,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub promotion: Option<crate::promotion_codes::PromotionCodesResourcePromotion>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub restrictions: Option<crate::promotion_codes::PromotionCodesResourceRestrictions>,
     #[doc = "Number of times this promotion code has been used."]
-    #[serde(default)]
+    #[json(default)]
     pub times_redeemed: i64,
 }
 
@@ -434,10 +417,11 @@ impl crate::PagedItem for PromotionCode {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PromotionCodeCurrencyOption {
     #[doc = "Minimum amount required to redeem this Promotion Code into a Coupon (e.g., a purchase must be $100 or more to work)."]
-    #[serde(default)]
+    #[json(default)]
     pub minimum_amount: i64,
 }
 
@@ -491,7 +475,7 @@ pub enum PromotionCodeCustomerExpanded {
     /// Expanded `customer`.
     Customer(Box<crate::customers::Customer>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -539,17 +523,15 @@ pub enum PromotionCodeCustomerExpanded {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PromotionCodeCustomerExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for PromotionCodeCustomerExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "customer" => PromotionCodeCustomerExpanded::Customer(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "customer" => {
+                PromotionCodeCustomerExpanded::Customer(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
             _ => PromotionCodeCustomerExpanded::Other(value),
         })
     }
@@ -758,36 +740,18 @@ impl Default for PromotionCodeObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PromotionCodeObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PromotionCodeObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "promotion_code" => PromotionCodeObject::PromotionCode,
-                    other => PromotionCodeObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PromotionCodeObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PromotionCodeObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PromotionCodeObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "promotion_code" => PromotionCodeObject::PromotionCode,
+            other => PromotionCodeObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -836,13 +800,14 @@ impl<'de> serde::Deserialize<'de> for PromotionCodeObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PromotionCodesResourcePromotion {
     #[doc = "If promotion `type` is `coupon`, the coupon for this promotion."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub coupon: Option<crate::Expandable<crate::coupons::Coupon>>,
     #[doc = "The type of promotion."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::promotion_codes::PromotionCodesResourcePromotionType,
 }
 
@@ -1049,36 +1014,18 @@ impl Default for PromotionCodesResourcePromotionType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PromotionCodesResourcePromotionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PromotionCodesResourcePromotionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "coupon" => PromotionCodesResourcePromotionType::Coupon,
-                    other => PromotionCodesResourcePromotionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PromotionCodesResourcePromotionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PromotionCodesResourcePromotionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PromotionCodesResourcePromotionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "coupon" => PromotionCodesResourcePromotionType::Coupon,
+            other => PromotionCodesResourcePromotionType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1127,20 +1074,21 @@ impl<'de> serde::Deserialize<'de> for PromotionCodesResourcePromotionType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PromotionCodesResourceRestrictions {
     #[doc = "Promotion code restrictions defined in each available currency option."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub currency_options:
         Option<std::collections::HashMap<String, crate::promotion_codes::PromotionCodeCurrencyOption>>,
     #[doc = "A Boolean indicating if the Promotion Code should only be redeemed for Customers without any successful payments or i..."]
-    #[serde(default)]
+    #[json(default)]
     pub first_time_transaction: bool,
     #[doc = "Minimum amount required to redeem this Promotion Code into a Coupon (e.g., a purchase must be $100 or more to work)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub minimum_amount: Option<i64>,
     #[doc = "Three-letter [ISO code](https://stripe.com/docs/currencies) for minimum_amount"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub minimum_amount_currency: Option<String>,
 }
 

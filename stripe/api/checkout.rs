@@ -14,22 +14,23 @@
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutAcssDebitMandateOptions {
     #[doc = "A URL for custom mandate text"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub custom_mandate_url: Option<String>,
     #[doc = "List of Stripe products where this mandate can be selected automatically."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_for: Option<Vec<crate::checkout::CheckoutAcssDebitMandateOptionsDefaultForItem>>,
     #[doc = "Description of the interval."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub interval_description: Option<String>,
     #[doc = "Payment schedule for the mandate."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_schedule: Option<crate::checkout::CheckoutAcssDebitMandateOptionsPaymentSchedule>,
     #[doc = "Transaction type of the mandate."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transaction_type: Option<crate::checkout::CheckoutAcssDebitMandateOptionsTransactionType>,
 }
 
@@ -70,37 +71,19 @@ impl CheckoutAcssDebitMandateOptionsDefaultForItem {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutAcssDebitMandateOptionsDefaultForItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutAcssDebitMandateOptionsDefaultForItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "invoice" => CheckoutAcssDebitMandateOptionsDefaultForItem::Invoice,
-                    "subscription" => CheckoutAcssDebitMandateOptionsDefaultForItem::Subscription,
-                    other => CheckoutAcssDebitMandateOptionsDefaultForItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutAcssDebitMandateOptionsDefaultForItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutAcssDebitMandateOptionsDefaultForItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutAcssDebitMandateOptionsDefaultForItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "invoice" => CheckoutAcssDebitMandateOptionsDefaultForItem::Invoice,
+            "subscription" => CheckoutAcssDebitMandateOptionsDefaultForItem::Subscription,
+            other => CheckoutAcssDebitMandateOptionsDefaultForItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -143,38 +126,20 @@ impl CheckoutAcssDebitMandateOptionsPaymentSchedule {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutAcssDebitMandateOptionsPaymentSchedule {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutAcssDebitMandateOptionsPaymentSchedule;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "combined" => CheckoutAcssDebitMandateOptionsPaymentSchedule::Combined,
-                    "interval" => CheckoutAcssDebitMandateOptionsPaymentSchedule::Interval,
-                    "sporadic" => CheckoutAcssDebitMandateOptionsPaymentSchedule::Sporadic,
-                    other => CheckoutAcssDebitMandateOptionsPaymentSchedule::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutAcssDebitMandateOptionsPaymentSchedule::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutAcssDebitMandateOptionsPaymentSchedule {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutAcssDebitMandateOptionsPaymentSchedule::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "combined" => CheckoutAcssDebitMandateOptionsPaymentSchedule::Combined,
+            "interval" => CheckoutAcssDebitMandateOptionsPaymentSchedule::Interval,
+            "sporadic" => CheckoutAcssDebitMandateOptionsPaymentSchedule::Sporadic,
+            other => CheckoutAcssDebitMandateOptionsPaymentSchedule::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -215,37 +180,19 @@ impl CheckoutAcssDebitMandateOptionsTransactionType {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutAcssDebitMandateOptionsTransactionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutAcssDebitMandateOptionsTransactionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "business" => CheckoutAcssDebitMandateOptionsTransactionType::Business,
-                    "personal" => CheckoutAcssDebitMandateOptionsTransactionType::Personal,
-                    other => CheckoutAcssDebitMandateOptionsTransactionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutAcssDebitMandateOptionsTransactionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutAcssDebitMandateOptionsTransactionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutAcssDebitMandateOptionsTransactionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "business" => CheckoutAcssDebitMandateOptionsTransactionType::Business,
+            "personal" => CheckoutAcssDebitMandateOptionsTransactionType::Personal,
+            other => CheckoutAcssDebitMandateOptionsTransactionType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -255,21 +202,22 @@ impl<'de> serde::Deserialize<'de> for CheckoutAcssDebitMandateOptionsTransaction
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutAcssDebitPaymentMethodOptions {
     #[doc = "Currency supported by the bank account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub currency: Option<crate::checkout::CheckoutAcssDebitPaymentMethodOptionsCurrency>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate_options: Option<crate::checkout::CheckoutAcssDebitMandateOptions>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage>,
     #[doc = "Controls when Stripe will attempt to debit the funds from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub target_date: Option<String>,
     #[doc = "Bank account verification method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verification_method: Option<crate::checkout::CheckoutAcssDebitPaymentMethodOptionsVerificationMethod>,
 }
 
@@ -310,37 +258,19 @@ impl CheckoutAcssDebitPaymentMethodOptionsCurrency {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutAcssDebitPaymentMethodOptionsCurrency {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutAcssDebitPaymentMethodOptionsCurrency;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cad" => CheckoutAcssDebitPaymentMethodOptionsCurrency::Cad,
-                    "usd" => CheckoutAcssDebitPaymentMethodOptionsCurrency::Usd,
-                    other => CheckoutAcssDebitPaymentMethodOptionsCurrency::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutAcssDebitPaymentMethodOptionsCurrency::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutAcssDebitPaymentMethodOptionsCurrency {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutAcssDebitPaymentMethodOptionsCurrency::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cad" => CheckoutAcssDebitPaymentMethodOptionsCurrency::Cad,
+            "usd" => CheckoutAcssDebitPaymentMethodOptionsCurrency::Usd,
+            other => CheckoutAcssDebitPaymentMethodOptionsCurrency::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -383,38 +313,20 @@ impl CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "none" => CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage::None,
-                    "off_session" => CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage::OffSession,
-                    "on_session" => CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage::OnSession,
-                    other => CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "none" => CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage::None,
+            "off_session" => CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage::OffSession,
+            "on_session" => CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage::OnSession,
+            other => CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -457,38 +369,20 @@ impl CheckoutAcssDebitPaymentMethodOptionsVerificationMethod {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutAcssDebitPaymentMethodOptionsVerificationMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutAcssDebitPaymentMethodOptionsVerificationMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "automatic" => CheckoutAcssDebitPaymentMethodOptionsVerificationMethod::Automatic,
-                    "instant" => CheckoutAcssDebitPaymentMethodOptionsVerificationMethod::Instant,
-                    "microdeposits" => CheckoutAcssDebitPaymentMethodOptionsVerificationMethod::Microdeposits,
-                    other => CheckoutAcssDebitPaymentMethodOptionsVerificationMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutAcssDebitPaymentMethodOptionsVerificationMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutAcssDebitPaymentMethodOptionsVerificationMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutAcssDebitPaymentMethodOptionsVerificationMethod::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "automatic" => CheckoutAcssDebitPaymentMethodOptionsVerificationMethod::Automatic,
+            "instant" => CheckoutAcssDebitPaymentMethodOptionsVerificationMethod::Instant,
+            "microdeposits" => CheckoutAcssDebitPaymentMethodOptionsVerificationMethod::Microdeposits,
+            other => CheckoutAcssDebitPaymentMethodOptionsVerificationMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -498,13 +392,14 @@ impl<'de> serde::Deserialize<'de> for CheckoutAcssDebitPaymentMethodOptionsVerif
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutAffirmPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsCaptureMethod>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -543,36 +438,18 @@ impl CheckoutAffirmPaymentMethodOptionsCaptureMethod {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutAffirmPaymentMethodOptionsCaptureMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutAffirmPaymentMethodOptionsCaptureMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "manual" => CheckoutAffirmPaymentMethodOptionsCaptureMethod::Manual,
-                    other => CheckoutAffirmPaymentMethodOptionsCaptureMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutAffirmPaymentMethodOptionsCaptureMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutAffirmPaymentMethodOptionsCaptureMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutAffirmPaymentMethodOptionsCaptureMethod::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "manual" => CheckoutAffirmPaymentMethodOptionsCaptureMethod::Manual,
+            other => CheckoutAffirmPaymentMethodOptionsCaptureMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -611,36 +488,18 @@ impl CheckoutAffirmPaymentMethodOptionsSetupFutureUsage {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutAffirmPaymentMethodOptionsSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutAffirmPaymentMethodOptionsSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "none" => CheckoutAffirmPaymentMethodOptionsSetupFutureUsage::None,
-                    other => CheckoutAffirmPaymentMethodOptionsSetupFutureUsage::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutAffirmPaymentMethodOptionsSetupFutureUsage::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutAffirmPaymentMethodOptionsSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutAffirmPaymentMethodOptionsSetupFutureUsage::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "none" => CheckoutAffirmPaymentMethodOptionsSetupFutureUsage::None,
+            other => CheckoutAffirmPaymentMethodOptionsSetupFutureUsage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -650,13 +509,14 @@ impl<'de> serde::Deserialize<'de> for CheckoutAffirmPaymentMethodOptionsSetupFut
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutAfterpayClearpayPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsCaptureMethod>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -666,10 +526,11 @@ pub struct CheckoutAfterpayClearpayPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutAlipayPaymentMethodOptions {
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -679,10 +540,11 @@ pub struct CheckoutAlipayPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutAlmaPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsCaptureMethod>,
 }
 
@@ -692,13 +554,14 @@ pub struct CheckoutAlmaPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutAmazonPayPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsCaptureMethod>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -739,37 +602,19 @@ impl CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "none" => CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage::None,
-                    "off_session" => CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage::OffSession,
-                    other => CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "none" => CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage::None,
+            "off_session" => CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage::OffSession,
+            other => CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -779,13 +624,14 @@ impl<'de> serde::Deserialize<'de> for CheckoutAmazonPayPaymentMethodOptionsSetup
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutAuBecsDebitPaymentMethodOptions {
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
     #[doc = "Controls when Stripe will attempt to debit the funds from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub target_date: Option<String>,
 }
 
@@ -795,15 +641,16 @@ pub struct CheckoutAuBecsDebitPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutBacsDebitPaymentMethodOptions {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate_options: Option<crate::checkout::CheckoutPaymentMethodOptionsMandateOptionsBacsDebit>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage>,
     #[doc = "Controls when Stripe will attempt to debit the funds from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub target_date: Option<String>,
 }
 
@@ -813,10 +660,11 @@ pub struct CheckoutBacsDebitPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutBancontactPaymentMethodOptions {
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -826,10 +674,11 @@ pub struct CheckoutBancontactPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutBilliePaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsCaptureMethod>,
 }
 
@@ -839,13 +688,14 @@ pub struct CheckoutBilliePaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutBoletoPaymentMethodOptions {
     #[doc = "The number of calendar days before a Boleto voucher expires."]
-    #[serde(default)]
+    #[json(default)]
     pub expires_after_days: i64,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -855,10 +705,11 @@ pub struct CheckoutBoletoPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutCardInstallmentsOptions {
     #[doc = "Indicates if installments are enabled"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub enabled: Option<bool>,
 }
 
@@ -868,40 +719,41 @@ pub struct CheckoutCardInstallmentsOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutCardPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsCaptureMethod>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub installments: Option<crate::checkout::CheckoutCardInstallmentsOptions>,
     #[doc = "Request ability to [capture beyond the standard authorization validity window](/payments/extended-authorization) for ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub request_extended_authorization:
         Option<crate::checkout::CheckoutCardPaymentMethodOptionsRequestExtendedAuthorization>,
     #[doc = "Request ability to [increment the authorization](/payments/incremental-authorization) for this CheckoutSession."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub request_incremental_authorization:
         Option<crate::checkout::CheckoutCardPaymentMethodOptionsRequestExtendedAuthorization>,
     #[doc = "Request ability to make [multiple captures](/payments/multicapture) for this CheckoutSession."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub request_multicapture: Option<crate::checkout::CheckoutCardPaymentMethodOptionsRequestExtendedAuthorization>,
     #[doc = "Request ability to [overcapture](/payments/overcapture) for this CheckoutSession."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub request_overcapture: Option<crate::checkout::CheckoutCardPaymentMethodOptionsRequestExtendedAuthorization>,
     #[doc = "We strongly recommend that you rely on our SCA Engine to automatically prompt your customers for authentication based..."]
-    #[serde(default)]
+    #[json(default)]
     pub request_three_d_secure: crate::checkout::CheckoutCardPaymentMethodOptionsRequestThreeDSecure,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub restrictions: Option<crate::checkout::PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictions>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage>,
     #[doc = "Provides information about a card payment that customers see on their statements."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor_suffix_kana: Option<String>,
     #[doc = "Provides information about a card payment that customers see on their statements."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor_suffix_kanji: Option<String>,
 }
 
@@ -942,39 +794,21 @@ impl CheckoutCardPaymentMethodOptionsRequestExtendedAuthorization {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutCardPaymentMethodOptionsRequestExtendedAuthorization {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutCardPaymentMethodOptionsRequestExtendedAuthorization;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "if_available" => CheckoutCardPaymentMethodOptionsRequestExtendedAuthorization::IfAvailable,
-                    "never" => CheckoutCardPaymentMethodOptionsRequestExtendedAuthorization::Never,
-                    other => CheckoutCardPaymentMethodOptionsRequestExtendedAuthorization::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutCardPaymentMethodOptionsRequestExtendedAuthorization::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CheckoutCardPaymentMethodOptionsRequestExtendedAuthorization {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutCardPaymentMethodOptionsRequestExtendedAuthorization::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "if_available" => CheckoutCardPaymentMethodOptionsRequestExtendedAuthorization::IfAvailable,
+            "never" => CheckoutCardPaymentMethodOptionsRequestExtendedAuthorization::Never,
+            other => CheckoutCardPaymentMethodOptionsRequestExtendedAuthorization::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1029,38 +863,20 @@ impl Default for CheckoutCardPaymentMethodOptionsRequestThreeDSecure {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutCardPaymentMethodOptionsRequestThreeDSecure {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutCardPaymentMethodOptionsRequestThreeDSecure;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "any" => CheckoutCardPaymentMethodOptionsRequestThreeDSecure::Any,
-                    "automatic" => CheckoutCardPaymentMethodOptionsRequestThreeDSecure::Automatic,
-                    "challenge" => CheckoutCardPaymentMethodOptionsRequestThreeDSecure::Challenge,
-                    other => CheckoutCardPaymentMethodOptionsRequestThreeDSecure::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutCardPaymentMethodOptionsRequestThreeDSecure::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutCardPaymentMethodOptionsRequestThreeDSecure {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutCardPaymentMethodOptionsRequestThreeDSecure::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "any" => CheckoutCardPaymentMethodOptionsRequestThreeDSecure::Any,
+            "automatic" => CheckoutCardPaymentMethodOptionsRequestThreeDSecure::Automatic,
+            "challenge" => CheckoutCardPaymentMethodOptionsRequestThreeDSecure::Challenge,
+            other => CheckoutCardPaymentMethodOptionsRequestThreeDSecure::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1070,13 +886,14 @@ impl<'de> serde::Deserialize<'de> for CheckoutCardPaymentMethodOptionsRequestThr
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutCashappPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsCaptureMethod>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -1086,16 +903,17 @@ pub struct CheckoutCashappPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutCustomerBalanceBankTransferPaymentMethodOptions {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub eu_bank_transfer: Option<crate::payment_methods::PaymentMethodOptionsCustomerBalanceEuBankAccount>,
     #[doc = "List of address types that should be returned in the financial_addresses response."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub requested_address_types:
         Option<Vec<crate::checkout::CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem>>,
     #[doc = "The bank transfer type that this PaymentIntent is allowed to use for funding Permitted values include: `eu_bank_trans..."]
-    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    #[json(rename = "type", default, skip_serializing_if = "Option::is_none")]
     pub r#type: Option<crate::checkout::CheckoutCustomerBalanceBankTransferPaymentMethodOptionsType>,
 }
 
@@ -1146,52 +964,28 @@ impl CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressType
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "aba" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem::Aba,
-                    "iban" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem::Iban,
-                    "sepa" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem::Sepa,
-                    "sort_code" => {
-                        CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem::SortCode
-                    }
-                    "spei" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem::Spei,
-                    "swift" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem::Swift,
-                    "zengin" => {
-                        CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem::Zengin
-                    }
-                    other => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "aba" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem::Aba,
+            "iban" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem::Iban,
+            "sepa" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem::Sepa,
+            "sort_code" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem::SortCode,
+            "spei" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem::Spei,
+            "swift" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem::Swift,
+            "zengin" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem::Zengin,
+            other => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsRequestedAddressTypesItem::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -1238,42 +1032,24 @@ impl CheckoutCustomerBalanceBankTransferPaymentMethodOptionsType {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutCustomerBalanceBankTransferPaymentMethodOptionsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutCustomerBalanceBankTransferPaymentMethodOptionsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "eu_bank_transfer" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsType::EuBankTransfer,
-                    "gb_bank_transfer" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsType::GbBankTransfer,
-                    "jp_bank_transfer" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsType::JpBankTransfer,
-                    "mx_bank_transfer" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsType::MxBankTransfer,
-                    "us_bank_transfer" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsType::UsBankTransfer,
-                    other => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutCustomerBalanceBankTransferPaymentMethodOptionsType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CheckoutCustomerBalanceBankTransferPaymentMethodOptionsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutCustomerBalanceBankTransferPaymentMethodOptionsType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "eu_bank_transfer" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsType::EuBankTransfer,
+            "gb_bank_transfer" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsType::GbBankTransfer,
+            "jp_bank_transfer" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsType::JpBankTransfer,
+            "mx_bank_transfer" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsType::MxBankTransfer,
+            "us_bank_transfer" => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsType::UsBankTransfer,
+            other => CheckoutCustomerBalanceBankTransferPaymentMethodOptionsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1283,15 +1059,16 @@ impl<'de> serde::Deserialize<'de> for CheckoutCustomerBalanceBankTransferPayment
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutCustomerBalancePaymentMethodOptions {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_transfer: Option<crate::checkout::CheckoutCustomerBalanceBankTransferPaymentMethodOptions>,
     #[doc = "The funding method type to be used when there are not enough funds in the customer balance."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub funding_type: Option<crate::checkout::CheckoutCustomerBalancePaymentMethodOptionsFundingType>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -1330,36 +1107,18 @@ impl CheckoutCustomerBalancePaymentMethodOptionsFundingType {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutCustomerBalancePaymentMethodOptionsFundingType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutCustomerBalancePaymentMethodOptionsFundingType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "bank_transfer" => CheckoutCustomerBalancePaymentMethodOptionsFundingType::BankTransfer,
-                    other => CheckoutCustomerBalancePaymentMethodOptionsFundingType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutCustomerBalancePaymentMethodOptionsFundingType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutCustomerBalancePaymentMethodOptionsFundingType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutCustomerBalancePaymentMethodOptionsFundingType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "bank_transfer" => CheckoutCustomerBalancePaymentMethodOptionsFundingType::BankTransfer,
+            other => CheckoutCustomerBalancePaymentMethodOptionsFundingType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1369,10 +1128,11 @@ impl<'de> serde::Deserialize<'de> for CheckoutCustomerBalancePaymentMethodOption
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutEpsPaymentMethodOptions {
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -1382,18 +1142,19 @@ pub struct CheckoutEpsPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutFinancialConnectionsPaymentMethodOptions {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub filters: Option<crate::checkout::CheckoutFinancialConnectionsPaymentMethodOptionsFilters>,
     #[doc = "The list of permissions to request."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub permissions: Option<Vec<crate::checkout::CheckoutFinancialConnectionsPaymentMethodOptionsPermissionsItem>>,
     #[doc = "Data features requested to be retrieved upon account creation."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub prefetch: Option<Vec<crate::checkout::CheckoutFinancialConnectionsPaymentMethodOptionsPrefetchItem>>,
     #[doc = "For webview integrations only."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub return_url: Option<String>,
 }
 
@@ -1403,10 +1164,11 @@ pub struct CheckoutFinancialConnectionsPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutFinancialConnectionsPaymentMethodOptionsFilters {
     #[doc = "The account subcategories to use to filter for possible accounts to link."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_subcategories:
         Option<Vec<crate::checkout::CheckoutFinancialConnectionsPaymentMethodOptionsFiltersAccountSubcategoriesItem>>,
 }
@@ -1448,47 +1210,23 @@ impl CheckoutFinancialConnectionsPaymentMethodOptionsFiltersAccountSubcategories
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutFinancialConnectionsPaymentMethodOptionsFiltersAccountSubcategoriesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutFinancialConnectionsPaymentMethodOptionsFiltersAccountSubcategoriesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "checking" => {
-                        CheckoutFinancialConnectionsPaymentMethodOptionsFiltersAccountSubcategoriesItem::Checking
-                    }
-                    "savings" => {
-                        CheckoutFinancialConnectionsPaymentMethodOptionsFiltersAccountSubcategoriesItem::Savings
-                    }
-                    other => CheckoutFinancialConnectionsPaymentMethodOptionsFiltersAccountSubcategoriesItem::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CheckoutFinancialConnectionsPaymentMethodOptionsFiltersAccountSubcategoriesItem::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CheckoutFinancialConnectionsPaymentMethodOptionsFiltersAccountSubcategoriesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CheckoutFinancialConnectionsPaymentMethodOptionsFiltersAccountSubcategoriesItem::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "checking" => CheckoutFinancialConnectionsPaymentMethodOptionsFiltersAccountSubcategoriesItem::Checking,
+            "savings" => CheckoutFinancialConnectionsPaymentMethodOptionsFiltersAccountSubcategoriesItem::Savings,
+            other => CheckoutFinancialConnectionsPaymentMethodOptionsFiltersAccountSubcategoriesItem::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -1533,43 +1271,23 @@ impl CheckoutFinancialConnectionsPaymentMethodOptionsPermissionsItem {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutFinancialConnectionsPaymentMethodOptionsPermissionsItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutFinancialConnectionsPaymentMethodOptionsPermissionsItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "balances" => CheckoutFinancialConnectionsPaymentMethodOptionsPermissionsItem::Balances,
-                    "ownership" => CheckoutFinancialConnectionsPaymentMethodOptionsPermissionsItem::Ownership,
-                    "payment_method" => CheckoutFinancialConnectionsPaymentMethodOptionsPermissionsItem::PaymentMethod,
-                    "transactions" => CheckoutFinancialConnectionsPaymentMethodOptionsPermissionsItem::Transactions,
-                    other => {
-                        CheckoutFinancialConnectionsPaymentMethodOptionsPermissionsItem::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutFinancialConnectionsPaymentMethodOptionsPermissionsItem::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CheckoutFinancialConnectionsPaymentMethodOptionsPermissionsItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutFinancialConnectionsPaymentMethodOptionsPermissionsItem::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "balances" => CheckoutFinancialConnectionsPaymentMethodOptionsPermissionsItem::Balances,
+            "ownership" => CheckoutFinancialConnectionsPaymentMethodOptionsPermissionsItem::Ownership,
+            "payment_method" => CheckoutFinancialConnectionsPaymentMethodOptionsPermissionsItem::PaymentMethod,
+            "transactions" => CheckoutFinancialConnectionsPaymentMethodOptionsPermissionsItem::Transactions,
+            other => CheckoutFinancialConnectionsPaymentMethodOptionsPermissionsItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1612,40 +1330,22 @@ impl CheckoutFinancialConnectionsPaymentMethodOptionsPrefetchItem {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutFinancialConnectionsPaymentMethodOptionsPrefetchItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutFinancialConnectionsPaymentMethodOptionsPrefetchItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "balances" => CheckoutFinancialConnectionsPaymentMethodOptionsPrefetchItem::Balances,
-                    "ownership" => CheckoutFinancialConnectionsPaymentMethodOptionsPrefetchItem::Ownership,
-                    "transactions" => CheckoutFinancialConnectionsPaymentMethodOptionsPrefetchItem::Transactions,
-                    other => CheckoutFinancialConnectionsPaymentMethodOptionsPrefetchItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutFinancialConnectionsPaymentMethodOptionsPrefetchItem::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CheckoutFinancialConnectionsPaymentMethodOptionsPrefetchItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutFinancialConnectionsPaymentMethodOptionsPrefetchItem::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "balances" => CheckoutFinancialConnectionsPaymentMethodOptionsPrefetchItem::Balances,
+            "ownership" => CheckoutFinancialConnectionsPaymentMethodOptionsPrefetchItem::Ownership,
+            "transactions" => CheckoutFinancialConnectionsPaymentMethodOptionsPrefetchItem::Transactions,
+            other => CheckoutFinancialConnectionsPaymentMethodOptionsPrefetchItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1655,10 +1355,11 @@ impl<'de> serde::Deserialize<'de> for CheckoutFinancialConnectionsPaymentMethodO
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutFpxPaymentMethodOptions {
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -1668,10 +1369,11 @@ pub struct CheckoutFpxPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutGiropayPaymentMethodOptions {
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -1681,10 +1383,11 @@ pub struct CheckoutGiropayPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutGrabPayPaymentMethodOptions {
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -1694,10 +1397,11 @@ pub struct CheckoutGrabPayPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutIdealPaymentMethodOptions {
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -1707,13 +1411,14 @@ pub struct CheckoutIdealPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutKakaoPayPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsCaptureMethod>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -1723,13 +1428,14 @@ pub struct CheckoutKakaoPayPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutKlarnaPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsCaptureMethod>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -1739,13 +1445,14 @@ pub struct CheckoutKlarnaPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutKonbiniPaymentMethodOptions {
     #[doc = "The number of calendar days (between 1 and 60) after which Konbini payment instructions will expire."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expires_after_days: Option<i64>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -1755,13 +1462,14 @@ pub struct CheckoutKonbiniPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutKrCardPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsCaptureMethod>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -1771,13 +1479,14 @@ pub struct CheckoutKrCardPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutLinkPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsCaptureMethod>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -1787,10 +1496,11 @@ pub struct CheckoutLinkPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutLinkWalletOptions {
     #[doc = "Describes whether Checkout should display Link."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub display: Option<crate::checkout::CheckoutLinkWalletOptionsDisplay>,
 }
 
@@ -1831,37 +1541,19 @@ impl CheckoutLinkWalletOptionsDisplay {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutLinkWalletOptionsDisplay {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutLinkWalletOptionsDisplay;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => CheckoutLinkWalletOptionsDisplay::Auto,
-                    "never" => CheckoutLinkWalletOptionsDisplay::Never,
-                    other => CheckoutLinkWalletOptionsDisplay::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutLinkWalletOptionsDisplay::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutLinkWalletOptionsDisplay {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutLinkWalletOptionsDisplay::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => CheckoutLinkWalletOptionsDisplay::Auto,
+            "never" => CheckoutLinkWalletOptionsDisplay::Never,
+            other => CheckoutLinkWalletOptionsDisplay::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1871,13 +1563,14 @@ impl<'de> serde::Deserialize<'de> for CheckoutLinkWalletOptionsDisplay {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutMobilepayPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsCaptureMethod>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -1887,10 +1580,11 @@ pub struct CheckoutMobilepayPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutMultibancoPaymentMethodOptions {
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -1900,13 +1594,14 @@ pub struct CheckoutMultibancoPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutNaverPayPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsCaptureMethod>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -1916,13 +1611,14 @@ pub struct CheckoutNaverPayPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutOxxoPaymentMethodOptions {
     #[doc = "The number of calendar days before an OXXO invoice expires."]
-    #[serde(default)]
+    #[json(default)]
     pub expires_after_days: i64,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -1932,10 +1628,11 @@ pub struct CheckoutOxxoPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutP24PaymentMethodOptions {
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -1945,13 +1642,14 @@ pub struct CheckoutP24PaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutPaycoPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsCaptureMethod>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -1961,10 +1659,11 @@ pub struct CheckoutPaycoPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutPaymentMethodOptionsMandateOptionsBacsDebit {
     #[doc = "Prefix used to generate the Mandate reference."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference_prefix: Option<String>,
 }
 
@@ -1974,10 +1673,11 @@ pub struct CheckoutPaymentMethodOptionsMandateOptionsBacsDebit {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutPaymentMethodOptionsMandateOptionsSepaDebit {
     #[doc = "Prefix used to generate the Mandate reference."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference_prefix: Option<String>,
 }
 
@@ -1987,10 +1687,11 @@ pub struct CheckoutPaymentMethodOptionsMandateOptionsSepaDebit {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutPaynowPaymentMethodOptions {
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -2000,19 +1701,20 @@ pub struct CheckoutPaynowPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutPaypalPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsCaptureMethod>,
     #[doc = "Preferred locale of the PayPal checkout page that the customer is redirected to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub preferred_locale: Option<String>,
     #[doc = "A reference of the PayPal transaction visible to customer which is mapped to PayPal's invoice ID."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -2022,12 +1724,13 @@ pub struct CheckoutPaypalPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutPaytoPaymentMethodOptions {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate_options: Option<crate::mandates::MandateOptionsPayto>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -2037,18 +1740,19 @@ pub struct CheckoutPaytoPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutPixPaymentMethodOptions {
     #[doc = "Determines if the amount includes the IOF tax."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_includes_iof: Option<crate::checkout::CheckoutPixPaymentMethodOptionsAmountIncludesIof>,
     #[doc = "The number of seconds after which Pix payment will expire."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expires_after_seconds: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate_options: Option<crate::payment_methods::PaymentMethodOptionsMandateOptionsPix>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -2089,37 +1793,19 @@ impl CheckoutPixPaymentMethodOptionsAmountIncludesIof {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutPixPaymentMethodOptionsAmountIncludesIof {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutPixPaymentMethodOptionsAmountIncludesIof;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => CheckoutPixPaymentMethodOptionsAmountIncludesIof::Always,
-                    "never" => CheckoutPixPaymentMethodOptionsAmountIncludesIof::Never,
-                    other => CheckoutPixPaymentMethodOptionsAmountIncludesIof::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutPixPaymentMethodOptionsAmountIncludesIof::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutPixPaymentMethodOptionsAmountIncludesIof {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutPixPaymentMethodOptionsAmountIncludesIof::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => CheckoutPixPaymentMethodOptionsAmountIncludesIof::Always,
+            "never" => CheckoutPixPaymentMethodOptionsAmountIncludesIof::Never,
+            other => CheckoutPixPaymentMethodOptionsAmountIncludesIof::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2129,13 +1815,14 @@ impl<'de> serde::Deserialize<'de> for CheckoutPixPaymentMethodOptionsAmountInclu
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutRevolutPayPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsCaptureMethod>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -2145,13 +1832,14 @@ pub struct CheckoutRevolutPayPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutSamsungPayPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsCaptureMethod>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -2161,10 +1849,11 @@ pub struct CheckoutSamsungPayPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutSatispayPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsCaptureMethod>,
 }
 
@@ -2174,10 +1863,11 @@ pub struct CheckoutSatispayPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutScalapayPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsCaptureMethod>,
 }
 
@@ -2187,15 +1877,16 @@ pub struct CheckoutScalapayPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutSepaDebitPaymentMethodOptions {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate_options: Option<crate::checkout::CheckoutPaymentMethodOptionsMandateOptionsSepaDebit>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage>,
     #[doc = "Controls when Stripe will attempt to debit the funds from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub target_date: Option<String>,
 }
 
@@ -2205,10 +1896,11 @@ pub struct CheckoutSepaDebitPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutSequraPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsCaptureMethod>,
 }
 
@@ -2218,208 +1910,209 @@ pub struct CheckoutSequraPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutSession {
     #[doc = "Settings for price localization with [Adaptive Pricing](https://docs.stripe.com/payments/checkout/adaptive-pricing)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub adaptive_pricing: Option<crate::checkout::PaymentPagesCheckoutSessionAdaptivePricing>,
     #[doc = "When set, provides configuration for actions to take if this Checkout Session expires."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub after_expiration: Option<crate::checkout::PaymentPagesCheckoutSessionAfterExpiration>,
     #[doc = "Enables user redeemable promotion codes."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub allow_promotion_codes: Option<bool>,
     #[doc = "A list of the types of payment methods (e.g., `card`) this Checkout Session can accept."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub allowed_payment_method_types: Option<Vec<String>>,
     #[doc = "Total of all items before discounts or taxes are applied."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_subtotal: Option<i64>,
     #[doc = "Total of all items after discounts and taxes are applied."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_total: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub automatic_tax: Option<crate::checkout::PaymentPagesCheckoutSessionAutomaticTax>,
     #[doc = "Describes whether Checkout should collect the customer's billing address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billing_address_collection: Option<crate::checkout::CheckoutSessionBillingAddressCollection>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub branding_settings: Option<crate::checkout::PaymentPagesCheckoutSessionBrandingSettings>,
     #[doc = "If set, Checkout displays a back button and customers will be directed to this URL if they decide to cancel payment a..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cancel_url: Option<String>,
     #[doc = "A unique string to reference the Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub client_reference_id: Option<String>,
     #[doc = "The client secret of your Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub client_secret: Option<String>,
     #[doc = "Information about the customer collected within the Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub collected_information: Option<crate::checkout::PaymentPagesCheckoutSessionCollectedInformation>,
     #[doc = "Results of `consent_collection` for this session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub consent: Option<crate::checkout::PaymentPagesCheckoutSessionConsent>,
     #[doc = "When set, provides configuration for the Checkout Session to gather active consent from customers."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub consent_collection: Option<crate::checkout::PaymentPagesCheckoutSessionConsentCollection>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[doc = "Currency conversion details for [Adaptive Pricing](https://docs.stripe.com/payments/checkout/adaptive-pricing) sessio..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub currency_conversion: Option<crate::checkout::PaymentPagesCheckoutSessionCurrencyConversion>,
     #[doc = "Collect additional information from your customer using custom fields."]
-    #[serde(default)]
+    #[json(default)]
     pub custom_fields: Vec<crate::checkout::PaymentPagesCheckoutSessionCustomFields>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub custom_text: Option<crate::checkout::PaymentPagesCheckoutSessionCustomText>,
     #[doc = "The ID of the customer for this Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<crate::Expandable<crate::checkout::CheckoutSessionCustomerExpanded>>,
     #[doc = "The ID of the account for this Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_account: Option<String>,
     #[doc = "Configure whether a Checkout Session creates a Customer when the Checkout Session completes."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_creation: Option<crate::checkout::CheckoutSessionCustomerCreation>,
     #[doc = "The customer details including the customer's tax exempt status and the customer's tax IDs."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_details: Option<crate::checkout::PaymentPagesCheckoutSessionCustomerDetails>,
     #[doc = "If provided, this value will be used when the Customer object is created."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_email: Option<String>,
     #[doc = "List of coupons and promotion codes attached to the Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub discounts: Option<Vec<crate::checkout::PaymentPagesCheckoutSessionDiscount>>,
     #[doc = "A list of the types of payment methods (e.g., `card`) that should be excluded from this Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub excluded_payment_method_types: Option<Vec<String>>,
     #[doc = "The timestamp at which the Checkout Session will expire."]
-    #[serde(default)]
+    #[json(default)]
     pub expires_at: i64,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The integration identifier for this Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub integration_identifier: Option<String>,
     #[doc = "ID of the invoice created by the Checkout Session, if it exists."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice: Option<crate::Expandable<crate::invoices::Invoice>>,
     #[doc = "Details on the state of invoice creation for the Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice_creation: Option<crate::checkout::PaymentPagesCheckoutSessionInvoiceCreation>,
     #[doc = "The line items purchased by the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line_items: Option<crate::List<crate::common::Item>>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "The IETF language tag of the locale Checkout is displayed in."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub locale: Option<crate::checkout::CheckoutSessionLocale>,
     #[doc = "Settings for Managed Payments for this Checkout Session and resulting [PaymentIntents](/api/payment_intents/object), ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub managed_payments: Option<crate::checkout::PaymentPagesCheckoutSessionManagedPayments>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "The mode of the Checkout Session."]
-    #[serde(default)]
+    #[json(default)]
     pub mode: crate::checkout::CheckoutSessionMode,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name_collection: Option<crate::checkout::PaymentPagesCheckoutSessionNameCollection>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::checkout::CheckoutSessionObject,
     #[doc = "The optional items presented to the customer at checkout."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub optional_items: Option<Vec<crate::checkout::PaymentPagesCheckoutSessionOptionalItem>>,
     #[doc = "Where the user is coming from."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub origin_context: Option<crate::checkout::CheckoutSessionOriginContext>,
     #[doc = "The ID of the PaymentIntent for Checkout Sessions in `payment` mode."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_intent: Option<crate::Expandable<crate::payment_intents::PaymentIntent>>,
     #[doc = "The ID of the Payment Link that created this Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_link: Option<crate::Expandable<crate::payment_links::PaymentLink>>,
     #[doc = "Configure whether a Checkout Session should collect a payment method for sessions with mode `payment`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_collection: Option<crate::checkout::CheckoutSessionCustomerCreation>,
     #[doc = "Information about the payment method configuration used for this Checkout session if using dynamic payment methods."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_configuration_details:
         Option<crate::payment_methods::PaymentMethodConfigBizPaymentMethodConfigurationDetails>,
     #[doc = "Payment-method-specific configuration for the PaymentIntent or SetupIntent of this CheckoutSession."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_options: Option<crate::checkout::CheckoutSessionPaymentMethodOptions>,
     #[doc = "A list of the types of payment methods (e.g."]
-    #[serde(default)]
+    #[json(default)]
     pub payment_method_types: Vec<String>,
     #[doc = "The payment status of the Checkout Session, one of `paid`, `unpaid`, or `no_payment_required`."]
-    #[serde(default)]
+    #[json(default)]
     pub payment_status: crate::checkout::CheckoutSessionPaymentStatus,
     #[doc = "This property is used to set up permissions for various actions (e.g., update) on the CheckoutSession object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub permissions: Option<crate::checkout::PaymentPagesCheckoutSessionPermissions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone_number_collection: Option<crate::checkout::PaymentPagesCheckoutSessionPhoneNumberCollection>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub presentment_details: Option<crate::payment_intents::PaymentFlowsPaymentIntentPresentmentDetails>,
     #[doc = "The ID of the original expired Checkout Session that triggered the recovery flow."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub recovered_from: Option<String>,
     #[doc = "This parameter applies to `ui_mode: embedded_page`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub redirect_on_completion: Option<crate::checkout::CheckoutSessionRedirectOnCompletion>,
     #[doc = "Applies to Checkout Sessions with `ui_mode: embedded_page` or `ui_mode: elements`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub return_url: Option<String>,
     #[doc = "Controls saved payment method settings for the session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub saved_payment_method_options: Option<crate::checkout::PaymentPagesCheckoutSessionSavedPaymentMethodOptions>,
     #[doc = "The ID of the SetupIntent for Checkout Sessions in `setup` mode."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_intent: Option<crate::Expandable<crate::setup_intents::SetupIntent>>,
     #[doc = "When set, provides configuration for Checkout to collect a shipping address from a customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_address_collection: Option<crate::checkout::PaymentPagesCheckoutSessionShippingAddressCollection>,
     #[doc = "The details of the customer cost of shipping, including the customer chosen ShippingRate."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_cost: Option<crate::checkout::PaymentPagesCheckoutSessionShippingCost>,
     #[doc = "The shipping rate options applied to this Session."]
-    #[serde(default)]
+    #[json(default)]
     pub shipping_options: Vec<crate::checkout::PaymentPagesCheckoutSessionShippingOption>,
     #[doc = "The status of the Checkout Session, one of `open`, `complete`, or `expired`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<crate::checkout::CheckoutSessionStatus>,
     #[doc = "Describes the type of transaction being performed by Checkout in order to customize relevant text on the page, such a..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub submit_type: Option<crate::checkout::CheckoutSessionSubmitType>,
     #[doc = "The ID of the [Subscription](https://docs.stripe.com/api/subscriptions) for Checkout Sessions in `subscription` mode."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription: Option<crate::Expandable<crate::subscriptions::Subscription>>,
     #[doc = "The URL the customer will be directed to after the payment or subscription creation is successful."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub success_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_id_collection: Option<crate::checkout::PaymentPagesCheckoutSessionTaxIdCollection>,
     #[doc = "Tax and discount details for the computed total amount."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub total_details: Option<crate::checkout::PaymentPagesCheckoutSessionTotalDetails>,
     #[doc = "The UI mode of the Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ui_mode: Option<crate::checkout::CheckoutSessionUiMode>,
     #[doc = "The URL to the Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
     #[doc = "Wallet-specific configuration for this Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub wallet_options: Option<crate::checkout::CheckoutSessionWalletOptions>,
 }
 
@@ -2472,37 +2165,19 @@ impl CheckoutSessionBillingAddressCollection {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutSessionBillingAddressCollection {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutSessionBillingAddressCollection;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => CheckoutSessionBillingAddressCollection::Auto,
-                    "required" => CheckoutSessionBillingAddressCollection::Required,
-                    other => CheckoutSessionBillingAddressCollection::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutSessionBillingAddressCollection::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutSessionBillingAddressCollection {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutSessionBillingAddressCollection::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => CheckoutSessionBillingAddressCollection::Auto,
+            "required" => CheckoutSessionBillingAddressCollection::Required,
+            other => CheckoutSessionBillingAddressCollection::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2543,37 +2218,19 @@ impl CheckoutSessionCustomerCreation {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutSessionCustomerCreation {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutSessionCustomerCreation;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => CheckoutSessionCustomerCreation::Always,
-                    "if_required" => CheckoutSessionCustomerCreation::IfRequired,
-                    other => CheckoutSessionCustomerCreation::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutSessionCustomerCreation::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutSessionCustomerCreation {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutSessionCustomerCreation::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => CheckoutSessionCustomerCreation::Always,
+            "if_required" => CheckoutSessionCustomerCreation::IfRequired,
+            other => CheckoutSessionCustomerCreation::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2588,7 +2245,7 @@ pub enum CheckoutSessionCustomerExpanded {
     /// Expanded `customer`.
     Customer(Box<crate::customers::Customer>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -2597,17 +2254,15 @@ pub enum CheckoutSessionCustomerExpanded {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutSessionCustomerExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for CheckoutSessionCustomerExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "customer" => CheckoutSessionCustomerExpanded::Customer(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "customer" => {
+                CheckoutSessionCustomerExpanded::Customer(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
             _ => CheckoutSessionCustomerExpanded::Other(value),
         })
     }
@@ -2728,76 +2383,58 @@ impl CheckoutSessionLocale {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutSessionLocale {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutSessionLocale;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => CheckoutSessionLocale::Auto,
-                    "bg" => CheckoutSessionLocale::Bg,
-                    "cs" => CheckoutSessionLocale::Cs,
-                    "da" => CheckoutSessionLocale::Da,
-                    "de" => CheckoutSessionLocale::De,
-                    "el" => CheckoutSessionLocale::El,
-                    "en" => CheckoutSessionLocale::En,
-                    "en-GB" => CheckoutSessionLocale::EnGB,
-                    "es" => CheckoutSessionLocale::Es,
-                    "es-419" => CheckoutSessionLocale::Es419,
-                    "et" => CheckoutSessionLocale::Et,
-                    "fi" => CheckoutSessionLocale::Fi,
-                    "fil" => CheckoutSessionLocale::Fil,
-                    "fr" => CheckoutSessionLocale::Fr,
-                    "fr-CA" => CheckoutSessionLocale::FrCA,
-                    "hr" => CheckoutSessionLocale::Hr,
-                    "hu" => CheckoutSessionLocale::Hu,
-                    "id" => CheckoutSessionLocale::Id,
-                    "it" => CheckoutSessionLocale::It,
-                    "ja" => CheckoutSessionLocale::Ja,
-                    "ko" => CheckoutSessionLocale::Ko,
-                    "lt" => CheckoutSessionLocale::Lt,
-                    "lv" => CheckoutSessionLocale::Lv,
-                    "ms" => CheckoutSessionLocale::Ms,
-                    "mt" => CheckoutSessionLocale::Mt,
-                    "nb" => CheckoutSessionLocale::Nb,
-                    "nl" => CheckoutSessionLocale::Nl,
-                    "pl" => CheckoutSessionLocale::Pl,
-                    "pt" => CheckoutSessionLocale::Pt,
-                    "pt-BR" => CheckoutSessionLocale::PtBR,
-                    "ro" => CheckoutSessionLocale::Ro,
-                    "ru" => CheckoutSessionLocale::Ru,
-                    "sk" => CheckoutSessionLocale::Sk,
-                    "sl" => CheckoutSessionLocale::Sl,
-                    "sv" => CheckoutSessionLocale::Sv,
-                    "th" => CheckoutSessionLocale::Th,
-                    "tr" => CheckoutSessionLocale::Tr,
-                    "vi" => CheckoutSessionLocale::Vi,
-                    "zh" => CheckoutSessionLocale::Zh,
-                    "zh-HK" => CheckoutSessionLocale::ZhHK,
-                    "zh-TW" => CheckoutSessionLocale::ZhTW,
-                    other => CheckoutSessionLocale::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutSessionLocale::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutSessionLocale {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutSessionLocale::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => CheckoutSessionLocale::Auto,
+            "bg" => CheckoutSessionLocale::Bg,
+            "cs" => CheckoutSessionLocale::Cs,
+            "da" => CheckoutSessionLocale::Da,
+            "de" => CheckoutSessionLocale::De,
+            "el" => CheckoutSessionLocale::El,
+            "en" => CheckoutSessionLocale::En,
+            "en-GB" => CheckoutSessionLocale::EnGB,
+            "es" => CheckoutSessionLocale::Es,
+            "es-419" => CheckoutSessionLocale::Es419,
+            "et" => CheckoutSessionLocale::Et,
+            "fi" => CheckoutSessionLocale::Fi,
+            "fil" => CheckoutSessionLocale::Fil,
+            "fr" => CheckoutSessionLocale::Fr,
+            "fr-CA" => CheckoutSessionLocale::FrCA,
+            "hr" => CheckoutSessionLocale::Hr,
+            "hu" => CheckoutSessionLocale::Hu,
+            "id" => CheckoutSessionLocale::Id,
+            "it" => CheckoutSessionLocale::It,
+            "ja" => CheckoutSessionLocale::Ja,
+            "ko" => CheckoutSessionLocale::Ko,
+            "lt" => CheckoutSessionLocale::Lt,
+            "lv" => CheckoutSessionLocale::Lv,
+            "ms" => CheckoutSessionLocale::Ms,
+            "mt" => CheckoutSessionLocale::Mt,
+            "nb" => CheckoutSessionLocale::Nb,
+            "nl" => CheckoutSessionLocale::Nl,
+            "pl" => CheckoutSessionLocale::Pl,
+            "pt" => CheckoutSessionLocale::Pt,
+            "pt-BR" => CheckoutSessionLocale::PtBR,
+            "ro" => CheckoutSessionLocale::Ro,
+            "ru" => CheckoutSessionLocale::Ru,
+            "sk" => CheckoutSessionLocale::Sk,
+            "sl" => CheckoutSessionLocale::Sl,
+            "sv" => CheckoutSessionLocale::Sv,
+            "th" => CheckoutSessionLocale::Th,
+            "tr" => CheckoutSessionLocale::Tr,
+            "vi" => CheckoutSessionLocale::Vi,
+            "zh" => CheckoutSessionLocale::Zh,
+            "zh-HK" => CheckoutSessionLocale::ZhHK,
+            "zh-TW" => CheckoutSessionLocale::ZhTW,
+            other => CheckoutSessionLocale::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2852,38 +2489,20 @@ impl Default for CheckoutSessionMode {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutSessionMode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutSessionMode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "payment" => CheckoutSessionMode::Payment,
-                    "setup" => CheckoutSessionMode::Setup,
-                    "subscription" => CheckoutSessionMode::Subscription,
-                    other => CheckoutSessionMode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutSessionMode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutSessionMode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutSessionMode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "payment" => CheckoutSessionMode::Payment,
+            "setup" => CheckoutSessionMode::Setup,
+            "subscription" => CheckoutSessionMode::Subscription,
+            other => CheckoutSessionMode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2934,36 +2553,18 @@ impl Default for CheckoutSessionObject {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutSessionObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutSessionObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "checkout.session" => CheckoutSessionObject::CheckoutSession,
-                    other => CheckoutSessionObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutSessionObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutSessionObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutSessionObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "checkout.session" => CheckoutSessionObject::CheckoutSession,
+            other => CheckoutSessionObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3004,37 +2605,19 @@ impl CheckoutSessionOriginContext {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutSessionOriginContext {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutSessionOriginContext;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "mobile_app" => CheckoutSessionOriginContext::MobileApp,
-                    "web" => CheckoutSessionOriginContext::Web,
-                    other => CheckoutSessionOriginContext::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutSessionOriginContext::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutSessionOriginContext {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutSessionOriginContext::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "mobile_app" => CheckoutSessionOriginContext::MobileApp,
+            "web" => CheckoutSessionOriginContext::Web,
+            other => CheckoutSessionOriginContext::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3044,101 +2627,102 @@ impl<'de> serde::Deserialize<'de> for CheckoutSessionOriginContext {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutSessionPaymentMethodOptions {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub acss_debit: Option<crate::checkout::CheckoutAcssDebitPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub affirm: Option<crate::checkout::CheckoutAffirmPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub afterpay_clearpay: Option<crate::checkout::CheckoutAfterpayClearpayPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub alipay: Option<crate::checkout::CheckoutAlipayPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub alma: Option<crate::checkout::CheckoutAlmaPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amazon_pay: Option<crate::checkout::CheckoutAmazonPayPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub au_becs_debit: Option<crate::checkout::CheckoutAuBecsDebitPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bacs_debit: Option<crate::checkout::CheckoutBacsDebitPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bancontact: Option<crate::checkout::CheckoutBancontactPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billie: Option<crate::checkout::CheckoutBilliePaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub boleto: Option<crate::checkout::CheckoutBoletoPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::checkout::CheckoutCardPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cashapp: Option<crate::checkout::CheckoutCashappPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_balance: Option<crate::checkout::CheckoutCustomerBalancePaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub eps: Option<crate::checkout::CheckoutEpsPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fpx: Option<crate::checkout::CheckoutFpxPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub giropay: Option<crate::checkout::CheckoutGiropayPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub grabpay: Option<crate::checkout::CheckoutGrabPayPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ideal: Option<crate::checkout::CheckoutIdealPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub kakao_pay: Option<crate::checkout::CheckoutKakaoPayPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub klarna: Option<crate::checkout::CheckoutKlarnaPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub konbini: Option<crate::checkout::CheckoutKonbiniPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub kr_card: Option<crate::checkout::CheckoutKrCardPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub link: Option<crate::checkout::CheckoutLinkPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mobilepay: Option<crate::checkout::CheckoutMobilepayPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub multibanco: Option<crate::checkout::CheckoutMultibancoPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub naver_pay: Option<crate::checkout::CheckoutNaverPayPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub oxxo: Option<crate::checkout::CheckoutOxxoPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub p24: Option<crate::checkout::CheckoutP24PaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payco: Option<crate::checkout::CheckoutPaycoPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paynow: Option<crate::checkout::CheckoutPaynowPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paypal: Option<crate::checkout::CheckoutPaypalPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payto: Option<crate::checkout::CheckoutPaytoPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pix: Option<crate::checkout::CheckoutPixPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub revolut_pay: Option<crate::checkout::CheckoutRevolutPayPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub samsung_pay: Option<crate::checkout::CheckoutSamsungPayPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub satispay: Option<crate::checkout::CheckoutSatispayPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub scalapay: Option<crate::checkout::CheckoutScalapayPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sepa_debit: Option<crate::checkout::CheckoutSepaDebitPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sequra: Option<crate::checkout::CheckoutSequraPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sofort: Option<crate::checkout::CheckoutSofortPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sunbit: Option<crate::checkout::CheckoutSunbitPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub swish: Option<crate::checkout::CheckoutSwishPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub twint: Option<crate::checkout::CheckoutTwintPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub upi: Option<crate::checkout::CheckoutUpiPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us_bank_account: Option<crate::checkout::CheckoutUsBankAccountPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub wechat_pay: Option<crate::checkout::CheckoutWechatPayPaymentMethodOptions>,
 }
 
@@ -3193,38 +2777,20 @@ impl Default for CheckoutSessionPaymentStatus {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutSessionPaymentStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutSessionPaymentStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "no_payment_required" => CheckoutSessionPaymentStatus::NoPaymentRequired,
-                    "paid" => CheckoutSessionPaymentStatus::Paid,
-                    "unpaid" => CheckoutSessionPaymentStatus::Unpaid,
-                    other => CheckoutSessionPaymentStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutSessionPaymentStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutSessionPaymentStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutSessionPaymentStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "no_payment_required" => CheckoutSessionPaymentStatus::NoPaymentRequired,
+            "paid" => CheckoutSessionPaymentStatus::Paid,
+            "unpaid" => CheckoutSessionPaymentStatus::Unpaid,
+            other => CheckoutSessionPaymentStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3267,38 +2833,20 @@ impl CheckoutSessionRedirectOnCompletion {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutSessionRedirectOnCompletion {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutSessionRedirectOnCompletion;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => CheckoutSessionRedirectOnCompletion::Always,
-                    "if_required" => CheckoutSessionRedirectOnCompletion::IfRequired,
-                    "never" => CheckoutSessionRedirectOnCompletion::Never,
-                    other => CheckoutSessionRedirectOnCompletion::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutSessionRedirectOnCompletion::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutSessionRedirectOnCompletion {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutSessionRedirectOnCompletion::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => CheckoutSessionRedirectOnCompletion::Always,
+            "if_required" => CheckoutSessionRedirectOnCompletion::IfRequired,
+            "never" => CheckoutSessionRedirectOnCompletion::Never,
+            other => CheckoutSessionRedirectOnCompletion::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3341,38 +2889,20 @@ impl CheckoutSessionStatus {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutSessionStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutSessionStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "complete" => CheckoutSessionStatus::Complete,
-                    "expired" => CheckoutSessionStatus::Expired,
-                    "open" => CheckoutSessionStatus::Open,
-                    other => CheckoutSessionStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutSessionStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutSessionStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutSessionStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "complete" => CheckoutSessionStatus::Complete,
+            "expired" => CheckoutSessionStatus::Expired,
+            "open" => CheckoutSessionStatus::Open,
+            other => CheckoutSessionStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3419,40 +2949,22 @@ impl CheckoutSessionSubmitType {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutSessionSubmitType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutSessionSubmitType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => CheckoutSessionSubmitType::Auto,
-                    "book" => CheckoutSessionSubmitType::Book,
-                    "donate" => CheckoutSessionSubmitType::Donate,
-                    "pay" => CheckoutSessionSubmitType::Pay,
-                    "subscribe" => CheckoutSessionSubmitType::Subscribe,
-                    other => CheckoutSessionSubmitType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutSessionSubmitType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutSessionSubmitType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutSessionSubmitType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => CheckoutSessionSubmitType::Auto,
+            "book" => CheckoutSessionSubmitType::Book,
+            "donate" => CheckoutSessionSubmitType::Donate,
+            "pay" => CheckoutSessionSubmitType::Pay,
+            "subscribe" => CheckoutSessionSubmitType::Subscribe,
+            other => CheckoutSessionSubmitType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3497,39 +3009,21 @@ impl CheckoutSessionUiMode {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutSessionUiMode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutSessionUiMode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "elements" => CheckoutSessionUiMode::Elements,
-                    "embedded_page" => CheckoutSessionUiMode::EmbeddedPage,
-                    "form" => CheckoutSessionUiMode::Form,
-                    "hosted_page" => CheckoutSessionUiMode::HostedPage,
-                    other => CheckoutSessionUiMode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutSessionUiMode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutSessionUiMode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutSessionUiMode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "elements" => CheckoutSessionUiMode::Elements,
+            "embedded_page" => CheckoutSessionUiMode::EmbeddedPage,
+            "form" => CheckoutSessionUiMode::Form,
+            "hosted_page" => CheckoutSessionUiMode::HostedPage,
+            other => CheckoutSessionUiMode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3539,9 +3033,10 @@ impl<'de> serde::Deserialize<'de> for CheckoutSessionUiMode {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutSessionWalletOptions {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub link: Option<crate::checkout::CheckoutLinkWalletOptions>,
 }
 
@@ -3551,10 +3046,11 @@ pub struct CheckoutSessionWalletOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutSofortPaymentMethodOptions {
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -3564,13 +3060,14 @@ pub struct CheckoutSofortPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutSunbitPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsCaptureMethod>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -3580,10 +3077,11 @@ pub struct CheckoutSunbitPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutSwishPaymentMethodOptions {
     #[doc = "The order reference that will be displayed to customers in the Swish application."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
 }
 
@@ -3593,10 +3091,11 @@ pub struct CheckoutSwishPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutTwintPaymentMethodOptions {
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAmazonPayPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -3606,12 +3105,13 @@ pub struct CheckoutTwintPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutUpiPaymentMethodOptions {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate_options: Option<crate::mandates::MandateOptionsUpi>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -3621,18 +3121,19 @@ pub struct CheckoutUpiPaymentMethodOptions {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutUsBankAccountPaymentMethodOptions {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub financial_connections: Option<crate::checkout::CheckoutFinancialConnectionsPaymentMethodOptions>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAcssDebitPaymentMethodOptionsSetupFutureUsage>,
     #[doc = "Controls when Stripe will attempt to debit the funds from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub target_date: Option<String>,
     #[doc = "Bank account verification method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verification_method: Option<crate::checkout::CheckoutUsBankAccountPaymentMethodOptionsVerificationMethod>,
 }
 
@@ -3673,39 +3174,21 @@ impl CheckoutUsBankAccountPaymentMethodOptionsVerificationMethod {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutUsBankAccountPaymentMethodOptionsVerificationMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutUsBankAccountPaymentMethodOptionsVerificationMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "automatic" => CheckoutUsBankAccountPaymentMethodOptionsVerificationMethod::Automatic,
-                    "instant" => CheckoutUsBankAccountPaymentMethodOptionsVerificationMethod::Instant,
-                    other => CheckoutUsBankAccountPaymentMethodOptionsVerificationMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutUsBankAccountPaymentMethodOptionsVerificationMethod::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CheckoutUsBankAccountPaymentMethodOptionsVerificationMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutUsBankAccountPaymentMethodOptionsVerificationMethod::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "automatic" => CheckoutUsBankAccountPaymentMethodOptionsVerificationMethod::Automatic,
+            "instant" => CheckoutUsBankAccountPaymentMethodOptionsVerificationMethod::Instant,
+            other => CheckoutUsBankAccountPaymentMethodOptionsVerificationMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3715,16 +3198,17 @@ impl<'de> serde::Deserialize<'de> for CheckoutUsBankAccountPaymentMethodOptionsV
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CheckoutWechatPayPaymentMethodOptions {
     #[doc = "The app ID registered with WeChat Pay."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub app_id: Option<String>,
     #[doc = "The client type that the end customer will pay from"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub client: Option<crate::checkout::CheckoutWechatPayPaymentMethodOptionsClient>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::checkout::CheckoutAffirmPaymentMethodOptionsSetupFutureUsage>,
 }
 
@@ -3767,38 +3251,20 @@ impl CheckoutWechatPayPaymentMethodOptionsClient {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for CheckoutWechatPayPaymentMethodOptionsClient {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CheckoutWechatPayPaymentMethodOptionsClient;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "android" => CheckoutWechatPayPaymentMethodOptionsClient::Android,
-                    "ios" => CheckoutWechatPayPaymentMethodOptionsClient::Ios,
-                    "web" => CheckoutWechatPayPaymentMethodOptionsClient::Web,
-                    other => CheckoutWechatPayPaymentMethodOptionsClient::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CheckoutWechatPayPaymentMethodOptionsClient::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CheckoutWechatPayPaymentMethodOptionsClient {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CheckoutWechatPayPaymentMethodOptionsClient::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "android" => CheckoutWechatPayPaymentMethodOptionsClient::Android,
+            "ios" => CheckoutWechatPayPaymentMethodOptionsClient::Ios,
+            "web" => CheckoutWechatPayPaymentMethodOptionsClient::Web,
+            other => CheckoutWechatPayPaymentMethodOptionsClient::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4173,91 +3639,73 @@ impl CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "acss_debit" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::AcssDebit,
-                    "affirm" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Affirm,
-                    "afterpay_clearpay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::AfterpayClearpay,
-                    "alipay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Alipay,
-                    "alma" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Alma,
-                    "amazon_pay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::AmazonPay,
-                    "au_becs_debit" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::AuBecsDebit,
-                    "bacs_debit" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::BacsDebit,
-                    "bancontact" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Bancontact,
-                    "billie" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Billie,
-                    "bizum" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Bizum,
-                    "blik" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Blik,
-                    "boleto" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Boleto,
-                    "card" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Card,
-                    "cashapp" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Cashapp,
-                    "crypto" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Crypto,
-                    "customer_balance" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::CustomerBalance,
-                    "eps" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Eps,
-                    "fpx" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Fpx,
-                    "giropay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Giropay,
-                    "grabpay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Grabpay,
-                    "ideal" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Ideal,
-                    "kakao_pay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::KakaoPay,
-                    "klarna" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Klarna,
-                    "konbini" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Konbini,
-                    "kr_card" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::KrCard,
-                    "link" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Link,
-                    "mb_way" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::MbWay,
-                    "mobilepay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Mobilepay,
-                    "multibanco" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Multibanco,
-                    "naver_pay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::NaverPay,
-                    "nz_bank_account" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::NzBankAccount,
-                    "oxxo" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Oxxo,
-                    "p24" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::P24,
-                    "pay_by_bank" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::PayByBank,
-                    "payco" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Payco,
-                    "paynow" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Paynow,
-                    "paypal" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Paypal,
-                    "paypay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Paypay,
-                    "payto" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Payto,
-                    "pix" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Pix,
-                    "promptpay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Promptpay,
-                    "revolut_pay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::RevolutPay,
-                    "samsung_pay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::SamsungPay,
-                    "satispay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Satispay,
-                    "scalapay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Scalapay,
-                    "sepa_debit" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::SepaDebit,
-                    "sequra" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Sequra,
-                    "sofort" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Sofort,
-                    "sunbit" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Sunbit,
-                    "swish" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Swish,
-                    "twint" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Twint,
-                    "upi" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Upi,
-                    "us_bank_account" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::UsBankAccount,
-                    "wechat_pay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::WechatPay,
-                    "zip" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Zip,
-                    other => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "acss_debit" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::AcssDebit,
+            "affirm" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Affirm,
+            "afterpay_clearpay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::AfterpayClearpay,
+            "alipay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Alipay,
+            "alma" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Alma,
+            "amazon_pay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::AmazonPay,
+            "au_becs_debit" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::AuBecsDebit,
+            "bacs_debit" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::BacsDebit,
+            "bancontact" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Bancontact,
+            "billie" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Billie,
+            "bizum" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Bizum,
+            "blik" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Blik,
+            "boleto" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Boleto,
+            "card" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Card,
+            "cashapp" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Cashapp,
+            "crypto" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Crypto,
+            "customer_balance" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::CustomerBalance,
+            "eps" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Eps,
+            "fpx" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Fpx,
+            "giropay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Giropay,
+            "grabpay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Grabpay,
+            "ideal" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Ideal,
+            "kakao_pay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::KakaoPay,
+            "klarna" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Klarna,
+            "konbini" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Konbini,
+            "kr_card" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::KrCard,
+            "link" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Link,
+            "mb_way" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::MbWay,
+            "mobilepay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Mobilepay,
+            "multibanco" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Multibanco,
+            "naver_pay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::NaverPay,
+            "nz_bank_account" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::NzBankAccount,
+            "oxxo" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Oxxo,
+            "p24" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::P24,
+            "pay_by_bank" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::PayByBank,
+            "payco" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Payco,
+            "paynow" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Paynow,
+            "paypal" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Paypal,
+            "paypay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Paypay,
+            "payto" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Payto,
+            "pix" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Pix,
+            "promptpay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Promptpay,
+            "revolut_pay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::RevolutPay,
+            "samsung_pay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::SamsungPay,
+            "satispay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Satispay,
+            "scalapay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Scalapay,
+            "sepa_debit" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::SepaDebit,
+            "sequra" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Sequra,
+            "sofort" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Sofort,
+            "sunbit" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Sunbit,
+            "swish" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Swish,
+            "twint" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Twint,
+            "upi" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Upi,
+            "us_bank_account" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::UsBankAccount,
+            "wechat_pay" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::WechatPay,
+            "zip" => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Zip,
+            other => CreateCheckoutSessionParamsAllowedPaymentMethodTypesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4324,37 +3772,19 @@ impl CreateCheckoutSessionParamsAutomaticTaxLiabilityType {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsAutomaticTaxLiabilityType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsAutomaticTaxLiabilityType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account" => CreateCheckoutSessionParamsAutomaticTaxLiabilityType::Account,
-                    "self" => CreateCheckoutSessionParamsAutomaticTaxLiabilityType::SelfValue,
-                    other => CreateCheckoutSessionParamsAutomaticTaxLiabilityType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsAutomaticTaxLiabilityType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsAutomaticTaxLiabilityType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsAutomaticTaxLiabilityType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account" => CreateCheckoutSessionParamsAutomaticTaxLiabilityType::Account,
+            "self" => CreateCheckoutSessionParamsAutomaticTaxLiabilityType::SelfValue,
+            other => CreateCheckoutSessionParamsAutomaticTaxLiabilityType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4387,37 +3817,19 @@ impl CreateCheckoutSessionParamsBillingAddressCollection {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsBillingAddressCollection {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsBillingAddressCollection;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => CreateCheckoutSessionParamsBillingAddressCollection::Auto,
-                    "required" => CreateCheckoutSessionParamsBillingAddressCollection::Required,
-                    other => CreateCheckoutSessionParamsBillingAddressCollection::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsBillingAddressCollection::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsBillingAddressCollection {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsBillingAddressCollection::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => CreateCheckoutSessionParamsBillingAddressCollection::Auto,
+            "required" => CreateCheckoutSessionParamsBillingAddressCollection::Required,
+            other => CreateCheckoutSessionParamsBillingAddressCollection::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4432,11 +3844,11 @@ impl crate::params::FormEncode for CreateCheckoutSessionParamsBillingAddressColl
 #[derive(Debug, Clone, Default)]
 pub struct CreateCheckoutSessionParamsBrandingSettings {
     #[doc = "A hex color value starting with `#` representing the background color for the Checkout Session."]
-    pub background_color: Option<serde_json::Value>,
+    pub background_color: Option<json::OwnedValue>,
     #[doc = "The border style for the Checkout Session."]
     pub border_style: Option<crate::checkout::CreateCheckoutSessionParamsBrandingSettingsBorderStyle>,
     #[doc = "A hex color value starting with `#` representing the button color for the Checkout Session."]
-    pub button_color: Option<serde_json::Value>,
+    pub button_color: Option<json::OwnedValue>,
     #[doc = "A string to override the business name shown on the Checkout Session."]
     pub display_name: Option<String>,
     #[doc = "The font family for the Checkout Session corresponding to one of the [supported font families](https://docs.stripe.co..."]
@@ -4484,39 +3896,21 @@ impl CreateCheckoutSessionParamsBrandingSettingsBorderStyle {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsBrandingSettingsBorderStyle {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsBrandingSettingsBorderStyle;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreateCheckoutSessionParamsBrandingSettingsBorderStyle::Unnamed,
-                    "pill" => CreateCheckoutSessionParamsBrandingSettingsBorderStyle::Pill,
-                    "rectangular" => CreateCheckoutSessionParamsBrandingSettingsBorderStyle::Rectangular,
-                    "rounded" => CreateCheckoutSessionParamsBrandingSettingsBorderStyle::Rounded,
-                    other => CreateCheckoutSessionParamsBrandingSettingsBorderStyle::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsBrandingSettingsBorderStyle::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsBrandingSettingsBorderStyle {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsBrandingSettingsBorderStyle::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreateCheckoutSessionParamsBrandingSettingsBorderStyle::Unnamed,
+            "pill" => CreateCheckoutSessionParamsBrandingSettingsBorderStyle::Pill,
+            "rectangular" => CreateCheckoutSessionParamsBrandingSettingsBorderStyle::Rectangular,
+            "rounded" => CreateCheckoutSessionParamsBrandingSettingsBorderStyle::Rounded,
+            other => CreateCheckoutSessionParamsBrandingSettingsBorderStyle::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4599,62 +3993,44 @@ impl CreateCheckoutSessionParamsBrandingSettingsFontFamily {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsBrandingSettingsFontFamily {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsBrandingSettingsFontFamily;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Unnamed,
-                    "be_vietnam_pro" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::BeVietnamPro,
-                    "bitter" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Bitter,
-                    "chakra_petch" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::ChakraPetch,
-                    "default" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Default,
-                    "hahmlet" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Hahmlet,
-                    "inconsolata" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Inconsolata,
-                    "inter" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Inter,
-                    "lato" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Lato,
-                    "lora" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Lora,
-                    "m_plus_1_code" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::MPlus1Code,
-                    "montserrat" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Montserrat,
-                    "noto_sans" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::NotoSans,
-                    "noto_sans_jp" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::NotoSansJp,
-                    "noto_serif" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::NotoSerif,
-                    "nunito" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Nunito,
-                    "open_sans" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::OpenSans,
-                    "pridi" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Pridi,
-                    "pt_sans" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::PtSans,
-                    "pt_serif" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::PtSerif,
-                    "raleway" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Raleway,
-                    "roboto" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Roboto,
-                    "roboto_slab" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::RobotoSlab,
-                    "source_sans_pro" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::SourceSansPro,
-                    "titillium_web" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::TitilliumWeb,
-                    "ubuntu_mono" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::UbuntuMono,
-                    "zen_maru_gothic" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::ZenMaruGothic,
-                    other => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsBrandingSettingsFontFamily::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsBrandingSettingsFontFamily {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsBrandingSettingsFontFamily::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Unnamed,
+            "be_vietnam_pro" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::BeVietnamPro,
+            "bitter" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Bitter,
+            "chakra_petch" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::ChakraPetch,
+            "default" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Default,
+            "hahmlet" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Hahmlet,
+            "inconsolata" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Inconsolata,
+            "inter" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Inter,
+            "lato" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Lato,
+            "lora" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Lora,
+            "m_plus_1_code" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::MPlus1Code,
+            "montserrat" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Montserrat,
+            "noto_sans" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::NotoSans,
+            "noto_sans_jp" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::NotoSansJp,
+            "noto_serif" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::NotoSerif,
+            "nunito" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Nunito,
+            "open_sans" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::OpenSans,
+            "pridi" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Pridi,
+            "pt_sans" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::PtSans,
+            "pt_serif" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::PtSerif,
+            "raleway" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Raleway,
+            "roboto" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Roboto,
+            "roboto_slab" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::RobotoSlab,
+            "source_sans_pro" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::SourceSansPro,
+            "titillium_web" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::TitilliumWeb,
+            "ubuntu_mono" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::UbuntuMono,
+            "zen_maru_gothic" => CreateCheckoutSessionParamsBrandingSettingsFontFamily::ZenMaruGothic,
+            other => CreateCheckoutSessionParamsBrandingSettingsFontFamily::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4707,37 +4083,19 @@ impl CreateCheckoutSessionParamsBrandingSettingsIconType {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsBrandingSettingsIconType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsBrandingSettingsIconType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "file" => CreateCheckoutSessionParamsBrandingSettingsIconType::File,
-                    "url" => CreateCheckoutSessionParamsBrandingSettingsIconType::Url,
-                    other => CreateCheckoutSessionParamsBrandingSettingsIconType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsBrandingSettingsIconType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsBrandingSettingsIconType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsBrandingSettingsIconType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "file" => CreateCheckoutSessionParamsBrandingSettingsIconType::File,
+            "url" => CreateCheckoutSessionParamsBrandingSettingsIconType::Url,
+            other => CreateCheckoutSessionParamsBrandingSettingsIconType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4829,43 +4187,23 @@ impl CreateCheckoutSessionParamsConsentCollectionPaymentMethodReuseAgreementPosi
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsConsentCollectionPaymentMethodReuseAgreementPosition {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsConsentCollectionPaymentMethodReuseAgreementPosition;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => CreateCheckoutSessionParamsConsentCollectionPaymentMethodReuseAgreementPosition::Auto,
-                    "hidden" => CreateCheckoutSessionParamsConsentCollectionPaymentMethodReuseAgreementPosition::Hidden,
-                    other => CreateCheckoutSessionParamsConsentCollectionPaymentMethodReuseAgreementPosition::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateCheckoutSessionParamsConsentCollectionPaymentMethodReuseAgreementPosition::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsConsentCollectionPaymentMethodReuseAgreementPosition {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsConsentCollectionPaymentMethodReuseAgreementPosition::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => CreateCheckoutSessionParamsConsentCollectionPaymentMethodReuseAgreementPosition::Auto,
+            "hidden" => CreateCheckoutSessionParamsConsentCollectionPaymentMethodReuseAgreementPosition::Hidden,
+            other => CreateCheckoutSessionParamsConsentCollectionPaymentMethodReuseAgreementPosition::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -4898,37 +4236,19 @@ impl CreateCheckoutSessionParamsConsentCollectionPromotions {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsConsentCollectionPromotions {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsConsentCollectionPromotions;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => CreateCheckoutSessionParamsConsentCollectionPromotions::Auto,
-                    "none" => CreateCheckoutSessionParamsConsentCollectionPromotions::None,
-                    other => CreateCheckoutSessionParamsConsentCollectionPromotions::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsConsentCollectionPromotions::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsConsentCollectionPromotions {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsConsentCollectionPromotions::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => CreateCheckoutSessionParamsConsentCollectionPromotions::Auto,
+            "none" => CreateCheckoutSessionParamsConsentCollectionPromotions::None,
+            other => CreateCheckoutSessionParamsConsentCollectionPromotions::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4961,39 +4281,21 @@ impl CreateCheckoutSessionParamsConsentCollectionTermsOfService {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsConsentCollectionTermsOfService {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsConsentCollectionTermsOfService;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "none" => CreateCheckoutSessionParamsConsentCollectionTermsOfService::None,
-                    "required" => CreateCheckoutSessionParamsConsentCollectionTermsOfService::Required,
-                    other => CreateCheckoutSessionParamsConsentCollectionTermsOfService::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsConsentCollectionTermsOfService::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsConsentCollectionTermsOfService {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsConsentCollectionTermsOfService::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "none" => CreateCheckoutSessionParamsConsentCollectionTermsOfService::None,
+            "required" => CreateCheckoutSessionParamsConsentCollectionTermsOfService::Required,
+            other => CreateCheckoutSessionParamsConsentCollectionTermsOfService::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5109,36 +4411,18 @@ impl CreateCheckoutSessionParamsCustomFieldsItemLabelType {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsCustomFieldsItemLabelType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsCustomFieldsItemLabelType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "custom" => CreateCheckoutSessionParamsCustomFieldsItemLabelType::Custom,
-                    other => CreateCheckoutSessionParamsCustomFieldsItemLabelType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsCustomFieldsItemLabelType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsCustomFieldsItemLabelType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsCustomFieldsItemLabelType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "custom" => CreateCheckoutSessionParamsCustomFieldsItemLabelType::Custom,
+            other => CreateCheckoutSessionParamsCustomFieldsItemLabelType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5197,38 +4481,20 @@ impl CreateCheckoutSessionParamsCustomFieldsItemType {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsCustomFieldsItemType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsCustomFieldsItemType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "dropdown" => CreateCheckoutSessionParamsCustomFieldsItemType::Dropdown,
-                    "numeric" => CreateCheckoutSessionParamsCustomFieldsItemType::Numeric,
-                    "text" => CreateCheckoutSessionParamsCustomFieldsItemType::Text,
-                    other => CreateCheckoutSessionParamsCustomFieldsItemType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsCustomFieldsItemType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsCustomFieldsItemType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsCustomFieldsItemType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "dropdown" => CreateCheckoutSessionParamsCustomFieldsItemType::Dropdown,
+            "numeric" => CreateCheckoutSessionParamsCustomFieldsItemType::Numeric,
+            "text" => CreateCheckoutSessionParamsCustomFieldsItemType::Text,
+            other => CreateCheckoutSessionParamsCustomFieldsItemType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5311,37 +4577,19 @@ impl CreateCheckoutSessionParamsCustomerCreation {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsCustomerCreation {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsCustomerCreation;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => CreateCheckoutSessionParamsCustomerCreation::Always,
-                    "if_required" => CreateCheckoutSessionParamsCustomerCreation::IfRequired,
-                    other => CreateCheckoutSessionParamsCustomerCreation::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsCustomerCreation::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsCustomerCreation {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsCustomerCreation::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => CreateCheckoutSessionParamsCustomerCreation::Always,
+            "if_required" => CreateCheckoutSessionParamsCustomerCreation::IfRequired,
+            other => CreateCheckoutSessionParamsCustomerCreation::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5394,37 +4642,19 @@ impl CreateCheckoutSessionParamsCustomerUpdateAddress {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsCustomerUpdateAddress {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsCustomerUpdateAddress;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => CreateCheckoutSessionParamsCustomerUpdateAddress::Auto,
-                    "never" => CreateCheckoutSessionParamsCustomerUpdateAddress::Never,
-                    other => CreateCheckoutSessionParamsCustomerUpdateAddress::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsCustomerUpdateAddress::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsCustomerUpdateAddress {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsCustomerUpdateAddress::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => CreateCheckoutSessionParamsCustomerUpdateAddress::Auto,
+            "never" => CreateCheckoutSessionParamsCustomerUpdateAddress::Never,
+            other => CreateCheckoutSessionParamsCustomerUpdateAddress::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5588,90 +4818,72 @@ impl CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "acss_debit" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::AcssDebit,
-                    "affirm" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Affirm,
-                    "afterpay_clearpay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::AfterpayClearpay,
-                    "alipay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Alipay,
-                    "alma" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Alma,
-                    "amazon_pay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::AmazonPay,
-                    "au_becs_debit" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::AuBecsDebit,
-                    "bacs_debit" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::BacsDebit,
-                    "bancontact" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Bancontact,
-                    "billie" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Billie,
-                    "bizum" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Bizum,
-                    "blik" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Blik,
-                    "boleto" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Boleto,
-                    "card" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Card,
-                    "cashapp" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Cashapp,
-                    "crypto" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Crypto,
-                    "customer_balance" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::CustomerBalance,
-                    "eps" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Eps,
-                    "fpx" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Fpx,
-                    "giropay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Giropay,
-                    "grabpay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Grabpay,
-                    "ideal" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Ideal,
-                    "kakao_pay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::KakaoPay,
-                    "klarna" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Klarna,
-                    "konbini" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Konbini,
-                    "kr_card" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::KrCard,
-                    "mb_way" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::MbWay,
-                    "mobilepay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Mobilepay,
-                    "multibanco" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Multibanco,
-                    "naver_pay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::NaverPay,
-                    "nz_bank_account" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::NzBankAccount,
-                    "oxxo" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Oxxo,
-                    "p24" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::P24,
-                    "pay_by_bank" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::PayByBank,
-                    "payco" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Payco,
-                    "paynow" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Paynow,
-                    "paypal" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Paypal,
-                    "paypay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Paypay,
-                    "payto" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Payto,
-                    "pix" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Pix,
-                    "promptpay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Promptpay,
-                    "revolut_pay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::RevolutPay,
-                    "samsung_pay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::SamsungPay,
-                    "satispay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Satispay,
-                    "scalapay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Scalapay,
-                    "sepa_debit" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::SepaDebit,
-                    "sequra" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Sequra,
-                    "sofort" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Sofort,
-                    "sunbit" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Sunbit,
-                    "swish" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Swish,
-                    "twint" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Twint,
-                    "upi" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Upi,
-                    "us_bank_account" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::UsBankAccount,
-                    "wechat_pay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::WechatPay,
-                    "zip" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Zip,
-                    other => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "acss_debit" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::AcssDebit,
+            "affirm" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Affirm,
+            "afterpay_clearpay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::AfterpayClearpay,
+            "alipay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Alipay,
+            "alma" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Alma,
+            "amazon_pay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::AmazonPay,
+            "au_becs_debit" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::AuBecsDebit,
+            "bacs_debit" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::BacsDebit,
+            "bancontact" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Bancontact,
+            "billie" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Billie,
+            "bizum" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Bizum,
+            "blik" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Blik,
+            "boleto" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Boleto,
+            "card" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Card,
+            "cashapp" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Cashapp,
+            "crypto" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Crypto,
+            "customer_balance" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::CustomerBalance,
+            "eps" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Eps,
+            "fpx" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Fpx,
+            "giropay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Giropay,
+            "grabpay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Grabpay,
+            "ideal" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Ideal,
+            "kakao_pay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::KakaoPay,
+            "klarna" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Klarna,
+            "konbini" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Konbini,
+            "kr_card" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::KrCard,
+            "mb_way" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::MbWay,
+            "mobilepay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Mobilepay,
+            "multibanco" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Multibanco,
+            "naver_pay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::NaverPay,
+            "nz_bank_account" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::NzBankAccount,
+            "oxxo" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Oxxo,
+            "p24" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::P24,
+            "pay_by_bank" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::PayByBank,
+            "payco" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Payco,
+            "paynow" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Paynow,
+            "paypal" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Paypal,
+            "paypay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Paypay,
+            "payto" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Payto,
+            "pix" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Pix,
+            "promptpay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Promptpay,
+            "revolut_pay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::RevolutPay,
+            "samsung_pay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::SamsungPay,
+            "satispay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Satispay,
+            "scalapay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Scalapay,
+            "sepa_debit" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::SepaDebit,
+            "sequra" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Sequra,
+            "sofort" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Sofort,
+            "sunbit" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Sunbit,
+            "swish" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Swish,
+            "twint" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Twint,
+            "upi" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Upi,
+            "us_bank_account" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::UsBankAccount,
+            "wechat_pay" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::WechatPay,
+            "zip" => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Zip,
+            other => CreateCheckoutSessionParamsExcludedPaymentMethodTypesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5703,9 +4915,9 @@ impl crate::params::FormEncode for CreateCheckoutSessionParamsInvoiceCreation {
 #[derive(Debug, Clone, Default)]
 pub struct CreateCheckoutSessionParamsInvoiceCreationInvoiceData {
     #[doc = "The account tax IDs associated with the invoice."]
-    pub account_tax_ids: Option<serde_json::Value>,
+    pub account_tax_ids: Option<json::OwnedValue>,
     #[doc = "Default custom fields to be displayed on invoices for this customer."]
-    pub custom_fields: Option<serde_json::Value>,
+    pub custom_fields: Option<json::OwnedValue>,
     #[doc = "An arbitrary string attached to the object."]
     pub description: Option<String>,
     #[doc = "Default footer to be displayed on invoices for this customer."]
@@ -5797,44 +5009,26 @@ impl CreateCheckoutSessionParamsInvoiceCreationInvoiceDataRenderingOptionsAmount
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateCheckoutSessionParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreateCheckoutSessionParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay::Unnamed,
-                    "exclude_tax" => CreateCheckoutSessionParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay::ExcludeTax,
-                    "include_inclusive_tax" => CreateCheckoutSessionParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay::IncludeInclusiveTax,
-                    other => CreateCheckoutSessionParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateCheckoutSessionParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreateCheckoutSessionParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay::Unnamed,
+            "exclude_tax" => CreateCheckoutSessionParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay::ExcludeTax,
+            "include_inclusive_tax" => CreateCheckoutSessionParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay::IncludeInclusiveTax,
+            other => CreateCheckoutSessionParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5978,7 +5172,7 @@ pub struct CreateCheckoutSessionParamsLineItemsItemPriceDataProductDataTaxDetail
     #[doc = "A tax location ID."]
     pub performance_location: Option<String>,
     #[doc = "A [tax code](https://docs.stripe.com/tax/tax-categories) ID."]
-    pub tax_code: Option<serde_json::Value>,
+    pub tax_code: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "checkout")]
@@ -6031,43 +5225,23 @@ impl CreateCheckoutSessionParamsLineItemsItemPriceDataRecurringInterval {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsLineItemsItemPriceDataRecurringInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsLineItemsItemPriceDataRecurringInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "day" => CreateCheckoutSessionParamsLineItemsItemPriceDataRecurringInterval::Day,
-                    "month" => CreateCheckoutSessionParamsLineItemsItemPriceDataRecurringInterval::Month,
-                    "week" => CreateCheckoutSessionParamsLineItemsItemPriceDataRecurringInterval::Week,
-                    "year" => CreateCheckoutSessionParamsLineItemsItemPriceDataRecurringInterval::Year,
-                    other => {
-                        CreateCheckoutSessionParamsLineItemsItemPriceDataRecurringInterval::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsLineItemsItemPriceDataRecurringInterval::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsLineItemsItemPriceDataRecurringInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsLineItemsItemPriceDataRecurringInterval::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "day" => CreateCheckoutSessionParamsLineItemsItemPriceDataRecurringInterval::Day,
+            "month" => CreateCheckoutSessionParamsLineItemsItemPriceDataRecurringInterval::Month,
+            "week" => CreateCheckoutSessionParamsLineItemsItemPriceDataRecurringInterval::Week,
+            "year" => CreateCheckoutSessionParamsLineItemsItemPriceDataRecurringInterval::Year,
+            other => CreateCheckoutSessionParamsLineItemsItemPriceDataRecurringInterval::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6102,40 +5276,22 @@ impl CreateCheckoutSessionParamsLineItemsItemPriceDataTaxBehavior {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsLineItemsItemPriceDataTaxBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsLineItemsItemPriceDataTaxBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exclusive" => CreateCheckoutSessionParamsLineItemsItemPriceDataTaxBehavior::Exclusive,
-                    "inclusive" => CreateCheckoutSessionParamsLineItemsItemPriceDataTaxBehavior::Inclusive,
-                    "unspecified" => CreateCheckoutSessionParamsLineItemsItemPriceDataTaxBehavior::Unspecified,
-                    other => CreateCheckoutSessionParamsLineItemsItemPriceDataTaxBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsLineItemsItemPriceDataTaxBehavior::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsLineItemsItemPriceDataTaxBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsLineItemsItemPriceDataTaxBehavior::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exclusive" => CreateCheckoutSessionParamsLineItemsItemPriceDataTaxBehavior::Exclusive,
+            "inclusive" => CreateCheckoutSessionParamsLineItemsItemPriceDataTaxBehavior::Inclusive,
+            "unspecified" => CreateCheckoutSessionParamsLineItemsItemPriceDataTaxBehavior::Unspecified,
+            other => CreateCheckoutSessionParamsLineItemsItemPriceDataTaxBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6246,76 +5402,58 @@ impl CreateCheckoutSessionParamsLocale {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsLocale {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsLocale;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => CreateCheckoutSessionParamsLocale::Auto,
-                    "bg" => CreateCheckoutSessionParamsLocale::Bg,
-                    "cs" => CreateCheckoutSessionParamsLocale::Cs,
-                    "da" => CreateCheckoutSessionParamsLocale::Da,
-                    "de" => CreateCheckoutSessionParamsLocale::De,
-                    "el" => CreateCheckoutSessionParamsLocale::El,
-                    "en" => CreateCheckoutSessionParamsLocale::En,
-                    "en-GB" => CreateCheckoutSessionParamsLocale::EnGB,
-                    "es" => CreateCheckoutSessionParamsLocale::Es,
-                    "es-419" => CreateCheckoutSessionParamsLocale::Es419,
-                    "et" => CreateCheckoutSessionParamsLocale::Et,
-                    "fi" => CreateCheckoutSessionParamsLocale::Fi,
-                    "fil" => CreateCheckoutSessionParamsLocale::Fil,
-                    "fr" => CreateCheckoutSessionParamsLocale::Fr,
-                    "fr-CA" => CreateCheckoutSessionParamsLocale::FrCA,
-                    "hr" => CreateCheckoutSessionParamsLocale::Hr,
-                    "hu" => CreateCheckoutSessionParamsLocale::Hu,
-                    "id" => CreateCheckoutSessionParamsLocale::Id,
-                    "it" => CreateCheckoutSessionParamsLocale::It,
-                    "ja" => CreateCheckoutSessionParamsLocale::Ja,
-                    "ko" => CreateCheckoutSessionParamsLocale::Ko,
-                    "lt" => CreateCheckoutSessionParamsLocale::Lt,
-                    "lv" => CreateCheckoutSessionParamsLocale::Lv,
-                    "ms" => CreateCheckoutSessionParamsLocale::Ms,
-                    "mt" => CreateCheckoutSessionParamsLocale::Mt,
-                    "nb" => CreateCheckoutSessionParamsLocale::Nb,
-                    "nl" => CreateCheckoutSessionParamsLocale::Nl,
-                    "pl" => CreateCheckoutSessionParamsLocale::Pl,
-                    "pt" => CreateCheckoutSessionParamsLocale::Pt,
-                    "pt-BR" => CreateCheckoutSessionParamsLocale::PtBR,
-                    "ro" => CreateCheckoutSessionParamsLocale::Ro,
-                    "ru" => CreateCheckoutSessionParamsLocale::Ru,
-                    "sk" => CreateCheckoutSessionParamsLocale::Sk,
-                    "sl" => CreateCheckoutSessionParamsLocale::Sl,
-                    "sv" => CreateCheckoutSessionParamsLocale::Sv,
-                    "th" => CreateCheckoutSessionParamsLocale::Th,
-                    "tr" => CreateCheckoutSessionParamsLocale::Tr,
-                    "vi" => CreateCheckoutSessionParamsLocale::Vi,
-                    "zh" => CreateCheckoutSessionParamsLocale::Zh,
-                    "zh-HK" => CreateCheckoutSessionParamsLocale::ZhHK,
-                    "zh-TW" => CreateCheckoutSessionParamsLocale::ZhTW,
-                    other => CreateCheckoutSessionParamsLocale::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsLocale::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsLocale {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsLocale::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => CreateCheckoutSessionParamsLocale::Auto,
+            "bg" => CreateCheckoutSessionParamsLocale::Bg,
+            "cs" => CreateCheckoutSessionParamsLocale::Cs,
+            "da" => CreateCheckoutSessionParamsLocale::Da,
+            "de" => CreateCheckoutSessionParamsLocale::De,
+            "el" => CreateCheckoutSessionParamsLocale::El,
+            "en" => CreateCheckoutSessionParamsLocale::En,
+            "en-GB" => CreateCheckoutSessionParamsLocale::EnGB,
+            "es" => CreateCheckoutSessionParamsLocale::Es,
+            "es-419" => CreateCheckoutSessionParamsLocale::Es419,
+            "et" => CreateCheckoutSessionParamsLocale::Et,
+            "fi" => CreateCheckoutSessionParamsLocale::Fi,
+            "fil" => CreateCheckoutSessionParamsLocale::Fil,
+            "fr" => CreateCheckoutSessionParamsLocale::Fr,
+            "fr-CA" => CreateCheckoutSessionParamsLocale::FrCA,
+            "hr" => CreateCheckoutSessionParamsLocale::Hr,
+            "hu" => CreateCheckoutSessionParamsLocale::Hu,
+            "id" => CreateCheckoutSessionParamsLocale::Id,
+            "it" => CreateCheckoutSessionParamsLocale::It,
+            "ja" => CreateCheckoutSessionParamsLocale::Ja,
+            "ko" => CreateCheckoutSessionParamsLocale::Ko,
+            "lt" => CreateCheckoutSessionParamsLocale::Lt,
+            "lv" => CreateCheckoutSessionParamsLocale::Lv,
+            "ms" => CreateCheckoutSessionParamsLocale::Ms,
+            "mt" => CreateCheckoutSessionParamsLocale::Mt,
+            "nb" => CreateCheckoutSessionParamsLocale::Nb,
+            "nl" => CreateCheckoutSessionParamsLocale::Nl,
+            "pl" => CreateCheckoutSessionParamsLocale::Pl,
+            "pt" => CreateCheckoutSessionParamsLocale::Pt,
+            "pt-BR" => CreateCheckoutSessionParamsLocale::PtBR,
+            "ro" => CreateCheckoutSessionParamsLocale::Ro,
+            "ru" => CreateCheckoutSessionParamsLocale::Ru,
+            "sk" => CreateCheckoutSessionParamsLocale::Sk,
+            "sl" => CreateCheckoutSessionParamsLocale::Sl,
+            "sv" => CreateCheckoutSessionParamsLocale::Sv,
+            "th" => CreateCheckoutSessionParamsLocale::Th,
+            "tr" => CreateCheckoutSessionParamsLocale::Tr,
+            "vi" => CreateCheckoutSessionParamsLocale::Vi,
+            "zh" => CreateCheckoutSessionParamsLocale::Zh,
+            "zh-HK" => CreateCheckoutSessionParamsLocale::ZhHK,
+            "zh-TW" => CreateCheckoutSessionParamsLocale::ZhTW,
+            other => CreateCheckoutSessionParamsLocale::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6353,38 +5491,20 @@ impl CreateCheckoutSessionParamsMode {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsMode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsMode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "payment" => CreateCheckoutSessionParamsMode::Payment,
-                    "setup" => CreateCheckoutSessionParamsMode::Setup,
-                    "subscription" => CreateCheckoutSessionParamsMode::Subscription,
-                    other => CreateCheckoutSessionParamsMode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsMode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsMode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsMode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "payment" => CreateCheckoutSessionParamsMode::Payment,
+            "setup" => CreateCheckoutSessionParamsMode::Setup,
+            "subscription" => CreateCheckoutSessionParamsMode::Subscription,
+            other => CreateCheckoutSessionParamsMode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6479,37 +5599,19 @@ impl CreateCheckoutSessionParamsOriginContext {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsOriginContext {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsOriginContext;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "mobile_app" => CreateCheckoutSessionParamsOriginContext::MobileApp,
-                    "web" => CreateCheckoutSessionParamsOriginContext::Web,
-                    other => CreateCheckoutSessionParamsOriginContext::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsOriginContext::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsOriginContext {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsOriginContext::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "mobile_app" => CreateCheckoutSessionParamsOriginContext::MobileApp,
+            "web" => CreateCheckoutSessionParamsOriginContext::Web,
+            other => CreateCheckoutSessionParamsOriginContext::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6595,38 +5697,20 @@ impl CreateCheckoutSessionParamsPaymentIntentDataCaptureMethod {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentIntentDataCaptureMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentIntentDataCaptureMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "automatic" => CreateCheckoutSessionParamsPaymentIntentDataCaptureMethod::Automatic,
-                    "automatic_async" => CreateCheckoutSessionParamsPaymentIntentDataCaptureMethod::AutomaticAsync,
-                    "manual" => CreateCheckoutSessionParamsPaymentIntentDataCaptureMethod::Manual,
-                    other => CreateCheckoutSessionParamsPaymentIntentDataCaptureMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentIntentDataCaptureMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentIntentDataCaptureMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsPaymentIntentDataCaptureMethod::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "automatic" => CreateCheckoutSessionParamsPaymentIntentDataCaptureMethod::Automatic,
+            "automatic_async" => CreateCheckoutSessionParamsPaymentIntentDataCaptureMethod::AutomaticAsync,
+            "manual" => CreateCheckoutSessionParamsPaymentIntentDataCaptureMethod::Manual,
+            other => CreateCheckoutSessionParamsPaymentIntentDataCaptureMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6659,39 +5743,21 @@ impl CreateCheckoutSessionParamsPaymentIntentDataSetupFutureUsage {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentIntentDataSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentIntentDataSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "off_session" => CreateCheckoutSessionParamsPaymentIntentDataSetupFutureUsage::OffSession,
-                    "on_session" => CreateCheckoutSessionParamsPaymentIntentDataSetupFutureUsage::OnSession,
-                    other => CreateCheckoutSessionParamsPaymentIntentDataSetupFutureUsage::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentIntentDataSetupFutureUsage::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentIntentDataSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsPaymentIntentDataSetupFutureUsage::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "off_session" => CreateCheckoutSessionParamsPaymentIntentDataSetupFutureUsage::OffSession,
+            "on_session" => CreateCheckoutSessionParamsPaymentIntentDataSetupFutureUsage::OnSession,
+            other => CreateCheckoutSessionParamsPaymentIntentDataSetupFutureUsage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6816,40 +5882,22 @@ impl CreateCheckoutSessionParamsPaymentMethodDataAllowRedisplay {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodDataAllowRedisplay {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodDataAllowRedisplay;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => CreateCheckoutSessionParamsPaymentMethodDataAllowRedisplay::Always,
-                    "limited" => CreateCheckoutSessionParamsPaymentMethodDataAllowRedisplay::Limited,
-                    "unspecified" => CreateCheckoutSessionParamsPaymentMethodDataAllowRedisplay::Unspecified,
-                    other => CreateCheckoutSessionParamsPaymentMethodDataAllowRedisplay::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentMethodDataAllowRedisplay::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodDataAllowRedisplay {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsPaymentMethodDataAllowRedisplay::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => CreateCheckoutSessionParamsPaymentMethodDataAllowRedisplay::Always,
+            "limited" => CreateCheckoutSessionParamsPaymentMethodDataAllowRedisplay::Limited,
+            "unspecified" => CreateCheckoutSessionParamsPaymentMethodDataAllowRedisplay::Unspecified,
+            other => CreateCheckoutSessionParamsPaymentMethodDataAllowRedisplay::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7075,41 +6123,21 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitCurrency {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitCurrency {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitCurrency;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cad" => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitCurrency::Cad,
-                    "usd" => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitCurrency::Usd,
-                    other => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitCurrency::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitCurrency::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitCurrency {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitCurrency::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cad" => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitCurrency::Cad,
+            "usd" => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitCurrency::Usd,
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitCurrency::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7124,7 +6152,7 @@ impl crate::params::FormEncode for CreateCheckoutSessionParamsPaymentMethodOptio
 #[derive(Debug, Clone, Default)]
 pub struct CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptions {
     #[doc = "A URL for custom mandate text to render during confirmation step."]
-    pub custom_mandate_url: Option<serde_json::Value>,
+    pub custom_mandate_url: Option<json::OwnedValue>,
     #[doc = "List of Stripe products where this mandate can be selected automatically."]
     pub default_for: Option<
         Vec<crate::checkout::CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsDefaultForItem>,
@@ -7177,43 +6205,29 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsDefau
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsDefaultForItem
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsDefaultForItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "invoice" => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsDefaultForItem::Invoice,
-                    "subscription" => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsDefaultForItem::Subscription,
-                    other => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsDefaultForItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsDefaultForItem::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsDefaultForItem::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "invoice" => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsDefaultForItem::Invoice,
+            "subscription" => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsDefaultForItem::Subscription
+            }
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsDefaultForItem::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -7258,54 +6272,34 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsPayme
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "combined" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule::Combined
-                    }
-                    "interval" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule::Interval
-                    }
-                    "sporadic" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule::Sporadic
-                    }
-                    other => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "combined" => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule::Combined
+            }
+            "interval" => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule::Interval
+            }
+            "sporadic" => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule::Sporadic
+            }
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -7346,51 +6340,31 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsTrans
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "business" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Business
-                    }
-                    "personal" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Personal
-                    }
-                    other => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "business" => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Business
+            }
+            "personal" => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Personal
+            }
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -7427,42 +6401,24 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitSetupFutureUsage {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "none" => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::None,
-                    "off_session" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::OffSession
-                    }
-                    "on_session" => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::OnSession,
-                    other => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "none" => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::None,
+            "off_session" => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::OffSession,
+            "on_session" => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::OnSession,
+            other => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -7499,44 +6455,26 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitVerificationMethod 
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitVerificationMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitVerificationMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "automatic" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitVerificationMethod::Automatic
-                    }
-                    "instant" => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitVerificationMethod::Instant,
-                    "microdeposits" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitVerificationMethod::Microdeposits
-                    }
-                    other => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitVerificationMethod::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitVerificationMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitVerificationMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitVerificationMethod::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "automatic" => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitVerificationMethod::Automatic,
+            "instant" => CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitVerificationMethod::Instant,
+            "microdeposits" => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitVerificationMethod::Microdeposits
+            }
+            other => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsAcssDebitVerificationMethod::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -7585,40 +6523,20 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsAffirmCaptureMethod {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsAffirmCaptureMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsAffirmCaptureMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "manual" => CreateCheckoutSessionParamsPaymentMethodOptionsAffirmCaptureMethod::Manual,
-                    other => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsAffirmCaptureMethod::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentMethodOptionsAffirmCaptureMethod::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsAffirmCaptureMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsPaymentMethodOptionsAffirmCaptureMethod::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "manual" => CreateCheckoutSessionParamsPaymentMethodOptionsAffirmCaptureMethod::Manual,
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsAffirmCaptureMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7649,40 +6567,20 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsAffirmSetupFutureUsage {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsAffirmSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsAffirmSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "none" => CreateCheckoutSessionParamsPaymentMethodOptionsAffirmSetupFutureUsage::None,
-                    other => CreateCheckoutSessionParamsPaymentMethodOptionsAffirmSetupFutureUsage::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentMethodOptionsAffirmSetupFutureUsage::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsAffirmSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsPaymentMethodOptionsAffirmSetupFutureUsage::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "none" => CreateCheckoutSessionParamsPaymentMethodOptionsAffirmSetupFutureUsage::None,
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsAffirmSetupFutureUsage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7801,41 +6699,23 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsAmazonPaySetupFutureUsage {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsAmazonPaySetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsAmazonPaySetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "none" => CreateCheckoutSessionParamsPaymentMethodOptionsAmazonPaySetupFutureUsage::None,
-                    "off_session" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsAmazonPaySetupFutureUsage::OffSession
-                    }
-                    other => CreateCheckoutSessionParamsPaymentMethodOptionsAmazonPaySetupFutureUsage::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentMethodOptionsAmazonPaySetupFutureUsage::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsAmazonPaySetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsPaymentMethodOptionsAmazonPaySetupFutureUsage::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "none" => CreateCheckoutSessionParamsPaymentMethodOptionsAmazonPaySetupFutureUsage::None,
+            "off_session" => CreateCheckoutSessionParamsPaymentMethodOptionsAmazonPaySetupFutureUsage::OffSession,
+            other => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsAmazonPaySetupFutureUsage::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -7894,7 +6774,7 @@ impl crate::params::FormEncode for CreateCheckoutSessionParamsPaymentMethodOptio
 #[derive(Debug, Clone, Default)]
 pub struct CreateCheckoutSessionParamsPaymentMethodOptionsBacsDebitMandateOptions {
     #[doc = "Prefix used to generate the Mandate reference."]
-    pub reference_prefix: Option<serde_json::Value>,
+    pub reference_prefix: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "checkout")]
@@ -8000,42 +6880,22 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsBlikSetupFutureUsage {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsBlikSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsBlikSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreateCheckoutSessionParamsPaymentMethodOptionsBlikSetupFutureUsage::Unnamed,
-                    "none" => CreateCheckoutSessionParamsPaymentMethodOptionsBlikSetupFutureUsage::None,
-                    "off_session" => CreateCheckoutSessionParamsPaymentMethodOptionsBlikSetupFutureUsage::OffSession,
-                    other => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsBlikSetupFutureUsage::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentMethodOptionsBlikSetupFutureUsage::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsBlikSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsPaymentMethodOptionsBlikSetupFutureUsage::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreateCheckoutSessionParamsPaymentMethodOptionsBlikSetupFutureUsage::Unnamed,
+            "none" => CreateCheckoutSessionParamsPaymentMethodOptionsBlikSetupFutureUsage::None,
+            "off_session" => CreateCheckoutSessionParamsPaymentMethodOptionsBlikSetupFutureUsage::OffSession,
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsBlikSetupFutureUsage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8159,45 +7019,25 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestExtendedAuthoriza
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestExtendedAuthorization {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestExtendedAuthorization;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "if_available" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestExtendedAuthorization::IfAvailable
-                    }
-                    "never" => CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestExtendedAuthorization::Never,
-                    other => CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestExtendedAuthorization::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestExtendedAuthorization::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestExtendedAuthorization {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestExtendedAuthorization::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "if_available" => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestExtendedAuthorization::IfAvailable
+            }
+            "never" => CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestExtendedAuthorization::Never,
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestExtendedAuthorization::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -8244,42 +7084,22 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestThreeDSecure {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestThreeDSecure {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestThreeDSecure;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "any" => CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestThreeDSecure::Any,
-                    "automatic" => CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestThreeDSecure::Automatic,
-                    "challenge" => CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestThreeDSecure::Challenge,
-                    other => CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestThreeDSecure::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestThreeDSecure::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestThreeDSecure {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestThreeDSecure::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "any" => CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestThreeDSecure::Any,
+            "automatic" => CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestThreeDSecure::Automatic,
+            "challenge" => CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestThreeDSecure::Challenge,
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsCardRequestThreeDSecure::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8346,43 +7166,31 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsBrandsBlocke
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "american_express" => CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::AmericanExpress,
-                    "discover_global_network" => CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::DiscoverGlobalNetwork,
-                    "mastercard" => CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::Mastercard,
-                    "visa" => CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::Visa,
-                    other => CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "american_express" => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::AmericanExpress
+            }
+            "discover_global_network" => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::DiscoverGlobalNetwork
+            }
+            "mastercard" => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::Mastercard
+            }
+            "visa" => CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::Visa,
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -8421,54 +7229,30 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsFundingTypes
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsFundingTypesBlockedItem
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsFundingTypesBlockedItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "credit" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsFundingTypesBlockedItem::Credit
-                    }
-                    "debit" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsFundingTypesBlockedItem::Debit
-                    }
-                    "prepaid" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsFundingTypesBlockedItem::Prepaid
-                    }
-                    other => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsFundingTypesBlockedItem::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsFundingTypesBlockedItem::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsFundingTypesBlockedItem::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "credit" => CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsFundingTypesBlockedItem::Credit,
+            "debit" => CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsFundingTypesBlockedItem::Debit,
+            "prepaid" => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsFundingTypesBlockedItem::Prepaid
+            }
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsCardRestrictionsFundingTypesBlockedItem::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -8623,45 +7407,26 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferR
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value =
-                CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "aba" => CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Aba,
-                    "iban" => CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Iban,
-                    "sepa" => CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Sepa,
-                    "sort_code" => CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::SortCode,
-                    "spei" => CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Spei,
-                    "swift" => CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Swift,
-                    "zengin" => CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Zengin,
-                    other => CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "aba" => CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Aba,
+            "iban" => CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Iban,
+            "sepa" => CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Sepa,
+            "sort_code" => CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::SortCode,
+            "spei" => CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Spei,
+            "swift" => CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Swift,
+            "zengin" => CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Zengin,
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8712,56 +7477,36 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferT
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "eu_bank_transfer" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferType::EuBankTransfer
-                    }
-                    "gb_bank_transfer" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferType::GbBankTransfer
-                    }
-                    "jp_bank_transfer" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferType::JpBankTransfer
-                    }
-                    "mx_bank_transfer" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferType::MxBankTransfer
-                    }
-                    "us_bank_transfer" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferType::UsBankTransfer
-                    }
-                    other => CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferType::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferType::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferType::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "eu_bank_transfer" => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferType::EuBankTransfer
+            }
+            "gb_bank_transfer" => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferType::GbBankTransfer
+            }
+            "jp_bank_transfer" => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferType::JpBankTransfer
+            }
+            "mx_bank_transfer" => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferType::MxBankTransfer
+            }
+            "us_bank_transfer" => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferType::UsBankTransfer
+            }
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceBankTransferType::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -8792,40 +7537,22 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceFundingType {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceFundingType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceFundingType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "bank_transfer" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceFundingType::BankTransfer
-                    }
-                    other => CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceFundingType::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceFundingType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceFundingType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceFundingType::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "bank_transfer" => CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceFundingType::BankTransfer,
+            other => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsCustomerBalanceFundingType::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -8987,7 +7714,7 @@ pub struct CreateCheckoutSessionParamsPaymentMethodOptionsKlarna {
     pub setup_future_usage:
         Option<crate::checkout::CreateCheckoutSessionParamsPaymentMethodOptionsKlarnaSetupFutureUsage>,
     #[doc = "Subscription details if the Checkout Session sets up a future subscription."]
-    pub subscriptions: Option<serde_json::Value>,
+    pub subscriptions: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "checkout")]
@@ -9299,41 +8026,21 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsPaypalCaptureMethod {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsPaypalCaptureMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsPaypalCaptureMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalCaptureMethod::Unnamed,
-                    "manual" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalCaptureMethod::Manual,
-                    other => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsPaypalCaptureMethod::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentMethodOptionsPaypalCaptureMethod::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsPaypalCaptureMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsPaymentMethodOptionsPaypalCaptureMethod::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalCaptureMethod::Unnamed,
+            "manual" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalCaptureMethod::Manual,
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalCaptureMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -9404,60 +8111,40 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cs-CZ" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::CsCZ,
-                    "da-DK" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::DaDK,
-                    "de-AT" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::DeAT,
-                    "de-DE" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::DeDE,
-                    "de-LU" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::DeLU,
-                    "el-GR" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::ElGR,
-                    "en-GB" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::EnGB,
-                    "en-US" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::EnUS,
-                    "es-ES" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::EsES,
-                    "fi-FI" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::FiFI,
-                    "fr-BE" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::FrBE,
-                    "fr-FR" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::FrFR,
-                    "fr-LU" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::FrLU,
-                    "hu-HU" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::HuHU,
-                    "it-IT" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::ItIT,
-                    "nl-BE" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::NlBE,
-                    "nl-NL" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::NlNL,
-                    "pl-PL" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::PlPL,
-                    "pt-PT" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::PtPT,
-                    "sk-SK" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::SkSK,
-                    "sv-SE" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::SvSE,
-                    other => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cs-CZ" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::CsCZ,
+            "da-DK" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::DaDK,
+            "de-AT" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::DeAT,
+            "de-DE" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::DeDE,
+            "de-LU" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::DeLU,
+            "el-GR" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::ElGR,
+            "en-GB" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::EnGB,
+            "en-US" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::EnUS,
+            "es-ES" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::EsES,
+            "fi-FI" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::FiFI,
+            "fr-BE" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::FrBE,
+            "fr-FR" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::FrFR,
+            "fr-LU" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::FrLU,
+            "hu-HU" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::HuHU,
+            "it-IT" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::ItIT,
+            "nl-BE" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::NlBE,
+            "nl-NL" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::NlNL,
+            "pl-PL" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::PlPL,
+            "pt-PT" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::PtPT,
+            "sk-SK" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::SkSK,
+            "sv-SE" => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::SvSE,
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsPaypalPreferredLocale::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -9494,21 +8181,21 @@ impl crate::params::FormEncode for CreateCheckoutSessionParamsPaymentMethodOptio
 #[derive(Debug, Clone, Default)]
 pub struct CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptions {
     #[doc = "Amount that will be collected."]
-    pub amount: Option<serde_json::Value>,
+    pub amount: Option<json::OwnedValue>,
     #[doc = "The type of amount that will be collected."]
     pub amount_type:
         Option<crate::checkout::CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsAmountType>,
     #[doc = "Date, in YYYY-MM-DD format, after which payments will not be collected."]
-    pub end_date: Option<serde_json::Value>,
+    pub end_date: Option<json::OwnedValue>,
     #[doc = "The periodicity at which payments will be collected."]
     pub payment_schedule:
         Option<crate::checkout::CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule>,
     #[doc = "The number of payments that will be made during a payment period."]
-    pub payments_per_period: Option<serde_json::Value>,
+    pub payments_per_period: Option<json::OwnedValue>,
     #[doc = "The purpose for which payments are made."]
     pub purpose: Option<crate::checkout::CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose>,
     #[doc = "Date, in YYYY-MM-DD format, from which payments will be collected."]
-    pub start_date: Option<serde_json::Value>,
+    pub start_date: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "checkout")]
@@ -9544,40 +8231,24 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsAmountTyp
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsAmountType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsAmountType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsAmountType::Unnamed,
-                    "fixed" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsAmountType::Fixed,
-                    "maximum" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsAmountType::Maximum,
-                    other => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsAmountType::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsAmountType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsAmountType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsAmountType::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsAmountType::Unnamed,
+            "fixed" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsAmountType::Fixed,
+            "maximum" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsAmountType::Maximum,
+            other => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsAmountType::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -9628,66 +8299,36 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSc
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de>
-    for CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Unnamed,
-                    "adhoc" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Adhoc,
-                    "annual" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Annual
-                    }
-                    "daily" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Daily,
-                    "fortnightly" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Fortnightly
-                    }
-                    "monthly" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Monthly
-                    }
-                    "quarterly" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Quarterly
-                    }
-                    "semi_annual" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::SemiAnnual
-                    }
-                    "weekly" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Weekly
-                    }
-                    other => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Unnamed,
+            "adhoc" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Adhoc,
+            "annual" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Annual,
+            "daily" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Daily,
+            "fortnightly" => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Fortnightly
+            }
+            "monthly" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Monthly,
+            "quarterly" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Quarterly,
+            "semi_annual" => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::SemiAnnual
+            }
+            "weekly" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Weekly,
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -9742,53 +8383,35 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Unnamed,
-                    "dependant_support" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::DependantSupport
-                    }
-                    "government" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Government
-                    }
-                    "loan" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Loan,
-                    "mortgage" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Mortgage,
-                    "other" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Other,
-                    "pension" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Pension,
-                    "personal" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Personal,
-                    "retail" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Retail,
-                    "salary" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Salary,
-                    "tax" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Tax,
-                    "utility" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Utility,
-                    other => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Unnamed,
+            "dependant_support" => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::DependantSupport
+            }
+            "government" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Government,
+            "loan" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Loan,
+            "mortgage" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Mortgage,
+            "other" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Other,
+            "pension" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Pension,
+            "personal" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Personal,
+            "retail" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Retail,
+            "salary" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Salary,
+            "tax" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Tax,
+            "utility" => CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Utility,
+            other => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -9849,41 +8472,21 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsPixAmountIncludesIof {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsPixAmountIncludesIof {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsPixAmountIncludesIof;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => CreateCheckoutSessionParamsPaymentMethodOptionsPixAmountIncludesIof::Always,
-                    "never" => CreateCheckoutSessionParamsPaymentMethodOptionsPixAmountIncludesIof::Never,
-                    other => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsPixAmountIncludesIof::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentMethodOptionsPixAmountIncludesIof::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsPixAmountIncludesIof {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsPaymentMethodOptionsPixAmountIncludesIof::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => CreateCheckoutSessionParamsPaymentMethodOptionsPixAmountIncludesIof::Always,
+            "never" => CreateCheckoutSessionParamsPaymentMethodOptionsPixAmountIncludesIof::Never,
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsPixAmountIncludesIof::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -9958,39 +8561,23 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsAmountType 
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsAmountType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsAmountType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "fixed" => CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsAmountType::Fixed,
-                    "maximum" => CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsAmountType::Maximum,
-                    other => CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsAmountType::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsAmountType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsAmountType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsAmountType::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "fixed" => CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsAmountType::Fixed,
+            "maximum" => CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsAmountType::Maximum,
+            other => {
+                CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsAmountType::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -10029,52 +8616,26 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsPaymentSche
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "halfyearly" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Halfyearly
-                    }
-                    "monthly" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Monthly
-                    }
-                    "quarterly" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Quarterly
-                    }
-                    "weekly" => CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Weekly,
-                    "yearly" => CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Yearly,
-                    other => CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "halfyearly" => CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Halfyearly,
+            "monthly" => CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Monthly,
+            "quarterly" => CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Quarterly,
+            "weekly" => CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Weekly,
+            "yearly" => CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Yearly,
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -10373,43 +8934,23 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsUpiSetupFutureUsage {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsUpiSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsUpiSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreateCheckoutSessionParamsPaymentMethodOptionsUpiSetupFutureUsage::Unnamed,
-                    "none" => CreateCheckoutSessionParamsPaymentMethodOptionsUpiSetupFutureUsage::None,
-                    "off_session" => CreateCheckoutSessionParamsPaymentMethodOptionsUpiSetupFutureUsage::OffSession,
-                    "on_session" => CreateCheckoutSessionParamsPaymentMethodOptionsUpiSetupFutureUsage::OnSession,
-                    other => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsUpiSetupFutureUsage::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentMethodOptionsUpiSetupFutureUsage::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsUpiSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsPaymentMethodOptionsUpiSetupFutureUsage::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreateCheckoutSessionParamsPaymentMethodOptionsUpiSetupFutureUsage::Unnamed,
+            "none" => CreateCheckoutSessionParamsPaymentMethodOptionsUpiSetupFutureUsage::None,
+            "off_session" => CreateCheckoutSessionParamsPaymentMethodOptionsUpiSetupFutureUsage::OffSession,
+            "on_session" => CreateCheckoutSessionParamsPaymentMethodOptionsUpiSetupFutureUsage::OnSession,
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsUpiSetupFutureUsage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -10493,42 +9034,23 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnec
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value =
-                CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "balances" => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Balances,
-                    "ownership" => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Ownership,
-                    "payment_method" => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::PaymentMethod,
-                    "transactions" => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Transactions,
-                    other => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "balances" => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Balances,
+            "ownership" => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Ownership,
+            "payment_method" => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::PaymentMethod,
+            "transactions" => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Transactions,
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -10565,40 +9087,26 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnec
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "balances" => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Balances,
-                    "ownership" => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Ownership,
-                    "transactions" => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Transactions,
-                    other => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "balances" => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Balances,
+            "ownership" => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Ownership,
+            "transactions" => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Transactions,
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -10637,47 +9145,23 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountVerificationMet
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountVerificationMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountVerificationMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "automatic" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountVerificationMethod::Automatic
-                    }
-                    "instant" => {
-                        CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountVerificationMethod::Instant
-                    }
-                    other => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountVerificationMethod::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountVerificationMethod::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountVerificationMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountVerificationMethod::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "automatic" => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountVerificationMethod::Automatic,
+            "instant" => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountVerificationMethod::Instant,
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsUsBankAccountVerificationMethod::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -10733,40 +9217,22 @@ impl CreateCheckoutSessionParamsPaymentMethodOptionsWechatPayClient {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPaymentMethodOptionsWechatPayClient {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPaymentMethodOptionsWechatPayClient;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "android" => CreateCheckoutSessionParamsPaymentMethodOptionsWechatPayClient::Android,
-                    "ios" => CreateCheckoutSessionParamsPaymentMethodOptionsWechatPayClient::Ios,
-                    "web" => CreateCheckoutSessionParamsPaymentMethodOptionsWechatPayClient::Web,
-                    other => CreateCheckoutSessionParamsPaymentMethodOptionsWechatPayClient::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPaymentMethodOptionsWechatPayClient::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPaymentMethodOptionsWechatPayClient {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsPaymentMethodOptionsWechatPayClient::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "android" => CreateCheckoutSessionParamsPaymentMethodOptionsWechatPayClient::Android,
+            "ios" => CreateCheckoutSessionParamsPaymentMethodOptionsWechatPayClient::Ios,
+            "web" => CreateCheckoutSessionParamsPaymentMethodOptionsWechatPayClient::Web,
+            other => CreateCheckoutSessionParamsPaymentMethodOptionsWechatPayClient::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -10817,39 +9283,21 @@ impl CreateCheckoutSessionParamsPermissionsUpdateShippingDetails {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsPermissionsUpdateShippingDetails {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsPermissionsUpdateShippingDetails;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "client_only" => CreateCheckoutSessionParamsPermissionsUpdateShippingDetails::ClientOnly,
-                    "server_only" => CreateCheckoutSessionParamsPermissionsUpdateShippingDetails::ServerOnly,
-                    other => CreateCheckoutSessionParamsPermissionsUpdateShippingDetails::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsPermissionsUpdateShippingDetails::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsPermissionsUpdateShippingDetails {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsPermissionsUpdateShippingDetails::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "client_only" => CreateCheckoutSessionParamsPermissionsUpdateShippingDetails::ClientOnly,
+            "server_only" => CreateCheckoutSessionParamsPermissionsUpdateShippingDetails::ServerOnly,
+            other => CreateCheckoutSessionParamsPermissionsUpdateShippingDetails::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -10898,38 +9346,20 @@ impl CreateCheckoutSessionParamsRedirectOnCompletion {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsRedirectOnCompletion {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsRedirectOnCompletion;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => CreateCheckoutSessionParamsRedirectOnCompletion::Always,
-                    "if_required" => CreateCheckoutSessionParamsRedirectOnCompletion::IfRequired,
-                    "never" => CreateCheckoutSessionParamsRedirectOnCompletion::Never,
-                    other => CreateCheckoutSessionParamsRedirectOnCompletion::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsRedirectOnCompletion::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsRedirectOnCompletion {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsRedirectOnCompletion::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => CreateCheckoutSessionParamsRedirectOnCompletion::Always,
+            "if_required" => CreateCheckoutSessionParamsRedirectOnCompletion::IfRequired,
+            "never" => CreateCheckoutSessionParamsRedirectOnCompletion::Never,
+            other => CreateCheckoutSessionParamsRedirectOnCompletion::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -10993,39 +9423,21 @@ impl CreateCheckoutSessionParamsSavedPaymentMethodOptionsPaymentMethodRemove {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsSavedPaymentMethodOptionsPaymentMethodRemove {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsSavedPaymentMethodOptionsPaymentMethodRemove;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "disabled" => CreateCheckoutSessionParamsSavedPaymentMethodOptionsPaymentMethodRemove::Disabled,
-                    "enabled" => CreateCheckoutSessionParamsSavedPaymentMethodOptionsPaymentMethodRemove::Enabled,
-                    other => CreateCheckoutSessionParamsSavedPaymentMethodOptionsPaymentMethodRemove::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsSavedPaymentMethodOptionsPaymentMethodRemove::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsSavedPaymentMethodOptionsPaymentMethodRemove {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsSavedPaymentMethodOptionsPaymentMethodRemove::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "disabled" => CreateCheckoutSessionParamsSavedPaymentMethodOptionsPaymentMethodRemove::Disabled,
+            "enabled" => CreateCheckoutSessionParamsSavedPaymentMethodOptionsPaymentMethodRemove::Enabled,
+            other => {
+                CreateCheckoutSessionParamsSavedPaymentMethodOptionsPaymentMethodRemove::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -11573,275 +9985,259 @@ impl CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "AC" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AC,
-                    "AD" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AD,
-                    "AE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AE,
-                    "AF" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AF,
-                    "AG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AG,
-                    "AI" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AI,
-                    "AL" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AL,
-                    "AM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AM,
-                    "AO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AO,
-                    "AQ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AQ,
-                    "AR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AR,
-                    "AT" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AT,
-                    "AU" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AU,
-                    "AW" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AW,
-                    "AX" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AX,
-                    "AZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AZ,
-                    "BA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BA,
-                    "BB" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BB,
-                    "BD" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BD,
-                    "BE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BE,
-                    "BF" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BF,
-                    "BG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BG,
-                    "BH" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BH,
-                    "BI" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BI,
-                    "BJ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BJ,
-                    "BL" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BL,
-                    "BM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BM,
-                    "BN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BN,
-                    "BO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BO,
-                    "BQ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BQ,
-                    "BR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BR,
-                    "BS" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BS,
-                    "BT" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BT,
-                    "BV" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BV,
-                    "BW" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BW,
-                    "BY" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BY,
-                    "BZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BZ,
-                    "CA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CA,
-                    "CD" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CD,
-                    "CF" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CF,
-                    "CG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CG,
-                    "CH" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CH,
-                    "CI" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CI,
-                    "CK" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CK,
-                    "CL" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CL,
-                    "CM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CM,
-                    "CN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CN,
-                    "CO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CO,
-                    "CR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CR,
-                    "CV" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CV,
-                    "CW" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CW,
-                    "CY" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CY,
-                    "CZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CZ,
-                    "DE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::DE,
-                    "DJ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::DJ,
-                    "DK" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::DK,
-                    "DM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::DM,
-                    "DO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::DO,
-                    "DZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::DZ,
-                    "EC" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::EC,
-                    "EE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::EE,
-                    "EG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::EG,
-                    "EH" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::EH,
-                    "ER" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ER,
-                    "ES" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ES,
-                    "ET" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ET,
-                    "FI" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::FI,
-                    "FJ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::FJ,
-                    "FK" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::FK,
-                    "FO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::FO,
-                    "FR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::FR,
-                    "GA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GA,
-                    "GB" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GB,
-                    "GD" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GD,
-                    "GE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GE,
-                    "GF" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GF,
-                    "GG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GG,
-                    "GH" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GH,
-                    "GI" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GI,
-                    "GL" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GL,
-                    "GM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GM,
-                    "GN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GN,
-                    "GP" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GP,
-                    "GQ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GQ,
-                    "GR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GR,
-                    "GS" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GS,
-                    "GT" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GT,
-                    "GU" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GU,
-                    "GW" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GW,
-                    "GY" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GY,
-                    "HK" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::HK,
-                    "HN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::HN,
-                    "HR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::HR,
-                    "HT" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::HT,
-                    "HU" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::HU,
-                    "ID" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ID,
-                    "IE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::IE,
-                    "IL" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::IL,
-                    "IM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::IM,
-                    "IN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::IN,
-                    "IO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::IO,
-                    "IQ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::IQ,
-                    "IS" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::IS,
-                    "IT" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::IT,
-                    "JE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::JE,
-                    "JM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::JM,
-                    "JO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::JO,
-                    "JP" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::JP,
-                    "KE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::KE,
-                    "KG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::KG,
-                    "KH" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::KH,
-                    "KI" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::KI,
-                    "KM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::KM,
-                    "KN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::KN,
-                    "KR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::KR,
-                    "KW" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::KW,
-                    "KY" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::KY,
-                    "KZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::KZ,
-                    "LA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LA,
-                    "LB" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LB,
-                    "LC" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LC,
-                    "LI" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LI,
-                    "LK" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LK,
-                    "LR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LR,
-                    "LS" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LS,
-                    "LT" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LT,
-                    "LU" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LU,
-                    "LV" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LV,
-                    "LY" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LY,
-                    "MA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MA,
-                    "MC" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MC,
-                    "MD" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MD,
-                    "ME" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ME,
-                    "MF" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MF,
-                    "MG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MG,
-                    "MK" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MK,
-                    "ML" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ML,
-                    "MM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MM,
-                    "MN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MN,
-                    "MO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MO,
-                    "MQ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MQ,
-                    "MR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MR,
-                    "MS" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MS,
-                    "MT" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MT,
-                    "MU" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MU,
-                    "MV" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MV,
-                    "MW" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MW,
-                    "MX" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MX,
-                    "MY" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MY,
-                    "MZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MZ,
-                    "NA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NA,
-                    "NC" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NC,
-                    "NE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NE,
-                    "NG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NG,
-                    "NI" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NI,
-                    "NL" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NL,
-                    "NO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NO,
-                    "NP" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NP,
-                    "NR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NR,
-                    "NU" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NU,
-                    "NZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NZ,
-                    "OM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::OM,
-                    "PA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PA,
-                    "PE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PE,
-                    "PF" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PF,
-                    "PG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PG,
-                    "PH" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PH,
-                    "PK" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PK,
-                    "PL" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PL,
-                    "PM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PM,
-                    "PN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PN,
-                    "PR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PR,
-                    "PS" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PS,
-                    "PT" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PT,
-                    "PY" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PY,
-                    "QA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::QA,
-                    "RE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::RE,
-                    "RO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::RO,
-                    "RS" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::RS,
-                    "RU" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::RU,
-                    "RW" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::RW,
-                    "SA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SA,
-                    "SB" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SB,
-                    "SC" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SC,
-                    "SD" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SD,
-                    "SE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SE,
-                    "SG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SG,
-                    "SH" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SH,
-                    "SI" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SI,
-                    "SJ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SJ,
-                    "SK" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SK,
-                    "SL" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SL,
-                    "SM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SM,
-                    "SN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SN,
-                    "SO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SO,
-                    "SR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SR,
-                    "SS" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SS,
-                    "ST" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ST,
-                    "SV" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SV,
-                    "SX" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SX,
-                    "SZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SZ,
-                    "TA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TA,
-                    "TC" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TC,
-                    "TD" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TD,
-                    "TF" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TF,
-                    "TG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TG,
-                    "TH" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TH,
-                    "TJ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TJ,
-                    "TK" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TK,
-                    "TL" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TL,
-                    "TM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TM,
-                    "TN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TN,
-                    "TO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TO,
-                    "TR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TR,
-                    "TT" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TT,
-                    "TV" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TV,
-                    "TW" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TW,
-                    "TZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TZ,
-                    "UA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::UA,
-                    "UG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::UG,
-                    "US" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::US,
-                    "UY" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::UY,
-                    "UZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::UZ,
-                    "VA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::VA,
-                    "VC" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::VC,
-                    "VE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::VE,
-                    "VG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::VG,
-                    "VN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::VN,
-                    "VU" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::VU,
-                    "WF" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::WF,
-                    "WS" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::WS,
-                    "XK" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::XK,
-                    "YE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::YE,
-                    "YT" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::YT,
-                    "ZA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ZA,
-                    "ZM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ZM,
-                    "ZW" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ZW,
-                    "ZZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ZZ,
-                    other => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "AC" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AC,
+            "AD" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AD,
+            "AE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AE,
+            "AF" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AF,
+            "AG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AG,
+            "AI" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AI,
+            "AL" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AL,
+            "AM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AM,
+            "AO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AO,
+            "AQ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AQ,
+            "AR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AR,
+            "AT" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AT,
+            "AU" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AU,
+            "AW" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AW,
+            "AX" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AX,
+            "AZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::AZ,
+            "BA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BA,
+            "BB" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BB,
+            "BD" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BD,
+            "BE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BE,
+            "BF" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BF,
+            "BG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BG,
+            "BH" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BH,
+            "BI" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BI,
+            "BJ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BJ,
+            "BL" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BL,
+            "BM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BM,
+            "BN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BN,
+            "BO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BO,
+            "BQ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BQ,
+            "BR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BR,
+            "BS" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BS,
+            "BT" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BT,
+            "BV" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BV,
+            "BW" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BW,
+            "BY" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BY,
+            "BZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::BZ,
+            "CA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CA,
+            "CD" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CD,
+            "CF" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CF,
+            "CG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CG,
+            "CH" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CH,
+            "CI" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CI,
+            "CK" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CK,
+            "CL" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CL,
+            "CM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CM,
+            "CN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CN,
+            "CO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CO,
+            "CR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CR,
+            "CV" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CV,
+            "CW" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CW,
+            "CY" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CY,
+            "CZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::CZ,
+            "DE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::DE,
+            "DJ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::DJ,
+            "DK" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::DK,
+            "DM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::DM,
+            "DO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::DO,
+            "DZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::DZ,
+            "EC" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::EC,
+            "EE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::EE,
+            "EG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::EG,
+            "EH" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::EH,
+            "ER" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ER,
+            "ES" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ES,
+            "ET" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ET,
+            "FI" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::FI,
+            "FJ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::FJ,
+            "FK" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::FK,
+            "FO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::FO,
+            "FR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::FR,
+            "GA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GA,
+            "GB" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GB,
+            "GD" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GD,
+            "GE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GE,
+            "GF" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GF,
+            "GG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GG,
+            "GH" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GH,
+            "GI" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GI,
+            "GL" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GL,
+            "GM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GM,
+            "GN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GN,
+            "GP" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GP,
+            "GQ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GQ,
+            "GR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GR,
+            "GS" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GS,
+            "GT" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GT,
+            "GU" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GU,
+            "GW" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GW,
+            "GY" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::GY,
+            "HK" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::HK,
+            "HN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::HN,
+            "HR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::HR,
+            "HT" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::HT,
+            "HU" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::HU,
+            "ID" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ID,
+            "IE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::IE,
+            "IL" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::IL,
+            "IM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::IM,
+            "IN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::IN,
+            "IO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::IO,
+            "IQ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::IQ,
+            "IS" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::IS,
+            "IT" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::IT,
+            "JE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::JE,
+            "JM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::JM,
+            "JO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::JO,
+            "JP" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::JP,
+            "KE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::KE,
+            "KG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::KG,
+            "KH" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::KH,
+            "KI" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::KI,
+            "KM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::KM,
+            "KN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::KN,
+            "KR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::KR,
+            "KW" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::KW,
+            "KY" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::KY,
+            "KZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::KZ,
+            "LA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LA,
+            "LB" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LB,
+            "LC" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LC,
+            "LI" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LI,
+            "LK" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LK,
+            "LR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LR,
+            "LS" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LS,
+            "LT" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LT,
+            "LU" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LU,
+            "LV" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LV,
+            "LY" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::LY,
+            "MA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MA,
+            "MC" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MC,
+            "MD" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MD,
+            "ME" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ME,
+            "MF" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MF,
+            "MG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MG,
+            "MK" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MK,
+            "ML" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ML,
+            "MM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MM,
+            "MN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MN,
+            "MO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MO,
+            "MQ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MQ,
+            "MR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MR,
+            "MS" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MS,
+            "MT" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MT,
+            "MU" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MU,
+            "MV" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MV,
+            "MW" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MW,
+            "MX" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MX,
+            "MY" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MY,
+            "MZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::MZ,
+            "NA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NA,
+            "NC" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NC,
+            "NE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NE,
+            "NG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NG,
+            "NI" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NI,
+            "NL" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NL,
+            "NO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NO,
+            "NP" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NP,
+            "NR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NR,
+            "NU" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NU,
+            "NZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::NZ,
+            "OM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::OM,
+            "PA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PA,
+            "PE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PE,
+            "PF" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PF,
+            "PG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PG,
+            "PH" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PH,
+            "PK" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PK,
+            "PL" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PL,
+            "PM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PM,
+            "PN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PN,
+            "PR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PR,
+            "PS" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PS,
+            "PT" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PT,
+            "PY" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::PY,
+            "QA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::QA,
+            "RE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::RE,
+            "RO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::RO,
+            "RS" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::RS,
+            "RU" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::RU,
+            "RW" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::RW,
+            "SA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SA,
+            "SB" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SB,
+            "SC" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SC,
+            "SD" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SD,
+            "SE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SE,
+            "SG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SG,
+            "SH" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SH,
+            "SI" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SI,
+            "SJ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SJ,
+            "SK" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SK,
+            "SL" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SL,
+            "SM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SM,
+            "SN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SN,
+            "SO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SO,
+            "SR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SR,
+            "SS" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SS,
+            "ST" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ST,
+            "SV" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SV,
+            "SX" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SX,
+            "SZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::SZ,
+            "TA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TA,
+            "TC" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TC,
+            "TD" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TD,
+            "TF" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TF,
+            "TG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TG,
+            "TH" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TH,
+            "TJ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TJ,
+            "TK" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TK,
+            "TL" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TL,
+            "TM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TM,
+            "TN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TN,
+            "TO" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TO,
+            "TR" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TR,
+            "TT" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TT,
+            "TV" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TV,
+            "TW" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TW,
+            "TZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::TZ,
+            "UA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::UA,
+            "UG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::UG,
+            "US" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::US,
+            "UY" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::UY,
+            "UZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::UZ,
+            "VA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::VA,
+            "VC" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::VC,
+            "VE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::VE,
+            "VG" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::VG,
+            "VN" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::VN,
+            "VU" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::VU,
+            "WF" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::WF,
+            "WS" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::WS,
+            "XK" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::XK,
+            "YE" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::YE,
+            "YT" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::YT,
+            "ZA" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ZA,
+            "ZM" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ZM,
+            "ZW" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ZW,
+            "ZZ" => CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::ZZ,
+            other => {
+                CreateCheckoutSessionParamsShippingAddressCollectionAllowedCountriesItem::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -11979,46 +10375,34 @@ impl CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataDeliveryEstim
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataDeliveryEstimateMaximumUnit
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataDeliveryEstimateMaximumUnit;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataDeliveryEstimateMaximumUnit::Unknown(
+                    String::new(),
+                ),
+            );
+        }
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "business_day" => {
+                CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataDeliveryEstimateMaximumUnit::BusinessDay
             }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "business_day" => CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataDeliveryEstimateMaximumUnit::BusinessDay,
-                    "day" => CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataDeliveryEstimateMaximumUnit::Day,
-                    "hour" => CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataDeliveryEstimateMaximumUnit::Hour,
-                    "month" => CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataDeliveryEstimateMaximumUnit::Month,
-                    "week" => CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataDeliveryEstimateMaximumUnit::Week,
-                    other => CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataDeliveryEstimateMaximumUnit::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataDeliveryEstimateMaximumUnit::Unknown(
-                        String::new(),
-                    ),
+            "day" => CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataDeliveryEstimateMaximumUnit::Day,
+            "hour" => CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataDeliveryEstimateMaximumUnit::Hour,
+            "month" => CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataDeliveryEstimateMaximumUnit::Month,
+            "week" => CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataDeliveryEstimateMaximumUnit::Week,
+            other => {
+                CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataDeliveryEstimateMaximumUnit::Unknown(
+                    other.to_string(),
                 )
             }
-        }
-        deserializer.deserialize_any(EnumVisitor)
+        })
     }
 }
 
@@ -12126,40 +10510,20 @@ impl CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataType {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "fixed_amount" => CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataType::FixedAmount,
-                    other => {
-                        CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataType::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "fixed_amount" => CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataType::FixedAmount,
+            other => CreateCheckoutSessionParamsShippingOptionsItemShippingRateDataType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -12198,40 +10562,22 @@ impl CreateCheckoutSessionParamsSubmitType {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsSubmitType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsSubmitType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => CreateCheckoutSessionParamsSubmitType::Auto,
-                    "book" => CreateCheckoutSessionParamsSubmitType::Book,
-                    "donate" => CreateCheckoutSessionParamsSubmitType::Donate,
-                    "pay" => CreateCheckoutSessionParamsSubmitType::Pay,
-                    "subscribe" => CreateCheckoutSessionParamsSubmitType::Subscribe,
-                    other => CreateCheckoutSessionParamsSubmitType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsSubmitType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsSubmitType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsSubmitType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => CreateCheckoutSessionParamsSubmitType::Auto,
+            "book" => CreateCheckoutSessionParamsSubmitType::Book,
+            "donate" => CreateCheckoutSessionParamsSubmitType::Donate,
+            "pay" => CreateCheckoutSessionParamsSubmitType::Pay,
+            "subscribe" => CreateCheckoutSessionParamsSubmitType::Subscribe,
+            other => CreateCheckoutSessionParamsSubmitType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -12386,47 +10732,23 @@ impl CreateCheckoutSessionParamsSubscriptionDataBillingModeFlexibleProrationDisc
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsSubscriptionDataBillingModeFlexibleProrationDiscounts {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsSubscriptionDataBillingModeFlexibleProrationDiscounts;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "included" => {
-                        CreateCheckoutSessionParamsSubscriptionDataBillingModeFlexibleProrationDiscounts::Included
-                    }
-                    "itemized" => {
-                        CreateCheckoutSessionParamsSubscriptionDataBillingModeFlexibleProrationDiscounts::Itemized
-                    }
-                    other => CreateCheckoutSessionParamsSubscriptionDataBillingModeFlexibleProrationDiscounts::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateCheckoutSessionParamsSubscriptionDataBillingModeFlexibleProrationDiscounts::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsSubscriptionDataBillingModeFlexibleProrationDiscounts {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsSubscriptionDataBillingModeFlexibleProrationDiscounts::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "included" => CreateCheckoutSessionParamsSubscriptionDataBillingModeFlexibleProrationDiscounts::Included,
+            "itemized" => CreateCheckoutSessionParamsSubscriptionDataBillingModeFlexibleProrationDiscounts::Itemized,
+            other => CreateCheckoutSessionParamsSubscriptionDataBillingModeFlexibleProrationDiscounts::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -12459,39 +10781,21 @@ impl CreateCheckoutSessionParamsSubscriptionDataBillingModeType {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsSubscriptionDataBillingModeType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsSubscriptionDataBillingModeType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "classic" => CreateCheckoutSessionParamsSubscriptionDataBillingModeType::Classic,
-                    "flexible" => CreateCheckoutSessionParamsSubscriptionDataBillingModeType::Flexible,
-                    other => CreateCheckoutSessionParamsSubscriptionDataBillingModeType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsSubscriptionDataBillingModeType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsSubscriptionDataBillingModeType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsSubscriptionDataBillingModeType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "classic" => CreateCheckoutSessionParamsSubscriptionDataBillingModeType::Classic,
+            "flexible" => CreateCheckoutSessionParamsSubscriptionDataBillingModeType::Flexible,
+            other => CreateCheckoutSessionParamsSubscriptionDataBillingModeType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -12580,41 +10884,21 @@ impl CreateCheckoutSessionParamsSubscriptionDataProrationBehavior {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsSubscriptionDataProrationBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsSubscriptionDataProrationBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "create_prorations" => {
-                        CreateCheckoutSessionParamsSubscriptionDataProrationBehavior::CreateProrations
-                    }
-                    "none" => CreateCheckoutSessionParamsSubscriptionDataProrationBehavior::None,
-                    other => CreateCheckoutSessionParamsSubscriptionDataProrationBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsSubscriptionDataProrationBehavior::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsSubscriptionDataProrationBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsSubscriptionDataProrationBehavior::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "create_prorations" => CreateCheckoutSessionParamsSubscriptionDataProrationBehavior::CreateProrations,
+            "none" => CreateCheckoutSessionParamsSubscriptionDataProrationBehavior::None,
+            other => CreateCheckoutSessionParamsSubscriptionDataProrationBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -12699,44 +10983,30 @@ impl CreateCheckoutSessionParamsSubscriptionDataTrialSettingsEndBehaviorMissingP
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateCheckoutSessionParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cancel" => CreateCheckoutSessionParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod::Cancel,
-                    "create_invoice" => CreateCheckoutSessionParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod::CreateInvoice,
-                    "pause" => CreateCheckoutSessionParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod::Pause,
-                    other => CreateCheckoutSessionParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateCheckoutSessionParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCheckoutSessionParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cancel" => CreateCheckoutSessionParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod::Cancel,
+            "create_invoice" => {
+                CreateCheckoutSessionParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod::CreateInvoice
+            }
+            "pause" => CreateCheckoutSessionParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod::Pause,
+            other => CreateCheckoutSessionParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -12788,37 +11058,19 @@ impl CreateCheckoutSessionParamsTaxIdCollectionRequired {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsTaxIdCollectionRequired {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsTaxIdCollectionRequired;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "if_supported" => CreateCheckoutSessionParamsTaxIdCollectionRequired::IfSupported,
-                    "never" => CreateCheckoutSessionParamsTaxIdCollectionRequired::Never,
-                    other => CreateCheckoutSessionParamsTaxIdCollectionRequired::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsTaxIdCollectionRequired::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsTaxIdCollectionRequired {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsTaxIdCollectionRequired::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "if_supported" => CreateCheckoutSessionParamsTaxIdCollectionRequired::IfSupported,
+            "never" => CreateCheckoutSessionParamsTaxIdCollectionRequired::Never,
+            other => CreateCheckoutSessionParamsTaxIdCollectionRequired::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -12855,39 +11107,21 @@ impl CreateCheckoutSessionParamsUiMode {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for CreateCheckoutSessionParamsUiMode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCheckoutSessionParamsUiMode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "elements" => CreateCheckoutSessionParamsUiMode::Elements,
-                    "embedded_page" => CreateCheckoutSessionParamsUiMode::EmbeddedPage,
-                    "form" => CreateCheckoutSessionParamsUiMode::Form,
-                    "hosted_page" => CreateCheckoutSessionParamsUiMode::HostedPage,
-                    other => CreateCheckoutSessionParamsUiMode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCheckoutSessionParamsUiMode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCheckoutSessionParamsUiMode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCheckoutSessionParamsUiMode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "elements" => CreateCheckoutSessionParamsUiMode::Elements,
+            "embedded_page" => CreateCheckoutSessionParamsUiMode::EmbeddedPage,
+            "form" => CreateCheckoutSessionParamsUiMode::Form,
+            "hosted_page" => CreateCheckoutSessionParamsUiMode::HostedPage,
+            other => CreateCheckoutSessionParamsUiMode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -13067,38 +11301,20 @@ impl ListCheckoutSessionsParamsStatus {
 }
 
 #[cfg(feature = "checkout")]
-impl<'de> serde::Deserialize<'de> for ListCheckoutSessionsParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListCheckoutSessionsParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "complete" => ListCheckoutSessionsParamsStatus::Complete,
-                    "expired" => ListCheckoutSessionsParamsStatus::Expired,
-                    "open" => ListCheckoutSessionsParamsStatus::Open,
-                    other => ListCheckoutSessionsParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListCheckoutSessionsParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListCheckoutSessionsParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListCheckoutSessionsParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "complete" => ListCheckoutSessionsParamsStatus::Complete,
+            "expired" => ListCheckoutSessionsParamsStatus::Expired,
+            "open" => ListCheckoutSessionsParamsStatus::Open,
+            other => ListCheckoutSessionsParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -13115,10 +11331,11 @@ impl crate::params::FormEncode for ListCheckoutSessionsParamsStatus {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionAdaptivePricing {
     #[doc = "If enabled, Adaptive Pricing is available on [eligible sessions](https://docs.stripe.com/payments/currencies/localize..."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
 }
 
@@ -13128,10 +11345,11 @@ pub struct PaymentPagesCheckoutSessionAdaptivePricing {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionAfterExpiration {
     #[doc = "When set, configuration used to recover the Checkout Session on expiry."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub recovery: Option<crate::checkout::PaymentPagesCheckoutSessionAfterExpirationRecovery>,
 }
 
@@ -13141,19 +11359,20 @@ pub struct PaymentPagesCheckoutSessionAfterExpiration {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionAfterExpirationRecovery {
     #[doc = "Enables user redeemable promotion codes on the recovered Checkout Sessions."]
-    #[serde(default)]
+    #[json(default)]
     pub allow_promotion_codes: bool,
     #[doc = "If `true`, a recovery url will be generated to recover this Checkout Session if it expires before a transaction is co..."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "The timestamp at which the recovery URL will expire."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<i64>,
     #[doc = "URL that creates a new Checkout Session when clicked that is a copy of this expired Checkout Session"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 }
 
@@ -13163,19 +11382,20 @@ pub struct PaymentPagesCheckoutSessionAfterExpirationRecovery {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionAutomaticTax {
     #[doc = "Indicates whether automatic tax is enabled for the session"]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "The account that's liable for tax."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub liability: Option<crate::accounts::ConnectAccountReference>,
     #[doc = "The tax provider powering automatic tax."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
     #[doc = "The status of the most recent automated tax calculation for this session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<crate::checkout::PaymentPagesCheckoutSessionAutomaticTaxStatus>,
 }
 
@@ -13218,38 +11438,20 @@ impl PaymentPagesCheckoutSessionAutomaticTaxStatus {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionAutomaticTaxStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentPagesCheckoutSessionAutomaticTaxStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "complete" => PaymentPagesCheckoutSessionAutomaticTaxStatus::Complete,
-                    "failed" => PaymentPagesCheckoutSessionAutomaticTaxStatus::Failed,
-                    "requires_location_inputs" => PaymentPagesCheckoutSessionAutomaticTaxStatus::RequiresLocationInputs,
-                    other => PaymentPagesCheckoutSessionAutomaticTaxStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentPagesCheckoutSessionAutomaticTaxStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentPagesCheckoutSessionAutomaticTaxStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentPagesCheckoutSessionAutomaticTaxStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "complete" => PaymentPagesCheckoutSessionAutomaticTaxStatus::Complete,
+            "failed" => PaymentPagesCheckoutSessionAutomaticTaxStatus::Failed,
+            "requires_location_inputs" => PaymentPagesCheckoutSessionAutomaticTaxStatus::RequiresLocationInputs,
+            other => PaymentPagesCheckoutSessionAutomaticTaxStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -13259,28 +11461,29 @@ impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionAutomaticTaxSta
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionBrandingSettings {
     #[doc = "A hex color value starting with `#` representing the background color for the Checkout Session."]
-    #[serde(default)]
+    #[json(default)]
     pub background_color: String,
     #[doc = "The border style for the Checkout Session."]
-    #[serde(default)]
+    #[json(default)]
     pub border_style: crate::checkout::PaymentPagesCheckoutSessionBrandingSettingsBorderStyle,
     #[doc = "A hex color value starting with `#` representing the button color for the Checkout Session."]
-    #[serde(default)]
+    #[json(default)]
     pub button_color: String,
     #[doc = "The display name shown on the Checkout Session."]
-    #[serde(default)]
+    #[json(default)]
     pub display_name: String,
     #[doc = "The font family for the Checkout Session."]
-    #[serde(default)]
+    #[json(default)]
     pub font_family: String,
     #[doc = "The icon for the Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<crate::checkout::PaymentPagesCheckoutSessionBrandingSettingsIcon>,
     #[doc = "The logo for the Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub logo: Option<crate::checkout::PaymentPagesCheckoutSessionBrandingSettingsLogo>,
 }
 
@@ -13335,38 +11538,20 @@ impl Default for PaymentPagesCheckoutSessionBrandingSettingsBorderStyle {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionBrandingSettingsBorderStyle {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentPagesCheckoutSessionBrandingSettingsBorderStyle;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "pill" => PaymentPagesCheckoutSessionBrandingSettingsBorderStyle::Pill,
-                    "rectangular" => PaymentPagesCheckoutSessionBrandingSettingsBorderStyle::Rectangular,
-                    "rounded" => PaymentPagesCheckoutSessionBrandingSettingsBorderStyle::Rounded,
-                    other => PaymentPagesCheckoutSessionBrandingSettingsBorderStyle::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentPagesCheckoutSessionBrandingSettingsBorderStyle::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentPagesCheckoutSessionBrandingSettingsBorderStyle {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentPagesCheckoutSessionBrandingSettingsBorderStyle::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "pill" => PaymentPagesCheckoutSessionBrandingSettingsBorderStyle::Pill,
+            "rectangular" => PaymentPagesCheckoutSessionBrandingSettingsBorderStyle::Rectangular,
+            "rounded" => PaymentPagesCheckoutSessionBrandingSettingsBorderStyle::Rounded,
+            other => PaymentPagesCheckoutSessionBrandingSettingsBorderStyle::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -13376,16 +11561,17 @@ impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionBrandingSetting
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionBrandingSettingsIcon {
     #[doc = "The ID of a [File upload](https://stripe.com/docs/api/files) representing the icon."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub file: Option<String>,
     #[doc = "The type of image for the icon."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::checkout::PaymentPagesCheckoutSessionBrandingSettingsIconType,
     #[doc = "The URL of the image."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 }
 
@@ -13438,37 +11624,19 @@ impl Default for PaymentPagesCheckoutSessionBrandingSettingsIconType {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionBrandingSettingsIconType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentPagesCheckoutSessionBrandingSettingsIconType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "file" => PaymentPagesCheckoutSessionBrandingSettingsIconType::File,
-                    "url" => PaymentPagesCheckoutSessionBrandingSettingsIconType::Url,
-                    other => PaymentPagesCheckoutSessionBrandingSettingsIconType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentPagesCheckoutSessionBrandingSettingsIconType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentPagesCheckoutSessionBrandingSettingsIconType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentPagesCheckoutSessionBrandingSettingsIconType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "file" => PaymentPagesCheckoutSessionBrandingSettingsIconType::File,
+            "url" => PaymentPagesCheckoutSessionBrandingSettingsIconType::Url,
+            other => PaymentPagesCheckoutSessionBrandingSettingsIconType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -13478,16 +11646,17 @@ impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionBrandingSetting
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionBrandingSettingsLogo {
     #[doc = "The ID of a [File upload](https://stripe.com/docs/api/files) representing the logo."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub file: Option<String>,
     #[doc = "The type of image for the logo."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::checkout::PaymentPagesCheckoutSessionBrandingSettingsIconType,
     #[doc = "The URL of the image."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 }
 
@@ -13497,13 +11666,14 @@ pub struct PaymentPagesCheckoutSessionBrandingSettingsLogo {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionBusinessName {
     #[doc = "Indicates whether business name collection is enabled for the session"]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "Whether the customer is required to complete the field before completing the Checkout Session."]
-    #[serde(default)]
+    #[json(default)]
     pub optional: bool,
 }
 
@@ -13513,12 +11683,13 @@ pub struct PaymentPagesCheckoutSessionBusinessName {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionCheckoutAddressDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<crate::common::Address>,
     #[doc = "Customer name."]
-    #[serde(default)]
+    #[json(default)]
     pub name: String,
 }
 
@@ -13528,16 +11699,17 @@ pub struct PaymentPagesCheckoutSessionCheckoutAddressDetails {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionCollectedInformation {
     #[doc = "Customer’s business name for this Checkout Session"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub business_name: Option<String>,
     #[doc = "Customer’s individual name for this Checkout Session"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub individual_name: Option<String>,
     #[doc = "Shipping information for this Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_details: Option<crate::checkout::PaymentPagesCheckoutSessionCheckoutAddressDetails>,
 }
 
@@ -13547,13 +11719,14 @@ pub struct PaymentPagesCheckoutSessionCollectedInformation {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionConsent {
     #[doc = "If `opt_in`, the customer consents to receiving promotional communications from the merchant about this Checkout Sess..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub promotions: Option<crate::checkout::PaymentPagesCheckoutSessionConsentPromotions>,
     #[doc = "If `accepted`, the customer in this Checkout Session has agreed to the merchant's terms of service."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub terms_of_service: Option<crate::checkout::PaymentPagesCheckoutSessionConsentTermsOfService>,
 }
 
@@ -13563,16 +11736,17 @@ pub struct PaymentPagesCheckoutSessionConsent {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionConsentCollection {
     #[doc = "If set to `hidden`, it will hide legal text related to the reuse of a payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_reuse_agreement: Option<crate::checkout::PaymentPagesCheckoutSessionPaymentMethodReuseAgreement>,
     #[doc = "If set to `auto`, enables the collection of customer consent for promotional communications."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub promotions: Option<crate::checkout::PaymentPagesCheckoutSessionConsentCollectionPromotions>,
     #[doc = "If set to `required`, it requires customers to accept the terms of service before being able to pay."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub terms_of_service: Option<crate::checkout::PaymentPagesCheckoutSessionConsentCollectionTermsOfService>,
 }
 
@@ -13613,37 +11787,19 @@ impl PaymentPagesCheckoutSessionConsentCollectionPromotions {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionConsentCollectionPromotions {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentPagesCheckoutSessionConsentCollectionPromotions;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => PaymentPagesCheckoutSessionConsentCollectionPromotions::Auto,
-                    "none" => PaymentPagesCheckoutSessionConsentCollectionPromotions::None,
-                    other => PaymentPagesCheckoutSessionConsentCollectionPromotions::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentPagesCheckoutSessionConsentCollectionPromotions::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentPagesCheckoutSessionConsentCollectionPromotions {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentPagesCheckoutSessionConsentCollectionPromotions::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => PaymentPagesCheckoutSessionConsentCollectionPromotions::Auto,
+            "none" => PaymentPagesCheckoutSessionConsentCollectionPromotions::None,
+            other => PaymentPagesCheckoutSessionConsentCollectionPromotions::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -13684,39 +11840,21 @@ impl PaymentPagesCheckoutSessionConsentCollectionTermsOfService {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionConsentCollectionTermsOfService {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentPagesCheckoutSessionConsentCollectionTermsOfService;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "none" => PaymentPagesCheckoutSessionConsentCollectionTermsOfService::None,
-                    "required" => PaymentPagesCheckoutSessionConsentCollectionTermsOfService::Required,
-                    other => PaymentPagesCheckoutSessionConsentCollectionTermsOfService::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentPagesCheckoutSessionConsentCollectionTermsOfService::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for PaymentPagesCheckoutSessionConsentCollectionTermsOfService {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentPagesCheckoutSessionConsentCollectionTermsOfService::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "none" => PaymentPagesCheckoutSessionConsentCollectionTermsOfService::None,
+            "required" => PaymentPagesCheckoutSessionConsentCollectionTermsOfService::Required,
+            other => PaymentPagesCheckoutSessionConsentCollectionTermsOfService::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -13757,37 +11895,19 @@ impl PaymentPagesCheckoutSessionConsentPromotions {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionConsentPromotions {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentPagesCheckoutSessionConsentPromotions;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "opt_in" => PaymentPagesCheckoutSessionConsentPromotions::OptIn,
-                    "opt_out" => PaymentPagesCheckoutSessionConsentPromotions::OptOut,
-                    other => PaymentPagesCheckoutSessionConsentPromotions::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentPagesCheckoutSessionConsentPromotions::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentPagesCheckoutSessionConsentPromotions {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentPagesCheckoutSessionConsentPromotions::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "opt_in" => PaymentPagesCheckoutSessionConsentPromotions::OptIn,
+            "opt_out" => PaymentPagesCheckoutSessionConsentPromotions::OptOut,
+            other => PaymentPagesCheckoutSessionConsentPromotions::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -13826,36 +11946,18 @@ impl PaymentPagesCheckoutSessionConsentTermsOfService {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionConsentTermsOfService {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentPagesCheckoutSessionConsentTermsOfService;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "accepted" => PaymentPagesCheckoutSessionConsentTermsOfService::Accepted,
-                    other => PaymentPagesCheckoutSessionConsentTermsOfService::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentPagesCheckoutSessionConsentTermsOfService::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentPagesCheckoutSessionConsentTermsOfService {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentPagesCheckoutSessionConsentTermsOfService::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "accepted" => PaymentPagesCheckoutSessionConsentTermsOfService::Accepted,
+            other => PaymentPagesCheckoutSessionConsentTermsOfService::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -13865,19 +11967,20 @@ impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionConsentTermsOfS
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionCurrencyConversion {
     #[doc = "Total of all items in source currency before discounts or taxes are applied."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_subtotal: i64,
     #[doc = "Total of all items in source currency after discounts and taxes are applied."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_total: i64,
     #[doc = "Exchange rate used to convert source currency amounts to customer currency amounts"]
-    #[serde(default)]
+    #[json(default)]
     pub fx_rate: String,
     #[doc = "Creation currency of the CheckoutSession before localization"]
-    #[serde(default)]
+    #[json(default)]
     pub source_currency: String,
 }
 
@@ -13887,24 +11990,25 @@ pub struct PaymentPagesCheckoutSessionCurrencyConversion {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionCustomFields {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub dropdown: Option<crate::checkout::PaymentPagesCheckoutSessionCustomFieldsDropdown>,
     #[doc = "String of your choice that your integration can use to reconcile this field."]
-    #[serde(default)]
+    #[json(default)]
     pub key: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<crate::checkout::PaymentPagesCheckoutSessionCustomFieldsLabel>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub numeric: Option<crate::checkout::PaymentPagesCheckoutSessionCustomFieldsNumeric>,
     #[doc = "Whether the customer is required to complete the field before completing the Checkout Session."]
-    #[serde(default)]
+    #[json(default)]
     pub optional: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<crate::checkout::PaymentPagesCheckoutSessionCustomFieldsText>,
     #[doc = "The type of the field."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::checkout::PaymentPagesCheckoutSessionCustomFieldsType,
 }
 
@@ -13914,16 +12018,17 @@ pub struct PaymentPagesCheckoutSessionCustomFields {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionCustomFieldsDropdown {
     #[doc = "The value that pre-fills on the payment page."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_value: Option<String>,
     #[doc = "The options available for the customer to select."]
-    #[serde(default)]
+    #[json(default)]
     pub options: Vec<crate::checkout::PaymentPagesCheckoutSessionCustomFieldsOption>,
     #[doc = "The option selected by the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
 }
 
@@ -13933,13 +12038,14 @@ pub struct PaymentPagesCheckoutSessionCustomFieldsDropdown {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionCustomFieldsLabel {
     #[doc = "Custom text for the label, displayed to the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub custom: Option<String>,
     #[doc = "The type of the label."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::checkout::PaymentPagesCheckoutSessionCustomFieldsLabelType,
 }
 
@@ -13990,36 +12096,18 @@ impl Default for PaymentPagesCheckoutSessionCustomFieldsLabelType {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionCustomFieldsLabelType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentPagesCheckoutSessionCustomFieldsLabelType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "custom" => PaymentPagesCheckoutSessionCustomFieldsLabelType::Custom,
-                    other => PaymentPagesCheckoutSessionCustomFieldsLabelType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentPagesCheckoutSessionCustomFieldsLabelType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentPagesCheckoutSessionCustomFieldsLabelType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentPagesCheckoutSessionCustomFieldsLabelType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "custom" => PaymentPagesCheckoutSessionCustomFieldsLabelType::Custom,
+            other => PaymentPagesCheckoutSessionCustomFieldsLabelType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -14029,19 +12117,20 @@ impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionCustomFieldsLab
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionCustomFieldsNumeric {
     #[doc = "The value that pre-fills the field on the payment page."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_value: Option<String>,
     #[doc = "The maximum character length constraint for the customer's input."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub maximum_length: Option<i64>,
     #[doc = "The minimum character length requirement for the customer's input."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub minimum_length: Option<i64>,
     #[doc = "The value entered by the customer, containing only digits."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
 }
 
@@ -14051,13 +12140,14 @@ pub struct PaymentPagesCheckoutSessionCustomFieldsNumeric {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionCustomFieldsOption {
     #[doc = "The label for the option, displayed to the customer."]
-    #[serde(default)]
+    #[json(default)]
     pub label: String,
     #[doc = "The value for this option, not displayed to the customer, used by your integration to reconcile the option selected b..."]
-    #[serde(default)]
+    #[json(default)]
     pub value: String,
 }
 
@@ -14067,19 +12157,20 @@ pub struct PaymentPagesCheckoutSessionCustomFieldsOption {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionCustomFieldsText {
     #[doc = "The value that pre-fills the field on the payment page."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_value: Option<String>,
     #[doc = "The maximum character length constraint for the customer's input."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub maximum_length: Option<i64>,
     #[doc = "The minimum character length requirement for the customer's input."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub minimum_length: Option<i64>,
     #[doc = "The value entered by the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
 }
 
@@ -14134,38 +12225,20 @@ impl Default for PaymentPagesCheckoutSessionCustomFieldsType {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionCustomFieldsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentPagesCheckoutSessionCustomFieldsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "dropdown" => PaymentPagesCheckoutSessionCustomFieldsType::Dropdown,
-                    "numeric" => PaymentPagesCheckoutSessionCustomFieldsType::Numeric,
-                    "text" => PaymentPagesCheckoutSessionCustomFieldsType::Text,
-                    other => PaymentPagesCheckoutSessionCustomFieldsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentPagesCheckoutSessionCustomFieldsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentPagesCheckoutSessionCustomFieldsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentPagesCheckoutSessionCustomFieldsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "dropdown" => PaymentPagesCheckoutSessionCustomFieldsType::Dropdown,
+            "numeric" => PaymentPagesCheckoutSessionCustomFieldsType::Numeric,
+            "text" => PaymentPagesCheckoutSessionCustomFieldsType::Text,
+            other => PaymentPagesCheckoutSessionCustomFieldsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -14175,19 +12248,20 @@ impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionCustomFieldsTyp
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionCustomText {
     #[doc = "Custom text that should be displayed after the payment confirmation button."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub after_submit: Option<crate::checkout::PaymentPagesCheckoutSessionCustomTextPosition>,
     #[doc = "Custom text that should be displayed alongside shipping address collection."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_address: Option<crate::checkout::PaymentPagesCheckoutSessionCustomTextPosition>,
     #[doc = "Custom text that should be displayed alongside the payment confirmation button."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub submit: Option<crate::checkout::PaymentPagesCheckoutSessionCustomTextPosition>,
     #[doc = "Custom text that should be displayed in place of the default terms of service agreement text."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub terms_of_service_acceptance: Option<crate::checkout::PaymentPagesCheckoutSessionCustomTextPosition>,
 }
 
@@ -14197,10 +12271,11 @@ pub struct PaymentPagesCheckoutSessionCustomText {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionCustomTextPosition {
     #[doc = "Text can be up to 1200 characters in length."]
-    #[serde(default)]
+    #[json(default)]
     pub message: String,
 }
 
@@ -14210,31 +12285,32 @@ pub struct PaymentPagesCheckoutSessionCustomTextPosition {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionCustomerDetails {
     #[doc = "The customer's address after a completed Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<crate::common::Address>,
     #[doc = "The customer's business name after a completed Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub business_name: Option<String>,
     #[doc = "The email associated with the Customer, if one exists, on the Checkout Session after a completed Checkout Session or ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[doc = "The customer's individual name after a completed Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub individual_name: Option<String>,
     #[doc = "The customer's name after a completed Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[doc = "The customer's phone number after a completed Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     #[doc = "The customer’s tax exempt status after a completed Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_exempt: Option<crate::checkout::PaymentPagesCheckoutSessionCustomerDetailsTaxExempt>,
     #[doc = "The customer’s tax IDs after a completed Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_ids: Option<Vec<crate::checkout::PaymentPagesCheckoutSessionTaxId>>,
 }
 
@@ -14277,38 +12353,20 @@ impl PaymentPagesCheckoutSessionCustomerDetailsTaxExempt {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionCustomerDetailsTaxExempt {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentPagesCheckoutSessionCustomerDetailsTaxExempt;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exempt" => PaymentPagesCheckoutSessionCustomerDetailsTaxExempt::Exempt,
-                    "none" => PaymentPagesCheckoutSessionCustomerDetailsTaxExempt::None,
-                    "reverse" => PaymentPagesCheckoutSessionCustomerDetailsTaxExempt::Reverse,
-                    other => PaymentPagesCheckoutSessionCustomerDetailsTaxExempt::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentPagesCheckoutSessionCustomerDetailsTaxExempt::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentPagesCheckoutSessionCustomerDetailsTaxExempt {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentPagesCheckoutSessionCustomerDetailsTaxExempt::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exempt" => PaymentPagesCheckoutSessionCustomerDetailsTaxExempt::Exempt,
+            "none" => PaymentPagesCheckoutSessionCustomerDetailsTaxExempt::None,
+            "reverse" => PaymentPagesCheckoutSessionCustomerDetailsTaxExempt::Reverse,
+            other => PaymentPagesCheckoutSessionCustomerDetailsTaxExempt::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -14318,13 +12376,14 @@ impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionCustomerDetails
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionDiscount {
     #[doc = "Coupon attached to the Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub coupon: Option<crate::Expandable<crate::coupons::Coupon>>,
     #[doc = "Promotion code attached to the Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub promotion_code: Option<crate::Expandable<crate::promotion_codes::PromotionCode>>,
 }
 
@@ -14334,13 +12393,14 @@ pub struct PaymentPagesCheckoutSessionDiscount {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionIndividualName {
     #[doc = "Indicates whether individual name collection is enabled for the session"]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "Whether the customer is required to complete the field before completing the Checkout Session."]
-    #[serde(default)]
+    #[json(default)]
     pub optional: bool,
 }
 
@@ -14350,12 +12410,13 @@ pub struct PaymentPagesCheckoutSessionIndividualName {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionInvoiceCreation {
     #[doc = "Indicates whether invoice creation is enabled for the Checkout Session."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice_data: Option<crate::checkout::PaymentPagesCheckoutSessionInvoiceSettings>,
 }
 
@@ -14365,30 +12426,31 @@ pub struct PaymentPagesCheckoutSessionInvoiceCreation {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionInvoiceSettings {
     #[doc = "The account tax IDs associated with the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_tax_ids: Option<
         Vec<crate::Expandable<crate::checkout::PaymentPagesCheckoutSessionInvoiceSettingsAccountTaxIdsItemExpanded>>,
     >,
     #[doc = "Custom fields displayed on the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub custom_fields: Option<Vec<crate::invoices::InvoiceSettingCustomField>>,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "Footer displayed on the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub footer: Option<String>,
     #[doc = "The connected account that issues the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuer: Option<crate::accounts::ConnectAccountReference>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "Options for invoice PDF rendering."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub rendering_options: Option<crate::invoices::InvoiceSettingCheckoutRenderingOptions>,
 }
 
@@ -14403,7 +12465,7 @@ pub enum PaymentPagesCheckoutSessionInvoiceSettingsAccountTaxIdsItemExpanded {
     /// Expanded `tax_id`.
     TaxId(Box<crate::tax_ids::TaxId>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -14412,16 +12474,14 @@ pub enum PaymentPagesCheckoutSessionInvoiceSettingsAccountTaxIdsItemExpanded {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionInvoiceSettingsAccountTaxIdsItemExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for PaymentPagesCheckoutSessionInvoiceSettingsAccountTaxIdsItemExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
             "tax_id" => PaymentPagesCheckoutSessionInvoiceSettingsAccountTaxIdsItemExpanded::TaxId(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
+                json::from_slice_owned(&json::to_vec(&value))?,
             )),
             _ => PaymentPagesCheckoutSessionInvoiceSettingsAccountTaxIdsItemExpanded::Other(value),
         })
@@ -14435,10 +12495,11 @@ impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionInvoiceSettings
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionManagedPayments {
     #[doc = "Set to `true` to enable [Managed Payments](https://docs.stripe.com/payments/managed-payments), Stripe's merchant of r..."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
 }
 
@@ -14448,11 +12509,12 @@ pub struct PaymentPagesCheckoutSessionManagedPayments {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionNameCollection {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub business: Option<crate::checkout::PaymentPagesCheckoutSessionBusinessName>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub individual: Option<crate::checkout::PaymentPagesCheckoutSessionIndividualName>,
 }
 
@@ -14462,13 +12524,14 @@ pub struct PaymentPagesCheckoutSessionNameCollection {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionOptionalItem {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub adjustable_quantity: Option<crate::checkout::PaymentPagesCheckoutSessionOptionalItemAdjustableQuantity>,
-    #[serde(default)]
+    #[json(default)]
     pub price: String,
-    #[serde(default)]
+    #[json(default)]
     pub quantity: i64,
 }
 
@@ -14478,16 +12541,17 @@ pub struct PaymentPagesCheckoutSessionOptionalItem {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionOptionalItemAdjustableQuantity {
     #[doc = "Set to true if the quantity can be adjusted to any non-negative integer."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "The maximum quantity of this item the customer can purchase."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub maximum: Option<i64>,
     #[doc = "The minimum quantity of this item the customer must purchase, if they choose to purchase it."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub minimum: Option<i64>,
 }
 
@@ -14497,10 +12561,11 @@ pub struct PaymentPagesCheckoutSessionOptionalItemAdjustableQuantity {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionPaymentMethodReuseAgreement {
     #[doc = "Determines the position and visibility of the payment method reuse agreement in the UI."]
-    #[serde(default)]
+    #[json(default)]
     pub position: crate::checkout::PaymentPagesCheckoutSessionPaymentMethodReuseAgreementPosition,
 }
 
@@ -14553,39 +12618,21 @@ impl Default for PaymentPagesCheckoutSessionPaymentMethodReuseAgreementPosition 
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionPaymentMethodReuseAgreementPosition {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentPagesCheckoutSessionPaymentMethodReuseAgreementPosition;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => PaymentPagesCheckoutSessionPaymentMethodReuseAgreementPosition::Auto,
-                    "hidden" => PaymentPagesCheckoutSessionPaymentMethodReuseAgreementPosition::Hidden,
-                    other => PaymentPagesCheckoutSessionPaymentMethodReuseAgreementPosition::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentPagesCheckoutSessionPaymentMethodReuseAgreementPosition::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for PaymentPagesCheckoutSessionPaymentMethodReuseAgreementPosition {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentPagesCheckoutSessionPaymentMethodReuseAgreementPosition::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => PaymentPagesCheckoutSessionPaymentMethodReuseAgreementPosition::Auto,
+            "hidden" => PaymentPagesCheckoutSessionPaymentMethodReuseAgreementPosition::Hidden,
+            other => PaymentPagesCheckoutSessionPaymentMethodReuseAgreementPosition::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -14595,10 +12642,11 @@ impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionPaymentMethodRe
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionPermissions {
     #[doc = "Determines which entity is allowed to update the shipping details."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub update_shipping_details: Option<crate::checkout::PaymentPagesCheckoutSessionPermissionsUpdateShippingDetails>,
 }
 
@@ -14639,39 +12687,21 @@ impl PaymentPagesCheckoutSessionPermissionsUpdateShippingDetails {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionPermissionsUpdateShippingDetails {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentPagesCheckoutSessionPermissionsUpdateShippingDetails;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "client_only" => PaymentPagesCheckoutSessionPermissionsUpdateShippingDetails::ClientOnly,
-                    "server_only" => PaymentPagesCheckoutSessionPermissionsUpdateShippingDetails::ServerOnly,
-                    other => PaymentPagesCheckoutSessionPermissionsUpdateShippingDetails::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentPagesCheckoutSessionPermissionsUpdateShippingDetails::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for PaymentPagesCheckoutSessionPermissionsUpdateShippingDetails {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentPagesCheckoutSessionPermissionsUpdateShippingDetails::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "client_only" => PaymentPagesCheckoutSessionPermissionsUpdateShippingDetails::ClientOnly,
+            "server_only" => PaymentPagesCheckoutSessionPermissionsUpdateShippingDetails::ServerOnly,
+            other => PaymentPagesCheckoutSessionPermissionsUpdateShippingDetails::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -14681,10 +12711,11 @@ impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionPermissionsUpda
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionPhoneNumberCollection {
     #[doc = "Indicates whether phone number collection is enabled for the session"]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
 }
 
@@ -14694,18 +12725,19 @@ pub struct PaymentPagesCheckoutSessionPhoneNumberCollection {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionSavedPaymentMethodOptions {
     #[doc = "Uses the `allow_redisplay` value of each saved payment method to filter the set presented to a returning customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub allow_redisplay_filters:
         Option<Vec<crate::checkout::PaymentPagesCheckoutSessionSavedPaymentMethodOptionsAllowRedisplayFiltersItem>>,
     #[doc = "Enable customers to choose if they wish to remove their saved payment methods."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_remove:
         Option<crate::checkout::PaymentPagesCheckoutSessionSavedPaymentMethodOptionsPaymentMethodRemove>,
     #[doc = "Enable customers to choose if they wish to save their payment method for future use."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_save:
         Option<crate::checkout::PaymentPagesCheckoutSessionSavedPaymentMethodOptionsPaymentMethodRemove>,
 }
@@ -14749,46 +12781,24 @@ impl PaymentPagesCheckoutSessionSavedPaymentMethodOptionsAllowRedisplayFiltersIt
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionSavedPaymentMethodOptionsAllowRedisplayFiltersItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentPagesCheckoutSessionSavedPaymentMethodOptionsAllowRedisplayFiltersItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => PaymentPagesCheckoutSessionSavedPaymentMethodOptionsAllowRedisplayFiltersItem::Always,
-                    "limited" => PaymentPagesCheckoutSessionSavedPaymentMethodOptionsAllowRedisplayFiltersItem::Limited,
-                    "unspecified" => {
-                        PaymentPagesCheckoutSessionSavedPaymentMethodOptionsAllowRedisplayFiltersItem::Unspecified
-                    }
-                    other => PaymentPagesCheckoutSessionSavedPaymentMethodOptionsAllowRedisplayFiltersItem::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    PaymentPagesCheckoutSessionSavedPaymentMethodOptionsAllowRedisplayFiltersItem::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for PaymentPagesCheckoutSessionSavedPaymentMethodOptionsAllowRedisplayFiltersItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                PaymentPagesCheckoutSessionSavedPaymentMethodOptionsAllowRedisplayFiltersItem::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => PaymentPagesCheckoutSessionSavedPaymentMethodOptionsAllowRedisplayFiltersItem::Always,
+            "limited" => PaymentPagesCheckoutSessionSavedPaymentMethodOptionsAllowRedisplayFiltersItem::Limited,
+            "unspecified" => PaymentPagesCheckoutSessionSavedPaymentMethodOptionsAllowRedisplayFiltersItem::Unspecified,
+            other => PaymentPagesCheckoutSessionSavedPaymentMethodOptionsAllowRedisplayFiltersItem::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -14829,39 +12839,21 @@ impl PaymentPagesCheckoutSessionSavedPaymentMethodOptionsPaymentMethodRemove {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionSavedPaymentMethodOptionsPaymentMethodRemove {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentPagesCheckoutSessionSavedPaymentMethodOptionsPaymentMethodRemove;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "disabled" => PaymentPagesCheckoutSessionSavedPaymentMethodOptionsPaymentMethodRemove::Disabled,
-                    "enabled" => PaymentPagesCheckoutSessionSavedPaymentMethodOptionsPaymentMethodRemove::Enabled,
-                    other => PaymentPagesCheckoutSessionSavedPaymentMethodOptionsPaymentMethodRemove::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentPagesCheckoutSessionSavedPaymentMethodOptionsPaymentMethodRemove::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentPagesCheckoutSessionSavedPaymentMethodOptionsPaymentMethodRemove {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentPagesCheckoutSessionSavedPaymentMethodOptionsPaymentMethodRemove::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "disabled" => PaymentPagesCheckoutSessionSavedPaymentMethodOptionsPaymentMethodRemove::Disabled,
+            "enabled" => PaymentPagesCheckoutSessionSavedPaymentMethodOptionsPaymentMethodRemove::Enabled,
+            other => {
+                PaymentPagesCheckoutSessionSavedPaymentMethodOptionsPaymentMethodRemove::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -14871,10 +12863,11 @@ impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionSavedPaymentMet
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionShippingAddressCollection {
     #[doc = "An array of two-letter ISO country codes representing which countries Checkout should provide as options for shipping..."]
-    #[serde(default)]
+    #[json(default)]
     pub allowed_countries:
         Vec<crate::checkout::PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem>,
 }
@@ -15388,275 +13381,259 @@ impl PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "AC" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AC,
-                    "AD" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AD,
-                    "AE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AE,
-                    "AF" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AF,
-                    "AG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AG,
-                    "AI" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AI,
-                    "AL" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AL,
-                    "AM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AM,
-                    "AO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AO,
-                    "AQ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AQ,
-                    "AR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AR,
-                    "AT" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AT,
-                    "AU" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AU,
-                    "AW" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AW,
-                    "AX" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AX,
-                    "AZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AZ,
-                    "BA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BA,
-                    "BB" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BB,
-                    "BD" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BD,
-                    "BE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BE,
-                    "BF" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BF,
-                    "BG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BG,
-                    "BH" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BH,
-                    "BI" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BI,
-                    "BJ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BJ,
-                    "BL" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BL,
-                    "BM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BM,
-                    "BN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BN,
-                    "BO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BO,
-                    "BQ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BQ,
-                    "BR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BR,
-                    "BS" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BS,
-                    "BT" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BT,
-                    "BV" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BV,
-                    "BW" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BW,
-                    "BY" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BY,
-                    "BZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BZ,
-                    "CA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CA,
-                    "CD" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CD,
-                    "CF" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CF,
-                    "CG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CG,
-                    "CH" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CH,
-                    "CI" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CI,
-                    "CK" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CK,
-                    "CL" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CL,
-                    "CM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CM,
-                    "CN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CN,
-                    "CO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CO,
-                    "CR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CR,
-                    "CV" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CV,
-                    "CW" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CW,
-                    "CY" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CY,
-                    "CZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CZ,
-                    "DE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::DE,
-                    "DJ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::DJ,
-                    "DK" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::DK,
-                    "DM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::DM,
-                    "DO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::DO,
-                    "DZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::DZ,
-                    "EC" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::EC,
-                    "EE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::EE,
-                    "EG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::EG,
-                    "EH" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::EH,
-                    "ER" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ER,
-                    "ES" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ES,
-                    "ET" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ET,
-                    "FI" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::FI,
-                    "FJ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::FJ,
-                    "FK" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::FK,
-                    "FO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::FO,
-                    "FR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::FR,
-                    "GA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GA,
-                    "GB" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GB,
-                    "GD" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GD,
-                    "GE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GE,
-                    "GF" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GF,
-                    "GG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GG,
-                    "GH" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GH,
-                    "GI" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GI,
-                    "GL" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GL,
-                    "GM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GM,
-                    "GN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GN,
-                    "GP" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GP,
-                    "GQ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GQ,
-                    "GR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GR,
-                    "GS" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GS,
-                    "GT" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GT,
-                    "GU" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GU,
-                    "GW" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GW,
-                    "GY" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GY,
-                    "HK" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::HK,
-                    "HN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::HN,
-                    "HR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::HR,
-                    "HT" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::HT,
-                    "HU" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::HU,
-                    "ID" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ID,
-                    "IE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::IE,
-                    "IL" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::IL,
-                    "IM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::IM,
-                    "IN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::IN,
-                    "IO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::IO,
-                    "IQ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::IQ,
-                    "IS" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::IS,
-                    "IT" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::IT,
-                    "JE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::JE,
-                    "JM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::JM,
-                    "JO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::JO,
-                    "JP" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::JP,
-                    "KE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::KE,
-                    "KG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::KG,
-                    "KH" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::KH,
-                    "KI" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::KI,
-                    "KM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::KM,
-                    "KN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::KN,
-                    "KR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::KR,
-                    "KW" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::KW,
-                    "KY" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::KY,
-                    "KZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::KZ,
-                    "LA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LA,
-                    "LB" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LB,
-                    "LC" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LC,
-                    "LI" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LI,
-                    "LK" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LK,
-                    "LR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LR,
-                    "LS" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LS,
-                    "LT" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LT,
-                    "LU" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LU,
-                    "LV" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LV,
-                    "LY" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LY,
-                    "MA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MA,
-                    "MC" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MC,
-                    "MD" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MD,
-                    "ME" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ME,
-                    "MF" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MF,
-                    "MG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MG,
-                    "MK" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MK,
-                    "ML" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ML,
-                    "MM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MM,
-                    "MN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MN,
-                    "MO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MO,
-                    "MQ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MQ,
-                    "MR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MR,
-                    "MS" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MS,
-                    "MT" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MT,
-                    "MU" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MU,
-                    "MV" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MV,
-                    "MW" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MW,
-                    "MX" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MX,
-                    "MY" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MY,
-                    "MZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MZ,
-                    "NA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NA,
-                    "NC" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NC,
-                    "NE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NE,
-                    "NG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NG,
-                    "NI" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NI,
-                    "NL" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NL,
-                    "NO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NO,
-                    "NP" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NP,
-                    "NR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NR,
-                    "NU" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NU,
-                    "NZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NZ,
-                    "OM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::OM,
-                    "PA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PA,
-                    "PE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PE,
-                    "PF" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PF,
-                    "PG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PG,
-                    "PH" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PH,
-                    "PK" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PK,
-                    "PL" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PL,
-                    "PM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PM,
-                    "PN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PN,
-                    "PR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PR,
-                    "PS" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PS,
-                    "PT" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PT,
-                    "PY" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PY,
-                    "QA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::QA,
-                    "RE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::RE,
-                    "RO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::RO,
-                    "RS" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::RS,
-                    "RU" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::RU,
-                    "RW" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::RW,
-                    "SA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SA,
-                    "SB" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SB,
-                    "SC" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SC,
-                    "SD" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SD,
-                    "SE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SE,
-                    "SG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SG,
-                    "SH" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SH,
-                    "SI" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SI,
-                    "SJ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SJ,
-                    "SK" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SK,
-                    "SL" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SL,
-                    "SM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SM,
-                    "SN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SN,
-                    "SO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SO,
-                    "SR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SR,
-                    "SS" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SS,
-                    "ST" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ST,
-                    "SV" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SV,
-                    "SX" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SX,
-                    "SZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SZ,
-                    "TA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TA,
-                    "TC" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TC,
-                    "TD" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TD,
-                    "TF" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TF,
-                    "TG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TG,
-                    "TH" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TH,
-                    "TJ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TJ,
-                    "TK" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TK,
-                    "TL" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TL,
-                    "TM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TM,
-                    "TN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TN,
-                    "TO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TO,
-                    "TR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TR,
-                    "TT" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TT,
-                    "TV" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TV,
-                    "TW" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TW,
-                    "TZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TZ,
-                    "UA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::UA,
-                    "UG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::UG,
-                    "US" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::US,
-                    "UY" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::UY,
-                    "UZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::UZ,
-                    "VA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::VA,
-                    "VC" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::VC,
-                    "VE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::VE,
-                    "VG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::VG,
-                    "VN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::VN,
-                    "VU" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::VU,
-                    "WF" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::WF,
-                    "WS" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::WS,
-                    "XK" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::XK,
-                    "YE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::YE,
-                    "YT" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::YT,
-                    "ZA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ZA,
-                    "ZM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ZM,
-                    "ZW" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ZW,
-                    "ZZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ZZ,
-                    other => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "AC" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AC,
+            "AD" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AD,
+            "AE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AE,
+            "AF" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AF,
+            "AG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AG,
+            "AI" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AI,
+            "AL" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AL,
+            "AM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AM,
+            "AO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AO,
+            "AQ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AQ,
+            "AR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AR,
+            "AT" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AT,
+            "AU" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AU,
+            "AW" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AW,
+            "AX" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AX,
+            "AZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::AZ,
+            "BA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BA,
+            "BB" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BB,
+            "BD" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BD,
+            "BE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BE,
+            "BF" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BF,
+            "BG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BG,
+            "BH" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BH,
+            "BI" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BI,
+            "BJ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BJ,
+            "BL" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BL,
+            "BM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BM,
+            "BN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BN,
+            "BO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BO,
+            "BQ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BQ,
+            "BR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BR,
+            "BS" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BS,
+            "BT" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BT,
+            "BV" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BV,
+            "BW" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BW,
+            "BY" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BY,
+            "BZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::BZ,
+            "CA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CA,
+            "CD" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CD,
+            "CF" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CF,
+            "CG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CG,
+            "CH" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CH,
+            "CI" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CI,
+            "CK" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CK,
+            "CL" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CL,
+            "CM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CM,
+            "CN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CN,
+            "CO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CO,
+            "CR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CR,
+            "CV" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CV,
+            "CW" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CW,
+            "CY" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CY,
+            "CZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::CZ,
+            "DE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::DE,
+            "DJ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::DJ,
+            "DK" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::DK,
+            "DM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::DM,
+            "DO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::DO,
+            "DZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::DZ,
+            "EC" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::EC,
+            "EE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::EE,
+            "EG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::EG,
+            "EH" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::EH,
+            "ER" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ER,
+            "ES" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ES,
+            "ET" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ET,
+            "FI" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::FI,
+            "FJ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::FJ,
+            "FK" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::FK,
+            "FO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::FO,
+            "FR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::FR,
+            "GA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GA,
+            "GB" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GB,
+            "GD" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GD,
+            "GE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GE,
+            "GF" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GF,
+            "GG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GG,
+            "GH" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GH,
+            "GI" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GI,
+            "GL" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GL,
+            "GM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GM,
+            "GN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GN,
+            "GP" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GP,
+            "GQ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GQ,
+            "GR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GR,
+            "GS" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GS,
+            "GT" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GT,
+            "GU" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GU,
+            "GW" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GW,
+            "GY" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::GY,
+            "HK" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::HK,
+            "HN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::HN,
+            "HR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::HR,
+            "HT" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::HT,
+            "HU" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::HU,
+            "ID" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ID,
+            "IE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::IE,
+            "IL" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::IL,
+            "IM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::IM,
+            "IN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::IN,
+            "IO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::IO,
+            "IQ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::IQ,
+            "IS" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::IS,
+            "IT" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::IT,
+            "JE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::JE,
+            "JM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::JM,
+            "JO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::JO,
+            "JP" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::JP,
+            "KE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::KE,
+            "KG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::KG,
+            "KH" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::KH,
+            "KI" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::KI,
+            "KM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::KM,
+            "KN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::KN,
+            "KR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::KR,
+            "KW" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::KW,
+            "KY" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::KY,
+            "KZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::KZ,
+            "LA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LA,
+            "LB" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LB,
+            "LC" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LC,
+            "LI" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LI,
+            "LK" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LK,
+            "LR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LR,
+            "LS" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LS,
+            "LT" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LT,
+            "LU" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LU,
+            "LV" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LV,
+            "LY" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::LY,
+            "MA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MA,
+            "MC" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MC,
+            "MD" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MD,
+            "ME" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ME,
+            "MF" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MF,
+            "MG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MG,
+            "MK" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MK,
+            "ML" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ML,
+            "MM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MM,
+            "MN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MN,
+            "MO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MO,
+            "MQ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MQ,
+            "MR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MR,
+            "MS" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MS,
+            "MT" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MT,
+            "MU" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MU,
+            "MV" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MV,
+            "MW" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MW,
+            "MX" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MX,
+            "MY" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MY,
+            "MZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::MZ,
+            "NA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NA,
+            "NC" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NC,
+            "NE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NE,
+            "NG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NG,
+            "NI" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NI,
+            "NL" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NL,
+            "NO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NO,
+            "NP" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NP,
+            "NR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NR,
+            "NU" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NU,
+            "NZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::NZ,
+            "OM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::OM,
+            "PA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PA,
+            "PE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PE,
+            "PF" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PF,
+            "PG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PG,
+            "PH" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PH,
+            "PK" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PK,
+            "PL" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PL,
+            "PM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PM,
+            "PN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PN,
+            "PR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PR,
+            "PS" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PS,
+            "PT" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PT,
+            "PY" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::PY,
+            "QA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::QA,
+            "RE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::RE,
+            "RO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::RO,
+            "RS" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::RS,
+            "RU" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::RU,
+            "RW" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::RW,
+            "SA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SA,
+            "SB" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SB,
+            "SC" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SC,
+            "SD" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SD,
+            "SE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SE,
+            "SG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SG,
+            "SH" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SH,
+            "SI" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SI,
+            "SJ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SJ,
+            "SK" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SK,
+            "SL" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SL,
+            "SM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SM,
+            "SN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SN,
+            "SO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SO,
+            "SR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SR,
+            "SS" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SS,
+            "ST" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ST,
+            "SV" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SV,
+            "SX" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SX,
+            "SZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::SZ,
+            "TA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TA,
+            "TC" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TC,
+            "TD" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TD,
+            "TF" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TF,
+            "TG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TG,
+            "TH" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TH,
+            "TJ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TJ,
+            "TK" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TK,
+            "TL" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TL,
+            "TM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TM,
+            "TN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TN,
+            "TO" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TO,
+            "TR" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TR,
+            "TT" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TT,
+            "TV" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TV,
+            "TW" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TW,
+            "TZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::TZ,
+            "UA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::UA,
+            "UG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::UG,
+            "US" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::US,
+            "UY" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::UY,
+            "UZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::UZ,
+            "VA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::VA,
+            "VC" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::VC,
+            "VE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::VE,
+            "VG" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::VG,
+            "VN" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::VN,
+            "VU" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::VU,
+            "WF" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::WF,
+            "WS" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::WS,
+            "XK" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::XK,
+            "YE" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::YE,
+            "YT" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::YT,
+            "ZA" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ZA,
+            "ZM" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ZM,
+            "ZW" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ZW,
+            "ZZ" => PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::ZZ,
+            other => {
+                PaymentPagesCheckoutSessionShippingAddressCollectionAllowedCountriesItem::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -15666,22 +13643,23 @@ impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionShippingAddress
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionShippingCost {
     #[doc = "Total shipping cost before any discounts or taxes are applied."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_subtotal: i64,
     #[doc = "Total tax amount applied due to shipping costs."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_tax: i64,
     #[doc = "Total shipping cost after discounts and taxes are applied."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_total: i64,
     #[doc = "The ID of the ShippingRate for this order."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_rate: Option<crate::Expandable<crate::shipping_rates::ShippingRate>>,
     #[doc = "The taxes applied to the shipping rate."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub taxes: Option<Vec<crate::common::LineItemsTaxAmount>>,
 }
 
@@ -15691,13 +13669,14 @@ pub struct PaymentPagesCheckoutSessionShippingCost {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionShippingOption {
     #[doc = "A non-negative integer in cents representing how much to charge."]
-    #[serde(default)]
+    #[json(default)]
     pub shipping_amount: i64,
     #[doc = "The shipping rate."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_rate: Option<crate::Expandable<crate::shipping_rates::ShippingRate>>,
 }
 
@@ -15707,13 +13686,14 @@ pub struct PaymentPagesCheckoutSessionShippingOption {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionTaxId {
     #[doc = "The type of the tax ID, one of `ad_nrt`, `ar_cuit`, `eu_vat`, `bo_tin`, `br_cnpj`, `br_cpf`, `cn_tin`, `co_nit`, `cr_..."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::checkout::PaymentPagesCheckoutSessionTaxIdType,
     #[doc = "The value of the tax ID."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
 }
 
@@ -15723,13 +13703,14 @@ pub struct PaymentPagesCheckoutSessionTaxId {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionTaxIdCollection {
     #[doc = "Indicates whether tax ID collection is enabled for the session"]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "Indicates whether a tax ID is required on the payment page"]
-    #[serde(default)]
+    #[json(default)]
     pub required: crate::checkout::PaymentPagesCheckoutSessionTaxIdCollectionRequired,
 }
 
@@ -15782,37 +13763,19 @@ impl Default for PaymentPagesCheckoutSessionTaxIdCollectionRequired {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionTaxIdCollectionRequired {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentPagesCheckoutSessionTaxIdCollectionRequired;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "if_supported" => PaymentPagesCheckoutSessionTaxIdCollectionRequired::IfSupported,
-                    "never" => PaymentPagesCheckoutSessionTaxIdCollectionRequired::Never,
-                    other => PaymentPagesCheckoutSessionTaxIdCollectionRequired::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentPagesCheckoutSessionTaxIdCollectionRequired::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentPagesCheckoutSessionTaxIdCollectionRequired {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentPagesCheckoutSessionTaxIdCollectionRequired::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "if_supported" => PaymentPagesCheckoutSessionTaxIdCollectionRequired::IfSupported,
+            "never" => PaymentPagesCheckoutSessionTaxIdCollectionRequired::Never,
+            other => PaymentPagesCheckoutSessionTaxIdCollectionRequired::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -16097,153 +14060,135 @@ impl Default for PaymentPagesCheckoutSessionTaxIdType {
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionTaxIdType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentPagesCheckoutSessionTaxIdType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ad_nrt" => PaymentPagesCheckoutSessionTaxIdType::AdNrt,
-                    "ae_trn" => PaymentPagesCheckoutSessionTaxIdType::AeTrn,
-                    "al_tin" => PaymentPagesCheckoutSessionTaxIdType::AlTin,
-                    "am_tin" => PaymentPagesCheckoutSessionTaxIdType::AmTin,
-                    "ao_tin" => PaymentPagesCheckoutSessionTaxIdType::AoTin,
-                    "ar_cuit" => PaymentPagesCheckoutSessionTaxIdType::ArCuit,
-                    "au_abn" => PaymentPagesCheckoutSessionTaxIdType::AuAbn,
-                    "au_arn" => PaymentPagesCheckoutSessionTaxIdType::AuArn,
-                    "aw_tin" => PaymentPagesCheckoutSessionTaxIdType::AwTin,
-                    "az_tin" => PaymentPagesCheckoutSessionTaxIdType::AzTin,
-                    "ba_tin" => PaymentPagesCheckoutSessionTaxIdType::BaTin,
-                    "bb_tin" => PaymentPagesCheckoutSessionTaxIdType::BbTin,
-                    "bd_bin" => PaymentPagesCheckoutSessionTaxIdType::BdBin,
-                    "bf_ifu" => PaymentPagesCheckoutSessionTaxIdType::BfIfu,
-                    "bg_uic" => PaymentPagesCheckoutSessionTaxIdType::BgUic,
-                    "bh_vat" => PaymentPagesCheckoutSessionTaxIdType::BhVat,
-                    "bj_ifu" => PaymentPagesCheckoutSessionTaxIdType::BjIfu,
-                    "bo_tin" => PaymentPagesCheckoutSessionTaxIdType::BoTin,
-                    "br_cnpj" => PaymentPagesCheckoutSessionTaxIdType::BrCnpj,
-                    "br_cpf" => PaymentPagesCheckoutSessionTaxIdType::BrCpf,
-                    "bs_tin" => PaymentPagesCheckoutSessionTaxIdType::BsTin,
-                    "by_tin" => PaymentPagesCheckoutSessionTaxIdType::ByTin,
-                    "ca_bn" => PaymentPagesCheckoutSessionTaxIdType::CaBn,
-                    "ca_gst_hst" => PaymentPagesCheckoutSessionTaxIdType::CaGstHst,
-                    "ca_pst_bc" => PaymentPagesCheckoutSessionTaxIdType::CaPstBc,
-                    "ca_pst_mb" => PaymentPagesCheckoutSessionTaxIdType::CaPstMb,
-                    "ca_pst_sk" => PaymentPagesCheckoutSessionTaxIdType::CaPstSk,
-                    "ca_qst" => PaymentPagesCheckoutSessionTaxIdType::CaQst,
-                    "cd_nif" => PaymentPagesCheckoutSessionTaxIdType::CdNif,
-                    "ch_uid" => PaymentPagesCheckoutSessionTaxIdType::ChUid,
-                    "ch_vat" => PaymentPagesCheckoutSessionTaxIdType::ChVat,
-                    "cl_tin" => PaymentPagesCheckoutSessionTaxIdType::ClTin,
-                    "cm_niu" => PaymentPagesCheckoutSessionTaxIdType::CmNiu,
-                    "cn_tin" => PaymentPagesCheckoutSessionTaxIdType::CnTin,
-                    "co_nit" => PaymentPagesCheckoutSessionTaxIdType::CoNit,
-                    "cr_tin" => PaymentPagesCheckoutSessionTaxIdType::CrTin,
-                    "cv_nif" => PaymentPagesCheckoutSessionTaxIdType::CvNif,
-                    "de_stn" => PaymentPagesCheckoutSessionTaxIdType::DeStn,
-                    "do_rcn" => PaymentPagesCheckoutSessionTaxIdType::DoRcn,
-                    "ec_ruc" => PaymentPagesCheckoutSessionTaxIdType::EcRuc,
-                    "eg_tin" => PaymentPagesCheckoutSessionTaxIdType::EgTin,
-                    "es_cif" => PaymentPagesCheckoutSessionTaxIdType::EsCif,
-                    "et_tin" => PaymentPagesCheckoutSessionTaxIdType::EtTin,
-                    "eu_oss_vat" => PaymentPagesCheckoutSessionTaxIdType::EuOssVat,
-                    "eu_vat" => PaymentPagesCheckoutSessionTaxIdType::EuVat,
-                    "fo_vat" => PaymentPagesCheckoutSessionTaxIdType::FoVat,
-                    "gb_vat" => PaymentPagesCheckoutSessionTaxIdType::GbVat,
-                    "ge_vat" => PaymentPagesCheckoutSessionTaxIdType::GeVat,
-                    "gi_tin" => PaymentPagesCheckoutSessionTaxIdType::GiTin,
-                    "gn_nif" => PaymentPagesCheckoutSessionTaxIdType::GnNif,
-                    "hk_br" => PaymentPagesCheckoutSessionTaxIdType::HkBr,
-                    "hr_oib" => PaymentPagesCheckoutSessionTaxIdType::HrOib,
-                    "hu_tin" => PaymentPagesCheckoutSessionTaxIdType::HuTin,
-                    "ic_nif" => PaymentPagesCheckoutSessionTaxIdType::IcNif,
-                    "id_npwp" => PaymentPagesCheckoutSessionTaxIdType::IdNpwp,
-                    "il_vat" => PaymentPagesCheckoutSessionTaxIdType::IlVat,
-                    "in_gst" => PaymentPagesCheckoutSessionTaxIdType::InGst,
-                    "is_vat" => PaymentPagesCheckoutSessionTaxIdType::IsVat,
-                    "it_cf" => PaymentPagesCheckoutSessionTaxIdType::ItCf,
-                    "jp_cn" => PaymentPagesCheckoutSessionTaxIdType::JpCn,
-                    "jp_rn" => PaymentPagesCheckoutSessionTaxIdType::JpRn,
-                    "jp_trn" => PaymentPagesCheckoutSessionTaxIdType::JpTrn,
-                    "ke_pin" => PaymentPagesCheckoutSessionTaxIdType::KePin,
-                    "kg_tin" => PaymentPagesCheckoutSessionTaxIdType::KgTin,
-                    "kh_tin" => PaymentPagesCheckoutSessionTaxIdType::KhTin,
-                    "kr_brn" => PaymentPagesCheckoutSessionTaxIdType::KrBrn,
-                    "kz_bin" => PaymentPagesCheckoutSessionTaxIdType::KzBin,
-                    "la_tin" => PaymentPagesCheckoutSessionTaxIdType::LaTin,
-                    "li_uid" => PaymentPagesCheckoutSessionTaxIdType::LiUid,
-                    "li_vat" => PaymentPagesCheckoutSessionTaxIdType::LiVat,
-                    "lk_vat" => PaymentPagesCheckoutSessionTaxIdType::LkVat,
-                    "ma_vat" => PaymentPagesCheckoutSessionTaxIdType::MaVat,
-                    "md_vat" => PaymentPagesCheckoutSessionTaxIdType::MdVat,
-                    "me_pib" => PaymentPagesCheckoutSessionTaxIdType::MePib,
-                    "mk_vat" => PaymentPagesCheckoutSessionTaxIdType::MkVat,
-                    "mr_nif" => PaymentPagesCheckoutSessionTaxIdType::MrNif,
-                    "mx_rfc" => PaymentPagesCheckoutSessionTaxIdType::MxRfc,
-                    "my_frp" => PaymentPagesCheckoutSessionTaxIdType::MyFrp,
-                    "my_itn" => PaymentPagesCheckoutSessionTaxIdType::MyItn,
-                    "my_sst" => PaymentPagesCheckoutSessionTaxIdType::MySst,
-                    "ng_tin" => PaymentPagesCheckoutSessionTaxIdType::NgTin,
-                    "no_vat" => PaymentPagesCheckoutSessionTaxIdType::NoVat,
-                    "no_voec" => PaymentPagesCheckoutSessionTaxIdType::NoVoec,
-                    "np_pan" => PaymentPagesCheckoutSessionTaxIdType::NpPan,
-                    "nz_gst" => PaymentPagesCheckoutSessionTaxIdType::NzGst,
-                    "om_vat" => PaymentPagesCheckoutSessionTaxIdType::OmVat,
-                    "pe_ruc" => PaymentPagesCheckoutSessionTaxIdType::PeRuc,
-                    "ph_tin" => PaymentPagesCheckoutSessionTaxIdType::PhTin,
-                    "pl_nip" => PaymentPagesCheckoutSessionTaxIdType::PlNip,
-                    "py_ruc" => PaymentPagesCheckoutSessionTaxIdType::PyRuc,
-                    "ro_tin" => PaymentPagesCheckoutSessionTaxIdType::RoTin,
-                    "rs_pib" => PaymentPagesCheckoutSessionTaxIdType::RsPib,
-                    "ru_inn" => PaymentPagesCheckoutSessionTaxIdType::RuInn,
-                    "ru_kpp" => PaymentPagesCheckoutSessionTaxIdType::RuKpp,
-                    "sa_vat" => PaymentPagesCheckoutSessionTaxIdType::SaVat,
-                    "sg_gst" => PaymentPagesCheckoutSessionTaxIdType::SgGst,
-                    "sg_uen" => PaymentPagesCheckoutSessionTaxIdType::SgUen,
-                    "si_tin" => PaymentPagesCheckoutSessionTaxIdType::SiTin,
-                    "sn_ninea" => PaymentPagesCheckoutSessionTaxIdType::SnNinea,
-                    "sr_fin" => PaymentPagesCheckoutSessionTaxIdType::SrFin,
-                    "sv_nit" => PaymentPagesCheckoutSessionTaxIdType::SvNit,
-                    "th_vat" => PaymentPagesCheckoutSessionTaxIdType::ThVat,
-                    "tj_tin" => PaymentPagesCheckoutSessionTaxIdType::TjTin,
-                    "tr_tin" => PaymentPagesCheckoutSessionTaxIdType::TrTin,
-                    "tw_vat" => PaymentPagesCheckoutSessionTaxIdType::TwVat,
-                    "tz_vat" => PaymentPagesCheckoutSessionTaxIdType::TzVat,
-                    "ua_vat" => PaymentPagesCheckoutSessionTaxIdType::UaVat,
-                    "ug_tin" => PaymentPagesCheckoutSessionTaxIdType::UgTin,
-                    "unknown" => PaymentPagesCheckoutSessionTaxIdType::UnknownValue,
-                    "us_ein" => PaymentPagesCheckoutSessionTaxIdType::UsEin,
-                    "uy_ruc" => PaymentPagesCheckoutSessionTaxIdType::UyRuc,
-                    "uz_tin" => PaymentPagesCheckoutSessionTaxIdType::UzTin,
-                    "uz_vat" => PaymentPagesCheckoutSessionTaxIdType::UzVat,
-                    "ve_rif" => PaymentPagesCheckoutSessionTaxIdType::VeRif,
-                    "vn_tin" => PaymentPagesCheckoutSessionTaxIdType::VnTin,
-                    "za_vat" => PaymentPagesCheckoutSessionTaxIdType::ZaVat,
-                    "zm_tin" => PaymentPagesCheckoutSessionTaxIdType::ZmTin,
-                    "zw_tin" => PaymentPagesCheckoutSessionTaxIdType::ZwTin,
-                    other => PaymentPagesCheckoutSessionTaxIdType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentPagesCheckoutSessionTaxIdType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentPagesCheckoutSessionTaxIdType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentPagesCheckoutSessionTaxIdType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ad_nrt" => PaymentPagesCheckoutSessionTaxIdType::AdNrt,
+            "ae_trn" => PaymentPagesCheckoutSessionTaxIdType::AeTrn,
+            "al_tin" => PaymentPagesCheckoutSessionTaxIdType::AlTin,
+            "am_tin" => PaymentPagesCheckoutSessionTaxIdType::AmTin,
+            "ao_tin" => PaymentPagesCheckoutSessionTaxIdType::AoTin,
+            "ar_cuit" => PaymentPagesCheckoutSessionTaxIdType::ArCuit,
+            "au_abn" => PaymentPagesCheckoutSessionTaxIdType::AuAbn,
+            "au_arn" => PaymentPagesCheckoutSessionTaxIdType::AuArn,
+            "aw_tin" => PaymentPagesCheckoutSessionTaxIdType::AwTin,
+            "az_tin" => PaymentPagesCheckoutSessionTaxIdType::AzTin,
+            "ba_tin" => PaymentPagesCheckoutSessionTaxIdType::BaTin,
+            "bb_tin" => PaymentPagesCheckoutSessionTaxIdType::BbTin,
+            "bd_bin" => PaymentPagesCheckoutSessionTaxIdType::BdBin,
+            "bf_ifu" => PaymentPagesCheckoutSessionTaxIdType::BfIfu,
+            "bg_uic" => PaymentPagesCheckoutSessionTaxIdType::BgUic,
+            "bh_vat" => PaymentPagesCheckoutSessionTaxIdType::BhVat,
+            "bj_ifu" => PaymentPagesCheckoutSessionTaxIdType::BjIfu,
+            "bo_tin" => PaymentPagesCheckoutSessionTaxIdType::BoTin,
+            "br_cnpj" => PaymentPagesCheckoutSessionTaxIdType::BrCnpj,
+            "br_cpf" => PaymentPagesCheckoutSessionTaxIdType::BrCpf,
+            "bs_tin" => PaymentPagesCheckoutSessionTaxIdType::BsTin,
+            "by_tin" => PaymentPagesCheckoutSessionTaxIdType::ByTin,
+            "ca_bn" => PaymentPagesCheckoutSessionTaxIdType::CaBn,
+            "ca_gst_hst" => PaymentPagesCheckoutSessionTaxIdType::CaGstHst,
+            "ca_pst_bc" => PaymentPagesCheckoutSessionTaxIdType::CaPstBc,
+            "ca_pst_mb" => PaymentPagesCheckoutSessionTaxIdType::CaPstMb,
+            "ca_pst_sk" => PaymentPagesCheckoutSessionTaxIdType::CaPstSk,
+            "ca_qst" => PaymentPagesCheckoutSessionTaxIdType::CaQst,
+            "cd_nif" => PaymentPagesCheckoutSessionTaxIdType::CdNif,
+            "ch_uid" => PaymentPagesCheckoutSessionTaxIdType::ChUid,
+            "ch_vat" => PaymentPagesCheckoutSessionTaxIdType::ChVat,
+            "cl_tin" => PaymentPagesCheckoutSessionTaxIdType::ClTin,
+            "cm_niu" => PaymentPagesCheckoutSessionTaxIdType::CmNiu,
+            "cn_tin" => PaymentPagesCheckoutSessionTaxIdType::CnTin,
+            "co_nit" => PaymentPagesCheckoutSessionTaxIdType::CoNit,
+            "cr_tin" => PaymentPagesCheckoutSessionTaxIdType::CrTin,
+            "cv_nif" => PaymentPagesCheckoutSessionTaxIdType::CvNif,
+            "de_stn" => PaymentPagesCheckoutSessionTaxIdType::DeStn,
+            "do_rcn" => PaymentPagesCheckoutSessionTaxIdType::DoRcn,
+            "ec_ruc" => PaymentPagesCheckoutSessionTaxIdType::EcRuc,
+            "eg_tin" => PaymentPagesCheckoutSessionTaxIdType::EgTin,
+            "es_cif" => PaymentPagesCheckoutSessionTaxIdType::EsCif,
+            "et_tin" => PaymentPagesCheckoutSessionTaxIdType::EtTin,
+            "eu_oss_vat" => PaymentPagesCheckoutSessionTaxIdType::EuOssVat,
+            "eu_vat" => PaymentPagesCheckoutSessionTaxIdType::EuVat,
+            "fo_vat" => PaymentPagesCheckoutSessionTaxIdType::FoVat,
+            "gb_vat" => PaymentPagesCheckoutSessionTaxIdType::GbVat,
+            "ge_vat" => PaymentPagesCheckoutSessionTaxIdType::GeVat,
+            "gi_tin" => PaymentPagesCheckoutSessionTaxIdType::GiTin,
+            "gn_nif" => PaymentPagesCheckoutSessionTaxIdType::GnNif,
+            "hk_br" => PaymentPagesCheckoutSessionTaxIdType::HkBr,
+            "hr_oib" => PaymentPagesCheckoutSessionTaxIdType::HrOib,
+            "hu_tin" => PaymentPagesCheckoutSessionTaxIdType::HuTin,
+            "ic_nif" => PaymentPagesCheckoutSessionTaxIdType::IcNif,
+            "id_npwp" => PaymentPagesCheckoutSessionTaxIdType::IdNpwp,
+            "il_vat" => PaymentPagesCheckoutSessionTaxIdType::IlVat,
+            "in_gst" => PaymentPagesCheckoutSessionTaxIdType::InGst,
+            "is_vat" => PaymentPagesCheckoutSessionTaxIdType::IsVat,
+            "it_cf" => PaymentPagesCheckoutSessionTaxIdType::ItCf,
+            "jp_cn" => PaymentPagesCheckoutSessionTaxIdType::JpCn,
+            "jp_rn" => PaymentPagesCheckoutSessionTaxIdType::JpRn,
+            "jp_trn" => PaymentPagesCheckoutSessionTaxIdType::JpTrn,
+            "ke_pin" => PaymentPagesCheckoutSessionTaxIdType::KePin,
+            "kg_tin" => PaymentPagesCheckoutSessionTaxIdType::KgTin,
+            "kh_tin" => PaymentPagesCheckoutSessionTaxIdType::KhTin,
+            "kr_brn" => PaymentPagesCheckoutSessionTaxIdType::KrBrn,
+            "kz_bin" => PaymentPagesCheckoutSessionTaxIdType::KzBin,
+            "la_tin" => PaymentPagesCheckoutSessionTaxIdType::LaTin,
+            "li_uid" => PaymentPagesCheckoutSessionTaxIdType::LiUid,
+            "li_vat" => PaymentPagesCheckoutSessionTaxIdType::LiVat,
+            "lk_vat" => PaymentPagesCheckoutSessionTaxIdType::LkVat,
+            "ma_vat" => PaymentPagesCheckoutSessionTaxIdType::MaVat,
+            "md_vat" => PaymentPagesCheckoutSessionTaxIdType::MdVat,
+            "me_pib" => PaymentPagesCheckoutSessionTaxIdType::MePib,
+            "mk_vat" => PaymentPagesCheckoutSessionTaxIdType::MkVat,
+            "mr_nif" => PaymentPagesCheckoutSessionTaxIdType::MrNif,
+            "mx_rfc" => PaymentPagesCheckoutSessionTaxIdType::MxRfc,
+            "my_frp" => PaymentPagesCheckoutSessionTaxIdType::MyFrp,
+            "my_itn" => PaymentPagesCheckoutSessionTaxIdType::MyItn,
+            "my_sst" => PaymentPagesCheckoutSessionTaxIdType::MySst,
+            "ng_tin" => PaymentPagesCheckoutSessionTaxIdType::NgTin,
+            "no_vat" => PaymentPagesCheckoutSessionTaxIdType::NoVat,
+            "no_voec" => PaymentPagesCheckoutSessionTaxIdType::NoVoec,
+            "np_pan" => PaymentPagesCheckoutSessionTaxIdType::NpPan,
+            "nz_gst" => PaymentPagesCheckoutSessionTaxIdType::NzGst,
+            "om_vat" => PaymentPagesCheckoutSessionTaxIdType::OmVat,
+            "pe_ruc" => PaymentPagesCheckoutSessionTaxIdType::PeRuc,
+            "ph_tin" => PaymentPagesCheckoutSessionTaxIdType::PhTin,
+            "pl_nip" => PaymentPagesCheckoutSessionTaxIdType::PlNip,
+            "py_ruc" => PaymentPagesCheckoutSessionTaxIdType::PyRuc,
+            "ro_tin" => PaymentPagesCheckoutSessionTaxIdType::RoTin,
+            "rs_pib" => PaymentPagesCheckoutSessionTaxIdType::RsPib,
+            "ru_inn" => PaymentPagesCheckoutSessionTaxIdType::RuInn,
+            "ru_kpp" => PaymentPagesCheckoutSessionTaxIdType::RuKpp,
+            "sa_vat" => PaymentPagesCheckoutSessionTaxIdType::SaVat,
+            "sg_gst" => PaymentPagesCheckoutSessionTaxIdType::SgGst,
+            "sg_uen" => PaymentPagesCheckoutSessionTaxIdType::SgUen,
+            "si_tin" => PaymentPagesCheckoutSessionTaxIdType::SiTin,
+            "sn_ninea" => PaymentPagesCheckoutSessionTaxIdType::SnNinea,
+            "sr_fin" => PaymentPagesCheckoutSessionTaxIdType::SrFin,
+            "sv_nit" => PaymentPagesCheckoutSessionTaxIdType::SvNit,
+            "th_vat" => PaymentPagesCheckoutSessionTaxIdType::ThVat,
+            "tj_tin" => PaymentPagesCheckoutSessionTaxIdType::TjTin,
+            "tr_tin" => PaymentPagesCheckoutSessionTaxIdType::TrTin,
+            "tw_vat" => PaymentPagesCheckoutSessionTaxIdType::TwVat,
+            "tz_vat" => PaymentPagesCheckoutSessionTaxIdType::TzVat,
+            "ua_vat" => PaymentPagesCheckoutSessionTaxIdType::UaVat,
+            "ug_tin" => PaymentPagesCheckoutSessionTaxIdType::UgTin,
+            "unknown" => PaymentPagesCheckoutSessionTaxIdType::UnknownValue,
+            "us_ein" => PaymentPagesCheckoutSessionTaxIdType::UsEin,
+            "uy_ruc" => PaymentPagesCheckoutSessionTaxIdType::UyRuc,
+            "uz_tin" => PaymentPagesCheckoutSessionTaxIdType::UzTin,
+            "uz_vat" => PaymentPagesCheckoutSessionTaxIdType::UzVat,
+            "ve_rif" => PaymentPagesCheckoutSessionTaxIdType::VeRif,
+            "vn_tin" => PaymentPagesCheckoutSessionTaxIdType::VnTin,
+            "za_vat" => PaymentPagesCheckoutSessionTaxIdType::ZaVat,
+            "zm_tin" => PaymentPagesCheckoutSessionTaxIdType::ZmTin,
+            "zw_tin" => PaymentPagesCheckoutSessionTaxIdType::ZwTin,
+            other => PaymentPagesCheckoutSessionTaxIdType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -16253,18 +14198,19 @@ impl<'de> serde::Deserialize<'de> for PaymentPagesCheckoutSessionTaxIdType {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionTotalDetails {
     #[doc = "This is the sum of all the discounts."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_discount: i64,
     #[doc = "This is the sum of all the shipping amounts."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_shipping: Option<i64>,
     #[doc = "This is the sum of all the tax amounts."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_tax: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub breakdown: Option<crate::checkout::PaymentPagesCheckoutSessionTotalDetailsResourceBreakdown>,
 }
 
@@ -16274,13 +14220,14 @@ pub struct PaymentPagesCheckoutSessionTotalDetails {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesCheckoutSessionTotalDetailsResourceBreakdown {
     #[doc = "The aggregated discounts."]
-    #[serde(default)]
+    #[json(default)]
     pub discounts: Vec<crate::common::LineItemsDiscountAmount>,
     #[doc = "The aggregated tax amounts by rate."]
-    #[serde(default)]
+    #[json(default)]
     pub taxes: Vec<crate::common::LineItemsTaxAmount>,
 }
 
@@ -16290,14 +14237,15 @@ pub struct PaymentPagesCheckoutSessionTotalDetailsResourceBreakdown {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictions {
     #[doc = "The card brands to block."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub brands_blocked:
         Option<Vec<crate::checkout::PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsBrandsBlockedItem>>,
     #[doc = "Card funding types to block for this Checkout Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub funding_types_blocked: Option<
         Vec<crate::checkout::PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsFundingTypesBlockedItem>,
     >,
@@ -16350,43 +14298,31 @@ impl PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsBrandsBlocke
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsBrandsBlockedItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsBrandsBlockedItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "american_express" => PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsBrandsBlockedItem::AmericanExpress,
-                    "discover_global_network" => PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsBrandsBlockedItem::DiscoverGlobalNetwork,
-                    "mastercard" => PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsBrandsBlockedItem::Mastercard,
-                    "visa" => PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsBrandsBlockedItem::Visa,
-                    other => PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsBrandsBlockedItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsBrandsBlockedItem::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsBrandsBlockedItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsBrandsBlockedItem::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "american_express" => {
+                PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsBrandsBlockedItem::AmericanExpress
+            }
+            "discover_global_network" => {
+                PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsBrandsBlockedItem::DiscoverGlobalNetwork
+            }
+            "mastercard" => {
+                PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsBrandsBlockedItem::Mastercard
+            }
+            "visa" => PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsBrandsBlockedItem::Visa,
+            other => PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsBrandsBlockedItem::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -16433,54 +14369,30 @@ impl PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsFundingTypes
     feature = "customers",
     feature = "events"
 ))]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsFundingTypesBlockedItem
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsFundingTypesBlockedItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "credit" => {
-                        PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsFundingTypesBlockedItem::Credit
-                    }
-                    "debit" => {
-                        PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsFundingTypesBlockedItem::Debit
-                    }
-                    "prepaid" => {
-                        PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsFundingTypesBlockedItem::Prepaid
-                    }
-                    other => {
-                        PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsFundingTypesBlockedItem::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsFundingTypesBlockedItem::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsFundingTypesBlockedItem::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "credit" => PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsFundingTypesBlockedItem::Credit,
+            "debit" => PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsFundingTypesBlockedItem::Debit,
+            "prepaid" => {
+                PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsFundingTypesBlockedItem::Prepaid
+            }
+            other => PaymentPagesPrivateCardPaymentMethodOptionsResourceRestrictionsFundingTypesBlockedItem::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -16496,7 +14408,7 @@ pub struct UpdateCheckoutSessionParams {
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "The shipping rate options to apply to this Session."]
-    pub shipping_options: Option<serde_json::Value>,
+    pub shipping_options: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "checkout")]
@@ -16595,7 +14507,7 @@ pub struct UpdateCheckoutSessionParamsLineItemsItem {
     #[doc = "The quantity of the line item being purchased."]
     pub quantity: Option<i64>,
     #[doc = "The [tax rates](https://docs.stripe.com/api/tax_rates) which apply to this line item."]
-    pub tax_rates: Option<serde_json::Value>,
+    pub tax_rates: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "checkout")]

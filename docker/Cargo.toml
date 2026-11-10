@@ -23,7 +23,7 @@ thiserror = { path = "../thiserror" }
 
 bytes = { workspace = true }
 hyper = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
+json = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive", "std"] }
 tokio = { workspace = true }
 tracing = { workspace = true }

@@ -53,69 +53,70 @@
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Account {
     #[doc = "Business information about the account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub business_profile: Option<crate::account::AccountBusinessProfile>,
     #[doc = "The business type."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub business_type: Option<crate::account::AccountBusinessType>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capabilities: Option<crate::account::AccountCapabilities>,
     #[doc = "Whether the account can process charges."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub charges_enabled: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub company: Option<crate::accounts::LegalEntityCompany>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub controller: Option<crate::account::AccountUnificationAccountController>,
     #[doc = "The account's country."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[doc = "Time at which the account was connected."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub created: Option<i64>,
     #[doc = "Three-letter ISO currency code representing the default currency for the account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_currency: Option<String>,
     #[doc = "Whether account details have been submitted."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub details_submitted: Option<bool>,
     #[doc = "An email address associated with the account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[doc = "External accounts (bank accounts and debit cards) currently attached to this account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub external_accounts: Option<crate::List<crate::accounts::ExternalAccount>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub future_requirements: Option<crate::account::AccountFutureRequirements>,
     #[doc = "The groups associated with the account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub groups: Option<crate::account::AccountGroupMembership>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub individual: Option<crate::accounts::Person>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::account::AccountObject,
     #[doc = "Whether the funds in this account can be paid out."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payouts_enabled: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub requirements: Option<crate::account::AccountRequirements>,
     #[doc = "Options for customizing how the account functions within Stripe."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub settings: Option<crate::account::AccountSettings>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tos_acceptance: Option<crate::account::AccountTosAcceptance>,
     #[doc = "The Stripe account type."]
-    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    #[json(rename = "type", default, skip_serializing_if = "Option::is_none")]
     pub r#type: Option<crate::account::AccountType>,
 }
 
@@ -215,16 +216,17 @@ impl crate::PagedItem for Account {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountAnnualRevenue {
     #[doc = "A non-negative integer representing the amount in the [smallest currency unit](/currencies#zero-decimal)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[doc = "The close-out date of the preceding fiscal year in ISO 8601 format."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fiscal_year_end: Option<String>,
 }
 
@@ -273,13 +275,14 @@ pub struct AccountAnnualRevenue {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountBacsDebitPaymentsSettings {
     #[doc = "The Bacs Direct Debit display name for this account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     #[doc = "The Bacs Direct Debit Service user number for this account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub service_user_number: Option<String>,
 }
 
@@ -328,19 +331,20 @@ pub struct AccountBacsDebitPaymentsSettings {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountBrandingSettings {
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) An icon for the account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<crate::Expandable<crate::files::File>>,
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) A logo for the account that will be used in Check..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub logo: Option<crate::Expandable<crate::files::File>>,
     #[doc = "A CSS hex color value representing the primary branding color for this account"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub primary_color: Option<String>,
     #[doc = "A CSS hex color value representing the secondary branding color for this account"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub secondary_color: Option<String>,
 }
 
@@ -389,46 +393,47 @@ pub struct AccountBrandingSettings {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountBusinessProfile {
     #[doc = "The applicant's gross annual revenue for its preceding fiscal year."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub annual_revenue: Option<crate::account::AccountAnnualRevenue>,
     #[doc = "An estimated upper bound of employees, contractors, vendors, etc."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub estimated_worker_count: Option<i64>,
     #[doc = "[The merchant category code for the account](/connect/setting-mcc)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mcc: Option<String>,
     #[doc = "Whether the business is a minority-owned, women-owned, and/or LGBTQI+ -owned business."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub minority_owned_business_designation:
         Option<Vec<crate::account::AccountBusinessProfileMinorityOwnedBusinessDesignationItem>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub monthly_estimated_revenue: Option<crate::account::AccountMonthlyEstimatedRevenue>,
     #[doc = "The customer-facing business name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[doc = "Internal-only description of the product sold or service provided by the business."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub product_description: Option<String>,
     #[doc = "A link to the business's publicly available terms related to the Specified Commercial Transaction Act."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub specified_commercial_transactions_act_url: Option<String>,
     #[doc = "A publicly available mailing address for sending support issues to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub support_address: Option<crate::common::Address>,
     #[doc = "A publicly available email address for sending support issues to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub support_email: Option<String>,
     #[doc = "A publicly available phone number to call with support issues."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub support_phone: Option<String>,
     #[doc = "A publicly available website for handling support issues."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub support_url: Option<String>,
     #[doc = "The business's publicly available website."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 }
 
@@ -594,52 +599,26 @@ impl AccountBusinessProfileMinorityOwnedBusinessDesignationItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for AccountBusinessProfileMinorityOwnedBusinessDesignationItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AccountBusinessProfileMinorityOwnedBusinessDesignationItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "lgbtqi_owned_business" => {
-                        AccountBusinessProfileMinorityOwnedBusinessDesignationItem::LgbtqiOwnedBusiness
-                    }
-                    "minority_owned_business" => {
-                        AccountBusinessProfileMinorityOwnedBusinessDesignationItem::MinorityOwnedBusiness
-                    }
-                    "none_of_these_apply" => {
-                        AccountBusinessProfileMinorityOwnedBusinessDesignationItem::NoneOfTheseApply
-                    }
-                    "prefer_not_to_answer" => {
-                        AccountBusinessProfileMinorityOwnedBusinessDesignationItem::PreferNotToAnswer
-                    }
-                    "women_owned_business" => {
-                        AccountBusinessProfileMinorityOwnedBusinessDesignationItem::WomenOwnedBusiness
-                    }
-                    other => AccountBusinessProfileMinorityOwnedBusinessDesignationItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AccountBusinessProfileMinorityOwnedBusinessDesignationItem::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for AccountBusinessProfileMinorityOwnedBusinessDesignationItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AccountBusinessProfileMinorityOwnedBusinessDesignationItem::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "lgbtqi_owned_business" => AccountBusinessProfileMinorityOwnedBusinessDesignationItem::LgbtqiOwnedBusiness,
+            "minority_owned_business" => {
+                AccountBusinessProfileMinorityOwnedBusinessDesignationItem::MinorityOwnedBusiness
+            }
+            "none_of_these_apply" => AccountBusinessProfileMinorityOwnedBusinessDesignationItem::NoneOfTheseApply,
+            "prefer_not_to_answer" => AccountBusinessProfileMinorityOwnedBusinessDesignationItem::PreferNotToAnswer,
+            "women_owned_business" => AccountBusinessProfileMinorityOwnedBusinessDesignationItem::WomenOwnedBusiness,
+            other => AccountBusinessProfileMinorityOwnedBusinessDesignationItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -801,39 +780,21 @@ impl AccountBusinessType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for AccountBusinessType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AccountBusinessType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "company" => AccountBusinessType::Company,
-                    "government_entity" => AccountBusinessType::GovernmentEntity,
-                    "individual" => AccountBusinessType::Individual,
-                    "non_profit" => AccountBusinessType::NonProfit,
-                    other => AccountBusinessType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AccountBusinessType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AccountBusinessType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AccountBusinessType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "company" => AccountBusinessType::Company,
+            "government_entity" => AccountBusinessType::GovernmentEntity,
+            "individual" => AccountBusinessType::Individual,
+            "non_profit" => AccountBusinessType::NonProfit,
+            other => AccountBusinessType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -882,214 +843,215 @@ impl<'de> serde::Deserialize<'de> for AccountBusinessType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountCapabilities {
     #[doc = "The status of the Canadian pre-authorized debits payments capability of the account, or whether the account can direc..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub acss_debit_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Affirm capability of the account, or whether the account can directly process Affirm charges."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub affirm_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Afterpay Clearpay capability of the account, or whether the account can directly process Afterpay C..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub afterpay_clearpay_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Alma capability of the account, or whether the account can directly process Alma payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub alma_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the AmazonPay capability of the account, or whether the account can directly process AmazonPay payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amazon_pay_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the `app_distribution` capability of the account, or whether the platform can distribute apps to other ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub app_distribution: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the BECS Direct Debit (AU) payments capability of the account, or whether the account can directly proc..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub au_becs_debit_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Bacs Direct Debits payments capability of the account, or whether the account can directly process ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bacs_debit_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Bancontact payments capability of the account, or whether the account can directly process Banconta..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bancontact_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the customer_balance payments capability of the account, or whether the account can directly process cu..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_transfer_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Billie capability of the account, or whether the account can directly process Billie payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billie_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Bizum capability of the account, or whether the account can directly process Bizum payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bizum_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the blik payments capability of the account, or whether the account can directly process blik charges."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub blik_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the BLIK recurring payments capability of the account, or whether the account can accept recurring and ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub blik_recurring_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the boleto payments capability of the account, or whether the account can directly process boleto charges."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub boleto_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the card issuing capability of the account, or whether you can use Issuing to distribute funds on cards"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card_issuing: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the card payments capability of the account, or whether the account can directly process credit and deb..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Cartes Bancaires payments capability of the account, or whether the account can directly process Ca..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cartes_bancaires_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Cash App Pay capability of the account, or whether the account can directly process Cash App Pay pa..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cashapp_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Crypto capability of the account, or whether the account can directly process Crypto payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub crypto_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the EPS payments capability of the account, or whether the account can directly process EPS charges."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub eps_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the FPX payments capability of the account, or whether the account can directly process FPX charges."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fpx_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the GB customer_balance payments (GBP currency) capability of the account, or whether the account can d..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub gb_bank_transfer_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the giropay payments capability of the account, or whether the account can directly process giropay cha..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub giropay_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the GrabPay payments capability of the account, or whether the account can directly process GrabPay cha..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub grabpay_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the iDEAL payments capability of the account, or whether the account can directly process iDEAL charges."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ideal_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the india_international_payments capability of the account, or whether the account can process internat..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub india_international_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the JCB payments capability of the account, or whether the account (Japan only) can directly process JC..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub jcb_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Japanese customer_balance payments (JPY currency) capability of the account, or whether the account..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub jp_bank_transfer_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the KakaoPay capability of the account, or whether the account can directly process KakaoPay payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub kakao_pay_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Klarna payments capability of the account, or whether the account can directly process Klarna charges."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub klarna_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the konbini payments capability of the account, or whether the account can directly process konbini cha..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub konbini_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the KrCard capability of the account, or whether the account can directly process KrCard payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub kr_card_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the legacy payments capability of the account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub legacy_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the link_payments capability of the account, or whether the account can directly process Link charges."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub link_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the MB WAY payments capability of the account, or whether the account can directly process MB WAY charges."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mb_way_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the MobilePay capability of the account, or whether the account can directly process MobilePay charges."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mobilepay_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Multibanco payments capability of the account, or whether the account can directly process Multiban..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub multibanco_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Mexican customer_balance payments (MXN currency) capability of the account, or whether the account ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mx_bank_transfer_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the NaverPay capability of the account, or whether the account can directly process NaverPay payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub naver_pay_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the New Zealand BECS Direct Debit payments capability of the account, or whether the account can direct..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub nz_bank_account_becs_debit_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the OXXO payments capability of the account, or whether the account can directly process OXXO charges."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub oxxo_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the P24 payments capability of the account, or whether the account can directly process P24 charges."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub p24_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the pay_by_bank payments capability of the account, or whether the account can directly process pay_by_..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pay_by_bank_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Payco capability of the account, or whether the account can directly process Payco payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payco_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the paynow payments capability of the account, or whether the account can directly process paynow charges."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paynow_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Paypay capability of the account, or whether the account can directly process Paypay payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paypay_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the PayTo capability of the account, or whether the account can directly process PayTo charges."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payto_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the pix payments capability of the account, or whether the account can directly process pix charges."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pix_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the promptpay payments capability of the account, or whether the account can directly process promptpay..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub promptpay_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the RevolutPay capability of the account, or whether the account can directly process RevolutPay payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub revolut_pay_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the SamsungPay capability of the account, or whether the account can directly process SamsungPay payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub samsung_pay_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Satispay capability of the account, or whether the account can directly process Satispay payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub satispay_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Scalapay capability of the account, or whether the account can directly process Scalapay payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub scalapay_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the SEPA customer_balance payments (EUR currency) capability of the account, or whether the account can..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sepa_bank_transfer_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the SEPA Direct Debits payments capability of the account, or whether the account can directly process ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sepa_debit_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the SeQura capability of the account, or whether the account can directly process SeQura payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sequra_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Sofort payments capability of the account, or whether the account can directly process Sofort charges."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sofort_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Sunbit capability of the account, or whether the account can directly process Sunbit payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sunbit_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Swish capability of the account, or whether the account can directly process Swish payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub swish_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the tax reporting 1099-K (US) capability of the account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_reporting_us_1099_k: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the tax reporting 1099-MISC (US) capability of the account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_reporting_us_1099_misc: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the transfers capability of the account, or whether your platform can transfer funds to the account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transfers: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the banking capability, or whether the account can have bank accounts."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub treasury: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the TWINT capability of the account, or whether the account can directly process TWINT charges."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub twint_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the upi payments capability of the account, or whether the account can directly process upi charges."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub upi_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the US bank account ACH payments capability of the account, or whether the account can directly process..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us_bank_account_ach_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the US customer_balance payments (USD currency) capability of the account, or whether the account can d..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us_bank_transfer_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
     #[doc = "The status of the Zip capability of the account, or whether the account can directly process Zip charges."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub zip_payments: Option<crate::account::AccountCapabilitiesAcssDebitPayments>,
 }
 
@@ -1249,67 +1211,50 @@ impl AccountCapabilitiesAcssDebitPayments {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for AccountCapabilitiesAcssDebitPayments {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AccountCapabilitiesAcssDebitPayments;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => AccountCapabilitiesAcssDebitPayments::Active,
-                    "inactive" => AccountCapabilitiesAcssDebitPayments::Inactive,
-                    "pending" => AccountCapabilitiesAcssDebitPayments::Pending,
-                    other => AccountCapabilitiesAcssDebitPayments::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AccountCapabilitiesAcssDebitPayments::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AccountCapabilitiesAcssDebitPayments {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AccountCapabilitiesAcssDebitPayments::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => AccountCapabilitiesAcssDebitPayments::Active,
+            "inactive" => AccountCapabilitiesAcssDebitPayments::Inactive,
+            "pending" => AccountCapabilitiesAcssDebitPayments::Pending,
+            other => AccountCapabilitiesAcssDebitPayments::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "accounts", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountCapabilityFutureRequirements {
     #[doc = "Fields that are due and can be resolved by providing the corresponding alternative fields instead."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub alternatives: Option<Vec<crate::account::AccountRequirementsAlternative>>,
     #[doc = "Date on which `future_requirements` becomes the main `requirements` hash and `future_requirements` becomes empty."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub current_deadline: Option<i64>,
     #[doc = "Fields that need to be resolved to keep the capability enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub currently_due: Vec<String>,
     #[doc = "This is typed as an enum for consistency with `requirements.disabled_reason`, but it safe to assume `future_requireme..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub disabled_reason: Option<crate::account::AccountCapabilityFutureRequirementsDisabledReason>,
     #[doc = "Fields that are `currently_due` and need to be collected again because validation or verification failed."]
-    #[serde(default)]
+    #[json(default)]
     pub errors: Vec<crate::account::AccountRequirementsError>,
     #[doc = "Fields you must collect when all thresholds are reached."]
-    #[serde(default)]
+    #[json(default)]
     pub eventually_due: Vec<String>,
     #[doc = "Fields that haven't been resolved by `requirements.current_deadline`."]
-    #[serde(default)]
+    #[json(default)]
     pub past_due: Vec<String>,
     #[doc = "Fields that are being reviewed, or might become required depending on the results of a review."]
-    #[serde(default)]
+    #[json(default)]
     pub pending_verification: Vec<String>,
 }
 
@@ -1353,78 +1298,59 @@ impl AccountCapabilityFutureRequirementsDisabledReason {
 }
 
 #[cfg(any(feature = "accounts", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for AccountCapabilityFutureRequirementsDisabledReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AccountCapabilityFutureRequirementsDisabledReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "other" => AccountCapabilityFutureRequirementsDisabledReason::Other,
-                    "paused.inactivity" => AccountCapabilityFutureRequirementsDisabledReason::PausedInactivity,
-                    "pending.onboarding" => AccountCapabilityFutureRequirementsDisabledReason::PendingOnboarding,
-                    "pending.review" => AccountCapabilityFutureRequirementsDisabledReason::PendingReview,
-                    "platform_disabled" => AccountCapabilityFutureRequirementsDisabledReason::PlatformDisabled,
-                    "platform_paused" => AccountCapabilityFutureRequirementsDisabledReason::PlatformPaused,
-                    "rejected.inactivity" => AccountCapabilityFutureRequirementsDisabledReason::RejectedInactivity,
-                    "rejected.other" => AccountCapabilityFutureRequirementsDisabledReason::RejectedOther,
-                    "rejected.unsupported_business" => {
-                        AccountCapabilityFutureRequirementsDisabledReason::RejectedUnsupportedBusiness
-                    }
-                    "requirements.fields_needed" => {
-                        AccountCapabilityFutureRequirementsDisabledReason::RequirementsFieldsNeeded
-                    }
-                    other => AccountCapabilityFutureRequirementsDisabledReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AccountCapabilityFutureRequirementsDisabledReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AccountCapabilityFutureRequirementsDisabledReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AccountCapabilityFutureRequirementsDisabledReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "other" => AccountCapabilityFutureRequirementsDisabledReason::Other,
+            "paused.inactivity" => AccountCapabilityFutureRequirementsDisabledReason::PausedInactivity,
+            "pending.onboarding" => AccountCapabilityFutureRequirementsDisabledReason::PendingOnboarding,
+            "pending.review" => AccountCapabilityFutureRequirementsDisabledReason::PendingReview,
+            "platform_disabled" => AccountCapabilityFutureRequirementsDisabledReason::PlatformDisabled,
+            "platform_paused" => AccountCapabilityFutureRequirementsDisabledReason::PlatformPaused,
+            "rejected.inactivity" => AccountCapabilityFutureRequirementsDisabledReason::RejectedInactivity,
+            "rejected.other" => AccountCapabilityFutureRequirementsDisabledReason::RejectedOther,
+            "rejected.unsupported_business" => {
+                AccountCapabilityFutureRequirementsDisabledReason::RejectedUnsupportedBusiness
+            }
+            "requirements.fields_needed" => AccountCapabilityFutureRequirementsDisabledReason::RequirementsFieldsNeeded,
+            other => AccountCapabilityFutureRequirementsDisabledReason::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "accounts", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountCapabilityRequirements {
     #[doc = "Fields that are due and can be resolved by providing the corresponding alternative fields instead."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub alternatives: Option<Vec<crate::account::AccountRequirementsAlternative>>,
     #[doc = "The date by which all required account information must be both submitted and verified."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub current_deadline: Option<i64>,
     #[doc = "Fields that need to be resolved to keep the capability enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub currently_due: Vec<String>,
     #[doc = "Description of why the capability is disabled."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub disabled_reason: Option<crate::account::AccountCapabilityFutureRequirementsDisabledReason>,
     #[doc = "Fields that are `currently_due` and need to be collected again because validation or verification failed."]
-    #[serde(default)]
+    #[json(default)]
     pub errors: Vec<crate::account::AccountRequirementsError>,
     #[doc = "Fields you must collect when all thresholds are reached."]
-    #[serde(default)]
+    #[json(default)]
     pub eventually_due: Vec<String>,
     #[doc = "Fields that haven't been resolved by `current_deadline`."]
-    #[serde(default)]
+    #[json(default)]
     pub past_due: Vec<String>,
     #[doc = "Fields that are being reviewed, or might become required depending on the results of a review."]
-    #[serde(default)]
+    #[json(default)]
     pub pending_verification: Vec<String>,
 }
 
@@ -1473,9 +1399,10 @@ pub struct AccountCapabilityRequirements {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountCardIssuingSettings {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tos_acceptance: Option<crate::payment_methods::CardIssuingAccountTermsOfService>,
 }
 
@@ -1524,18 +1451,19 @@ pub struct AccountCardIssuingSettings {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountCardPaymentsSettings {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub decline_on: Option<crate::account::AccountDeclineChargeOn>,
     #[doc = "The default text that appears on credit card statements when a charge is made."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor_prefix: Option<String>,
     #[doc = "The Kana variation of the default text that appears on credit card statements when a charge is made (Japan only)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor_prefix_kana: Option<String>,
     #[doc = "The Kanji variation of the default text that appears on credit card statements when a charge is made (Japan only)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor_prefix_kanji: Option<String>,
 }
 
@@ -1584,13 +1512,14 @@ pub struct AccountCardPaymentsSettings {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountDashboardSettings {
     #[doc = "The display name for this account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     #[doc = "The timezone used in the Stripe Dashboard for this account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub timezone: Option<String>,
 }
 
@@ -1639,13 +1568,14 @@ pub struct AccountDashboardSettings {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountDeclineChargeOn {
     #[doc = "Whether Stripe automatically declines charges with an incorrect ZIP or postal code."]
-    #[serde(default)]
+    #[json(default)]
     pub avs_failure: bool,
     #[doc = "Whether Stripe automatically declines charges with an incorrect CVC."]
-    #[serde(default)]
+    #[json(default)]
     pub cvc_failure: bool,
 }
 
@@ -1694,31 +1624,32 @@ pub struct AccountDeclineChargeOn {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountFutureRequirements {
     #[doc = "Fields that are due and can be resolved by providing the corresponding alternative fields instead."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub alternatives: Option<Vec<crate::account::AccountRequirementsAlternative>>,
     #[doc = "Date on which `future_requirements` becomes the main `requirements` hash and `future_requirements` becomes empty."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub current_deadline: Option<i64>,
     #[doc = "Fields that need to be resolved to keep the account enabled."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub currently_due: Option<Vec<String>>,
     #[doc = "This is typed as an enum for consistency with `requirements.disabled_reason`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub disabled_reason: Option<crate::account::AccountFutureRequirementsDisabledReason>,
     #[doc = "Fields that are `currently_due` and need to be collected again because validation or verification failed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub errors: Option<Vec<crate::account::AccountRequirementsError>>,
     #[doc = "Fields you must collect when all thresholds are reached."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub eventually_due: Option<Vec<String>>,
     #[doc = "Fields that haven't been resolved by `requirements.current_deadline`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub past_due: Option<Vec<String>>,
     #[doc = "Fields that are being reviewed, or might become required depending on the results of a review."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pending_verification: Option<Vec<String>>,
 }
 
@@ -1910,58 +1841,40 @@ impl AccountFutureRequirementsDisabledReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for AccountFutureRequirementsDisabledReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AccountFutureRequirementsDisabledReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "action_required.requested_capabilities" => {
-                        AccountFutureRequirementsDisabledReason::ActionRequiredRequestedCapabilities
-                    }
-                    "listed" => AccountFutureRequirementsDisabledReason::Listed,
-                    "other" => AccountFutureRequirementsDisabledReason::Other,
-                    "platform_paused" => AccountFutureRequirementsDisabledReason::PlatformPaused,
-                    "rejected.fraud" => AccountFutureRequirementsDisabledReason::RejectedFraud,
-                    "rejected.incomplete_verification" => {
-                        AccountFutureRequirementsDisabledReason::RejectedIncompleteVerification
-                    }
-                    "rejected.listed" => AccountFutureRequirementsDisabledReason::RejectedListed,
-                    "rejected.other" => AccountFutureRequirementsDisabledReason::RejectedOther,
-                    "rejected.platform_fraud" => AccountFutureRequirementsDisabledReason::RejectedPlatformFraud,
-                    "rejected.platform_other" => AccountFutureRequirementsDisabledReason::RejectedPlatformOther,
-                    "rejected.platform_terms_of_service" => {
-                        AccountFutureRequirementsDisabledReason::RejectedPlatformTermsOfService
-                    }
-                    "rejected.terms_of_service" => AccountFutureRequirementsDisabledReason::RejectedTermsOfService,
-                    "requirements.past_due" => AccountFutureRequirementsDisabledReason::RequirementsPastDue,
-                    "requirements.pending_verification" => {
-                        AccountFutureRequirementsDisabledReason::RequirementsPendingVerification
-                    }
-                    "under_review" => AccountFutureRequirementsDisabledReason::UnderReview,
-                    other => AccountFutureRequirementsDisabledReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AccountFutureRequirementsDisabledReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AccountFutureRequirementsDisabledReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AccountFutureRequirementsDisabledReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "action_required.requested_capabilities" => {
+                AccountFutureRequirementsDisabledReason::ActionRequiredRequestedCapabilities
+            }
+            "listed" => AccountFutureRequirementsDisabledReason::Listed,
+            "other" => AccountFutureRequirementsDisabledReason::Other,
+            "platform_paused" => AccountFutureRequirementsDisabledReason::PlatformPaused,
+            "rejected.fraud" => AccountFutureRequirementsDisabledReason::RejectedFraud,
+            "rejected.incomplete_verification" => {
+                AccountFutureRequirementsDisabledReason::RejectedIncompleteVerification
+            }
+            "rejected.listed" => AccountFutureRequirementsDisabledReason::RejectedListed,
+            "rejected.other" => AccountFutureRequirementsDisabledReason::RejectedOther,
+            "rejected.platform_fraud" => AccountFutureRequirementsDisabledReason::RejectedPlatformFraud,
+            "rejected.platform_other" => AccountFutureRequirementsDisabledReason::RejectedPlatformOther,
+            "rejected.platform_terms_of_service" => {
+                AccountFutureRequirementsDisabledReason::RejectedPlatformTermsOfService
+            }
+            "rejected.terms_of_service" => AccountFutureRequirementsDisabledReason::RejectedTermsOfService,
+            "requirements.past_due" => AccountFutureRequirementsDisabledReason::RequirementsPastDue,
+            "requirements.pending_verification" => {
+                AccountFutureRequirementsDisabledReason::RequirementsPendingVerification
+            }
+            "under_review" => AccountFutureRequirementsDisabledReason::UnderReview,
+            other => AccountFutureRequirementsDisabledReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2010,10 +1923,11 @@ impl<'de> serde::Deserialize<'de> for AccountFutureRequirementsDisabledReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountGroupMembership {
     #[doc = "The group the account is in to determine their payments pricing, and null if the account is on customized pricing."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payments_pricing: Option<String>,
 }
 
@@ -2062,13 +1976,14 @@ pub struct AccountGroupMembership {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountInvoicesSettings {
     #[doc = "The list of default Account Tax IDs to automatically include on invoices."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_account_tax_ids: Option<Vec<crate::Expandable<crate::tax_ids::TaxId>>>,
     #[doc = "Whether to save the payment method after a payment is completed for a one-time invoice or a subscription invoice when..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hosted_payment_method_save: Option<crate::account::AccountInvoicesSettingsHostedPaymentMethodSave>,
 }
 
@@ -2228,38 +2143,20 @@ impl AccountInvoicesSettingsHostedPaymentMethodSave {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for AccountInvoicesSettingsHostedPaymentMethodSave {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AccountInvoicesSettingsHostedPaymentMethodSave;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => AccountInvoicesSettingsHostedPaymentMethodSave::Always,
-                    "never" => AccountInvoicesSettingsHostedPaymentMethodSave::Never,
-                    "offer" => AccountInvoicesSettingsHostedPaymentMethodSave::Offer,
-                    other => AccountInvoicesSettingsHostedPaymentMethodSave::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AccountInvoicesSettingsHostedPaymentMethodSave::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AccountInvoicesSettingsHostedPaymentMethodSave {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AccountInvoicesSettingsHostedPaymentMethodSave::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => AccountInvoicesSettingsHostedPaymentMethodSave::Always,
+            "never" => AccountInvoicesSettingsHostedPaymentMethodSave::Never,
+            "offer" => AccountInvoicesSettingsHostedPaymentMethodSave::Offer,
+            other => AccountInvoicesSettingsHostedPaymentMethodSave::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2308,13 +2205,14 @@ impl<'de> serde::Deserialize<'de> for AccountInvoicesSettingsHostedPaymentMethod
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountMonthlyEstimatedRevenue {
     #[doc = "A non-negative integer representing how much to charge in the [smallest currency unit](/currencies#zero-decimal)."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
 }
 
@@ -2521,36 +2419,18 @@ impl Default for AccountObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for AccountObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AccountObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account" => AccountObject::Account,
-                    other => AccountObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AccountObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AccountObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AccountObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account" => AccountObject::Account,
+            other => AccountObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2599,22 +2479,23 @@ impl<'de> serde::Deserialize<'de> for AccountObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountPaymentsSettings {
     #[doc = "The default text that appears on credit card statements when a charge is made."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
     #[doc = "The Kana variation of `statement_descriptor` used for charges in Japan."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor_kana: Option<String>,
     #[doc = "The Kanji variation of `statement_descriptor` used for charges in Japan."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor_kanji: Option<String>,
     #[doc = "The Kana variation of `statement_descriptor_prefix` used for card charges in Japan."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor_prefix_kana: Option<String>,
     #[doc = "The Kanji variation of `statement_descriptor_prefix` used for card charges in Japan."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor_prefix_kanji: Option<String>,
 }
 
@@ -2663,15 +2544,16 @@ pub struct AccountPaymentsSettings {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountPayoutSettings {
     #[doc = "A Boolean indicating if Stripe should try to reclaim negative balances from an attached bank account."]
-    #[serde(default)]
+    #[json(default)]
     pub debit_negative_balances: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub schedule: Option<crate::transfers::TransferSchedule>,
     #[doc = "The text that appears on the bank account statement for payouts."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
 }
 
@@ -2720,15 +2602,16 @@ pub struct AccountPayoutSettings {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountPaypayPaymentsSettings {
     #[doc = "Additional files that are required to support the onboarding process of your business."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub additional_files: Option<Vec<String>>,
     #[doc = "The type of goods your business sells."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub goods_type: Option<crate::account::AccountPaypayPaymentsSettingsGoodsType>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub site: Option<crate::account::AccountPaypaySiteSettings>,
 }
 
@@ -2886,37 +2769,19 @@ impl AccountPaypayPaymentsSettingsGoodsType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for AccountPaypayPaymentsSettingsGoodsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AccountPaypayPaymentsSettingsGoodsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "digital_content" => AccountPaypayPaymentsSettingsGoodsType::DigitalContent,
-                    "other" => AccountPaypayPaymentsSettingsGoodsType::Other,
-                    other => AccountPaypayPaymentsSettingsGoodsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AccountPaypayPaymentsSettingsGoodsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AccountPaypayPaymentsSettingsGoodsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AccountPaypayPaymentsSettingsGoodsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "digital_content" => AccountPaypayPaymentsSettingsGoodsType::DigitalContent,
+            "other" => AccountPaypayPaymentsSettingsGoodsType::Other,
+            other => AccountPaypayPaymentsSettingsGoodsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2965,7 +2830,8 @@ impl<'de> serde::Deserialize<'de> for AccountPaypayPaymentsSettingsGoodsType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountPaypaySiteAccessibleSettings {}
 
 #[cfg(any(
@@ -3013,13 +2879,14 @@ pub struct AccountPaypaySiteAccessibleSettings {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountPaypaySiteInDevelopmentSettings {
     #[doc = "Field to indicate that the website password has been provided."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub password_provided: Option<bool>,
     #[doc = "The username needed to access your business's website."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub username: Option<String>,
 }
 
@@ -3068,10 +2935,11 @@ pub struct AccountPaypaySiteInDevelopmentSettings {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountPaypaySiteRestrictedSettings {
     #[doc = "File explaining the payment flow for your business."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_flow_file: Option<String>,
 }
 
@@ -3120,16 +2988,17 @@ pub struct AccountPaypaySiteRestrictedSettings {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountPaypaySiteSettings {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub accessible: Option<crate::account::AccountPaypaySiteAccessibleSettings>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub in_development: Option<crate::account::AccountPaypaySiteInDevelopmentSettings>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub restricted: Option<crate::account::AccountPaypaySiteRestrictedSettings>,
     #[doc = "The status of your business's website."]
-    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    #[json(rename = "type", default, skip_serializing_if = "Option::is_none")]
     pub r#type: Option<crate::account::AccountPaypaySiteSettingsType>,
 }
 
@@ -3289,38 +3158,20 @@ impl AccountPaypaySiteSettingsType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for AccountPaypaySiteSettingsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AccountPaypaySiteSettingsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "accessible" => AccountPaypaySiteSettingsType::Accessible,
-                    "in_development" => AccountPaypaySiteSettingsType::InDevelopment,
-                    "restricted" => AccountPaypaySiteSettingsType::Restricted,
-                    other => AccountPaypaySiteSettingsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AccountPaypaySiteSettingsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AccountPaypaySiteSettingsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AccountPaypaySiteSettingsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "accessible" => AccountPaypaySiteSettingsType::Accessible,
+            "in_development" => AccountPaypaySiteSettingsType::InDevelopment,
+            "restricted" => AccountPaypaySiteSettingsType::Restricted,
+            other => AccountPaypaySiteSettingsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3369,31 +3220,32 @@ impl<'de> serde::Deserialize<'de> for AccountPaypaySiteSettingsType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountRequirements {
     #[doc = "Fields that are due and can be resolved by providing the corresponding alternative fields instead."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub alternatives: Option<Vec<crate::account::AccountRequirementsAlternative>>,
     #[doc = "Date by which the fields in `currently_due` must be collected to keep the account enabled."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub current_deadline: Option<i64>,
     #[doc = "Fields that need to be resolved to keep the account enabled."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub currently_due: Option<Vec<String>>,
     #[doc = "If the account is disabled, this enum describes why."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub disabled_reason: Option<crate::account::AccountFutureRequirementsDisabledReason>,
     #[doc = "Fields that are `currently_due` and need to be collected again because validation or verification failed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub errors: Option<Vec<crate::account::AccountRequirementsError>>,
     #[doc = "Fields you must collect when all thresholds are reached."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub eventually_due: Option<Vec<String>>,
     #[doc = "Fields that haven't been resolved by `current_deadline`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub past_due: Option<Vec<String>>,
     #[doc = "Fields that are being reviewed, or might become required depending on the results of a review."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pending_verification: Option<Vec<String>>,
 }
 
@@ -3442,13 +3294,14 @@ pub struct AccountRequirements {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountRequirementsAlternative {
     #[doc = "Fields that can be provided to resolve all fields in `original_fields_due`."]
-    #[serde(default)]
+    #[json(default)]
     pub alternative_fields_due: Vec<String>,
     #[doc = "Fields that are due and can be resolved by providing all fields in `alternative_fields_due`."]
-    #[serde(default)]
+    #[json(default)]
     pub original_fields_due: Vec<String>,
 }
 
@@ -3497,16 +3350,17 @@ pub struct AccountRequirementsAlternative {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountRequirementsError {
     #[doc = "The code for the type of error."]
-    #[serde(default)]
+    #[json(default)]
     pub code: crate::account::AccountRequirementsErrorCode,
     #[doc = "An informative message that indicates the error type and provides additional details about the error."]
-    #[serde(default)]
+    #[json(default)]
     pub reason: String,
     #[doc = "The specific user onboarding requirement field (in the requirements hash) that needs to be resolved."]
-    #[serde(default)]
+    #[json(default)]
     pub requirement: String,
 }
 
@@ -3977,246 +3831,184 @@ impl Default for AccountRequirementsErrorCode {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for AccountRequirementsErrorCode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AccountRequirementsErrorCode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "external_request" => AccountRequirementsErrorCode::ExternalRequest,
-                    "information_missing" => AccountRequirementsErrorCode::InformationMissing,
-                    "invalid_address_city_state_postal_code" => {
-                        AccountRequirementsErrorCode::InvalidAddressCityStatePostalCode
-                    }
-                    "invalid_address_cmra_address" => AccountRequirementsErrorCode::InvalidAddressCmraAddress,
-                    "invalid_address_highway_contract_box" => {
-                        AccountRequirementsErrorCode::InvalidAddressHighwayContractBox
-                    }
-                    "invalid_address_private_mailbox" => AccountRequirementsErrorCode::InvalidAddressPrivateMailbox,
-                    "invalid_address_registered_agent_address" => {
-                        AccountRequirementsErrorCode::InvalidAddressRegisteredAgentAddress
-                    }
-                    "invalid_business_profile_name" => AccountRequirementsErrorCode::InvalidBusinessProfileName,
-                    "invalid_business_profile_name_denylisted" => {
-                        AccountRequirementsErrorCode::InvalidBusinessProfileNameDenylisted
-                    }
-                    "invalid_company_name_denylisted" => AccountRequirementsErrorCode::InvalidCompanyNameDenylisted,
-                    "invalid_dob_age_over_maximum" => AccountRequirementsErrorCode::InvalidDobAgeOverMaximum,
-                    "invalid_dob_age_under_18" => AccountRequirementsErrorCode::InvalidDobAgeUnder18,
-                    "invalid_dob_age_under_minimum" => AccountRequirementsErrorCode::InvalidDobAgeUnderMinimum,
-                    "invalid_product_description_length" => {
-                        AccountRequirementsErrorCode::InvalidProductDescriptionLength
-                    }
-                    "invalid_product_description_url_match" => {
-                        AccountRequirementsErrorCode::InvalidProductDescriptionUrlMatch
-                    }
-                    "invalid_representative_country" => AccountRequirementsErrorCode::InvalidRepresentativeCountry,
-                    "invalid_signator" => AccountRequirementsErrorCode::InvalidSignator,
-                    "invalid_statement_descriptor_business_mismatch" => {
-                        AccountRequirementsErrorCode::InvalidStatementDescriptorBusinessMismatch
-                    }
-                    "invalid_statement_descriptor_denylisted" => {
-                        AccountRequirementsErrorCode::InvalidStatementDescriptorDenylisted
-                    }
-                    "invalid_statement_descriptor_length" => {
-                        AccountRequirementsErrorCode::InvalidStatementDescriptorLength
-                    }
-                    "invalid_statement_descriptor_prefix_denylisted" => {
-                        AccountRequirementsErrorCode::InvalidStatementDescriptorPrefixDenylisted
-                    }
-                    "invalid_statement_descriptor_prefix_mismatch" => {
-                        AccountRequirementsErrorCode::InvalidStatementDescriptorPrefixMismatch
-                    }
-                    "invalid_street_address" => AccountRequirementsErrorCode::InvalidStreetAddress,
-                    "invalid_tax_id" => AccountRequirementsErrorCode::InvalidTaxId,
-                    "invalid_tax_id_format" => AccountRequirementsErrorCode::InvalidTaxIdFormat,
-                    "invalid_tos_acceptance" => AccountRequirementsErrorCode::InvalidTosAcceptance,
-                    "invalid_url_denylisted" => AccountRequirementsErrorCode::InvalidUrlDenylisted,
-                    "invalid_url_format" => AccountRequirementsErrorCode::InvalidUrlFormat,
-                    "invalid_url_length" => AccountRequirementsErrorCode::InvalidUrlLength,
-                    "invalid_url_web_presence_detected" => AccountRequirementsErrorCode::InvalidUrlWebPresenceDetected,
-                    "invalid_url_website_business_information_mismatch" => {
-                        AccountRequirementsErrorCode::InvalidUrlWebsiteBusinessInformationMismatch
-                    }
-                    "invalid_url_website_empty" => AccountRequirementsErrorCode::InvalidUrlWebsiteEmpty,
-                    "invalid_url_website_inaccessible" => AccountRequirementsErrorCode::InvalidUrlWebsiteInaccessible,
-                    "invalid_url_website_inaccessible_geoblocked" => {
-                        AccountRequirementsErrorCode::InvalidUrlWebsiteInaccessibleGeoblocked
-                    }
-                    "invalid_url_website_inaccessible_password_protected" => {
-                        AccountRequirementsErrorCode::InvalidUrlWebsiteInaccessiblePasswordProtected
-                    }
-                    "invalid_url_website_incomplete" => AccountRequirementsErrorCode::InvalidUrlWebsiteIncomplete,
-                    "invalid_url_website_incomplete_cancellation_policy" => {
-                        AccountRequirementsErrorCode::InvalidUrlWebsiteIncompleteCancellationPolicy
-                    }
-                    "invalid_url_website_incomplete_customer_service_details" => {
-                        AccountRequirementsErrorCode::InvalidUrlWebsiteIncompleteCustomerServiceDetails
-                    }
-                    "invalid_url_website_incomplete_legal_restrictions" => {
-                        AccountRequirementsErrorCode::InvalidUrlWebsiteIncompleteLegalRestrictions
-                    }
-                    "invalid_url_website_incomplete_refund_policy" => {
-                        AccountRequirementsErrorCode::InvalidUrlWebsiteIncompleteRefundPolicy
-                    }
-                    "invalid_url_website_incomplete_return_policy" => {
-                        AccountRequirementsErrorCode::InvalidUrlWebsiteIncompleteReturnPolicy
-                    }
-                    "invalid_url_website_incomplete_terms_and_conditions" => {
-                        AccountRequirementsErrorCode::InvalidUrlWebsiteIncompleteTermsAndConditions
-                    }
-                    "invalid_url_website_incomplete_under_construction" => {
-                        AccountRequirementsErrorCode::InvalidUrlWebsiteIncompleteUnderConstruction
-                    }
-                    "invalid_url_website_other" => AccountRequirementsErrorCode::InvalidUrlWebsiteOther,
-                    "invalid_value_other" => AccountRequirementsErrorCode::InvalidValueOther,
-                    "unsupported_business_type" => AccountRequirementsErrorCode::UnsupportedBusinessType,
-                    "verification_directors_mismatch" => AccountRequirementsErrorCode::VerificationDirectorsMismatch,
-                    "verification_document_address_mismatch" => {
-                        AccountRequirementsErrorCode::VerificationDocumentAddressMismatch
-                    }
-                    "verification_document_address_missing" => {
-                        AccountRequirementsErrorCode::VerificationDocumentAddressMissing
-                    }
-                    "verification_document_corrupt" => AccountRequirementsErrorCode::VerificationDocumentCorrupt,
-                    "verification_document_country_not_supported" => {
-                        AccountRequirementsErrorCode::VerificationDocumentCountryNotSupported
-                    }
-                    "verification_document_directors_mismatch" => {
-                        AccountRequirementsErrorCode::VerificationDocumentDirectorsMismatch
-                    }
-                    "verification_document_dob_mismatch" => {
-                        AccountRequirementsErrorCode::VerificationDocumentDobMismatch
-                    }
-                    "verification_document_duplicate_type" => {
-                        AccountRequirementsErrorCode::VerificationDocumentDuplicateType
-                    }
-                    "verification_document_expired" => AccountRequirementsErrorCode::VerificationDocumentExpired,
-                    "verification_document_failed_copy" => AccountRequirementsErrorCode::VerificationDocumentFailedCopy,
-                    "verification_document_failed_greyscale" => {
-                        AccountRequirementsErrorCode::VerificationDocumentFailedGreyscale
-                    }
-                    "verification_document_failed_other" => {
-                        AccountRequirementsErrorCode::VerificationDocumentFailedOther
-                    }
-                    "verification_document_failed_test_mode" => {
-                        AccountRequirementsErrorCode::VerificationDocumentFailedTestMode
-                    }
-                    "verification_document_fraudulent" => AccountRequirementsErrorCode::VerificationDocumentFraudulent,
-                    "verification_document_id_number_mismatch" => {
-                        AccountRequirementsErrorCode::VerificationDocumentIdNumberMismatch
-                    }
-                    "verification_document_id_number_missing" => {
-                        AccountRequirementsErrorCode::VerificationDocumentIdNumberMissing
-                    }
-                    "verification_document_incomplete" => AccountRequirementsErrorCode::VerificationDocumentIncomplete,
-                    "verification_document_invalid" => AccountRequirementsErrorCode::VerificationDocumentInvalid,
-                    "verification_document_issue_or_expiry_date_missing" => {
-                        AccountRequirementsErrorCode::VerificationDocumentIssueOrExpiryDateMissing
-                    }
-                    "verification_document_manipulated" => {
-                        AccountRequirementsErrorCode::VerificationDocumentManipulated
-                    }
-                    "verification_document_missing_back" => {
-                        AccountRequirementsErrorCode::VerificationDocumentMissingBack
-                    }
-                    "verification_document_missing_front" => {
-                        AccountRequirementsErrorCode::VerificationDocumentMissingFront
-                    }
-                    "verification_document_name_mismatch" => {
-                        AccountRequirementsErrorCode::VerificationDocumentNameMismatch
-                    }
-                    "verification_document_name_missing" => {
-                        AccountRequirementsErrorCode::VerificationDocumentNameMissing
-                    }
-                    "verification_document_nationality_mismatch" => {
-                        AccountRequirementsErrorCode::VerificationDocumentNationalityMismatch
-                    }
-                    "verification_document_not_readable" => {
-                        AccountRequirementsErrorCode::VerificationDocumentNotReadable
-                    }
-                    "verification_document_not_signed" => AccountRequirementsErrorCode::VerificationDocumentNotSigned,
-                    "verification_document_not_uploaded" => {
-                        AccountRequirementsErrorCode::VerificationDocumentNotUploaded
-                    }
-                    "verification_document_photo_mismatch" => {
-                        AccountRequirementsErrorCode::VerificationDocumentPhotoMismatch
-                    }
-                    "verification_document_too_large" => AccountRequirementsErrorCode::VerificationDocumentTooLarge,
-                    "verification_document_type_not_supported" => {
-                        AccountRequirementsErrorCode::VerificationDocumentTypeNotSupported
-                    }
-                    "verification_extraneous_directors" => {
-                        AccountRequirementsErrorCode::VerificationExtraneousDirectors
-                    }
-                    "verification_failed_address_match" => AccountRequirementsErrorCode::VerificationFailedAddressMatch,
-                    "verification_failed_authorizer_authority" => {
-                        AccountRequirementsErrorCode::VerificationFailedAuthorizerAuthority
-                    }
-                    "verification_failed_business_iec_number" => {
-                        AccountRequirementsErrorCode::VerificationFailedBusinessIecNumber
-                    }
-                    "verification_failed_document_match" => {
-                        AccountRequirementsErrorCode::VerificationFailedDocumentMatch
-                    }
-                    "verification_failed_id_number_match" => {
-                        AccountRequirementsErrorCode::VerificationFailedIdNumberMatch
-                    }
-                    "verification_failed_keyed_identity" => {
-                        AccountRequirementsErrorCode::VerificationFailedKeyedIdentity
-                    }
-                    "verification_failed_keyed_match" => AccountRequirementsErrorCode::VerificationFailedKeyedMatch,
-                    "verification_failed_name_match" => AccountRequirementsErrorCode::VerificationFailedNameMatch,
-                    "verification_failed_other" => AccountRequirementsErrorCode::VerificationFailedOther,
-                    "verification_failed_representative_authority" => {
-                        AccountRequirementsErrorCode::VerificationFailedRepresentativeAuthority
-                    }
-                    "verification_failed_residential_address" => {
-                        AccountRequirementsErrorCode::VerificationFailedResidentialAddress
-                    }
-                    "verification_failed_tax_id_match" => AccountRequirementsErrorCode::VerificationFailedTaxIdMatch,
-                    "verification_failed_tax_id_not_issued" => {
-                        AccountRequirementsErrorCode::VerificationFailedTaxIdNotIssued
-                    }
-                    "verification_legal_entity_structure_mismatch" => {
-                        AccountRequirementsErrorCode::VerificationLegalEntityStructureMismatch
-                    }
-                    "verification_missing_directors" => AccountRequirementsErrorCode::VerificationMissingDirectors,
-                    "verification_missing_executives" => AccountRequirementsErrorCode::VerificationMissingExecutives,
-                    "verification_missing_owners" => AccountRequirementsErrorCode::VerificationMissingOwners,
-                    "verification_rejected_ownership_exemption_reason" => {
-                        AccountRequirementsErrorCode::VerificationRejectedOwnershipExemptionReason
-                    }
-                    "verification_requires_additional_memorandum_of_associations" => {
-                        AccountRequirementsErrorCode::VerificationRequiresAdditionalMemorandumOfAssociations
-                    }
-                    "verification_requires_additional_proof_of_registration" => {
-                        AccountRequirementsErrorCode::VerificationRequiresAdditionalProofOfRegistration
-                    }
-                    "verification_supportability" => AccountRequirementsErrorCode::VerificationSupportability,
-                    other => AccountRequirementsErrorCode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AccountRequirementsErrorCode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AccountRequirementsErrorCode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AccountRequirementsErrorCode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "external_request" => AccountRequirementsErrorCode::ExternalRequest,
+            "information_missing" => AccountRequirementsErrorCode::InformationMissing,
+            "invalid_address_city_state_postal_code" => AccountRequirementsErrorCode::InvalidAddressCityStatePostalCode,
+            "invalid_address_cmra_address" => AccountRequirementsErrorCode::InvalidAddressCmraAddress,
+            "invalid_address_highway_contract_box" => AccountRequirementsErrorCode::InvalidAddressHighwayContractBox,
+            "invalid_address_private_mailbox" => AccountRequirementsErrorCode::InvalidAddressPrivateMailbox,
+            "invalid_address_registered_agent_address" => {
+                AccountRequirementsErrorCode::InvalidAddressRegisteredAgentAddress
+            }
+            "invalid_business_profile_name" => AccountRequirementsErrorCode::InvalidBusinessProfileName,
+            "invalid_business_profile_name_denylisted" => {
+                AccountRequirementsErrorCode::InvalidBusinessProfileNameDenylisted
+            }
+            "invalid_company_name_denylisted" => AccountRequirementsErrorCode::InvalidCompanyNameDenylisted,
+            "invalid_dob_age_over_maximum" => AccountRequirementsErrorCode::InvalidDobAgeOverMaximum,
+            "invalid_dob_age_under_18" => AccountRequirementsErrorCode::InvalidDobAgeUnder18,
+            "invalid_dob_age_under_minimum" => AccountRequirementsErrorCode::InvalidDobAgeUnderMinimum,
+            "invalid_product_description_length" => AccountRequirementsErrorCode::InvalidProductDescriptionLength,
+            "invalid_product_description_url_match" => AccountRequirementsErrorCode::InvalidProductDescriptionUrlMatch,
+            "invalid_representative_country" => AccountRequirementsErrorCode::InvalidRepresentativeCountry,
+            "invalid_signator" => AccountRequirementsErrorCode::InvalidSignator,
+            "invalid_statement_descriptor_business_mismatch" => {
+                AccountRequirementsErrorCode::InvalidStatementDescriptorBusinessMismatch
+            }
+            "invalid_statement_descriptor_denylisted" => {
+                AccountRequirementsErrorCode::InvalidStatementDescriptorDenylisted
+            }
+            "invalid_statement_descriptor_length" => AccountRequirementsErrorCode::InvalidStatementDescriptorLength,
+            "invalid_statement_descriptor_prefix_denylisted" => {
+                AccountRequirementsErrorCode::InvalidStatementDescriptorPrefixDenylisted
+            }
+            "invalid_statement_descriptor_prefix_mismatch" => {
+                AccountRequirementsErrorCode::InvalidStatementDescriptorPrefixMismatch
+            }
+            "invalid_street_address" => AccountRequirementsErrorCode::InvalidStreetAddress,
+            "invalid_tax_id" => AccountRequirementsErrorCode::InvalidTaxId,
+            "invalid_tax_id_format" => AccountRequirementsErrorCode::InvalidTaxIdFormat,
+            "invalid_tos_acceptance" => AccountRequirementsErrorCode::InvalidTosAcceptance,
+            "invalid_url_denylisted" => AccountRequirementsErrorCode::InvalidUrlDenylisted,
+            "invalid_url_format" => AccountRequirementsErrorCode::InvalidUrlFormat,
+            "invalid_url_length" => AccountRequirementsErrorCode::InvalidUrlLength,
+            "invalid_url_web_presence_detected" => AccountRequirementsErrorCode::InvalidUrlWebPresenceDetected,
+            "invalid_url_website_business_information_mismatch" => {
+                AccountRequirementsErrorCode::InvalidUrlWebsiteBusinessInformationMismatch
+            }
+            "invalid_url_website_empty" => AccountRequirementsErrorCode::InvalidUrlWebsiteEmpty,
+            "invalid_url_website_inaccessible" => AccountRequirementsErrorCode::InvalidUrlWebsiteInaccessible,
+            "invalid_url_website_inaccessible_geoblocked" => {
+                AccountRequirementsErrorCode::InvalidUrlWebsiteInaccessibleGeoblocked
+            }
+            "invalid_url_website_inaccessible_password_protected" => {
+                AccountRequirementsErrorCode::InvalidUrlWebsiteInaccessiblePasswordProtected
+            }
+            "invalid_url_website_incomplete" => AccountRequirementsErrorCode::InvalidUrlWebsiteIncomplete,
+            "invalid_url_website_incomplete_cancellation_policy" => {
+                AccountRequirementsErrorCode::InvalidUrlWebsiteIncompleteCancellationPolicy
+            }
+            "invalid_url_website_incomplete_customer_service_details" => {
+                AccountRequirementsErrorCode::InvalidUrlWebsiteIncompleteCustomerServiceDetails
+            }
+            "invalid_url_website_incomplete_legal_restrictions" => {
+                AccountRequirementsErrorCode::InvalidUrlWebsiteIncompleteLegalRestrictions
+            }
+            "invalid_url_website_incomplete_refund_policy" => {
+                AccountRequirementsErrorCode::InvalidUrlWebsiteIncompleteRefundPolicy
+            }
+            "invalid_url_website_incomplete_return_policy" => {
+                AccountRequirementsErrorCode::InvalidUrlWebsiteIncompleteReturnPolicy
+            }
+            "invalid_url_website_incomplete_terms_and_conditions" => {
+                AccountRequirementsErrorCode::InvalidUrlWebsiteIncompleteTermsAndConditions
+            }
+            "invalid_url_website_incomplete_under_construction" => {
+                AccountRequirementsErrorCode::InvalidUrlWebsiteIncompleteUnderConstruction
+            }
+            "invalid_url_website_other" => AccountRequirementsErrorCode::InvalidUrlWebsiteOther,
+            "invalid_value_other" => AccountRequirementsErrorCode::InvalidValueOther,
+            "unsupported_business_type" => AccountRequirementsErrorCode::UnsupportedBusinessType,
+            "verification_directors_mismatch" => AccountRequirementsErrorCode::VerificationDirectorsMismatch,
+            "verification_document_address_mismatch" => {
+                AccountRequirementsErrorCode::VerificationDocumentAddressMismatch
+            }
+            "verification_document_address_missing" => AccountRequirementsErrorCode::VerificationDocumentAddressMissing,
+            "verification_document_corrupt" => AccountRequirementsErrorCode::VerificationDocumentCorrupt,
+            "verification_document_country_not_supported" => {
+                AccountRequirementsErrorCode::VerificationDocumentCountryNotSupported
+            }
+            "verification_document_directors_mismatch" => {
+                AccountRequirementsErrorCode::VerificationDocumentDirectorsMismatch
+            }
+            "verification_document_dob_mismatch" => AccountRequirementsErrorCode::VerificationDocumentDobMismatch,
+            "verification_document_duplicate_type" => AccountRequirementsErrorCode::VerificationDocumentDuplicateType,
+            "verification_document_expired" => AccountRequirementsErrorCode::VerificationDocumentExpired,
+            "verification_document_failed_copy" => AccountRequirementsErrorCode::VerificationDocumentFailedCopy,
+            "verification_document_failed_greyscale" => {
+                AccountRequirementsErrorCode::VerificationDocumentFailedGreyscale
+            }
+            "verification_document_failed_other" => AccountRequirementsErrorCode::VerificationDocumentFailedOther,
+            "verification_document_failed_test_mode" => {
+                AccountRequirementsErrorCode::VerificationDocumentFailedTestMode
+            }
+            "verification_document_fraudulent" => AccountRequirementsErrorCode::VerificationDocumentFraudulent,
+            "verification_document_id_number_mismatch" => {
+                AccountRequirementsErrorCode::VerificationDocumentIdNumberMismatch
+            }
+            "verification_document_id_number_missing" => {
+                AccountRequirementsErrorCode::VerificationDocumentIdNumberMissing
+            }
+            "verification_document_incomplete" => AccountRequirementsErrorCode::VerificationDocumentIncomplete,
+            "verification_document_invalid" => AccountRequirementsErrorCode::VerificationDocumentInvalid,
+            "verification_document_issue_or_expiry_date_missing" => {
+                AccountRequirementsErrorCode::VerificationDocumentIssueOrExpiryDateMissing
+            }
+            "verification_document_manipulated" => AccountRequirementsErrorCode::VerificationDocumentManipulated,
+            "verification_document_missing_back" => AccountRequirementsErrorCode::VerificationDocumentMissingBack,
+            "verification_document_missing_front" => AccountRequirementsErrorCode::VerificationDocumentMissingFront,
+            "verification_document_name_mismatch" => AccountRequirementsErrorCode::VerificationDocumentNameMismatch,
+            "verification_document_name_missing" => AccountRequirementsErrorCode::VerificationDocumentNameMissing,
+            "verification_document_nationality_mismatch" => {
+                AccountRequirementsErrorCode::VerificationDocumentNationalityMismatch
+            }
+            "verification_document_not_readable" => AccountRequirementsErrorCode::VerificationDocumentNotReadable,
+            "verification_document_not_signed" => AccountRequirementsErrorCode::VerificationDocumentNotSigned,
+            "verification_document_not_uploaded" => AccountRequirementsErrorCode::VerificationDocumentNotUploaded,
+            "verification_document_photo_mismatch" => AccountRequirementsErrorCode::VerificationDocumentPhotoMismatch,
+            "verification_document_too_large" => AccountRequirementsErrorCode::VerificationDocumentTooLarge,
+            "verification_document_type_not_supported" => {
+                AccountRequirementsErrorCode::VerificationDocumentTypeNotSupported
+            }
+            "verification_extraneous_directors" => AccountRequirementsErrorCode::VerificationExtraneousDirectors,
+            "verification_failed_address_match" => AccountRequirementsErrorCode::VerificationFailedAddressMatch,
+            "verification_failed_authorizer_authority" => {
+                AccountRequirementsErrorCode::VerificationFailedAuthorizerAuthority
+            }
+            "verification_failed_business_iec_number" => {
+                AccountRequirementsErrorCode::VerificationFailedBusinessIecNumber
+            }
+            "verification_failed_document_match" => AccountRequirementsErrorCode::VerificationFailedDocumentMatch,
+            "verification_failed_id_number_match" => AccountRequirementsErrorCode::VerificationFailedIdNumberMatch,
+            "verification_failed_keyed_identity" => AccountRequirementsErrorCode::VerificationFailedKeyedIdentity,
+            "verification_failed_keyed_match" => AccountRequirementsErrorCode::VerificationFailedKeyedMatch,
+            "verification_failed_name_match" => AccountRequirementsErrorCode::VerificationFailedNameMatch,
+            "verification_failed_other" => AccountRequirementsErrorCode::VerificationFailedOther,
+            "verification_failed_representative_authority" => {
+                AccountRequirementsErrorCode::VerificationFailedRepresentativeAuthority
+            }
+            "verification_failed_residential_address" => {
+                AccountRequirementsErrorCode::VerificationFailedResidentialAddress
+            }
+            "verification_failed_tax_id_match" => AccountRequirementsErrorCode::VerificationFailedTaxIdMatch,
+            "verification_failed_tax_id_not_issued" => AccountRequirementsErrorCode::VerificationFailedTaxIdNotIssued,
+            "verification_legal_entity_structure_mismatch" => {
+                AccountRequirementsErrorCode::VerificationLegalEntityStructureMismatch
+            }
+            "verification_missing_directors" => AccountRequirementsErrorCode::VerificationMissingDirectors,
+            "verification_missing_executives" => AccountRequirementsErrorCode::VerificationMissingExecutives,
+            "verification_missing_owners" => AccountRequirementsErrorCode::VerificationMissingOwners,
+            "verification_rejected_ownership_exemption_reason" => {
+                AccountRequirementsErrorCode::VerificationRejectedOwnershipExemptionReason
+            }
+            "verification_requires_additional_memorandum_of_associations" => {
+                AccountRequirementsErrorCode::VerificationRequiresAdditionalMemorandumOfAssociations
+            }
+            "verification_requires_additional_proof_of_registration" => {
+                AccountRequirementsErrorCode::VerificationRequiresAdditionalProofOfRegistration
+            }
+            "verification_supportability" => AccountRequirementsErrorCode::VerificationSupportability,
+            other => AccountRequirementsErrorCode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4265,10 +4057,11 @@ impl<'de> serde::Deserialize<'de> for AccountRequirementsErrorCode {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountSepaDebitPaymentsSettings {
     #[doc = "SEPA creditor identifier that identifies the company making the payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub creditor_id: Option<String>,
 }
 
@@ -4317,29 +4110,30 @@ pub struct AccountSepaDebitPaymentsSettings {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountSettings {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bacs_debit_payments: Option<crate::account::AccountBacsDebitPaymentsSettings>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub branding: Option<crate::account::AccountBrandingSettings>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card_issuing: Option<crate::account::AccountCardIssuingSettings>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card_payments: Option<crate::account::AccountCardPaymentsSettings>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub dashboard: Option<crate::account::AccountDashboardSettings>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoices: Option<crate::account::AccountInvoicesSettings>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payments: Option<crate::account::AccountPaymentsSettings>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payouts: Option<crate::account::AccountPayoutSettings>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paypay_payments: Option<crate::account::AccountPaypayPaymentsSettings>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sepa_debit_payments: Option<crate::account::AccountSepaDebitPaymentsSettings>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub treasury: Option<crate::account::AccountTreasurySettings>,
 }
 
@@ -4388,16 +4182,17 @@ pub struct AccountSettings {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountTermsOfService {
     #[doc = "The Unix timestamp marking when the account representative accepted the service agreement."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub date: Option<i64>,
     #[doc = "The IP address from which the account representative accepted the service agreement."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ip: Option<String>,
     #[doc = "The user agent of the browser from which the account representative accepted the service agreement."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub user_agent: Option<String>,
 }
 
@@ -4446,19 +4241,20 @@ pub struct AccountTermsOfService {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountTosAcceptance {
     #[doc = "The Unix timestamp marking when the account representative accepted their service agreement"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub date: Option<i64>,
     #[doc = "The IP address from which the account representative accepted their service agreement"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ip: Option<String>,
     #[doc = "The user's service agreement type"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub service_agreement: Option<String>,
     #[doc = "The user agent of the browser from which the account representative accepted their service agreement"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub user_agent: Option<String>,
 }
 
@@ -4507,9 +4303,10 @@ pub struct AccountTosAcceptance {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountTreasurySettings {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tos_acceptance: Option<crate::account::AccountTermsOfService>,
 }
 
@@ -4671,39 +4468,21 @@ impl AccountType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for AccountType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AccountType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "custom" => AccountType::Custom,
-                    "express" => AccountType::Express,
-                    "none" => AccountType::None,
-                    "standard" => AccountType::Standard,
-                    other => AccountType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AccountType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AccountType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AccountType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "custom" => AccountType::Custom,
+            "express" => AccountType::Express,
+            "none" => AccountType::None,
+            "standard" => AccountType::Standard,
+            other => AccountType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4752,22 +4531,23 @@ impl<'de> serde::Deserialize<'de> for AccountType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountUnificationAccountController {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fees: Option<crate::account::AccountUnificationAccountControllerFees>,
     #[doc = "`true` if the Connect application retrieving the resource controls the account and can therefore exercise [platform c..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub is_controller: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub losses: Option<crate::account::AccountUnificationAccountControllerLosses>,
     #[doc = "A value indicating responsibility for collecting requirements on this account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub requirement_collection: Option<crate::account::AccountUnificationAccountControllerRequirementCollection>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub stripe_dashboard: Option<crate::account::AccountUnificationAccountControllerStripeDashboard>,
     #[doc = "The controller type."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::account::AccountUnificationAccountControllerType,
 }
 
@@ -4816,10 +4596,11 @@ pub struct AccountUnificationAccountController {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountUnificationAccountControllerFees {
     #[doc = "A value indicating the responsible payer of a bundle of Stripe fees for pricing-control eligible products on this acc..."]
-    #[serde(default)]
+    #[json(default)]
     pub payer: crate::account::AccountUnificationAccountControllerFeesPayer,
 }
 
@@ -5032,39 +4813,21 @@ impl Default for AccountUnificationAccountControllerFeesPayer {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for AccountUnificationAccountControllerFeesPayer {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AccountUnificationAccountControllerFeesPayer;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account" => AccountUnificationAccountControllerFeesPayer::Account,
-                    "application" => AccountUnificationAccountControllerFeesPayer::Application,
-                    "application_custom" => AccountUnificationAccountControllerFeesPayer::ApplicationCustom,
-                    "application_express" => AccountUnificationAccountControllerFeesPayer::ApplicationExpress,
-                    other => AccountUnificationAccountControllerFeesPayer::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AccountUnificationAccountControllerFeesPayer::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AccountUnificationAccountControllerFeesPayer {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AccountUnificationAccountControllerFeesPayer::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account" => AccountUnificationAccountControllerFeesPayer::Account,
+            "application" => AccountUnificationAccountControllerFeesPayer::Application,
+            "application_custom" => AccountUnificationAccountControllerFeesPayer::ApplicationCustom,
+            "application_express" => AccountUnificationAccountControllerFeesPayer::ApplicationExpress,
+            other => AccountUnificationAccountControllerFeesPayer::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5113,10 +4876,11 @@ impl<'de> serde::Deserialize<'de> for AccountUnificationAccountControllerFeesPay
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountUnificationAccountControllerLosses {
     #[doc = "A value indicating who is liable when this account can't pay back negative balances from payments."]
-    #[serde(default)]
+    #[json(default)]
     pub payments: crate::account::AccountUnificationAccountControllerRequirementCollection,
 }
 
@@ -5325,37 +5089,19 @@ impl Default for AccountUnificationAccountControllerRequirementCollection {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for AccountUnificationAccountControllerRequirementCollection {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AccountUnificationAccountControllerRequirementCollection;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "application" => AccountUnificationAccountControllerRequirementCollection::Application,
-                    "stripe" => AccountUnificationAccountControllerRequirementCollection::Stripe,
-                    other => AccountUnificationAccountControllerRequirementCollection::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AccountUnificationAccountControllerRequirementCollection::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AccountUnificationAccountControllerRequirementCollection {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AccountUnificationAccountControllerRequirementCollection::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "application" => AccountUnificationAccountControllerRequirementCollection::Application,
+            "stripe" => AccountUnificationAccountControllerRequirementCollection::Stripe,
+            other => AccountUnificationAccountControllerRequirementCollection::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5404,10 +5150,11 @@ impl<'de> serde::Deserialize<'de> for AccountUnificationAccountControllerRequire
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountUnificationAccountControllerStripeDashboard {
     #[doc = "A value indicating the Stripe dashboard this account has access to independent of the Connect application."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::account::AccountUnificationAccountControllerStripeDashboardType,
 }
 
@@ -5618,38 +5365,20 @@ impl Default for AccountUnificationAccountControllerStripeDashboardType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for AccountUnificationAccountControllerStripeDashboardType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AccountUnificationAccountControllerStripeDashboardType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "express" => AccountUnificationAccountControllerStripeDashboardType::Express,
-                    "full" => AccountUnificationAccountControllerStripeDashboardType::Full,
-                    "none" => AccountUnificationAccountControllerStripeDashboardType::None,
-                    other => AccountUnificationAccountControllerStripeDashboardType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AccountUnificationAccountControllerStripeDashboardType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AccountUnificationAccountControllerStripeDashboardType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AccountUnificationAccountControllerStripeDashboardType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "express" => AccountUnificationAccountControllerStripeDashboardType::Express,
+            "full" => AccountUnificationAccountControllerStripeDashboardType::Full,
+            "none" => AccountUnificationAccountControllerStripeDashboardType::None,
+            other => AccountUnificationAccountControllerStripeDashboardType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5858,51 +5587,34 @@ impl Default for AccountUnificationAccountControllerType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for AccountUnificationAccountControllerType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AccountUnificationAccountControllerType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account" => AccountUnificationAccountControllerType::Account,
-                    "application" => AccountUnificationAccountControllerType::Application,
-                    other => AccountUnificationAccountControllerType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AccountUnificationAccountControllerType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AccountUnificationAccountControllerType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AccountUnificationAccountControllerType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account" => AccountUnificationAccountControllerType::Account,
+            "application" => AccountUnificationAccountControllerType::Application,
+            other => AccountUnificationAccountControllerType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "accounts")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DeletedAccount {
     #[doc = "Always true for a deleted object"]
-    #[serde(default)]
+    #[json(default)]
     pub deleted: bool,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::account::AccountObject,
 }
 

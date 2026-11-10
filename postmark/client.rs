@@ -1,8 +1,8 @@
+use json::{DecodeOwned, Encode};
 use reqwest::{
     Method,
     header::{self, HeaderMap, HeaderValue},
 };
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
 
 pub struct Client {
     pub http_client: reqwest::Client,
@@ -10,14 +10,14 @@ pub struct Client {
     pub account_api_token: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "PascalCase")]
+#[derive(Clone, Debug, json::Decode, json::Encode)]
+#[json(rename_all = "PascalCase")]
 pub struct ApiError {
     pub error_code: i64,
     pub message: String,
 }
 
-pub struct SendRequestInput<B: Serialize> {
+pub struct SendRequestInput<B: Encode> {
     pub method: Method,
     pub url: String,
     pub body: B,
@@ -42,7 +42,7 @@ impl Client {
         };
     }
 
-    pub(crate) async fn send_request<B: Serialize, R: DeserializeOwned>(
+    pub(crate) async fn send_request<B: Encode, R: DecodeOwned>(
         &self,
         input: SendRequestInput<B>,
     ) -> Result<R, ApiError> {
@@ -66,7 +66,7 @@ impl Client {
             .http_client
             .request(input.method, url)
             .headers(headers)
-            .json(&input.body)
+            .body(json::to_vec(&input.body))
             .send()
             .await
             .map_err(|err| ApiError {
@@ -75,14 +75,22 @@ impl Client {
             })?;
 
         if res.status().as_u16() > 399 {
-            let err: ApiError = res.json().await.map_err(|err| ApiError {
+            let body = res.bytes().await.map_err(|err| ApiError {
+                error_code: 0,
+                message: format!("postmark: error reading error response: {err}"),
+            })?;
+            let err: ApiError = ApiError::decode_owned(&body).map_err(|err| ApiError {
                 error_code: 0,
                 message: format!("postmark: error parsing error response: {err}"),
             })?;
             return Err(err);
         }
 
-        let res: R = res.json().await.map_err(|err| ApiError {
+        let body = res.bytes().await.map_err(|err| ApiError {
+            error_code: 0,
+            message: format!("postmark: error reading response: {err}"),
+        })?;
+        let res: R = R::decode_owned(&body).map_err(|err| ApiError {
             error_code: 0,
             message: format!("postmark: error parsing response: {err}"),
         })?;

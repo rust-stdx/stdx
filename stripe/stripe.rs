@@ -121,7 +121,7 @@
 //!   `invoice.*`, `checkout.session.*`, ...). This is the largest optional
 //!   feature: it adds roughly 10 seconds to a `cargo check`. If you handle only
 //!   a few event types, decoding them with your own types (or
-//!   [`Webhook::parse_event`] into `serde_json::Value`) is cheaper.
+//!   [`Webhook::parse_event`] into `json::OwnedValue`) is cheaper.
 //! * `entitlements` — plan and feature gating for the account's customers.
 //! * `test_helpers` — Stripe's test-mode helpers (test clocks, funding, ...).
 //! * `v2_billing` — the v2 meter event stream, for usage reported at high volume.

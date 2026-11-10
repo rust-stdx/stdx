@@ -6,11 +6,11 @@
 use std::{fmt, sync::Arc};
 
 use crypto::{Hasher, encoding::pkcs8, hmac::Hmac, p256::SecretKey, sha2::Sha256};
+use json::{DecodeOwned, Encode};
 use reqwest::{
     Method, Response, StatusCode,
     header::{CONTENT_TYPE, LOCATION},
 };
-use serde::{Serialize, de::DeserializeOwned};
 
 mod types;
 pub use types::{
@@ -385,18 +385,13 @@ impl AccountInner {
         })
     }
 
-    async fn get<T: DeserializeOwned>(&self, nonce: &mut Option<String>, url: &str) -> Result<T, Error> {
+    async fn get<T: DecodeOwned>(&self, nonce: &mut Option<String>, url: &str) -> Result<T, Error> {
         let rsp = self.post(None::<&Empty>, nonce.take(), url).await?;
         *nonce = nonce_from_response(&rsp);
         Problem::check(rsp).await
     }
 
-    async fn post(
-        &self,
-        payload: Option<&impl Serialize>,
-        nonce: Option<String>,
-        url: &str,
-    ) -> Result<Response, Error> {
+    async fn post(&self, payload: Option<&impl Encode>, nonce: Option<String>, url: &str) -> Result<Response, Error> {
         self.client.post(payload, nonce, self, url).await
     }
 }
@@ -432,7 +427,8 @@ impl Client {
         let res = http.get(server_url).send().await?;
 
         // .request(req).await?;
-        let urls = res.json().await?;
+        let body = res.bytes().await?;
+        let urls = json::from_slice(&body).map_err(Error::Json)?;
         Ok(Client {
             http,
             urls,
@@ -441,7 +437,7 @@ impl Client {
 
     async fn post(
         &self,
-        payload: Option<&impl Serialize>,
+        payload: Option<&impl Encode>,
         nonce: Option<String>,
         signer: &impl Signer,
         url: &str,
@@ -453,15 +449,8 @@ impl Client {
             .http
             .request(Method::POST, url)
             .header(CONTENT_TYPE, JOSE_JSON)
-            .json(&body)
+            .body(json::to_vec(&body))
             .build()?;
-        // let request = RequestBuilder::()
-        //     .method(Method::POST)
-        //     .uri(url)
-        //     .header(CONTENT_TYPE, JOSE_JSON)
-        //     .body(Body::from(serde_json::to_vec(&body)?))
-        //     .unwrap();
-
         Ok(self.http.execute(request).await?)
     }
 
@@ -700,14 +689,14 @@ mod tests {
     #[tokio::test]
     async fn deserialize_old_credentials() -> Result<(), Error> {
         const CREDENTIALS: &str = r#"{"id":"id","key_pkcs8":"MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgJVWC_QzOTCS5vtsJp2IG-UDc8cdDfeoKtxSZxaznM-mhRANCAAQenCPoGgPFTdPJ7VLLKt56RxPlYT1wNXnHc54PEyBg3LxKaH0-sJkX0mL8LyPEdsfL_Oz4TxHkWLJGrXVtNhfH","urls":{"newNonce":"new-nonce","newAccount":"new-acct","newOrder":"new-order", "revokeCert": "revoke-cert"}}"#;
-        Account::from_credentials(serde_json::from_str::<AccountCredentials>(CREDENTIALS)?).await?;
+        Account::from_credentials(json::from_str::<AccountCredentials>(CREDENTIALS)?).await?;
         Ok(())
     }
 
     #[tokio::test]
     async fn deserialize_new_credentials() -> Result<(), Error> {
         const CREDENTIALS: &str = r#"{"id":"id","key_pkcs8":"MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgJVWC_QzOTCS5vtsJp2IG-UDc8cdDfeoKtxSZxaznM-mhRANCAAQenCPoGgPFTdPJ7VLLKt56RxPlYT1wNXnHc54PEyBg3LxKaH0-sJkX0mL8LyPEdsfL_Oz4TxHkWLJGrXVtNhfH","directory":"https://acme-staging-v02.api.letsencrypt.org/directory"}"#;
-        Account::from_credentials(serde_json::from_str::<AccountCredentials>(CREDENTIALS)?).await?;
+        Account::from_credentials(json::from_str::<AccountCredentials>(CREDENTIALS)?).await?;
         Ok(())
     }
 }

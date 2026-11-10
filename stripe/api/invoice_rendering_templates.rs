@@ -42,31 +42,32 @@ impl crate::params::FormEncode for GetInvoiceRenderingTemplateParams {
 }
 
 #[cfg(feature = "invoice_rendering_templates")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoiceRenderingTemplate {
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "A brief description of the template, hidden from customers"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub nickname: Option<String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::invoice_rendering_templates::InvoiceRenderingTemplateObject,
     #[doc = "The status of the template, one of `active` or `archived`."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::invoice_rendering_templates::InvoiceRenderingTemplateStatus,
     #[doc = "Version of this template; version increases by one when an update on the template changes any field that controls inv..."]
-    #[serde(default)]
+    #[json(default)]
     pub version: i64,
 }
 
@@ -104,36 +105,18 @@ impl Default for InvoiceRenderingTemplateObject {
 }
 
 #[cfg(feature = "invoice_rendering_templates")]
-impl<'de> serde::Deserialize<'de> for InvoiceRenderingTemplateObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InvoiceRenderingTemplateObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "invoice_rendering_template" => InvoiceRenderingTemplateObject::InvoiceRenderingTemplate,
-                    other => InvoiceRenderingTemplateObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InvoiceRenderingTemplateObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InvoiceRenderingTemplateObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InvoiceRenderingTemplateObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "invoice_rendering_template" => InvoiceRenderingTemplateObject::InvoiceRenderingTemplate,
+            other => InvoiceRenderingTemplateObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -166,37 +149,19 @@ impl Default for InvoiceRenderingTemplateStatus {
 }
 
 #[cfg(feature = "invoice_rendering_templates")]
-impl<'de> serde::Deserialize<'de> for InvoiceRenderingTemplateStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InvoiceRenderingTemplateStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => InvoiceRenderingTemplateStatus::Active,
-                    "archived" => InvoiceRenderingTemplateStatus::Archived,
-                    other => InvoiceRenderingTemplateStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InvoiceRenderingTemplateStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InvoiceRenderingTemplateStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InvoiceRenderingTemplateStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => InvoiceRenderingTemplateStatus::Active,
+            "archived" => InvoiceRenderingTemplateStatus::Archived,
+            other => InvoiceRenderingTemplateStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -245,37 +210,19 @@ impl ListInvoiceRenderingTemplatesParamsStatus {
 }
 
 #[cfg(feature = "invoice_rendering_templates")]
-impl<'de> serde::Deserialize<'de> for ListInvoiceRenderingTemplatesParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListInvoiceRenderingTemplatesParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => ListInvoiceRenderingTemplatesParamsStatus::Active,
-                    "archived" => ListInvoiceRenderingTemplatesParamsStatus::Archived,
-                    other => ListInvoiceRenderingTemplatesParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListInvoiceRenderingTemplatesParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListInvoiceRenderingTemplatesParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListInvoiceRenderingTemplatesParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => ListInvoiceRenderingTemplatesParamsStatus::Active,
+            "archived" => ListInvoiceRenderingTemplatesParamsStatus::Archived,
+            other => ListInvoiceRenderingTemplatesParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 

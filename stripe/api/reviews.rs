@@ -117,49 +117,50 @@ impl crate::params::FormEncode for ListReviewsParamsCreated {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Review {
     #[doc = "The ZIP or postal code of the card used, if applicable."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billing_zip: Option<String>,
     #[doc = "The charge associated with this review."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub charge: Option<crate::Expandable<crate::charges::Charge>>,
     #[doc = "The reason the review was closed, or null if it has not yet been closed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub closed_reason: Option<crate::reviews::ReviewClosedReason>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The IP address where the payment originated."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ip_address: Option<String>,
     #[doc = "Information related to the location of the payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ip_address_location: Option<crate::radar::RadarReviewResourceLocation>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::reviews::ReviewObject,
     #[doc = "If `true`, the review needs action."]
-    #[serde(default)]
+    #[json(default)]
     pub open: bool,
     #[doc = "The reason the review was opened."]
-    #[serde(default)]
+    #[json(default)]
     pub opened_reason: crate::reviews::ReviewOpenedReason,
     #[doc = "The PaymentIntent ID associated with this review, if one exists."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_intent: Option<crate::Expandable<crate::payment_intents::PaymentIntent>>,
     #[doc = "The reason the review is currently open or closed."]
-    #[serde(default)]
+    #[json(default)]
     pub reason: String,
     #[doc = "Information related to the browsing session of the user who initiated the payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub session: Option<crate::radar::RadarReviewResourceSession>,
 }
 
@@ -380,43 +381,25 @@ impl ReviewClosedReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ReviewClosedReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ReviewClosedReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "acknowledged" => ReviewClosedReason::Acknowledged,
-                    "approved" => ReviewClosedReason::Approved,
-                    "canceled" => ReviewClosedReason::Canceled,
-                    "disputed" => ReviewClosedReason::Disputed,
-                    "payment_never_settled" => ReviewClosedReason::PaymentNeverSettled,
-                    "redacted" => ReviewClosedReason::Redacted,
-                    "refunded" => ReviewClosedReason::Refunded,
-                    "refunded_as_fraud" => ReviewClosedReason::RefundedAsFraud,
-                    other => ReviewClosedReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ReviewClosedReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ReviewClosedReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ReviewClosedReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "acknowledged" => ReviewClosedReason::Acknowledged,
+            "approved" => ReviewClosedReason::Approved,
+            "canceled" => ReviewClosedReason::Canceled,
+            "disputed" => ReviewClosedReason::Disputed,
+            "payment_never_settled" => ReviewClosedReason::PaymentNeverSettled,
+            "redacted" => ReviewClosedReason::Redacted,
+            "refunded" => ReviewClosedReason::Refunded,
+            "refunded_as_fraud" => ReviewClosedReason::RefundedAsFraud,
+            other => ReviewClosedReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -623,36 +606,18 @@ impl Default for ReviewObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ReviewObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ReviewObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "review" => ReviewObject::Review,
-                    other => ReviewObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ReviewObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ReviewObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ReviewObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "review" => ReviewObject::Review,
+            other => ReviewObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -861,37 +826,19 @@ impl Default for ReviewOpenedReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ReviewOpenedReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ReviewOpenedReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "manual" => ReviewOpenedReason::Manual,
-                    "rule" => ReviewOpenedReason::Rule,
-                    other => ReviewOpenedReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ReviewOpenedReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ReviewOpenedReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ReviewOpenedReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "manual" => ReviewOpenedReason::Manual,
+            "rule" => ReviewOpenedReason::Rule,
+            other => ReviewOpenedReason::Unknown(other.to_string()),
+        })
     }
 }
 

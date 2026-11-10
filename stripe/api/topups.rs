@@ -104,36 +104,18 @@ impl CreateTopupParamsPaymentMethodOptionsUsBankAccountNetwork {
 }
 
 #[cfg(feature = "topups")]
-impl<'de> serde::Deserialize<'de> for CreateTopupParamsPaymentMethodOptionsUsBankAccountNetwork {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTopupParamsPaymentMethodOptionsUsBankAccountNetwork;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ach" => CreateTopupParamsPaymentMethodOptionsUsBankAccountNetwork::Ach,
-                    other => CreateTopupParamsPaymentMethodOptionsUsBankAccountNetwork::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTopupParamsPaymentMethodOptionsUsBankAccountNetwork::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTopupParamsPaymentMethodOptionsUsBankAccountNetwork {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTopupParamsPaymentMethodOptionsUsBankAccountNetwork::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ach" => CreateTopupParamsPaymentMethodOptionsUsBankAccountNetwork::Ach,
+            other => CreateTopupParamsPaymentMethodOptionsUsBankAccountNetwork::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -238,39 +220,21 @@ impl ListTopupsParamsStatus {
 }
 
 #[cfg(feature = "topups")]
-impl<'de> serde::Deserialize<'de> for ListTopupsParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListTopupsParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "canceled" => ListTopupsParamsStatus::Canceled,
-                    "failed" => ListTopupsParamsStatus::Failed,
-                    "pending" => ListTopupsParamsStatus::Pending,
-                    "succeeded" => ListTopupsParamsStatus::Succeeded,
-                    other => ListTopupsParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListTopupsParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListTopupsParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListTopupsParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "canceled" => ListTopupsParamsStatus::Canceled,
+            "failed" => ListTopupsParamsStatus::Failed,
+            "pending" => ListTopupsParamsStatus::Pending,
+            "succeeded" => ListTopupsParamsStatus::Succeeded,
+            other => ListTopupsParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -326,64 +290,65 @@ impl crate::params::FormEncode for ListTopupsParamsStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Topup {
     #[doc = "Amount transferred."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "ID of the balance transaction that describes the impact of this top-up on your account balance."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub balance_transaction: Option<crate::Expandable<crate::balance_transactions::BalanceTransaction>>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "Date the funds are expected to arrive in your Stripe account for payouts."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expected_availability_date: Option<i64>,
     #[doc = "Error code explaining reason for top-up failure if available (see [the errors section](/api/errors) for a list of cod..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub failure_code: Option<String>,
     #[doc = "Message to user further explaining reason for top-up failure if available."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub failure_message: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "Indicates whether the top-up was initiated by Stripe or by the user."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub initiated_by: Option<crate::topups::TopupInitiatedBy>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::topups::TopupObject,
     #[doc = "The ID of a PaymentMethod representing the payment method used for the top-up."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method: Option<crate::Expandable<crate::payment_methods::PaymentMethod>>,
     #[doc = "Payment-method-specific configuration for this top-up."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_options: Option<crate::topups::TopupResourcePaymentMethodOptions>,
     #[doc = "The source field is deprecated."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<crate::sources::Source>,
     #[doc = "Extra information about a top-up."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
     #[doc = "The status of the top-up is either `canceled`, `failed`, `pending`, `reversed`, or `succeeded`."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::topups::TopupStatus,
     #[doc = "A string that identifies this top-up as part of a group."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transfer_group: Option<String>,
 }
 
@@ -592,37 +557,19 @@ impl TopupInitiatedBy {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for TopupInitiatedBy {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TopupInitiatedBy;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "stripe" => TopupInitiatedBy::Stripe,
-                    "user" => TopupInitiatedBy::User,
-                    other => TopupInitiatedBy::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TopupInitiatedBy::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TopupInitiatedBy {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TopupInitiatedBy::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "stripe" => TopupInitiatedBy::Stripe,
+            "user" => TopupInitiatedBy::User,
+            other => TopupInitiatedBy::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -829,36 +776,18 @@ impl Default for TopupObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for TopupObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TopupObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "topup" => TopupObject::Topup,
-                    other => TopupObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TopupObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TopupObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TopupObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "topup" => TopupObject::Topup,
+            other => TopupObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -907,10 +836,11 @@ impl<'de> serde::Deserialize<'de> for TopupObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TopupResourcePaymentMethodOptions {
     #[doc = "If this top-up is to be used with a `us_bank_account` payment method, this sub-hash contains configuration for it."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us_bank_account: Option<crate::topups::TopupResourceUsBankAccount>,
 }
 
@@ -959,10 +889,11 @@ pub struct TopupResourcePaymentMethodOptions {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TopupResourceUsBankAccount {
     #[doc = "The US bank transfer network used for this top-up."]
-    #[serde(default)]
+    #[json(default)]
     pub network: crate::topups::TopupResourceUsBankAccountNetwork,
 }
 
@@ -1169,36 +1100,18 @@ impl Default for TopupResourceUsBankAccountNetwork {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for TopupResourceUsBankAccountNetwork {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TopupResourceUsBankAccountNetwork;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ach" => TopupResourceUsBankAccountNetwork::Ach,
-                    other => TopupResourceUsBankAccountNetwork::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TopupResourceUsBankAccountNetwork::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TopupResourceUsBankAccountNetwork {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TopupResourceUsBankAccountNetwork::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ach" => TopupResourceUsBankAccountNetwork::Ach,
+            other => TopupResourceUsBankAccountNetwork::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1413,40 +1326,22 @@ impl Default for TopupStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for TopupStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TopupStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "canceled" => TopupStatus::Canceled,
-                    "failed" => TopupStatus::Failed,
-                    "pending" => TopupStatus::Pending,
-                    "reversed" => TopupStatus::Reversed,
-                    "succeeded" => TopupStatus::Succeeded,
-                    other => TopupStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TopupStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TopupStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TopupStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "canceled" => TopupStatus::Canceled,
+            "failed" => TopupStatus::Failed,
+            "pending" => TopupStatus::Pending,
+            "reversed" => TopupStatus::Reversed,
+            "succeeded" => TopupStatus::Succeeded,
+            other => TopupStatus::Unknown(other.to_string()),
+        })
     }
 }
 

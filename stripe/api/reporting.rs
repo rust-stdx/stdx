@@ -177,100 +177,72 @@ impl CreateReportingReportRunParamsParametersReportingCategory {
 }
 
 #[cfg(feature = "reporting")]
-impl<'de> serde::Deserialize<'de> for CreateReportingReportRunParamsParametersReportingCategory {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateReportingReportRunParamsParametersReportingCategory;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "advance" => CreateReportingReportRunParamsParametersReportingCategory::Advance,
-                    "advance_funding" => CreateReportingReportRunParamsParametersReportingCategory::AdvanceFunding,
-                    "anticipation_repayment" => {
-                        CreateReportingReportRunParamsParametersReportingCategory::AnticipationRepayment
-                    }
-                    "charge" => CreateReportingReportRunParamsParametersReportingCategory::Charge,
-                    "charge_failure" => CreateReportingReportRunParamsParametersReportingCategory::ChargeFailure,
-                    "climate_order_purchase" => {
-                        CreateReportingReportRunParamsParametersReportingCategory::ClimateOrderPurchase
-                    }
-                    "climate_order_refund" => {
-                        CreateReportingReportRunParamsParametersReportingCategory::ClimateOrderRefund
-                    }
-                    "connect_collection_transfer" => {
-                        CreateReportingReportRunParamsParametersReportingCategory::ConnectCollectionTransfer
-                    }
-                    "connect_reserved_funds" => {
-                        CreateReportingReportRunParamsParametersReportingCategory::ConnectReservedFunds
-                    }
-                    "contribution" => CreateReportingReportRunParamsParametersReportingCategory::Contribution,
-                    "dispute" => CreateReportingReportRunParamsParametersReportingCategory::Dispute,
-                    "dispute_reversal" => CreateReportingReportRunParamsParametersReportingCategory::DisputeReversal,
-                    "fee" => CreateReportingReportRunParamsParametersReportingCategory::Fee,
-                    "financing_paydown" => CreateReportingReportRunParamsParametersReportingCategory::FinancingPaydown,
-                    "financing_paydown_reversal" => {
-                        CreateReportingReportRunParamsParametersReportingCategory::FinancingPaydownReversal
-                    }
-                    "financing_payout" => CreateReportingReportRunParamsParametersReportingCategory::FinancingPayout,
-                    "financing_payout_reversal" => {
-                        CreateReportingReportRunParamsParametersReportingCategory::FinancingPayoutReversal
-                    }
-                    "issuing_authorization_hold" => {
-                        CreateReportingReportRunParamsParametersReportingCategory::IssuingAuthorizationHold
-                    }
-                    "issuing_authorization_release" => {
-                        CreateReportingReportRunParamsParametersReportingCategory::IssuingAuthorizationRelease
-                    }
-                    "issuing_dispute" => CreateReportingReportRunParamsParametersReportingCategory::IssuingDispute,
-                    "issuing_transaction" => {
-                        CreateReportingReportRunParamsParametersReportingCategory::IssuingTransaction
-                    }
-                    "network_cost" => CreateReportingReportRunParamsParametersReportingCategory::NetworkCost,
-                    "other_adjustment" => CreateReportingReportRunParamsParametersReportingCategory::OtherAdjustment,
-                    "partial_capture_reversal" => {
-                        CreateReportingReportRunParamsParametersReportingCategory::PartialCaptureReversal
-                    }
-                    "payout" => CreateReportingReportRunParamsParametersReportingCategory::Payout,
-                    "payout_reversal" => CreateReportingReportRunParamsParametersReportingCategory::PayoutReversal,
-                    "platform_earning" => CreateReportingReportRunParamsParametersReportingCategory::PlatformEarning,
-                    "platform_earning_refund" => {
-                        CreateReportingReportRunParamsParametersReportingCategory::PlatformEarningRefund
-                    }
-                    "refund" => CreateReportingReportRunParamsParametersReportingCategory::Refund,
-                    "refund_failure" => CreateReportingReportRunParamsParametersReportingCategory::RefundFailure,
-                    "risk_reserved_funds" => {
-                        CreateReportingReportRunParamsParametersReportingCategory::RiskReservedFunds
-                    }
-                    "tax" => CreateReportingReportRunParamsParametersReportingCategory::Tax,
-                    "topup" => CreateReportingReportRunParamsParametersReportingCategory::Topup,
-                    "topup_reversal" => CreateReportingReportRunParamsParametersReportingCategory::TopupReversal,
-                    "transfer" => CreateReportingReportRunParamsParametersReportingCategory::Transfer,
-                    "transfer_reversal" => CreateReportingReportRunParamsParametersReportingCategory::TransferReversal,
-                    "unreconciled_customer_funds" => {
-                        CreateReportingReportRunParamsParametersReportingCategory::UnreconciledCustomerFunds
-                    }
-                    other => CreateReportingReportRunParamsParametersReportingCategory::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateReportingReportRunParamsParametersReportingCategory::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateReportingReportRunParamsParametersReportingCategory {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateReportingReportRunParamsParametersReportingCategory::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "advance" => CreateReportingReportRunParamsParametersReportingCategory::Advance,
+            "advance_funding" => CreateReportingReportRunParamsParametersReportingCategory::AdvanceFunding,
+            "anticipation_repayment" => {
+                CreateReportingReportRunParamsParametersReportingCategory::AnticipationRepayment
+            }
+            "charge" => CreateReportingReportRunParamsParametersReportingCategory::Charge,
+            "charge_failure" => CreateReportingReportRunParamsParametersReportingCategory::ChargeFailure,
+            "climate_order_purchase" => CreateReportingReportRunParamsParametersReportingCategory::ClimateOrderPurchase,
+            "climate_order_refund" => CreateReportingReportRunParamsParametersReportingCategory::ClimateOrderRefund,
+            "connect_collection_transfer" => {
+                CreateReportingReportRunParamsParametersReportingCategory::ConnectCollectionTransfer
+            }
+            "connect_reserved_funds" => CreateReportingReportRunParamsParametersReportingCategory::ConnectReservedFunds,
+            "contribution" => CreateReportingReportRunParamsParametersReportingCategory::Contribution,
+            "dispute" => CreateReportingReportRunParamsParametersReportingCategory::Dispute,
+            "dispute_reversal" => CreateReportingReportRunParamsParametersReportingCategory::DisputeReversal,
+            "fee" => CreateReportingReportRunParamsParametersReportingCategory::Fee,
+            "financing_paydown" => CreateReportingReportRunParamsParametersReportingCategory::FinancingPaydown,
+            "financing_paydown_reversal" => {
+                CreateReportingReportRunParamsParametersReportingCategory::FinancingPaydownReversal
+            }
+            "financing_payout" => CreateReportingReportRunParamsParametersReportingCategory::FinancingPayout,
+            "financing_payout_reversal" => {
+                CreateReportingReportRunParamsParametersReportingCategory::FinancingPayoutReversal
+            }
+            "issuing_authorization_hold" => {
+                CreateReportingReportRunParamsParametersReportingCategory::IssuingAuthorizationHold
+            }
+            "issuing_authorization_release" => {
+                CreateReportingReportRunParamsParametersReportingCategory::IssuingAuthorizationRelease
+            }
+            "issuing_dispute" => CreateReportingReportRunParamsParametersReportingCategory::IssuingDispute,
+            "issuing_transaction" => CreateReportingReportRunParamsParametersReportingCategory::IssuingTransaction,
+            "network_cost" => CreateReportingReportRunParamsParametersReportingCategory::NetworkCost,
+            "other_adjustment" => CreateReportingReportRunParamsParametersReportingCategory::OtherAdjustment,
+            "partial_capture_reversal" => {
+                CreateReportingReportRunParamsParametersReportingCategory::PartialCaptureReversal
+            }
+            "payout" => CreateReportingReportRunParamsParametersReportingCategory::Payout,
+            "payout_reversal" => CreateReportingReportRunParamsParametersReportingCategory::PayoutReversal,
+            "platform_earning" => CreateReportingReportRunParamsParametersReportingCategory::PlatformEarning,
+            "platform_earning_refund" => {
+                CreateReportingReportRunParamsParametersReportingCategory::PlatformEarningRefund
+            }
+            "refund" => CreateReportingReportRunParamsParametersReportingCategory::Refund,
+            "refund_failure" => CreateReportingReportRunParamsParametersReportingCategory::RefundFailure,
+            "risk_reserved_funds" => CreateReportingReportRunParamsParametersReportingCategory::RiskReservedFunds,
+            "tax" => CreateReportingReportRunParamsParametersReportingCategory::Tax,
+            "topup" => CreateReportingReportRunParamsParametersReportingCategory::Topup,
+            "topup_reversal" => CreateReportingReportRunParamsParametersReportingCategory::TopupReversal,
+            "transfer" => CreateReportingReportRunParamsParametersReportingCategory::Transfer,
+            "transfer_reversal" => CreateReportingReportRunParamsParametersReportingCategory::TransferReversal,
+            "unreconciled_customer_funds" => {
+                CreateReportingReportRunParamsParametersReportingCategory::UnreconciledCustomerFunds
+            }
+            other => CreateReportingReportRunParamsParametersReportingCategory::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1513,684 +1485,632 @@ impl CreateReportingReportRunParamsParametersTimezone {
 }
 
 #[cfg(feature = "reporting")]
-impl<'de> serde::Deserialize<'de> for CreateReportingReportRunParamsParametersTimezone {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateReportingReportRunParamsParametersTimezone;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "Africa/Abidjan" => CreateReportingReportRunParamsParametersTimezone::AfricaAbidjan,
-                    "Africa/Accra" => CreateReportingReportRunParamsParametersTimezone::AfricaAccra,
-                    "Africa/Addis_Ababa" => CreateReportingReportRunParamsParametersTimezone::AfricaAddisAbaba,
-                    "Africa/Algiers" => CreateReportingReportRunParamsParametersTimezone::AfricaAlgiers,
-                    "Africa/Asmara" => CreateReportingReportRunParamsParametersTimezone::AfricaAsmara,
-                    "Africa/Asmera" => CreateReportingReportRunParamsParametersTimezone::AfricaAsmera,
-                    "Africa/Bamako" => CreateReportingReportRunParamsParametersTimezone::AfricaBamako,
-                    "Africa/Bangui" => CreateReportingReportRunParamsParametersTimezone::AfricaBangui,
-                    "Africa/Banjul" => CreateReportingReportRunParamsParametersTimezone::AfricaBanjul,
-                    "Africa/Bissau" => CreateReportingReportRunParamsParametersTimezone::AfricaBissau,
-                    "Africa/Blantyre" => CreateReportingReportRunParamsParametersTimezone::AfricaBlantyre,
-                    "Africa/Brazzaville" => CreateReportingReportRunParamsParametersTimezone::AfricaBrazzaville,
-                    "Africa/Bujumbura" => CreateReportingReportRunParamsParametersTimezone::AfricaBujumbura,
-                    "Africa/Cairo" => CreateReportingReportRunParamsParametersTimezone::AfricaCairo,
-                    "Africa/Casablanca" => CreateReportingReportRunParamsParametersTimezone::AfricaCasablanca,
-                    "Africa/Ceuta" => CreateReportingReportRunParamsParametersTimezone::AfricaCeuta,
-                    "Africa/Conakry" => CreateReportingReportRunParamsParametersTimezone::AfricaConakry,
-                    "Africa/Dakar" => CreateReportingReportRunParamsParametersTimezone::AfricaDakar,
-                    "Africa/Dar_es_Salaam" => CreateReportingReportRunParamsParametersTimezone::AfricaDarEsSalaam,
-                    "Africa/Djibouti" => CreateReportingReportRunParamsParametersTimezone::AfricaDjibouti,
-                    "Africa/Douala" => CreateReportingReportRunParamsParametersTimezone::AfricaDouala,
-                    "Africa/El_Aaiun" => CreateReportingReportRunParamsParametersTimezone::AfricaElAaiun,
-                    "Africa/Freetown" => CreateReportingReportRunParamsParametersTimezone::AfricaFreetown,
-                    "Africa/Gaborone" => CreateReportingReportRunParamsParametersTimezone::AfricaGaborone,
-                    "Africa/Harare" => CreateReportingReportRunParamsParametersTimezone::AfricaHarare,
-                    "Africa/Johannesburg" => CreateReportingReportRunParamsParametersTimezone::AfricaJohannesburg,
-                    "Africa/Juba" => CreateReportingReportRunParamsParametersTimezone::AfricaJuba,
-                    "Africa/Kampala" => CreateReportingReportRunParamsParametersTimezone::AfricaKampala,
-                    "Africa/Khartoum" => CreateReportingReportRunParamsParametersTimezone::AfricaKhartoum,
-                    "Africa/Kigali" => CreateReportingReportRunParamsParametersTimezone::AfricaKigali,
-                    "Africa/Kinshasa" => CreateReportingReportRunParamsParametersTimezone::AfricaKinshasa,
-                    "Africa/Lagos" => CreateReportingReportRunParamsParametersTimezone::AfricaLagos,
-                    "Africa/Libreville" => CreateReportingReportRunParamsParametersTimezone::AfricaLibreville,
-                    "Africa/Lome" => CreateReportingReportRunParamsParametersTimezone::AfricaLome,
-                    "Africa/Luanda" => CreateReportingReportRunParamsParametersTimezone::AfricaLuanda,
-                    "Africa/Lubumbashi" => CreateReportingReportRunParamsParametersTimezone::AfricaLubumbashi,
-                    "Africa/Lusaka" => CreateReportingReportRunParamsParametersTimezone::AfricaLusaka,
-                    "Africa/Malabo" => CreateReportingReportRunParamsParametersTimezone::AfricaMalabo,
-                    "Africa/Maputo" => CreateReportingReportRunParamsParametersTimezone::AfricaMaputo,
-                    "Africa/Maseru" => CreateReportingReportRunParamsParametersTimezone::AfricaMaseru,
-                    "Africa/Mbabane" => CreateReportingReportRunParamsParametersTimezone::AfricaMbabane,
-                    "Africa/Mogadishu" => CreateReportingReportRunParamsParametersTimezone::AfricaMogadishu,
-                    "Africa/Monrovia" => CreateReportingReportRunParamsParametersTimezone::AfricaMonrovia,
-                    "Africa/Nairobi" => CreateReportingReportRunParamsParametersTimezone::AfricaNairobi,
-                    "Africa/Ndjamena" => CreateReportingReportRunParamsParametersTimezone::AfricaNdjamena,
-                    "Africa/Niamey" => CreateReportingReportRunParamsParametersTimezone::AfricaNiamey,
-                    "Africa/Nouakchott" => CreateReportingReportRunParamsParametersTimezone::AfricaNouakchott,
-                    "Africa/Ouagadougou" => CreateReportingReportRunParamsParametersTimezone::AfricaOuagadougou,
-                    "Africa/Porto-Novo" => CreateReportingReportRunParamsParametersTimezone::AfricaPortoNovo,
-                    "Africa/Sao_Tome" => CreateReportingReportRunParamsParametersTimezone::AfricaSaoTome,
-                    "Africa/Timbuktu" => CreateReportingReportRunParamsParametersTimezone::AfricaTimbuktu,
-                    "Africa/Tripoli" => CreateReportingReportRunParamsParametersTimezone::AfricaTripoli,
-                    "Africa/Tunis" => CreateReportingReportRunParamsParametersTimezone::AfricaTunis,
-                    "Africa/Windhoek" => CreateReportingReportRunParamsParametersTimezone::AfricaWindhoek,
-                    "America/Adak" => CreateReportingReportRunParamsParametersTimezone::AmericaAdak,
-                    "America/Anchorage" => CreateReportingReportRunParamsParametersTimezone::AmericaAnchorage,
-                    "America/Anguilla" => CreateReportingReportRunParamsParametersTimezone::AmericaAnguilla,
-                    "America/Antigua" => CreateReportingReportRunParamsParametersTimezone::AmericaAntigua,
-                    "America/Araguaina" => CreateReportingReportRunParamsParametersTimezone::AmericaAraguaina,
-                    "America/Argentina/Buenos_Aires" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaBuenosAires
-                    }
-                    "America/Argentina/Catamarca" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaCatamarca
-                    }
-                    "America/Argentina/ComodRivadavia" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaComodRivadavia
-                    }
-                    "America/Argentina/Cordoba" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaCordoba
-                    }
-                    "America/Argentina/Jujuy" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaJujuy
-                    }
-                    "America/Argentina/La_Rioja" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaLaRioja
-                    }
-                    "America/Argentina/Mendoza" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaMendoza
-                    }
-                    "America/Argentina/Rio_Gallegos" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaRioGallegos
-                    }
-                    "America/Argentina/Salta" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaSalta
-                    }
-                    "America/Argentina/San_Juan" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaSanJuan
-                    }
-                    "America/Argentina/San_Luis" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaSanLuis
-                    }
-                    "America/Argentina/Tucuman" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaTucuman
-                    }
-                    "America/Argentina/Ushuaia" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaUshuaia
-                    }
-                    "America/Aruba" => CreateReportingReportRunParamsParametersTimezone::AmericaAruba,
-                    "America/Asuncion" => CreateReportingReportRunParamsParametersTimezone::AmericaAsuncion,
-                    "America/Atikokan" => CreateReportingReportRunParamsParametersTimezone::AmericaAtikokan,
-                    "America/Atka" => CreateReportingReportRunParamsParametersTimezone::AmericaAtka,
-                    "America/Bahia" => CreateReportingReportRunParamsParametersTimezone::AmericaBahia,
-                    "America/Bahia_Banderas" => CreateReportingReportRunParamsParametersTimezone::AmericaBahiaBanderas,
-                    "America/Barbados" => CreateReportingReportRunParamsParametersTimezone::AmericaBarbados,
-                    "America/Belem" => CreateReportingReportRunParamsParametersTimezone::AmericaBelem,
-                    "America/Belize" => CreateReportingReportRunParamsParametersTimezone::AmericaBelize,
-                    "America/Blanc-Sablon" => CreateReportingReportRunParamsParametersTimezone::AmericaBlancSablon,
-                    "America/Boa_Vista" => CreateReportingReportRunParamsParametersTimezone::AmericaBoaVista,
-                    "America/Bogota" => CreateReportingReportRunParamsParametersTimezone::AmericaBogota,
-                    "America/Boise" => CreateReportingReportRunParamsParametersTimezone::AmericaBoise,
-                    "America/Buenos_Aires" => CreateReportingReportRunParamsParametersTimezone::AmericaBuenosAires,
-                    "America/Cambridge_Bay" => CreateReportingReportRunParamsParametersTimezone::AmericaCambridgeBay,
-                    "America/Campo_Grande" => CreateReportingReportRunParamsParametersTimezone::AmericaCampoGrande,
-                    "America/Cancun" => CreateReportingReportRunParamsParametersTimezone::AmericaCancun,
-                    "America/Caracas" => CreateReportingReportRunParamsParametersTimezone::AmericaCaracas,
-                    "America/Catamarca" => CreateReportingReportRunParamsParametersTimezone::AmericaCatamarca,
-                    "America/Cayenne" => CreateReportingReportRunParamsParametersTimezone::AmericaCayenne,
-                    "America/Cayman" => CreateReportingReportRunParamsParametersTimezone::AmericaCayman,
-                    "America/Chicago" => CreateReportingReportRunParamsParametersTimezone::AmericaChicago,
-                    "America/Chihuahua" => CreateReportingReportRunParamsParametersTimezone::AmericaChihuahua,
-                    "America/Ciudad_Juarez" => CreateReportingReportRunParamsParametersTimezone::AmericaCiudadJuarez,
-                    "America/Coral_Harbour" => CreateReportingReportRunParamsParametersTimezone::AmericaCoralHarbour,
-                    "America/Cordoba" => CreateReportingReportRunParamsParametersTimezone::AmericaCordoba,
-                    "America/Costa_Rica" => CreateReportingReportRunParamsParametersTimezone::AmericaCostaRica,
-                    "America/Coyhaique" => CreateReportingReportRunParamsParametersTimezone::AmericaCoyhaique,
-                    "America/Creston" => CreateReportingReportRunParamsParametersTimezone::AmericaCreston,
-                    "America/Cuiaba" => CreateReportingReportRunParamsParametersTimezone::AmericaCuiaba,
-                    "America/Curacao" => CreateReportingReportRunParamsParametersTimezone::AmericaCuracao,
-                    "America/Danmarkshavn" => CreateReportingReportRunParamsParametersTimezone::AmericaDanmarkshavn,
-                    "America/Dawson" => CreateReportingReportRunParamsParametersTimezone::AmericaDawson,
-                    "America/Dawson_Creek" => CreateReportingReportRunParamsParametersTimezone::AmericaDawsonCreek,
-                    "America/Denver" => CreateReportingReportRunParamsParametersTimezone::AmericaDenver,
-                    "America/Detroit" => CreateReportingReportRunParamsParametersTimezone::AmericaDetroit,
-                    "America/Dominica" => CreateReportingReportRunParamsParametersTimezone::AmericaDominica,
-                    "America/Edmonton" => CreateReportingReportRunParamsParametersTimezone::AmericaEdmonton,
-                    "America/Eirunepe" => CreateReportingReportRunParamsParametersTimezone::AmericaEirunepe,
-                    "America/El_Salvador" => CreateReportingReportRunParamsParametersTimezone::AmericaElSalvador,
-                    "America/Ensenada" => CreateReportingReportRunParamsParametersTimezone::AmericaEnsenada,
-                    "America/Fort_Nelson" => CreateReportingReportRunParamsParametersTimezone::AmericaFortNelson,
-                    "America/Fort_Wayne" => CreateReportingReportRunParamsParametersTimezone::AmericaFortWayne,
-                    "America/Fortaleza" => CreateReportingReportRunParamsParametersTimezone::AmericaFortaleza,
-                    "America/Glace_Bay" => CreateReportingReportRunParamsParametersTimezone::AmericaGlaceBay,
-                    "America/Godthab" => CreateReportingReportRunParamsParametersTimezone::AmericaGodthab,
-                    "America/Goose_Bay" => CreateReportingReportRunParamsParametersTimezone::AmericaGooseBay,
-                    "America/Grand_Turk" => CreateReportingReportRunParamsParametersTimezone::AmericaGrandTurk,
-                    "America/Grenada" => CreateReportingReportRunParamsParametersTimezone::AmericaGrenada,
-                    "America/Guadeloupe" => CreateReportingReportRunParamsParametersTimezone::AmericaGuadeloupe,
-                    "America/Guatemala" => CreateReportingReportRunParamsParametersTimezone::AmericaGuatemala,
-                    "America/Guayaquil" => CreateReportingReportRunParamsParametersTimezone::AmericaGuayaquil,
-                    "America/Guyana" => CreateReportingReportRunParamsParametersTimezone::AmericaGuyana,
-                    "America/Halifax" => CreateReportingReportRunParamsParametersTimezone::AmericaHalifax,
-                    "America/Havana" => CreateReportingReportRunParamsParametersTimezone::AmericaHavana,
-                    "America/Hermosillo" => CreateReportingReportRunParamsParametersTimezone::AmericaHermosillo,
-                    "America/Indiana/Indianapolis" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaIndianaIndianapolis
-                    }
-                    "America/Indiana/Knox" => CreateReportingReportRunParamsParametersTimezone::AmericaIndianaKnox,
-                    "America/Indiana/Marengo" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaIndianaMarengo
-                    }
-                    "America/Indiana/Petersburg" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaIndianaPetersburg
-                    }
-                    "America/Indiana/Tell_City" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaIndianaTellCity
-                    }
-                    "America/Indiana/Vevay" => CreateReportingReportRunParamsParametersTimezone::AmericaIndianaVevay,
-                    "America/Indiana/Vincennes" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaIndianaVincennes
-                    }
-                    "America/Indiana/Winamac" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaIndianaWinamac
-                    }
-                    "America/Indianapolis" => CreateReportingReportRunParamsParametersTimezone::AmericaIndianapolis,
-                    "America/Inuvik" => CreateReportingReportRunParamsParametersTimezone::AmericaInuvik,
-                    "America/Iqaluit" => CreateReportingReportRunParamsParametersTimezone::AmericaIqaluit,
-                    "America/Jamaica" => CreateReportingReportRunParamsParametersTimezone::AmericaJamaica,
-                    "America/Jujuy" => CreateReportingReportRunParamsParametersTimezone::AmericaJujuy,
-                    "America/Juneau" => CreateReportingReportRunParamsParametersTimezone::AmericaJuneau,
-                    "America/Kentucky/Louisville" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaKentuckyLouisville
-                    }
-                    "America/Kentucky/Monticello" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaKentuckyMonticello
-                    }
-                    "America/Knox_IN" => CreateReportingReportRunParamsParametersTimezone::AmericaKnoxIN,
-                    "America/Kralendijk" => CreateReportingReportRunParamsParametersTimezone::AmericaKralendijk,
-                    "America/La_Paz" => CreateReportingReportRunParamsParametersTimezone::AmericaLaPaz,
-                    "America/Lima" => CreateReportingReportRunParamsParametersTimezone::AmericaLima,
-                    "America/Los_Angeles" => CreateReportingReportRunParamsParametersTimezone::AmericaLosAngeles,
-                    "America/Louisville" => CreateReportingReportRunParamsParametersTimezone::AmericaLouisville,
-                    "America/Lower_Princes" => CreateReportingReportRunParamsParametersTimezone::AmericaLowerPrinces,
-                    "America/Maceio" => CreateReportingReportRunParamsParametersTimezone::AmericaMaceio,
-                    "America/Managua" => CreateReportingReportRunParamsParametersTimezone::AmericaManagua,
-                    "America/Manaus" => CreateReportingReportRunParamsParametersTimezone::AmericaManaus,
-                    "America/Marigot" => CreateReportingReportRunParamsParametersTimezone::AmericaMarigot,
-                    "America/Martinique" => CreateReportingReportRunParamsParametersTimezone::AmericaMartinique,
-                    "America/Matamoros" => CreateReportingReportRunParamsParametersTimezone::AmericaMatamoros,
-                    "America/Mazatlan" => CreateReportingReportRunParamsParametersTimezone::AmericaMazatlan,
-                    "America/Mendoza" => CreateReportingReportRunParamsParametersTimezone::AmericaMendoza,
-                    "America/Menominee" => CreateReportingReportRunParamsParametersTimezone::AmericaMenominee,
-                    "America/Merida" => CreateReportingReportRunParamsParametersTimezone::AmericaMerida,
-                    "America/Metlakatla" => CreateReportingReportRunParamsParametersTimezone::AmericaMetlakatla,
-                    "America/Mexico_City" => CreateReportingReportRunParamsParametersTimezone::AmericaMexicoCity,
-                    "America/Miquelon" => CreateReportingReportRunParamsParametersTimezone::AmericaMiquelon,
-                    "America/Moncton" => CreateReportingReportRunParamsParametersTimezone::AmericaMoncton,
-                    "America/Monterrey" => CreateReportingReportRunParamsParametersTimezone::AmericaMonterrey,
-                    "America/Montevideo" => CreateReportingReportRunParamsParametersTimezone::AmericaMontevideo,
-                    "America/Montreal" => CreateReportingReportRunParamsParametersTimezone::AmericaMontreal,
-                    "America/Montserrat" => CreateReportingReportRunParamsParametersTimezone::AmericaMontserrat,
-                    "America/Nassau" => CreateReportingReportRunParamsParametersTimezone::AmericaNassau,
-                    "America/New_York" => CreateReportingReportRunParamsParametersTimezone::AmericaNewYork,
-                    "America/Nipigon" => CreateReportingReportRunParamsParametersTimezone::AmericaNipigon,
-                    "America/Nome" => CreateReportingReportRunParamsParametersTimezone::AmericaNome,
-                    "America/Noronha" => CreateReportingReportRunParamsParametersTimezone::AmericaNoronha,
-                    "America/North_Dakota/Beulah" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaNorthDakotaBeulah
-                    }
-                    "America/North_Dakota/Center" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaNorthDakotaCenter
-                    }
-                    "America/North_Dakota/New_Salem" => {
-                        CreateReportingReportRunParamsParametersTimezone::AmericaNorthDakotaNewSalem
-                    }
-                    "America/Nuuk" => CreateReportingReportRunParamsParametersTimezone::AmericaNuuk,
-                    "America/Ojinaga" => CreateReportingReportRunParamsParametersTimezone::AmericaOjinaga,
-                    "America/Panama" => CreateReportingReportRunParamsParametersTimezone::AmericaPanama,
-                    "America/Pangnirtung" => CreateReportingReportRunParamsParametersTimezone::AmericaPangnirtung,
-                    "America/Paramaribo" => CreateReportingReportRunParamsParametersTimezone::AmericaParamaribo,
-                    "America/Phoenix" => CreateReportingReportRunParamsParametersTimezone::AmericaPhoenix,
-                    "America/Port-au-Prince" => CreateReportingReportRunParamsParametersTimezone::AmericaPortAuPrince,
-                    "America/Port_of_Spain" => CreateReportingReportRunParamsParametersTimezone::AmericaPortOfSpain,
-                    "America/Porto_Acre" => CreateReportingReportRunParamsParametersTimezone::AmericaPortoAcre,
-                    "America/Porto_Velho" => CreateReportingReportRunParamsParametersTimezone::AmericaPortoVelho,
-                    "America/Puerto_Rico" => CreateReportingReportRunParamsParametersTimezone::AmericaPuertoRico,
-                    "America/Punta_Arenas" => CreateReportingReportRunParamsParametersTimezone::AmericaPuntaArenas,
-                    "America/Rainy_River" => CreateReportingReportRunParamsParametersTimezone::AmericaRainyRiver,
-                    "America/Rankin_Inlet" => CreateReportingReportRunParamsParametersTimezone::AmericaRankinInlet,
-                    "America/Recife" => CreateReportingReportRunParamsParametersTimezone::AmericaRecife,
-                    "America/Regina" => CreateReportingReportRunParamsParametersTimezone::AmericaRegina,
-                    "America/Resolute" => CreateReportingReportRunParamsParametersTimezone::AmericaResolute,
-                    "America/Rio_Branco" => CreateReportingReportRunParamsParametersTimezone::AmericaRioBranco,
-                    "America/Rosario" => CreateReportingReportRunParamsParametersTimezone::AmericaRosario,
-                    "America/Santa_Isabel" => CreateReportingReportRunParamsParametersTimezone::AmericaSantaIsabel,
-                    "America/Santarem" => CreateReportingReportRunParamsParametersTimezone::AmericaSantarem,
-                    "America/Santiago" => CreateReportingReportRunParamsParametersTimezone::AmericaSantiago,
-                    "America/Santo_Domingo" => CreateReportingReportRunParamsParametersTimezone::AmericaSantoDomingo,
-                    "America/Sao_Paulo" => CreateReportingReportRunParamsParametersTimezone::AmericaSaoPaulo,
-                    "America/Scoresbysund" => CreateReportingReportRunParamsParametersTimezone::AmericaScoresbysund,
-                    "America/Shiprock" => CreateReportingReportRunParamsParametersTimezone::AmericaShiprock,
-                    "America/Sitka" => CreateReportingReportRunParamsParametersTimezone::AmericaSitka,
-                    "America/St_Barthelemy" => CreateReportingReportRunParamsParametersTimezone::AmericaStBarthelemy,
-                    "America/St_Johns" => CreateReportingReportRunParamsParametersTimezone::AmericaStJohns,
-                    "America/St_Kitts" => CreateReportingReportRunParamsParametersTimezone::AmericaStKitts,
-                    "America/St_Lucia" => CreateReportingReportRunParamsParametersTimezone::AmericaStLucia,
-                    "America/St_Thomas" => CreateReportingReportRunParamsParametersTimezone::AmericaStThomas,
-                    "America/St_Vincent" => CreateReportingReportRunParamsParametersTimezone::AmericaStVincent,
-                    "America/Swift_Current" => CreateReportingReportRunParamsParametersTimezone::AmericaSwiftCurrent,
-                    "America/Tegucigalpa" => CreateReportingReportRunParamsParametersTimezone::AmericaTegucigalpa,
-                    "America/Thule" => CreateReportingReportRunParamsParametersTimezone::AmericaThule,
-                    "America/Thunder_Bay" => CreateReportingReportRunParamsParametersTimezone::AmericaThunderBay,
-                    "America/Tijuana" => CreateReportingReportRunParamsParametersTimezone::AmericaTijuana,
-                    "America/Toronto" => CreateReportingReportRunParamsParametersTimezone::AmericaToronto,
-                    "America/Tortola" => CreateReportingReportRunParamsParametersTimezone::AmericaTortola,
-                    "America/Vancouver" => CreateReportingReportRunParamsParametersTimezone::AmericaVancouver,
-                    "America/Virgin" => CreateReportingReportRunParamsParametersTimezone::AmericaVirgin,
-                    "America/Whitehorse" => CreateReportingReportRunParamsParametersTimezone::AmericaWhitehorse,
-                    "America/Winnipeg" => CreateReportingReportRunParamsParametersTimezone::AmericaWinnipeg,
-                    "America/Yakutat" => CreateReportingReportRunParamsParametersTimezone::AmericaYakutat,
-                    "America/Yellowknife" => CreateReportingReportRunParamsParametersTimezone::AmericaYellowknife,
-                    "Antarctica/Casey" => CreateReportingReportRunParamsParametersTimezone::AntarcticaCasey,
-                    "Antarctica/Davis" => CreateReportingReportRunParamsParametersTimezone::AntarcticaDavis,
-                    "Antarctica/DumontDUrville" => {
-                        CreateReportingReportRunParamsParametersTimezone::AntarcticaDumontDUrville
-                    }
-                    "Antarctica/Macquarie" => CreateReportingReportRunParamsParametersTimezone::AntarcticaMacquarie,
-                    "Antarctica/Mawson" => CreateReportingReportRunParamsParametersTimezone::AntarcticaMawson,
-                    "Antarctica/McMurdo" => CreateReportingReportRunParamsParametersTimezone::AntarcticaMcMurdo,
-                    "Antarctica/Palmer" => CreateReportingReportRunParamsParametersTimezone::AntarcticaPalmer,
-                    "Antarctica/Rothera" => CreateReportingReportRunParamsParametersTimezone::AntarcticaRothera,
-                    "Antarctica/South_Pole" => CreateReportingReportRunParamsParametersTimezone::AntarcticaSouthPole,
-                    "Antarctica/Syowa" => CreateReportingReportRunParamsParametersTimezone::AntarcticaSyowa,
-                    "Antarctica/Troll" => CreateReportingReportRunParamsParametersTimezone::AntarcticaTroll,
-                    "Antarctica/Vostok" => CreateReportingReportRunParamsParametersTimezone::AntarcticaVostok,
-                    "Arctic/Longyearbyen" => CreateReportingReportRunParamsParametersTimezone::ArcticLongyearbyen,
-                    "Asia/Aden" => CreateReportingReportRunParamsParametersTimezone::AsiaAden,
-                    "Asia/Almaty" => CreateReportingReportRunParamsParametersTimezone::AsiaAlmaty,
-                    "Asia/Amman" => CreateReportingReportRunParamsParametersTimezone::AsiaAmman,
-                    "Asia/Anadyr" => CreateReportingReportRunParamsParametersTimezone::AsiaAnadyr,
-                    "Asia/Aqtau" => CreateReportingReportRunParamsParametersTimezone::AsiaAqtau,
-                    "Asia/Aqtobe" => CreateReportingReportRunParamsParametersTimezone::AsiaAqtobe,
-                    "Asia/Ashgabat" => CreateReportingReportRunParamsParametersTimezone::AsiaAshgabat,
-                    "Asia/Ashkhabad" => CreateReportingReportRunParamsParametersTimezone::AsiaAshkhabad,
-                    "Asia/Atyrau" => CreateReportingReportRunParamsParametersTimezone::AsiaAtyrau,
-                    "Asia/Baghdad" => CreateReportingReportRunParamsParametersTimezone::AsiaBaghdad,
-                    "Asia/Bahrain" => CreateReportingReportRunParamsParametersTimezone::AsiaBahrain,
-                    "Asia/Baku" => CreateReportingReportRunParamsParametersTimezone::AsiaBaku,
-                    "Asia/Bangkok" => CreateReportingReportRunParamsParametersTimezone::AsiaBangkok,
-                    "Asia/Barnaul" => CreateReportingReportRunParamsParametersTimezone::AsiaBarnaul,
-                    "Asia/Beirut" => CreateReportingReportRunParamsParametersTimezone::AsiaBeirut,
-                    "Asia/Bishkek" => CreateReportingReportRunParamsParametersTimezone::AsiaBishkek,
-                    "Asia/Brunei" => CreateReportingReportRunParamsParametersTimezone::AsiaBrunei,
-                    "Asia/Calcutta" => CreateReportingReportRunParamsParametersTimezone::AsiaCalcutta,
-                    "Asia/Chita" => CreateReportingReportRunParamsParametersTimezone::AsiaChita,
-                    "Asia/Choibalsan" => CreateReportingReportRunParamsParametersTimezone::AsiaChoibalsan,
-                    "Asia/Chongqing" => CreateReportingReportRunParamsParametersTimezone::AsiaChongqing,
-                    "Asia/Chungking" => CreateReportingReportRunParamsParametersTimezone::AsiaChungking,
-                    "Asia/Colombo" => CreateReportingReportRunParamsParametersTimezone::AsiaColombo,
-                    "Asia/Dacca" => CreateReportingReportRunParamsParametersTimezone::AsiaDacca,
-                    "Asia/Damascus" => CreateReportingReportRunParamsParametersTimezone::AsiaDamascus,
-                    "Asia/Dhaka" => CreateReportingReportRunParamsParametersTimezone::AsiaDhaka,
-                    "Asia/Dili" => CreateReportingReportRunParamsParametersTimezone::AsiaDili,
-                    "Asia/Dubai" => CreateReportingReportRunParamsParametersTimezone::AsiaDubai,
-                    "Asia/Dushanbe" => CreateReportingReportRunParamsParametersTimezone::AsiaDushanbe,
-                    "Asia/Famagusta" => CreateReportingReportRunParamsParametersTimezone::AsiaFamagusta,
-                    "Asia/Gaza" => CreateReportingReportRunParamsParametersTimezone::AsiaGaza,
-                    "Asia/Harbin" => CreateReportingReportRunParamsParametersTimezone::AsiaHarbin,
-                    "Asia/Hebron" => CreateReportingReportRunParamsParametersTimezone::AsiaHebron,
-                    "Asia/Ho_Chi_Minh" => CreateReportingReportRunParamsParametersTimezone::AsiaHoChiMinh,
-                    "Asia/Hong_Kong" => CreateReportingReportRunParamsParametersTimezone::AsiaHongKong,
-                    "Asia/Hovd" => CreateReportingReportRunParamsParametersTimezone::AsiaHovd,
-                    "Asia/Irkutsk" => CreateReportingReportRunParamsParametersTimezone::AsiaIrkutsk,
-                    "Asia/Istanbul" => CreateReportingReportRunParamsParametersTimezone::AsiaIstanbul,
-                    "Asia/Jakarta" => CreateReportingReportRunParamsParametersTimezone::AsiaJakarta,
-                    "Asia/Jayapura" => CreateReportingReportRunParamsParametersTimezone::AsiaJayapura,
-                    "Asia/Jerusalem" => CreateReportingReportRunParamsParametersTimezone::AsiaJerusalem,
-                    "Asia/Kabul" => CreateReportingReportRunParamsParametersTimezone::AsiaKabul,
-                    "Asia/Kamchatka" => CreateReportingReportRunParamsParametersTimezone::AsiaKamchatka,
-                    "Asia/Karachi" => CreateReportingReportRunParamsParametersTimezone::AsiaKarachi,
-                    "Asia/Kashgar" => CreateReportingReportRunParamsParametersTimezone::AsiaKashgar,
-                    "Asia/Kathmandu" => CreateReportingReportRunParamsParametersTimezone::AsiaKathmandu,
-                    "Asia/Katmandu" => CreateReportingReportRunParamsParametersTimezone::AsiaKatmandu,
-                    "Asia/Khandyga" => CreateReportingReportRunParamsParametersTimezone::AsiaKhandyga,
-                    "Asia/Kolkata" => CreateReportingReportRunParamsParametersTimezone::AsiaKolkata,
-                    "Asia/Krasnoyarsk" => CreateReportingReportRunParamsParametersTimezone::AsiaKrasnoyarsk,
-                    "Asia/Kuala_Lumpur" => CreateReportingReportRunParamsParametersTimezone::AsiaKualaLumpur,
-                    "Asia/Kuching" => CreateReportingReportRunParamsParametersTimezone::AsiaKuching,
-                    "Asia/Kuwait" => CreateReportingReportRunParamsParametersTimezone::AsiaKuwait,
-                    "Asia/Macao" => CreateReportingReportRunParamsParametersTimezone::AsiaMacao,
-                    "Asia/Macau" => CreateReportingReportRunParamsParametersTimezone::AsiaMacau,
-                    "Asia/Magadan" => CreateReportingReportRunParamsParametersTimezone::AsiaMagadan,
-                    "Asia/Makassar" => CreateReportingReportRunParamsParametersTimezone::AsiaMakassar,
-                    "Asia/Manila" => CreateReportingReportRunParamsParametersTimezone::AsiaManila,
-                    "Asia/Muscat" => CreateReportingReportRunParamsParametersTimezone::AsiaMuscat,
-                    "Asia/Nicosia" => CreateReportingReportRunParamsParametersTimezone::AsiaNicosia,
-                    "Asia/Novokuznetsk" => CreateReportingReportRunParamsParametersTimezone::AsiaNovokuznetsk,
-                    "Asia/Novosibirsk" => CreateReportingReportRunParamsParametersTimezone::AsiaNovosibirsk,
-                    "Asia/Omsk" => CreateReportingReportRunParamsParametersTimezone::AsiaOmsk,
-                    "Asia/Oral" => CreateReportingReportRunParamsParametersTimezone::AsiaOral,
-                    "Asia/Phnom_Penh" => CreateReportingReportRunParamsParametersTimezone::AsiaPhnomPenh,
-                    "Asia/Pontianak" => CreateReportingReportRunParamsParametersTimezone::AsiaPontianak,
-                    "Asia/Pyongyang" => CreateReportingReportRunParamsParametersTimezone::AsiaPyongyang,
-                    "Asia/Qatar" => CreateReportingReportRunParamsParametersTimezone::AsiaQatar,
-                    "Asia/Qostanay" => CreateReportingReportRunParamsParametersTimezone::AsiaQostanay,
-                    "Asia/Qyzylorda" => CreateReportingReportRunParamsParametersTimezone::AsiaQyzylorda,
-                    "Asia/Rangoon" => CreateReportingReportRunParamsParametersTimezone::AsiaRangoon,
-                    "Asia/Riyadh" => CreateReportingReportRunParamsParametersTimezone::AsiaRiyadh,
-                    "Asia/Saigon" => CreateReportingReportRunParamsParametersTimezone::AsiaSaigon,
-                    "Asia/Sakhalin" => CreateReportingReportRunParamsParametersTimezone::AsiaSakhalin,
-                    "Asia/Samarkand" => CreateReportingReportRunParamsParametersTimezone::AsiaSamarkand,
-                    "Asia/Seoul" => CreateReportingReportRunParamsParametersTimezone::AsiaSeoul,
-                    "Asia/Shanghai" => CreateReportingReportRunParamsParametersTimezone::AsiaShanghai,
-                    "Asia/Singapore" => CreateReportingReportRunParamsParametersTimezone::AsiaSingapore,
-                    "Asia/Srednekolymsk" => CreateReportingReportRunParamsParametersTimezone::AsiaSrednekolymsk,
-                    "Asia/Taipei" => CreateReportingReportRunParamsParametersTimezone::AsiaTaipei,
-                    "Asia/Tashkent" => CreateReportingReportRunParamsParametersTimezone::AsiaTashkent,
-                    "Asia/Tbilisi" => CreateReportingReportRunParamsParametersTimezone::AsiaTbilisi,
-                    "Asia/Tehran" => CreateReportingReportRunParamsParametersTimezone::AsiaTehran,
-                    "Asia/Tel_Aviv" => CreateReportingReportRunParamsParametersTimezone::AsiaTelAviv,
-                    "Asia/Thimbu" => CreateReportingReportRunParamsParametersTimezone::AsiaThimbu,
-                    "Asia/Thimphu" => CreateReportingReportRunParamsParametersTimezone::AsiaThimphu,
-                    "Asia/Tokyo" => CreateReportingReportRunParamsParametersTimezone::AsiaTokyo,
-                    "Asia/Tomsk" => CreateReportingReportRunParamsParametersTimezone::AsiaTomsk,
-                    "Asia/Ujung_Pandang" => CreateReportingReportRunParamsParametersTimezone::AsiaUjungPandang,
-                    "Asia/Ulaanbaatar" => CreateReportingReportRunParamsParametersTimezone::AsiaUlaanbaatar,
-                    "Asia/Ulan_Bator" => CreateReportingReportRunParamsParametersTimezone::AsiaUlanBator,
-                    "Asia/Urumqi" => CreateReportingReportRunParamsParametersTimezone::AsiaUrumqi,
-                    "Asia/Ust-Nera" => CreateReportingReportRunParamsParametersTimezone::AsiaUstNera,
-                    "Asia/Vientiane" => CreateReportingReportRunParamsParametersTimezone::AsiaVientiane,
-                    "Asia/Vladivostok" => CreateReportingReportRunParamsParametersTimezone::AsiaVladivostok,
-                    "Asia/Yakutsk" => CreateReportingReportRunParamsParametersTimezone::AsiaYakutsk,
-                    "Asia/Yangon" => CreateReportingReportRunParamsParametersTimezone::AsiaYangon,
-                    "Asia/Yekaterinburg" => CreateReportingReportRunParamsParametersTimezone::AsiaYekaterinburg,
-                    "Asia/Yerevan" => CreateReportingReportRunParamsParametersTimezone::AsiaYerevan,
-                    "Atlantic/Azores" => CreateReportingReportRunParamsParametersTimezone::AtlanticAzores,
-                    "Atlantic/Bermuda" => CreateReportingReportRunParamsParametersTimezone::AtlanticBermuda,
-                    "Atlantic/Canary" => CreateReportingReportRunParamsParametersTimezone::AtlanticCanary,
-                    "Atlantic/Cape_Verde" => CreateReportingReportRunParamsParametersTimezone::AtlanticCapeVerde,
-                    "Atlantic/Faeroe" => CreateReportingReportRunParamsParametersTimezone::AtlanticFaeroe,
-                    "Atlantic/Faroe" => CreateReportingReportRunParamsParametersTimezone::AtlanticFaroe,
-                    "Atlantic/Jan_Mayen" => CreateReportingReportRunParamsParametersTimezone::AtlanticJanMayen,
-                    "Atlantic/Madeira" => CreateReportingReportRunParamsParametersTimezone::AtlanticMadeira,
-                    "Atlantic/Reykjavik" => CreateReportingReportRunParamsParametersTimezone::AtlanticReykjavik,
-                    "Atlantic/South_Georgia" => CreateReportingReportRunParamsParametersTimezone::AtlanticSouthGeorgia,
-                    "Atlantic/St_Helena" => CreateReportingReportRunParamsParametersTimezone::AtlanticStHelena,
-                    "Atlantic/Stanley" => CreateReportingReportRunParamsParametersTimezone::AtlanticStanley,
-                    "Australia/ACT" => CreateReportingReportRunParamsParametersTimezone::AustraliaACT,
-                    "Australia/Adelaide" => CreateReportingReportRunParamsParametersTimezone::AustraliaAdelaide,
-                    "Australia/Brisbane" => CreateReportingReportRunParamsParametersTimezone::AustraliaBrisbane,
-                    "Australia/Broken_Hill" => CreateReportingReportRunParamsParametersTimezone::AustraliaBrokenHill,
-                    "Australia/Canberra" => CreateReportingReportRunParamsParametersTimezone::AustraliaCanberra,
-                    "Australia/Currie" => CreateReportingReportRunParamsParametersTimezone::AustraliaCurrie,
-                    "Australia/Darwin" => CreateReportingReportRunParamsParametersTimezone::AustraliaDarwin,
-                    "Australia/Eucla" => CreateReportingReportRunParamsParametersTimezone::AustraliaEucla,
-                    "Australia/Hobart" => CreateReportingReportRunParamsParametersTimezone::AustraliaHobart,
-                    "Australia/LHI" => CreateReportingReportRunParamsParametersTimezone::AustraliaLHI,
-                    "Australia/Lindeman" => CreateReportingReportRunParamsParametersTimezone::AustraliaLindeman,
-                    "Australia/Lord_Howe" => CreateReportingReportRunParamsParametersTimezone::AustraliaLordHowe,
-                    "Australia/Melbourne" => CreateReportingReportRunParamsParametersTimezone::AustraliaMelbourne,
-                    "Australia/NSW" => CreateReportingReportRunParamsParametersTimezone::AustraliaNSW,
-                    "Australia/North" => CreateReportingReportRunParamsParametersTimezone::AustraliaNorth,
-                    "Australia/Perth" => CreateReportingReportRunParamsParametersTimezone::AustraliaPerth,
-                    "Australia/Queensland" => CreateReportingReportRunParamsParametersTimezone::AustraliaQueensland,
-                    "Australia/South" => CreateReportingReportRunParamsParametersTimezone::AustraliaSouth,
-                    "Australia/Sydney" => CreateReportingReportRunParamsParametersTimezone::AustraliaSydney,
-                    "Australia/Tasmania" => CreateReportingReportRunParamsParametersTimezone::AustraliaTasmania,
-                    "Australia/Victoria" => CreateReportingReportRunParamsParametersTimezone::AustraliaVictoria,
-                    "Australia/West" => CreateReportingReportRunParamsParametersTimezone::AustraliaWest,
-                    "Australia/Yancowinna" => CreateReportingReportRunParamsParametersTimezone::AustraliaYancowinna,
-                    "Brazil/Acre" => CreateReportingReportRunParamsParametersTimezone::BrazilAcre,
-                    "Brazil/DeNoronha" => CreateReportingReportRunParamsParametersTimezone::BrazilDeNoronha,
-                    "Brazil/East" => CreateReportingReportRunParamsParametersTimezone::BrazilEast,
-                    "Brazil/West" => CreateReportingReportRunParamsParametersTimezone::BrazilWest,
-                    "CET" => CreateReportingReportRunParamsParametersTimezone::CET,
-                    "CST6CDT" => CreateReportingReportRunParamsParametersTimezone::CST6CDT,
-                    "Canada/Atlantic" => CreateReportingReportRunParamsParametersTimezone::CanadaAtlantic,
-                    "Canada/Central" => CreateReportingReportRunParamsParametersTimezone::CanadaCentral,
-                    "Canada/Eastern" => CreateReportingReportRunParamsParametersTimezone::CanadaEastern,
-                    "Canada/Mountain" => CreateReportingReportRunParamsParametersTimezone::CanadaMountain,
-                    "Canada/Newfoundland" => CreateReportingReportRunParamsParametersTimezone::CanadaNewfoundland,
-                    "Canada/Pacific" => CreateReportingReportRunParamsParametersTimezone::CanadaPacific,
-                    "Canada/Saskatchewan" => CreateReportingReportRunParamsParametersTimezone::CanadaSaskatchewan,
-                    "Canada/Yukon" => CreateReportingReportRunParamsParametersTimezone::CanadaYukon,
-                    "Chile/Continental" => CreateReportingReportRunParamsParametersTimezone::ChileContinental,
-                    "Chile/EasterIsland" => CreateReportingReportRunParamsParametersTimezone::ChileEasterIsland,
-                    "Cuba" => CreateReportingReportRunParamsParametersTimezone::Cuba,
-                    "EET" => CreateReportingReportRunParamsParametersTimezone::EET,
-                    "EST" => CreateReportingReportRunParamsParametersTimezone::EST,
-                    "EST5EDT" => CreateReportingReportRunParamsParametersTimezone::EST5EDT,
-                    "Egypt" => CreateReportingReportRunParamsParametersTimezone::Egypt,
-                    "Eire" => CreateReportingReportRunParamsParametersTimezone::Eire,
-                    "Etc/GMT" => CreateReportingReportRunParamsParametersTimezone::EtcGMT,
-                    "Etc/GMT+0" => CreateReportingReportRunParamsParametersTimezone::EtcGMT0,
-                    "Etc/GMT+1" => CreateReportingReportRunParamsParametersTimezone::EtcGMT1,
-                    "Etc/GMT+10" => CreateReportingReportRunParamsParametersTimezone::EtcGMT10,
-                    "Etc/GMT+11" => CreateReportingReportRunParamsParametersTimezone::EtcGMT11,
-                    "Etc/GMT+12" => CreateReportingReportRunParamsParametersTimezone::EtcGMT12,
-                    "Etc/GMT+2" => CreateReportingReportRunParamsParametersTimezone::EtcGMT2,
-                    "Etc/GMT+3" => CreateReportingReportRunParamsParametersTimezone::EtcGMT3,
-                    "Etc/GMT+4" => CreateReportingReportRunParamsParametersTimezone::EtcGMT4,
-                    "Etc/GMT+5" => CreateReportingReportRunParamsParametersTimezone::EtcGMT5,
-                    "Etc/GMT+6" => CreateReportingReportRunParamsParametersTimezone::EtcGMT6,
-                    "Etc/GMT+7" => CreateReportingReportRunParamsParametersTimezone::EtcGMT7,
-                    "Etc/GMT+8" => CreateReportingReportRunParamsParametersTimezone::EtcGMT8,
-                    "Etc/GMT+9" => CreateReportingReportRunParamsParametersTimezone::EtcGMT9,
-                    "Etc/GMT-0" => CreateReportingReportRunParamsParametersTimezone::EtcGMT02,
-                    "Etc/GMT-1" => CreateReportingReportRunParamsParametersTimezone::EtcGMT13,
-                    "Etc/GMT-10" => CreateReportingReportRunParamsParametersTimezone::EtcGMT102,
-                    "Etc/GMT-11" => CreateReportingReportRunParamsParametersTimezone::EtcGMT112,
-                    "Etc/GMT-12" => CreateReportingReportRunParamsParametersTimezone::EtcGMT122,
-                    "Etc/GMT-13" => CreateReportingReportRunParamsParametersTimezone::EtcGMT132,
-                    "Etc/GMT-14" => CreateReportingReportRunParamsParametersTimezone::EtcGMT14,
-                    "Etc/GMT-2" => CreateReportingReportRunParamsParametersTimezone::EtcGMT22,
-                    "Etc/GMT-3" => CreateReportingReportRunParamsParametersTimezone::EtcGMT32,
-                    "Etc/GMT-4" => CreateReportingReportRunParamsParametersTimezone::EtcGMT42,
-                    "Etc/GMT-5" => CreateReportingReportRunParamsParametersTimezone::EtcGMT52,
-                    "Etc/GMT-6" => CreateReportingReportRunParamsParametersTimezone::EtcGMT62,
-                    "Etc/GMT-7" => CreateReportingReportRunParamsParametersTimezone::EtcGMT72,
-                    "Etc/GMT-8" => CreateReportingReportRunParamsParametersTimezone::EtcGMT82,
-                    "Etc/GMT-9" => CreateReportingReportRunParamsParametersTimezone::EtcGMT92,
-                    "Etc/GMT0" => CreateReportingReportRunParamsParametersTimezone::EtcGMT03,
-                    "Etc/Greenwich" => CreateReportingReportRunParamsParametersTimezone::EtcGreenwich,
-                    "Etc/UCT" => CreateReportingReportRunParamsParametersTimezone::EtcUCT,
-                    "Etc/UTC" => CreateReportingReportRunParamsParametersTimezone::EtcUTC,
-                    "Etc/Universal" => CreateReportingReportRunParamsParametersTimezone::EtcUniversal,
-                    "Etc/Zulu" => CreateReportingReportRunParamsParametersTimezone::EtcZulu,
-                    "Europe/Amsterdam" => CreateReportingReportRunParamsParametersTimezone::EuropeAmsterdam,
-                    "Europe/Andorra" => CreateReportingReportRunParamsParametersTimezone::EuropeAndorra,
-                    "Europe/Astrakhan" => CreateReportingReportRunParamsParametersTimezone::EuropeAstrakhan,
-                    "Europe/Athens" => CreateReportingReportRunParamsParametersTimezone::EuropeAthens,
-                    "Europe/Belfast" => CreateReportingReportRunParamsParametersTimezone::EuropeBelfast,
-                    "Europe/Belgrade" => CreateReportingReportRunParamsParametersTimezone::EuropeBelgrade,
-                    "Europe/Berlin" => CreateReportingReportRunParamsParametersTimezone::EuropeBerlin,
-                    "Europe/Bratislava" => CreateReportingReportRunParamsParametersTimezone::EuropeBratislava,
-                    "Europe/Brussels" => CreateReportingReportRunParamsParametersTimezone::EuropeBrussels,
-                    "Europe/Bucharest" => CreateReportingReportRunParamsParametersTimezone::EuropeBucharest,
-                    "Europe/Budapest" => CreateReportingReportRunParamsParametersTimezone::EuropeBudapest,
-                    "Europe/Busingen" => CreateReportingReportRunParamsParametersTimezone::EuropeBusingen,
-                    "Europe/Chisinau" => CreateReportingReportRunParamsParametersTimezone::EuropeChisinau,
-                    "Europe/Copenhagen" => CreateReportingReportRunParamsParametersTimezone::EuropeCopenhagen,
-                    "Europe/Dublin" => CreateReportingReportRunParamsParametersTimezone::EuropeDublin,
-                    "Europe/Gibraltar" => CreateReportingReportRunParamsParametersTimezone::EuropeGibraltar,
-                    "Europe/Guernsey" => CreateReportingReportRunParamsParametersTimezone::EuropeGuernsey,
-                    "Europe/Helsinki" => CreateReportingReportRunParamsParametersTimezone::EuropeHelsinki,
-                    "Europe/Isle_of_Man" => CreateReportingReportRunParamsParametersTimezone::EuropeIsleOfMan,
-                    "Europe/Istanbul" => CreateReportingReportRunParamsParametersTimezone::EuropeIstanbul,
-                    "Europe/Jersey" => CreateReportingReportRunParamsParametersTimezone::EuropeJersey,
-                    "Europe/Kaliningrad" => CreateReportingReportRunParamsParametersTimezone::EuropeKaliningrad,
-                    "Europe/Kiev" => CreateReportingReportRunParamsParametersTimezone::EuropeKiev,
-                    "Europe/Kirov" => CreateReportingReportRunParamsParametersTimezone::EuropeKirov,
-                    "Europe/Kyiv" => CreateReportingReportRunParamsParametersTimezone::EuropeKyiv,
-                    "Europe/Lisbon" => CreateReportingReportRunParamsParametersTimezone::EuropeLisbon,
-                    "Europe/Ljubljana" => CreateReportingReportRunParamsParametersTimezone::EuropeLjubljana,
-                    "Europe/London" => CreateReportingReportRunParamsParametersTimezone::EuropeLondon,
-                    "Europe/Luxembourg" => CreateReportingReportRunParamsParametersTimezone::EuropeLuxembourg,
-                    "Europe/Madrid" => CreateReportingReportRunParamsParametersTimezone::EuropeMadrid,
-                    "Europe/Malta" => CreateReportingReportRunParamsParametersTimezone::EuropeMalta,
-                    "Europe/Mariehamn" => CreateReportingReportRunParamsParametersTimezone::EuropeMariehamn,
-                    "Europe/Minsk" => CreateReportingReportRunParamsParametersTimezone::EuropeMinsk,
-                    "Europe/Monaco" => CreateReportingReportRunParamsParametersTimezone::EuropeMonaco,
-                    "Europe/Moscow" => CreateReportingReportRunParamsParametersTimezone::EuropeMoscow,
-                    "Europe/Nicosia" => CreateReportingReportRunParamsParametersTimezone::EuropeNicosia,
-                    "Europe/Oslo" => CreateReportingReportRunParamsParametersTimezone::EuropeOslo,
-                    "Europe/Paris" => CreateReportingReportRunParamsParametersTimezone::EuropeParis,
-                    "Europe/Podgorica" => CreateReportingReportRunParamsParametersTimezone::EuropePodgorica,
-                    "Europe/Prague" => CreateReportingReportRunParamsParametersTimezone::EuropePrague,
-                    "Europe/Riga" => CreateReportingReportRunParamsParametersTimezone::EuropeRiga,
-                    "Europe/Rome" => CreateReportingReportRunParamsParametersTimezone::EuropeRome,
-                    "Europe/Samara" => CreateReportingReportRunParamsParametersTimezone::EuropeSamara,
-                    "Europe/San_Marino" => CreateReportingReportRunParamsParametersTimezone::EuropeSanMarino,
-                    "Europe/Sarajevo" => CreateReportingReportRunParamsParametersTimezone::EuropeSarajevo,
-                    "Europe/Saratov" => CreateReportingReportRunParamsParametersTimezone::EuropeSaratov,
-                    "Europe/Simferopol" => CreateReportingReportRunParamsParametersTimezone::EuropeSimferopol,
-                    "Europe/Skopje" => CreateReportingReportRunParamsParametersTimezone::EuropeSkopje,
-                    "Europe/Sofia" => CreateReportingReportRunParamsParametersTimezone::EuropeSofia,
-                    "Europe/Stockholm" => CreateReportingReportRunParamsParametersTimezone::EuropeStockholm,
-                    "Europe/Tallinn" => CreateReportingReportRunParamsParametersTimezone::EuropeTallinn,
-                    "Europe/Tirane" => CreateReportingReportRunParamsParametersTimezone::EuropeTirane,
-                    "Europe/Tiraspol" => CreateReportingReportRunParamsParametersTimezone::EuropeTiraspol,
-                    "Europe/Ulyanovsk" => CreateReportingReportRunParamsParametersTimezone::EuropeUlyanovsk,
-                    "Europe/Uzhgorod" => CreateReportingReportRunParamsParametersTimezone::EuropeUzhgorod,
-                    "Europe/Vaduz" => CreateReportingReportRunParamsParametersTimezone::EuropeVaduz,
-                    "Europe/Vatican" => CreateReportingReportRunParamsParametersTimezone::EuropeVatican,
-                    "Europe/Vienna" => CreateReportingReportRunParamsParametersTimezone::EuropeVienna,
-                    "Europe/Vilnius" => CreateReportingReportRunParamsParametersTimezone::EuropeVilnius,
-                    "Europe/Volgograd" => CreateReportingReportRunParamsParametersTimezone::EuropeVolgograd,
-                    "Europe/Warsaw" => CreateReportingReportRunParamsParametersTimezone::EuropeWarsaw,
-                    "Europe/Zagreb" => CreateReportingReportRunParamsParametersTimezone::EuropeZagreb,
-                    "Europe/Zaporozhye" => CreateReportingReportRunParamsParametersTimezone::EuropeZaporozhye,
-                    "Europe/Zurich" => CreateReportingReportRunParamsParametersTimezone::EuropeZurich,
-                    "Factory" => CreateReportingReportRunParamsParametersTimezone::Factory,
-                    "GB" => CreateReportingReportRunParamsParametersTimezone::GB,
-                    "GB-Eire" => CreateReportingReportRunParamsParametersTimezone::GBEire,
-                    "GMT" => CreateReportingReportRunParamsParametersTimezone::GMT,
-                    "GMT+0" => CreateReportingReportRunParamsParametersTimezone::GMT0,
-                    "GMT-0" => CreateReportingReportRunParamsParametersTimezone::GMT02,
-                    "GMT0" => CreateReportingReportRunParamsParametersTimezone::GMT03,
-                    "Greenwich" => CreateReportingReportRunParamsParametersTimezone::Greenwich,
-                    "HST" => CreateReportingReportRunParamsParametersTimezone::HST,
-                    "Hongkong" => CreateReportingReportRunParamsParametersTimezone::Hongkong,
-                    "Iceland" => CreateReportingReportRunParamsParametersTimezone::Iceland,
-                    "Indian/Antananarivo" => CreateReportingReportRunParamsParametersTimezone::IndianAntananarivo,
-                    "Indian/Chagos" => CreateReportingReportRunParamsParametersTimezone::IndianChagos,
-                    "Indian/Christmas" => CreateReportingReportRunParamsParametersTimezone::IndianChristmas,
-                    "Indian/Cocos" => CreateReportingReportRunParamsParametersTimezone::IndianCocos,
-                    "Indian/Comoro" => CreateReportingReportRunParamsParametersTimezone::IndianComoro,
-                    "Indian/Kerguelen" => CreateReportingReportRunParamsParametersTimezone::IndianKerguelen,
-                    "Indian/Mahe" => CreateReportingReportRunParamsParametersTimezone::IndianMahe,
-                    "Indian/Maldives" => CreateReportingReportRunParamsParametersTimezone::IndianMaldives,
-                    "Indian/Mauritius" => CreateReportingReportRunParamsParametersTimezone::IndianMauritius,
-                    "Indian/Mayotte" => CreateReportingReportRunParamsParametersTimezone::IndianMayotte,
-                    "Indian/Reunion" => CreateReportingReportRunParamsParametersTimezone::IndianReunion,
-                    "Iran" => CreateReportingReportRunParamsParametersTimezone::Iran,
-                    "Israel" => CreateReportingReportRunParamsParametersTimezone::Israel,
-                    "Jamaica" => CreateReportingReportRunParamsParametersTimezone::Jamaica,
-                    "Japan" => CreateReportingReportRunParamsParametersTimezone::Japan,
-                    "Kwajalein" => CreateReportingReportRunParamsParametersTimezone::Kwajalein,
-                    "Libya" => CreateReportingReportRunParamsParametersTimezone::Libya,
-                    "MET" => CreateReportingReportRunParamsParametersTimezone::MET,
-                    "MST" => CreateReportingReportRunParamsParametersTimezone::MST,
-                    "MST7MDT" => CreateReportingReportRunParamsParametersTimezone::MST7MDT,
-                    "Mexico/BajaNorte" => CreateReportingReportRunParamsParametersTimezone::MexicoBajaNorte,
-                    "Mexico/BajaSur" => CreateReportingReportRunParamsParametersTimezone::MexicoBajaSur,
-                    "Mexico/General" => CreateReportingReportRunParamsParametersTimezone::MexicoGeneral,
-                    "NZ" => CreateReportingReportRunParamsParametersTimezone::NZ,
-                    "NZ-CHAT" => CreateReportingReportRunParamsParametersTimezone::NZCHAT,
-                    "Navajo" => CreateReportingReportRunParamsParametersTimezone::Navajo,
-                    "PRC" => CreateReportingReportRunParamsParametersTimezone::PRC,
-                    "PST8PDT" => CreateReportingReportRunParamsParametersTimezone::PST8PDT,
-                    "Pacific/Apia" => CreateReportingReportRunParamsParametersTimezone::PacificApia,
-                    "Pacific/Auckland" => CreateReportingReportRunParamsParametersTimezone::PacificAuckland,
-                    "Pacific/Bougainville" => CreateReportingReportRunParamsParametersTimezone::PacificBougainville,
-                    "Pacific/Chatham" => CreateReportingReportRunParamsParametersTimezone::PacificChatham,
-                    "Pacific/Chuuk" => CreateReportingReportRunParamsParametersTimezone::PacificChuuk,
-                    "Pacific/Easter" => CreateReportingReportRunParamsParametersTimezone::PacificEaster,
-                    "Pacific/Efate" => CreateReportingReportRunParamsParametersTimezone::PacificEfate,
-                    "Pacific/Enderbury" => CreateReportingReportRunParamsParametersTimezone::PacificEnderbury,
-                    "Pacific/Fakaofo" => CreateReportingReportRunParamsParametersTimezone::PacificFakaofo,
-                    "Pacific/Fiji" => CreateReportingReportRunParamsParametersTimezone::PacificFiji,
-                    "Pacific/Funafuti" => CreateReportingReportRunParamsParametersTimezone::PacificFunafuti,
-                    "Pacific/Galapagos" => CreateReportingReportRunParamsParametersTimezone::PacificGalapagos,
-                    "Pacific/Gambier" => CreateReportingReportRunParamsParametersTimezone::PacificGambier,
-                    "Pacific/Guadalcanal" => CreateReportingReportRunParamsParametersTimezone::PacificGuadalcanal,
-                    "Pacific/Guam" => CreateReportingReportRunParamsParametersTimezone::PacificGuam,
-                    "Pacific/Honolulu" => CreateReportingReportRunParamsParametersTimezone::PacificHonolulu,
-                    "Pacific/Johnston" => CreateReportingReportRunParamsParametersTimezone::PacificJohnston,
-                    "Pacific/Kanton" => CreateReportingReportRunParamsParametersTimezone::PacificKanton,
-                    "Pacific/Kiritimati" => CreateReportingReportRunParamsParametersTimezone::PacificKiritimati,
-                    "Pacific/Kosrae" => CreateReportingReportRunParamsParametersTimezone::PacificKosrae,
-                    "Pacific/Kwajalein" => CreateReportingReportRunParamsParametersTimezone::PacificKwajalein,
-                    "Pacific/Majuro" => CreateReportingReportRunParamsParametersTimezone::PacificMajuro,
-                    "Pacific/Marquesas" => CreateReportingReportRunParamsParametersTimezone::PacificMarquesas,
-                    "Pacific/Midway" => CreateReportingReportRunParamsParametersTimezone::PacificMidway,
-                    "Pacific/Nauru" => CreateReportingReportRunParamsParametersTimezone::PacificNauru,
-                    "Pacific/Niue" => CreateReportingReportRunParamsParametersTimezone::PacificNiue,
-                    "Pacific/Norfolk" => CreateReportingReportRunParamsParametersTimezone::PacificNorfolk,
-                    "Pacific/Noumea" => CreateReportingReportRunParamsParametersTimezone::PacificNoumea,
-                    "Pacific/Pago_Pago" => CreateReportingReportRunParamsParametersTimezone::PacificPagoPago,
-                    "Pacific/Palau" => CreateReportingReportRunParamsParametersTimezone::PacificPalau,
-                    "Pacific/Pitcairn" => CreateReportingReportRunParamsParametersTimezone::PacificPitcairn,
-                    "Pacific/Pohnpei" => CreateReportingReportRunParamsParametersTimezone::PacificPohnpei,
-                    "Pacific/Ponape" => CreateReportingReportRunParamsParametersTimezone::PacificPonape,
-                    "Pacific/Port_Moresby" => CreateReportingReportRunParamsParametersTimezone::PacificPortMoresby,
-                    "Pacific/Rarotonga" => CreateReportingReportRunParamsParametersTimezone::PacificRarotonga,
-                    "Pacific/Saipan" => CreateReportingReportRunParamsParametersTimezone::PacificSaipan,
-                    "Pacific/Samoa" => CreateReportingReportRunParamsParametersTimezone::PacificSamoa,
-                    "Pacific/Tahiti" => CreateReportingReportRunParamsParametersTimezone::PacificTahiti,
-                    "Pacific/Tarawa" => CreateReportingReportRunParamsParametersTimezone::PacificTarawa,
-                    "Pacific/Tongatapu" => CreateReportingReportRunParamsParametersTimezone::PacificTongatapu,
-                    "Pacific/Truk" => CreateReportingReportRunParamsParametersTimezone::PacificTruk,
-                    "Pacific/Wake" => CreateReportingReportRunParamsParametersTimezone::PacificWake,
-                    "Pacific/Wallis" => CreateReportingReportRunParamsParametersTimezone::PacificWallis,
-                    "Pacific/Yap" => CreateReportingReportRunParamsParametersTimezone::PacificYap,
-                    "Poland" => CreateReportingReportRunParamsParametersTimezone::Poland,
-                    "Portugal" => CreateReportingReportRunParamsParametersTimezone::Portugal,
-                    "ROC" => CreateReportingReportRunParamsParametersTimezone::ROC,
-                    "ROK" => CreateReportingReportRunParamsParametersTimezone::ROK,
-                    "Singapore" => CreateReportingReportRunParamsParametersTimezone::Singapore,
-                    "Turkey" => CreateReportingReportRunParamsParametersTimezone::Turkey,
-                    "UCT" => CreateReportingReportRunParamsParametersTimezone::UCT,
-                    "US/Alaska" => CreateReportingReportRunParamsParametersTimezone::USAlaska,
-                    "US/Aleutian" => CreateReportingReportRunParamsParametersTimezone::USAleutian,
-                    "US/Arizona" => CreateReportingReportRunParamsParametersTimezone::USArizona,
-                    "US/Central" => CreateReportingReportRunParamsParametersTimezone::USCentral,
-                    "US/East-Indiana" => CreateReportingReportRunParamsParametersTimezone::USEastIndiana,
-                    "US/Eastern" => CreateReportingReportRunParamsParametersTimezone::USEastern,
-                    "US/Hawaii" => CreateReportingReportRunParamsParametersTimezone::USHawaii,
-                    "US/Indiana-Starke" => CreateReportingReportRunParamsParametersTimezone::USIndianaStarke,
-                    "US/Michigan" => CreateReportingReportRunParamsParametersTimezone::USMichigan,
-                    "US/Mountain" => CreateReportingReportRunParamsParametersTimezone::USMountain,
-                    "US/Pacific" => CreateReportingReportRunParamsParametersTimezone::USPacific,
-                    "US/Pacific-New" => CreateReportingReportRunParamsParametersTimezone::USPacificNew,
-                    "US/Samoa" => CreateReportingReportRunParamsParametersTimezone::USSamoa,
-                    "UTC" => CreateReportingReportRunParamsParametersTimezone::UTC,
-                    "Universal" => CreateReportingReportRunParamsParametersTimezone::Universal,
-                    "W-SU" => CreateReportingReportRunParamsParametersTimezone::WSU,
-                    "WET" => CreateReportingReportRunParamsParametersTimezone::WET,
-                    "Zulu" => CreateReportingReportRunParamsParametersTimezone::Zulu,
-                    other => CreateReportingReportRunParamsParametersTimezone::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateReportingReportRunParamsParametersTimezone::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateReportingReportRunParamsParametersTimezone {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateReportingReportRunParamsParametersTimezone::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "Africa/Abidjan" => CreateReportingReportRunParamsParametersTimezone::AfricaAbidjan,
+            "Africa/Accra" => CreateReportingReportRunParamsParametersTimezone::AfricaAccra,
+            "Africa/Addis_Ababa" => CreateReportingReportRunParamsParametersTimezone::AfricaAddisAbaba,
+            "Africa/Algiers" => CreateReportingReportRunParamsParametersTimezone::AfricaAlgiers,
+            "Africa/Asmara" => CreateReportingReportRunParamsParametersTimezone::AfricaAsmara,
+            "Africa/Asmera" => CreateReportingReportRunParamsParametersTimezone::AfricaAsmera,
+            "Africa/Bamako" => CreateReportingReportRunParamsParametersTimezone::AfricaBamako,
+            "Africa/Bangui" => CreateReportingReportRunParamsParametersTimezone::AfricaBangui,
+            "Africa/Banjul" => CreateReportingReportRunParamsParametersTimezone::AfricaBanjul,
+            "Africa/Bissau" => CreateReportingReportRunParamsParametersTimezone::AfricaBissau,
+            "Africa/Blantyre" => CreateReportingReportRunParamsParametersTimezone::AfricaBlantyre,
+            "Africa/Brazzaville" => CreateReportingReportRunParamsParametersTimezone::AfricaBrazzaville,
+            "Africa/Bujumbura" => CreateReportingReportRunParamsParametersTimezone::AfricaBujumbura,
+            "Africa/Cairo" => CreateReportingReportRunParamsParametersTimezone::AfricaCairo,
+            "Africa/Casablanca" => CreateReportingReportRunParamsParametersTimezone::AfricaCasablanca,
+            "Africa/Ceuta" => CreateReportingReportRunParamsParametersTimezone::AfricaCeuta,
+            "Africa/Conakry" => CreateReportingReportRunParamsParametersTimezone::AfricaConakry,
+            "Africa/Dakar" => CreateReportingReportRunParamsParametersTimezone::AfricaDakar,
+            "Africa/Dar_es_Salaam" => CreateReportingReportRunParamsParametersTimezone::AfricaDarEsSalaam,
+            "Africa/Djibouti" => CreateReportingReportRunParamsParametersTimezone::AfricaDjibouti,
+            "Africa/Douala" => CreateReportingReportRunParamsParametersTimezone::AfricaDouala,
+            "Africa/El_Aaiun" => CreateReportingReportRunParamsParametersTimezone::AfricaElAaiun,
+            "Africa/Freetown" => CreateReportingReportRunParamsParametersTimezone::AfricaFreetown,
+            "Africa/Gaborone" => CreateReportingReportRunParamsParametersTimezone::AfricaGaborone,
+            "Africa/Harare" => CreateReportingReportRunParamsParametersTimezone::AfricaHarare,
+            "Africa/Johannesburg" => CreateReportingReportRunParamsParametersTimezone::AfricaJohannesburg,
+            "Africa/Juba" => CreateReportingReportRunParamsParametersTimezone::AfricaJuba,
+            "Africa/Kampala" => CreateReportingReportRunParamsParametersTimezone::AfricaKampala,
+            "Africa/Khartoum" => CreateReportingReportRunParamsParametersTimezone::AfricaKhartoum,
+            "Africa/Kigali" => CreateReportingReportRunParamsParametersTimezone::AfricaKigali,
+            "Africa/Kinshasa" => CreateReportingReportRunParamsParametersTimezone::AfricaKinshasa,
+            "Africa/Lagos" => CreateReportingReportRunParamsParametersTimezone::AfricaLagos,
+            "Africa/Libreville" => CreateReportingReportRunParamsParametersTimezone::AfricaLibreville,
+            "Africa/Lome" => CreateReportingReportRunParamsParametersTimezone::AfricaLome,
+            "Africa/Luanda" => CreateReportingReportRunParamsParametersTimezone::AfricaLuanda,
+            "Africa/Lubumbashi" => CreateReportingReportRunParamsParametersTimezone::AfricaLubumbashi,
+            "Africa/Lusaka" => CreateReportingReportRunParamsParametersTimezone::AfricaLusaka,
+            "Africa/Malabo" => CreateReportingReportRunParamsParametersTimezone::AfricaMalabo,
+            "Africa/Maputo" => CreateReportingReportRunParamsParametersTimezone::AfricaMaputo,
+            "Africa/Maseru" => CreateReportingReportRunParamsParametersTimezone::AfricaMaseru,
+            "Africa/Mbabane" => CreateReportingReportRunParamsParametersTimezone::AfricaMbabane,
+            "Africa/Mogadishu" => CreateReportingReportRunParamsParametersTimezone::AfricaMogadishu,
+            "Africa/Monrovia" => CreateReportingReportRunParamsParametersTimezone::AfricaMonrovia,
+            "Africa/Nairobi" => CreateReportingReportRunParamsParametersTimezone::AfricaNairobi,
+            "Africa/Ndjamena" => CreateReportingReportRunParamsParametersTimezone::AfricaNdjamena,
+            "Africa/Niamey" => CreateReportingReportRunParamsParametersTimezone::AfricaNiamey,
+            "Africa/Nouakchott" => CreateReportingReportRunParamsParametersTimezone::AfricaNouakchott,
+            "Africa/Ouagadougou" => CreateReportingReportRunParamsParametersTimezone::AfricaOuagadougou,
+            "Africa/Porto-Novo" => CreateReportingReportRunParamsParametersTimezone::AfricaPortoNovo,
+            "Africa/Sao_Tome" => CreateReportingReportRunParamsParametersTimezone::AfricaSaoTome,
+            "Africa/Timbuktu" => CreateReportingReportRunParamsParametersTimezone::AfricaTimbuktu,
+            "Africa/Tripoli" => CreateReportingReportRunParamsParametersTimezone::AfricaTripoli,
+            "Africa/Tunis" => CreateReportingReportRunParamsParametersTimezone::AfricaTunis,
+            "Africa/Windhoek" => CreateReportingReportRunParamsParametersTimezone::AfricaWindhoek,
+            "America/Adak" => CreateReportingReportRunParamsParametersTimezone::AmericaAdak,
+            "America/Anchorage" => CreateReportingReportRunParamsParametersTimezone::AmericaAnchorage,
+            "America/Anguilla" => CreateReportingReportRunParamsParametersTimezone::AmericaAnguilla,
+            "America/Antigua" => CreateReportingReportRunParamsParametersTimezone::AmericaAntigua,
+            "America/Araguaina" => CreateReportingReportRunParamsParametersTimezone::AmericaAraguaina,
+            "America/Argentina/Buenos_Aires" => {
+                CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaBuenosAires
+            }
+            "America/Argentina/Catamarca" => {
+                CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaCatamarca
+            }
+            "America/Argentina/ComodRivadavia" => {
+                CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaComodRivadavia
+            }
+            "America/Argentina/Cordoba" => CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaCordoba,
+            "America/Argentina/Jujuy" => CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaJujuy,
+            "America/Argentina/La_Rioja" => CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaLaRioja,
+            "America/Argentina/Mendoza" => CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaMendoza,
+            "America/Argentina/Rio_Gallegos" => {
+                CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaRioGallegos
+            }
+            "America/Argentina/Salta" => CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaSalta,
+            "America/Argentina/San_Juan" => CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaSanJuan,
+            "America/Argentina/San_Luis" => CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaSanLuis,
+            "America/Argentina/Tucuman" => CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaTucuman,
+            "America/Argentina/Ushuaia" => CreateReportingReportRunParamsParametersTimezone::AmericaArgentinaUshuaia,
+            "America/Aruba" => CreateReportingReportRunParamsParametersTimezone::AmericaAruba,
+            "America/Asuncion" => CreateReportingReportRunParamsParametersTimezone::AmericaAsuncion,
+            "America/Atikokan" => CreateReportingReportRunParamsParametersTimezone::AmericaAtikokan,
+            "America/Atka" => CreateReportingReportRunParamsParametersTimezone::AmericaAtka,
+            "America/Bahia" => CreateReportingReportRunParamsParametersTimezone::AmericaBahia,
+            "America/Bahia_Banderas" => CreateReportingReportRunParamsParametersTimezone::AmericaBahiaBanderas,
+            "America/Barbados" => CreateReportingReportRunParamsParametersTimezone::AmericaBarbados,
+            "America/Belem" => CreateReportingReportRunParamsParametersTimezone::AmericaBelem,
+            "America/Belize" => CreateReportingReportRunParamsParametersTimezone::AmericaBelize,
+            "America/Blanc-Sablon" => CreateReportingReportRunParamsParametersTimezone::AmericaBlancSablon,
+            "America/Boa_Vista" => CreateReportingReportRunParamsParametersTimezone::AmericaBoaVista,
+            "America/Bogota" => CreateReportingReportRunParamsParametersTimezone::AmericaBogota,
+            "America/Boise" => CreateReportingReportRunParamsParametersTimezone::AmericaBoise,
+            "America/Buenos_Aires" => CreateReportingReportRunParamsParametersTimezone::AmericaBuenosAires,
+            "America/Cambridge_Bay" => CreateReportingReportRunParamsParametersTimezone::AmericaCambridgeBay,
+            "America/Campo_Grande" => CreateReportingReportRunParamsParametersTimezone::AmericaCampoGrande,
+            "America/Cancun" => CreateReportingReportRunParamsParametersTimezone::AmericaCancun,
+            "America/Caracas" => CreateReportingReportRunParamsParametersTimezone::AmericaCaracas,
+            "America/Catamarca" => CreateReportingReportRunParamsParametersTimezone::AmericaCatamarca,
+            "America/Cayenne" => CreateReportingReportRunParamsParametersTimezone::AmericaCayenne,
+            "America/Cayman" => CreateReportingReportRunParamsParametersTimezone::AmericaCayman,
+            "America/Chicago" => CreateReportingReportRunParamsParametersTimezone::AmericaChicago,
+            "America/Chihuahua" => CreateReportingReportRunParamsParametersTimezone::AmericaChihuahua,
+            "America/Ciudad_Juarez" => CreateReportingReportRunParamsParametersTimezone::AmericaCiudadJuarez,
+            "America/Coral_Harbour" => CreateReportingReportRunParamsParametersTimezone::AmericaCoralHarbour,
+            "America/Cordoba" => CreateReportingReportRunParamsParametersTimezone::AmericaCordoba,
+            "America/Costa_Rica" => CreateReportingReportRunParamsParametersTimezone::AmericaCostaRica,
+            "America/Coyhaique" => CreateReportingReportRunParamsParametersTimezone::AmericaCoyhaique,
+            "America/Creston" => CreateReportingReportRunParamsParametersTimezone::AmericaCreston,
+            "America/Cuiaba" => CreateReportingReportRunParamsParametersTimezone::AmericaCuiaba,
+            "America/Curacao" => CreateReportingReportRunParamsParametersTimezone::AmericaCuracao,
+            "America/Danmarkshavn" => CreateReportingReportRunParamsParametersTimezone::AmericaDanmarkshavn,
+            "America/Dawson" => CreateReportingReportRunParamsParametersTimezone::AmericaDawson,
+            "America/Dawson_Creek" => CreateReportingReportRunParamsParametersTimezone::AmericaDawsonCreek,
+            "America/Denver" => CreateReportingReportRunParamsParametersTimezone::AmericaDenver,
+            "America/Detroit" => CreateReportingReportRunParamsParametersTimezone::AmericaDetroit,
+            "America/Dominica" => CreateReportingReportRunParamsParametersTimezone::AmericaDominica,
+            "America/Edmonton" => CreateReportingReportRunParamsParametersTimezone::AmericaEdmonton,
+            "America/Eirunepe" => CreateReportingReportRunParamsParametersTimezone::AmericaEirunepe,
+            "America/El_Salvador" => CreateReportingReportRunParamsParametersTimezone::AmericaElSalvador,
+            "America/Ensenada" => CreateReportingReportRunParamsParametersTimezone::AmericaEnsenada,
+            "America/Fort_Nelson" => CreateReportingReportRunParamsParametersTimezone::AmericaFortNelson,
+            "America/Fort_Wayne" => CreateReportingReportRunParamsParametersTimezone::AmericaFortWayne,
+            "America/Fortaleza" => CreateReportingReportRunParamsParametersTimezone::AmericaFortaleza,
+            "America/Glace_Bay" => CreateReportingReportRunParamsParametersTimezone::AmericaGlaceBay,
+            "America/Godthab" => CreateReportingReportRunParamsParametersTimezone::AmericaGodthab,
+            "America/Goose_Bay" => CreateReportingReportRunParamsParametersTimezone::AmericaGooseBay,
+            "America/Grand_Turk" => CreateReportingReportRunParamsParametersTimezone::AmericaGrandTurk,
+            "America/Grenada" => CreateReportingReportRunParamsParametersTimezone::AmericaGrenada,
+            "America/Guadeloupe" => CreateReportingReportRunParamsParametersTimezone::AmericaGuadeloupe,
+            "America/Guatemala" => CreateReportingReportRunParamsParametersTimezone::AmericaGuatemala,
+            "America/Guayaquil" => CreateReportingReportRunParamsParametersTimezone::AmericaGuayaquil,
+            "America/Guyana" => CreateReportingReportRunParamsParametersTimezone::AmericaGuyana,
+            "America/Halifax" => CreateReportingReportRunParamsParametersTimezone::AmericaHalifax,
+            "America/Havana" => CreateReportingReportRunParamsParametersTimezone::AmericaHavana,
+            "America/Hermosillo" => CreateReportingReportRunParamsParametersTimezone::AmericaHermosillo,
+            "America/Indiana/Indianapolis" => {
+                CreateReportingReportRunParamsParametersTimezone::AmericaIndianaIndianapolis
+            }
+            "America/Indiana/Knox" => CreateReportingReportRunParamsParametersTimezone::AmericaIndianaKnox,
+            "America/Indiana/Marengo" => CreateReportingReportRunParamsParametersTimezone::AmericaIndianaMarengo,
+            "America/Indiana/Petersburg" => CreateReportingReportRunParamsParametersTimezone::AmericaIndianaPetersburg,
+            "America/Indiana/Tell_City" => CreateReportingReportRunParamsParametersTimezone::AmericaIndianaTellCity,
+            "America/Indiana/Vevay" => CreateReportingReportRunParamsParametersTimezone::AmericaIndianaVevay,
+            "America/Indiana/Vincennes" => CreateReportingReportRunParamsParametersTimezone::AmericaIndianaVincennes,
+            "America/Indiana/Winamac" => CreateReportingReportRunParamsParametersTimezone::AmericaIndianaWinamac,
+            "America/Indianapolis" => CreateReportingReportRunParamsParametersTimezone::AmericaIndianapolis,
+            "America/Inuvik" => CreateReportingReportRunParamsParametersTimezone::AmericaInuvik,
+            "America/Iqaluit" => CreateReportingReportRunParamsParametersTimezone::AmericaIqaluit,
+            "America/Jamaica" => CreateReportingReportRunParamsParametersTimezone::AmericaJamaica,
+            "America/Jujuy" => CreateReportingReportRunParamsParametersTimezone::AmericaJujuy,
+            "America/Juneau" => CreateReportingReportRunParamsParametersTimezone::AmericaJuneau,
+            "America/Kentucky/Louisville" => {
+                CreateReportingReportRunParamsParametersTimezone::AmericaKentuckyLouisville
+            }
+            "America/Kentucky/Monticello" => {
+                CreateReportingReportRunParamsParametersTimezone::AmericaKentuckyMonticello
+            }
+            "America/Knox_IN" => CreateReportingReportRunParamsParametersTimezone::AmericaKnoxIN,
+            "America/Kralendijk" => CreateReportingReportRunParamsParametersTimezone::AmericaKralendijk,
+            "America/La_Paz" => CreateReportingReportRunParamsParametersTimezone::AmericaLaPaz,
+            "America/Lima" => CreateReportingReportRunParamsParametersTimezone::AmericaLima,
+            "America/Los_Angeles" => CreateReportingReportRunParamsParametersTimezone::AmericaLosAngeles,
+            "America/Louisville" => CreateReportingReportRunParamsParametersTimezone::AmericaLouisville,
+            "America/Lower_Princes" => CreateReportingReportRunParamsParametersTimezone::AmericaLowerPrinces,
+            "America/Maceio" => CreateReportingReportRunParamsParametersTimezone::AmericaMaceio,
+            "America/Managua" => CreateReportingReportRunParamsParametersTimezone::AmericaManagua,
+            "America/Manaus" => CreateReportingReportRunParamsParametersTimezone::AmericaManaus,
+            "America/Marigot" => CreateReportingReportRunParamsParametersTimezone::AmericaMarigot,
+            "America/Martinique" => CreateReportingReportRunParamsParametersTimezone::AmericaMartinique,
+            "America/Matamoros" => CreateReportingReportRunParamsParametersTimezone::AmericaMatamoros,
+            "America/Mazatlan" => CreateReportingReportRunParamsParametersTimezone::AmericaMazatlan,
+            "America/Mendoza" => CreateReportingReportRunParamsParametersTimezone::AmericaMendoza,
+            "America/Menominee" => CreateReportingReportRunParamsParametersTimezone::AmericaMenominee,
+            "America/Merida" => CreateReportingReportRunParamsParametersTimezone::AmericaMerida,
+            "America/Metlakatla" => CreateReportingReportRunParamsParametersTimezone::AmericaMetlakatla,
+            "America/Mexico_City" => CreateReportingReportRunParamsParametersTimezone::AmericaMexicoCity,
+            "America/Miquelon" => CreateReportingReportRunParamsParametersTimezone::AmericaMiquelon,
+            "America/Moncton" => CreateReportingReportRunParamsParametersTimezone::AmericaMoncton,
+            "America/Monterrey" => CreateReportingReportRunParamsParametersTimezone::AmericaMonterrey,
+            "America/Montevideo" => CreateReportingReportRunParamsParametersTimezone::AmericaMontevideo,
+            "America/Montreal" => CreateReportingReportRunParamsParametersTimezone::AmericaMontreal,
+            "America/Montserrat" => CreateReportingReportRunParamsParametersTimezone::AmericaMontserrat,
+            "America/Nassau" => CreateReportingReportRunParamsParametersTimezone::AmericaNassau,
+            "America/New_York" => CreateReportingReportRunParamsParametersTimezone::AmericaNewYork,
+            "America/Nipigon" => CreateReportingReportRunParamsParametersTimezone::AmericaNipigon,
+            "America/Nome" => CreateReportingReportRunParamsParametersTimezone::AmericaNome,
+            "America/Noronha" => CreateReportingReportRunParamsParametersTimezone::AmericaNoronha,
+            "America/North_Dakota/Beulah" => CreateReportingReportRunParamsParametersTimezone::AmericaNorthDakotaBeulah,
+            "America/North_Dakota/Center" => CreateReportingReportRunParamsParametersTimezone::AmericaNorthDakotaCenter,
+            "America/North_Dakota/New_Salem" => {
+                CreateReportingReportRunParamsParametersTimezone::AmericaNorthDakotaNewSalem
+            }
+            "America/Nuuk" => CreateReportingReportRunParamsParametersTimezone::AmericaNuuk,
+            "America/Ojinaga" => CreateReportingReportRunParamsParametersTimezone::AmericaOjinaga,
+            "America/Panama" => CreateReportingReportRunParamsParametersTimezone::AmericaPanama,
+            "America/Pangnirtung" => CreateReportingReportRunParamsParametersTimezone::AmericaPangnirtung,
+            "America/Paramaribo" => CreateReportingReportRunParamsParametersTimezone::AmericaParamaribo,
+            "America/Phoenix" => CreateReportingReportRunParamsParametersTimezone::AmericaPhoenix,
+            "America/Port-au-Prince" => CreateReportingReportRunParamsParametersTimezone::AmericaPortAuPrince,
+            "America/Port_of_Spain" => CreateReportingReportRunParamsParametersTimezone::AmericaPortOfSpain,
+            "America/Porto_Acre" => CreateReportingReportRunParamsParametersTimezone::AmericaPortoAcre,
+            "America/Porto_Velho" => CreateReportingReportRunParamsParametersTimezone::AmericaPortoVelho,
+            "America/Puerto_Rico" => CreateReportingReportRunParamsParametersTimezone::AmericaPuertoRico,
+            "America/Punta_Arenas" => CreateReportingReportRunParamsParametersTimezone::AmericaPuntaArenas,
+            "America/Rainy_River" => CreateReportingReportRunParamsParametersTimezone::AmericaRainyRiver,
+            "America/Rankin_Inlet" => CreateReportingReportRunParamsParametersTimezone::AmericaRankinInlet,
+            "America/Recife" => CreateReportingReportRunParamsParametersTimezone::AmericaRecife,
+            "America/Regina" => CreateReportingReportRunParamsParametersTimezone::AmericaRegina,
+            "America/Resolute" => CreateReportingReportRunParamsParametersTimezone::AmericaResolute,
+            "America/Rio_Branco" => CreateReportingReportRunParamsParametersTimezone::AmericaRioBranco,
+            "America/Rosario" => CreateReportingReportRunParamsParametersTimezone::AmericaRosario,
+            "America/Santa_Isabel" => CreateReportingReportRunParamsParametersTimezone::AmericaSantaIsabel,
+            "America/Santarem" => CreateReportingReportRunParamsParametersTimezone::AmericaSantarem,
+            "America/Santiago" => CreateReportingReportRunParamsParametersTimezone::AmericaSantiago,
+            "America/Santo_Domingo" => CreateReportingReportRunParamsParametersTimezone::AmericaSantoDomingo,
+            "America/Sao_Paulo" => CreateReportingReportRunParamsParametersTimezone::AmericaSaoPaulo,
+            "America/Scoresbysund" => CreateReportingReportRunParamsParametersTimezone::AmericaScoresbysund,
+            "America/Shiprock" => CreateReportingReportRunParamsParametersTimezone::AmericaShiprock,
+            "America/Sitka" => CreateReportingReportRunParamsParametersTimezone::AmericaSitka,
+            "America/St_Barthelemy" => CreateReportingReportRunParamsParametersTimezone::AmericaStBarthelemy,
+            "America/St_Johns" => CreateReportingReportRunParamsParametersTimezone::AmericaStJohns,
+            "America/St_Kitts" => CreateReportingReportRunParamsParametersTimezone::AmericaStKitts,
+            "America/St_Lucia" => CreateReportingReportRunParamsParametersTimezone::AmericaStLucia,
+            "America/St_Thomas" => CreateReportingReportRunParamsParametersTimezone::AmericaStThomas,
+            "America/St_Vincent" => CreateReportingReportRunParamsParametersTimezone::AmericaStVincent,
+            "America/Swift_Current" => CreateReportingReportRunParamsParametersTimezone::AmericaSwiftCurrent,
+            "America/Tegucigalpa" => CreateReportingReportRunParamsParametersTimezone::AmericaTegucigalpa,
+            "America/Thule" => CreateReportingReportRunParamsParametersTimezone::AmericaThule,
+            "America/Thunder_Bay" => CreateReportingReportRunParamsParametersTimezone::AmericaThunderBay,
+            "America/Tijuana" => CreateReportingReportRunParamsParametersTimezone::AmericaTijuana,
+            "America/Toronto" => CreateReportingReportRunParamsParametersTimezone::AmericaToronto,
+            "America/Tortola" => CreateReportingReportRunParamsParametersTimezone::AmericaTortola,
+            "America/Vancouver" => CreateReportingReportRunParamsParametersTimezone::AmericaVancouver,
+            "America/Virgin" => CreateReportingReportRunParamsParametersTimezone::AmericaVirgin,
+            "America/Whitehorse" => CreateReportingReportRunParamsParametersTimezone::AmericaWhitehorse,
+            "America/Winnipeg" => CreateReportingReportRunParamsParametersTimezone::AmericaWinnipeg,
+            "America/Yakutat" => CreateReportingReportRunParamsParametersTimezone::AmericaYakutat,
+            "America/Yellowknife" => CreateReportingReportRunParamsParametersTimezone::AmericaYellowknife,
+            "Antarctica/Casey" => CreateReportingReportRunParamsParametersTimezone::AntarcticaCasey,
+            "Antarctica/Davis" => CreateReportingReportRunParamsParametersTimezone::AntarcticaDavis,
+            "Antarctica/DumontDUrville" => CreateReportingReportRunParamsParametersTimezone::AntarcticaDumontDUrville,
+            "Antarctica/Macquarie" => CreateReportingReportRunParamsParametersTimezone::AntarcticaMacquarie,
+            "Antarctica/Mawson" => CreateReportingReportRunParamsParametersTimezone::AntarcticaMawson,
+            "Antarctica/McMurdo" => CreateReportingReportRunParamsParametersTimezone::AntarcticaMcMurdo,
+            "Antarctica/Palmer" => CreateReportingReportRunParamsParametersTimezone::AntarcticaPalmer,
+            "Antarctica/Rothera" => CreateReportingReportRunParamsParametersTimezone::AntarcticaRothera,
+            "Antarctica/South_Pole" => CreateReportingReportRunParamsParametersTimezone::AntarcticaSouthPole,
+            "Antarctica/Syowa" => CreateReportingReportRunParamsParametersTimezone::AntarcticaSyowa,
+            "Antarctica/Troll" => CreateReportingReportRunParamsParametersTimezone::AntarcticaTroll,
+            "Antarctica/Vostok" => CreateReportingReportRunParamsParametersTimezone::AntarcticaVostok,
+            "Arctic/Longyearbyen" => CreateReportingReportRunParamsParametersTimezone::ArcticLongyearbyen,
+            "Asia/Aden" => CreateReportingReportRunParamsParametersTimezone::AsiaAden,
+            "Asia/Almaty" => CreateReportingReportRunParamsParametersTimezone::AsiaAlmaty,
+            "Asia/Amman" => CreateReportingReportRunParamsParametersTimezone::AsiaAmman,
+            "Asia/Anadyr" => CreateReportingReportRunParamsParametersTimezone::AsiaAnadyr,
+            "Asia/Aqtau" => CreateReportingReportRunParamsParametersTimezone::AsiaAqtau,
+            "Asia/Aqtobe" => CreateReportingReportRunParamsParametersTimezone::AsiaAqtobe,
+            "Asia/Ashgabat" => CreateReportingReportRunParamsParametersTimezone::AsiaAshgabat,
+            "Asia/Ashkhabad" => CreateReportingReportRunParamsParametersTimezone::AsiaAshkhabad,
+            "Asia/Atyrau" => CreateReportingReportRunParamsParametersTimezone::AsiaAtyrau,
+            "Asia/Baghdad" => CreateReportingReportRunParamsParametersTimezone::AsiaBaghdad,
+            "Asia/Bahrain" => CreateReportingReportRunParamsParametersTimezone::AsiaBahrain,
+            "Asia/Baku" => CreateReportingReportRunParamsParametersTimezone::AsiaBaku,
+            "Asia/Bangkok" => CreateReportingReportRunParamsParametersTimezone::AsiaBangkok,
+            "Asia/Barnaul" => CreateReportingReportRunParamsParametersTimezone::AsiaBarnaul,
+            "Asia/Beirut" => CreateReportingReportRunParamsParametersTimezone::AsiaBeirut,
+            "Asia/Bishkek" => CreateReportingReportRunParamsParametersTimezone::AsiaBishkek,
+            "Asia/Brunei" => CreateReportingReportRunParamsParametersTimezone::AsiaBrunei,
+            "Asia/Calcutta" => CreateReportingReportRunParamsParametersTimezone::AsiaCalcutta,
+            "Asia/Chita" => CreateReportingReportRunParamsParametersTimezone::AsiaChita,
+            "Asia/Choibalsan" => CreateReportingReportRunParamsParametersTimezone::AsiaChoibalsan,
+            "Asia/Chongqing" => CreateReportingReportRunParamsParametersTimezone::AsiaChongqing,
+            "Asia/Chungking" => CreateReportingReportRunParamsParametersTimezone::AsiaChungking,
+            "Asia/Colombo" => CreateReportingReportRunParamsParametersTimezone::AsiaColombo,
+            "Asia/Dacca" => CreateReportingReportRunParamsParametersTimezone::AsiaDacca,
+            "Asia/Damascus" => CreateReportingReportRunParamsParametersTimezone::AsiaDamascus,
+            "Asia/Dhaka" => CreateReportingReportRunParamsParametersTimezone::AsiaDhaka,
+            "Asia/Dili" => CreateReportingReportRunParamsParametersTimezone::AsiaDili,
+            "Asia/Dubai" => CreateReportingReportRunParamsParametersTimezone::AsiaDubai,
+            "Asia/Dushanbe" => CreateReportingReportRunParamsParametersTimezone::AsiaDushanbe,
+            "Asia/Famagusta" => CreateReportingReportRunParamsParametersTimezone::AsiaFamagusta,
+            "Asia/Gaza" => CreateReportingReportRunParamsParametersTimezone::AsiaGaza,
+            "Asia/Harbin" => CreateReportingReportRunParamsParametersTimezone::AsiaHarbin,
+            "Asia/Hebron" => CreateReportingReportRunParamsParametersTimezone::AsiaHebron,
+            "Asia/Ho_Chi_Minh" => CreateReportingReportRunParamsParametersTimezone::AsiaHoChiMinh,
+            "Asia/Hong_Kong" => CreateReportingReportRunParamsParametersTimezone::AsiaHongKong,
+            "Asia/Hovd" => CreateReportingReportRunParamsParametersTimezone::AsiaHovd,
+            "Asia/Irkutsk" => CreateReportingReportRunParamsParametersTimezone::AsiaIrkutsk,
+            "Asia/Istanbul" => CreateReportingReportRunParamsParametersTimezone::AsiaIstanbul,
+            "Asia/Jakarta" => CreateReportingReportRunParamsParametersTimezone::AsiaJakarta,
+            "Asia/Jayapura" => CreateReportingReportRunParamsParametersTimezone::AsiaJayapura,
+            "Asia/Jerusalem" => CreateReportingReportRunParamsParametersTimezone::AsiaJerusalem,
+            "Asia/Kabul" => CreateReportingReportRunParamsParametersTimezone::AsiaKabul,
+            "Asia/Kamchatka" => CreateReportingReportRunParamsParametersTimezone::AsiaKamchatka,
+            "Asia/Karachi" => CreateReportingReportRunParamsParametersTimezone::AsiaKarachi,
+            "Asia/Kashgar" => CreateReportingReportRunParamsParametersTimezone::AsiaKashgar,
+            "Asia/Kathmandu" => CreateReportingReportRunParamsParametersTimezone::AsiaKathmandu,
+            "Asia/Katmandu" => CreateReportingReportRunParamsParametersTimezone::AsiaKatmandu,
+            "Asia/Khandyga" => CreateReportingReportRunParamsParametersTimezone::AsiaKhandyga,
+            "Asia/Kolkata" => CreateReportingReportRunParamsParametersTimezone::AsiaKolkata,
+            "Asia/Krasnoyarsk" => CreateReportingReportRunParamsParametersTimezone::AsiaKrasnoyarsk,
+            "Asia/Kuala_Lumpur" => CreateReportingReportRunParamsParametersTimezone::AsiaKualaLumpur,
+            "Asia/Kuching" => CreateReportingReportRunParamsParametersTimezone::AsiaKuching,
+            "Asia/Kuwait" => CreateReportingReportRunParamsParametersTimezone::AsiaKuwait,
+            "Asia/Macao" => CreateReportingReportRunParamsParametersTimezone::AsiaMacao,
+            "Asia/Macau" => CreateReportingReportRunParamsParametersTimezone::AsiaMacau,
+            "Asia/Magadan" => CreateReportingReportRunParamsParametersTimezone::AsiaMagadan,
+            "Asia/Makassar" => CreateReportingReportRunParamsParametersTimezone::AsiaMakassar,
+            "Asia/Manila" => CreateReportingReportRunParamsParametersTimezone::AsiaManila,
+            "Asia/Muscat" => CreateReportingReportRunParamsParametersTimezone::AsiaMuscat,
+            "Asia/Nicosia" => CreateReportingReportRunParamsParametersTimezone::AsiaNicosia,
+            "Asia/Novokuznetsk" => CreateReportingReportRunParamsParametersTimezone::AsiaNovokuznetsk,
+            "Asia/Novosibirsk" => CreateReportingReportRunParamsParametersTimezone::AsiaNovosibirsk,
+            "Asia/Omsk" => CreateReportingReportRunParamsParametersTimezone::AsiaOmsk,
+            "Asia/Oral" => CreateReportingReportRunParamsParametersTimezone::AsiaOral,
+            "Asia/Phnom_Penh" => CreateReportingReportRunParamsParametersTimezone::AsiaPhnomPenh,
+            "Asia/Pontianak" => CreateReportingReportRunParamsParametersTimezone::AsiaPontianak,
+            "Asia/Pyongyang" => CreateReportingReportRunParamsParametersTimezone::AsiaPyongyang,
+            "Asia/Qatar" => CreateReportingReportRunParamsParametersTimezone::AsiaQatar,
+            "Asia/Qostanay" => CreateReportingReportRunParamsParametersTimezone::AsiaQostanay,
+            "Asia/Qyzylorda" => CreateReportingReportRunParamsParametersTimezone::AsiaQyzylorda,
+            "Asia/Rangoon" => CreateReportingReportRunParamsParametersTimezone::AsiaRangoon,
+            "Asia/Riyadh" => CreateReportingReportRunParamsParametersTimezone::AsiaRiyadh,
+            "Asia/Saigon" => CreateReportingReportRunParamsParametersTimezone::AsiaSaigon,
+            "Asia/Sakhalin" => CreateReportingReportRunParamsParametersTimezone::AsiaSakhalin,
+            "Asia/Samarkand" => CreateReportingReportRunParamsParametersTimezone::AsiaSamarkand,
+            "Asia/Seoul" => CreateReportingReportRunParamsParametersTimezone::AsiaSeoul,
+            "Asia/Shanghai" => CreateReportingReportRunParamsParametersTimezone::AsiaShanghai,
+            "Asia/Singapore" => CreateReportingReportRunParamsParametersTimezone::AsiaSingapore,
+            "Asia/Srednekolymsk" => CreateReportingReportRunParamsParametersTimezone::AsiaSrednekolymsk,
+            "Asia/Taipei" => CreateReportingReportRunParamsParametersTimezone::AsiaTaipei,
+            "Asia/Tashkent" => CreateReportingReportRunParamsParametersTimezone::AsiaTashkent,
+            "Asia/Tbilisi" => CreateReportingReportRunParamsParametersTimezone::AsiaTbilisi,
+            "Asia/Tehran" => CreateReportingReportRunParamsParametersTimezone::AsiaTehran,
+            "Asia/Tel_Aviv" => CreateReportingReportRunParamsParametersTimezone::AsiaTelAviv,
+            "Asia/Thimbu" => CreateReportingReportRunParamsParametersTimezone::AsiaThimbu,
+            "Asia/Thimphu" => CreateReportingReportRunParamsParametersTimezone::AsiaThimphu,
+            "Asia/Tokyo" => CreateReportingReportRunParamsParametersTimezone::AsiaTokyo,
+            "Asia/Tomsk" => CreateReportingReportRunParamsParametersTimezone::AsiaTomsk,
+            "Asia/Ujung_Pandang" => CreateReportingReportRunParamsParametersTimezone::AsiaUjungPandang,
+            "Asia/Ulaanbaatar" => CreateReportingReportRunParamsParametersTimezone::AsiaUlaanbaatar,
+            "Asia/Ulan_Bator" => CreateReportingReportRunParamsParametersTimezone::AsiaUlanBator,
+            "Asia/Urumqi" => CreateReportingReportRunParamsParametersTimezone::AsiaUrumqi,
+            "Asia/Ust-Nera" => CreateReportingReportRunParamsParametersTimezone::AsiaUstNera,
+            "Asia/Vientiane" => CreateReportingReportRunParamsParametersTimezone::AsiaVientiane,
+            "Asia/Vladivostok" => CreateReportingReportRunParamsParametersTimezone::AsiaVladivostok,
+            "Asia/Yakutsk" => CreateReportingReportRunParamsParametersTimezone::AsiaYakutsk,
+            "Asia/Yangon" => CreateReportingReportRunParamsParametersTimezone::AsiaYangon,
+            "Asia/Yekaterinburg" => CreateReportingReportRunParamsParametersTimezone::AsiaYekaterinburg,
+            "Asia/Yerevan" => CreateReportingReportRunParamsParametersTimezone::AsiaYerevan,
+            "Atlantic/Azores" => CreateReportingReportRunParamsParametersTimezone::AtlanticAzores,
+            "Atlantic/Bermuda" => CreateReportingReportRunParamsParametersTimezone::AtlanticBermuda,
+            "Atlantic/Canary" => CreateReportingReportRunParamsParametersTimezone::AtlanticCanary,
+            "Atlantic/Cape_Verde" => CreateReportingReportRunParamsParametersTimezone::AtlanticCapeVerde,
+            "Atlantic/Faeroe" => CreateReportingReportRunParamsParametersTimezone::AtlanticFaeroe,
+            "Atlantic/Faroe" => CreateReportingReportRunParamsParametersTimezone::AtlanticFaroe,
+            "Atlantic/Jan_Mayen" => CreateReportingReportRunParamsParametersTimezone::AtlanticJanMayen,
+            "Atlantic/Madeira" => CreateReportingReportRunParamsParametersTimezone::AtlanticMadeira,
+            "Atlantic/Reykjavik" => CreateReportingReportRunParamsParametersTimezone::AtlanticReykjavik,
+            "Atlantic/South_Georgia" => CreateReportingReportRunParamsParametersTimezone::AtlanticSouthGeorgia,
+            "Atlantic/St_Helena" => CreateReportingReportRunParamsParametersTimezone::AtlanticStHelena,
+            "Atlantic/Stanley" => CreateReportingReportRunParamsParametersTimezone::AtlanticStanley,
+            "Australia/ACT" => CreateReportingReportRunParamsParametersTimezone::AustraliaACT,
+            "Australia/Adelaide" => CreateReportingReportRunParamsParametersTimezone::AustraliaAdelaide,
+            "Australia/Brisbane" => CreateReportingReportRunParamsParametersTimezone::AustraliaBrisbane,
+            "Australia/Broken_Hill" => CreateReportingReportRunParamsParametersTimezone::AustraliaBrokenHill,
+            "Australia/Canberra" => CreateReportingReportRunParamsParametersTimezone::AustraliaCanberra,
+            "Australia/Currie" => CreateReportingReportRunParamsParametersTimezone::AustraliaCurrie,
+            "Australia/Darwin" => CreateReportingReportRunParamsParametersTimezone::AustraliaDarwin,
+            "Australia/Eucla" => CreateReportingReportRunParamsParametersTimezone::AustraliaEucla,
+            "Australia/Hobart" => CreateReportingReportRunParamsParametersTimezone::AustraliaHobart,
+            "Australia/LHI" => CreateReportingReportRunParamsParametersTimezone::AustraliaLHI,
+            "Australia/Lindeman" => CreateReportingReportRunParamsParametersTimezone::AustraliaLindeman,
+            "Australia/Lord_Howe" => CreateReportingReportRunParamsParametersTimezone::AustraliaLordHowe,
+            "Australia/Melbourne" => CreateReportingReportRunParamsParametersTimezone::AustraliaMelbourne,
+            "Australia/NSW" => CreateReportingReportRunParamsParametersTimezone::AustraliaNSW,
+            "Australia/North" => CreateReportingReportRunParamsParametersTimezone::AustraliaNorth,
+            "Australia/Perth" => CreateReportingReportRunParamsParametersTimezone::AustraliaPerth,
+            "Australia/Queensland" => CreateReportingReportRunParamsParametersTimezone::AustraliaQueensland,
+            "Australia/South" => CreateReportingReportRunParamsParametersTimezone::AustraliaSouth,
+            "Australia/Sydney" => CreateReportingReportRunParamsParametersTimezone::AustraliaSydney,
+            "Australia/Tasmania" => CreateReportingReportRunParamsParametersTimezone::AustraliaTasmania,
+            "Australia/Victoria" => CreateReportingReportRunParamsParametersTimezone::AustraliaVictoria,
+            "Australia/West" => CreateReportingReportRunParamsParametersTimezone::AustraliaWest,
+            "Australia/Yancowinna" => CreateReportingReportRunParamsParametersTimezone::AustraliaYancowinna,
+            "Brazil/Acre" => CreateReportingReportRunParamsParametersTimezone::BrazilAcre,
+            "Brazil/DeNoronha" => CreateReportingReportRunParamsParametersTimezone::BrazilDeNoronha,
+            "Brazil/East" => CreateReportingReportRunParamsParametersTimezone::BrazilEast,
+            "Brazil/West" => CreateReportingReportRunParamsParametersTimezone::BrazilWest,
+            "CET" => CreateReportingReportRunParamsParametersTimezone::CET,
+            "CST6CDT" => CreateReportingReportRunParamsParametersTimezone::CST6CDT,
+            "Canada/Atlantic" => CreateReportingReportRunParamsParametersTimezone::CanadaAtlantic,
+            "Canada/Central" => CreateReportingReportRunParamsParametersTimezone::CanadaCentral,
+            "Canada/Eastern" => CreateReportingReportRunParamsParametersTimezone::CanadaEastern,
+            "Canada/Mountain" => CreateReportingReportRunParamsParametersTimezone::CanadaMountain,
+            "Canada/Newfoundland" => CreateReportingReportRunParamsParametersTimezone::CanadaNewfoundland,
+            "Canada/Pacific" => CreateReportingReportRunParamsParametersTimezone::CanadaPacific,
+            "Canada/Saskatchewan" => CreateReportingReportRunParamsParametersTimezone::CanadaSaskatchewan,
+            "Canada/Yukon" => CreateReportingReportRunParamsParametersTimezone::CanadaYukon,
+            "Chile/Continental" => CreateReportingReportRunParamsParametersTimezone::ChileContinental,
+            "Chile/EasterIsland" => CreateReportingReportRunParamsParametersTimezone::ChileEasterIsland,
+            "Cuba" => CreateReportingReportRunParamsParametersTimezone::Cuba,
+            "EET" => CreateReportingReportRunParamsParametersTimezone::EET,
+            "EST" => CreateReportingReportRunParamsParametersTimezone::EST,
+            "EST5EDT" => CreateReportingReportRunParamsParametersTimezone::EST5EDT,
+            "Egypt" => CreateReportingReportRunParamsParametersTimezone::Egypt,
+            "Eire" => CreateReportingReportRunParamsParametersTimezone::Eire,
+            "Etc/GMT" => CreateReportingReportRunParamsParametersTimezone::EtcGMT,
+            "Etc/GMT+0" => CreateReportingReportRunParamsParametersTimezone::EtcGMT0,
+            "Etc/GMT+1" => CreateReportingReportRunParamsParametersTimezone::EtcGMT1,
+            "Etc/GMT+10" => CreateReportingReportRunParamsParametersTimezone::EtcGMT10,
+            "Etc/GMT+11" => CreateReportingReportRunParamsParametersTimezone::EtcGMT11,
+            "Etc/GMT+12" => CreateReportingReportRunParamsParametersTimezone::EtcGMT12,
+            "Etc/GMT+2" => CreateReportingReportRunParamsParametersTimezone::EtcGMT2,
+            "Etc/GMT+3" => CreateReportingReportRunParamsParametersTimezone::EtcGMT3,
+            "Etc/GMT+4" => CreateReportingReportRunParamsParametersTimezone::EtcGMT4,
+            "Etc/GMT+5" => CreateReportingReportRunParamsParametersTimezone::EtcGMT5,
+            "Etc/GMT+6" => CreateReportingReportRunParamsParametersTimezone::EtcGMT6,
+            "Etc/GMT+7" => CreateReportingReportRunParamsParametersTimezone::EtcGMT7,
+            "Etc/GMT+8" => CreateReportingReportRunParamsParametersTimezone::EtcGMT8,
+            "Etc/GMT+9" => CreateReportingReportRunParamsParametersTimezone::EtcGMT9,
+            "Etc/GMT-0" => CreateReportingReportRunParamsParametersTimezone::EtcGMT02,
+            "Etc/GMT-1" => CreateReportingReportRunParamsParametersTimezone::EtcGMT13,
+            "Etc/GMT-10" => CreateReportingReportRunParamsParametersTimezone::EtcGMT102,
+            "Etc/GMT-11" => CreateReportingReportRunParamsParametersTimezone::EtcGMT112,
+            "Etc/GMT-12" => CreateReportingReportRunParamsParametersTimezone::EtcGMT122,
+            "Etc/GMT-13" => CreateReportingReportRunParamsParametersTimezone::EtcGMT132,
+            "Etc/GMT-14" => CreateReportingReportRunParamsParametersTimezone::EtcGMT14,
+            "Etc/GMT-2" => CreateReportingReportRunParamsParametersTimezone::EtcGMT22,
+            "Etc/GMT-3" => CreateReportingReportRunParamsParametersTimezone::EtcGMT32,
+            "Etc/GMT-4" => CreateReportingReportRunParamsParametersTimezone::EtcGMT42,
+            "Etc/GMT-5" => CreateReportingReportRunParamsParametersTimezone::EtcGMT52,
+            "Etc/GMT-6" => CreateReportingReportRunParamsParametersTimezone::EtcGMT62,
+            "Etc/GMT-7" => CreateReportingReportRunParamsParametersTimezone::EtcGMT72,
+            "Etc/GMT-8" => CreateReportingReportRunParamsParametersTimezone::EtcGMT82,
+            "Etc/GMT-9" => CreateReportingReportRunParamsParametersTimezone::EtcGMT92,
+            "Etc/GMT0" => CreateReportingReportRunParamsParametersTimezone::EtcGMT03,
+            "Etc/Greenwich" => CreateReportingReportRunParamsParametersTimezone::EtcGreenwich,
+            "Etc/UCT" => CreateReportingReportRunParamsParametersTimezone::EtcUCT,
+            "Etc/UTC" => CreateReportingReportRunParamsParametersTimezone::EtcUTC,
+            "Etc/Universal" => CreateReportingReportRunParamsParametersTimezone::EtcUniversal,
+            "Etc/Zulu" => CreateReportingReportRunParamsParametersTimezone::EtcZulu,
+            "Europe/Amsterdam" => CreateReportingReportRunParamsParametersTimezone::EuropeAmsterdam,
+            "Europe/Andorra" => CreateReportingReportRunParamsParametersTimezone::EuropeAndorra,
+            "Europe/Astrakhan" => CreateReportingReportRunParamsParametersTimezone::EuropeAstrakhan,
+            "Europe/Athens" => CreateReportingReportRunParamsParametersTimezone::EuropeAthens,
+            "Europe/Belfast" => CreateReportingReportRunParamsParametersTimezone::EuropeBelfast,
+            "Europe/Belgrade" => CreateReportingReportRunParamsParametersTimezone::EuropeBelgrade,
+            "Europe/Berlin" => CreateReportingReportRunParamsParametersTimezone::EuropeBerlin,
+            "Europe/Bratislava" => CreateReportingReportRunParamsParametersTimezone::EuropeBratislava,
+            "Europe/Brussels" => CreateReportingReportRunParamsParametersTimezone::EuropeBrussels,
+            "Europe/Bucharest" => CreateReportingReportRunParamsParametersTimezone::EuropeBucharest,
+            "Europe/Budapest" => CreateReportingReportRunParamsParametersTimezone::EuropeBudapest,
+            "Europe/Busingen" => CreateReportingReportRunParamsParametersTimezone::EuropeBusingen,
+            "Europe/Chisinau" => CreateReportingReportRunParamsParametersTimezone::EuropeChisinau,
+            "Europe/Copenhagen" => CreateReportingReportRunParamsParametersTimezone::EuropeCopenhagen,
+            "Europe/Dublin" => CreateReportingReportRunParamsParametersTimezone::EuropeDublin,
+            "Europe/Gibraltar" => CreateReportingReportRunParamsParametersTimezone::EuropeGibraltar,
+            "Europe/Guernsey" => CreateReportingReportRunParamsParametersTimezone::EuropeGuernsey,
+            "Europe/Helsinki" => CreateReportingReportRunParamsParametersTimezone::EuropeHelsinki,
+            "Europe/Isle_of_Man" => CreateReportingReportRunParamsParametersTimezone::EuropeIsleOfMan,
+            "Europe/Istanbul" => CreateReportingReportRunParamsParametersTimezone::EuropeIstanbul,
+            "Europe/Jersey" => CreateReportingReportRunParamsParametersTimezone::EuropeJersey,
+            "Europe/Kaliningrad" => CreateReportingReportRunParamsParametersTimezone::EuropeKaliningrad,
+            "Europe/Kiev" => CreateReportingReportRunParamsParametersTimezone::EuropeKiev,
+            "Europe/Kirov" => CreateReportingReportRunParamsParametersTimezone::EuropeKirov,
+            "Europe/Kyiv" => CreateReportingReportRunParamsParametersTimezone::EuropeKyiv,
+            "Europe/Lisbon" => CreateReportingReportRunParamsParametersTimezone::EuropeLisbon,
+            "Europe/Ljubljana" => CreateReportingReportRunParamsParametersTimezone::EuropeLjubljana,
+            "Europe/London" => CreateReportingReportRunParamsParametersTimezone::EuropeLondon,
+            "Europe/Luxembourg" => CreateReportingReportRunParamsParametersTimezone::EuropeLuxembourg,
+            "Europe/Madrid" => CreateReportingReportRunParamsParametersTimezone::EuropeMadrid,
+            "Europe/Malta" => CreateReportingReportRunParamsParametersTimezone::EuropeMalta,
+            "Europe/Mariehamn" => CreateReportingReportRunParamsParametersTimezone::EuropeMariehamn,
+            "Europe/Minsk" => CreateReportingReportRunParamsParametersTimezone::EuropeMinsk,
+            "Europe/Monaco" => CreateReportingReportRunParamsParametersTimezone::EuropeMonaco,
+            "Europe/Moscow" => CreateReportingReportRunParamsParametersTimezone::EuropeMoscow,
+            "Europe/Nicosia" => CreateReportingReportRunParamsParametersTimezone::EuropeNicosia,
+            "Europe/Oslo" => CreateReportingReportRunParamsParametersTimezone::EuropeOslo,
+            "Europe/Paris" => CreateReportingReportRunParamsParametersTimezone::EuropeParis,
+            "Europe/Podgorica" => CreateReportingReportRunParamsParametersTimezone::EuropePodgorica,
+            "Europe/Prague" => CreateReportingReportRunParamsParametersTimezone::EuropePrague,
+            "Europe/Riga" => CreateReportingReportRunParamsParametersTimezone::EuropeRiga,
+            "Europe/Rome" => CreateReportingReportRunParamsParametersTimezone::EuropeRome,
+            "Europe/Samara" => CreateReportingReportRunParamsParametersTimezone::EuropeSamara,
+            "Europe/San_Marino" => CreateReportingReportRunParamsParametersTimezone::EuropeSanMarino,
+            "Europe/Sarajevo" => CreateReportingReportRunParamsParametersTimezone::EuropeSarajevo,
+            "Europe/Saratov" => CreateReportingReportRunParamsParametersTimezone::EuropeSaratov,
+            "Europe/Simferopol" => CreateReportingReportRunParamsParametersTimezone::EuropeSimferopol,
+            "Europe/Skopje" => CreateReportingReportRunParamsParametersTimezone::EuropeSkopje,
+            "Europe/Sofia" => CreateReportingReportRunParamsParametersTimezone::EuropeSofia,
+            "Europe/Stockholm" => CreateReportingReportRunParamsParametersTimezone::EuropeStockholm,
+            "Europe/Tallinn" => CreateReportingReportRunParamsParametersTimezone::EuropeTallinn,
+            "Europe/Tirane" => CreateReportingReportRunParamsParametersTimezone::EuropeTirane,
+            "Europe/Tiraspol" => CreateReportingReportRunParamsParametersTimezone::EuropeTiraspol,
+            "Europe/Ulyanovsk" => CreateReportingReportRunParamsParametersTimezone::EuropeUlyanovsk,
+            "Europe/Uzhgorod" => CreateReportingReportRunParamsParametersTimezone::EuropeUzhgorod,
+            "Europe/Vaduz" => CreateReportingReportRunParamsParametersTimezone::EuropeVaduz,
+            "Europe/Vatican" => CreateReportingReportRunParamsParametersTimezone::EuropeVatican,
+            "Europe/Vienna" => CreateReportingReportRunParamsParametersTimezone::EuropeVienna,
+            "Europe/Vilnius" => CreateReportingReportRunParamsParametersTimezone::EuropeVilnius,
+            "Europe/Volgograd" => CreateReportingReportRunParamsParametersTimezone::EuropeVolgograd,
+            "Europe/Warsaw" => CreateReportingReportRunParamsParametersTimezone::EuropeWarsaw,
+            "Europe/Zagreb" => CreateReportingReportRunParamsParametersTimezone::EuropeZagreb,
+            "Europe/Zaporozhye" => CreateReportingReportRunParamsParametersTimezone::EuropeZaporozhye,
+            "Europe/Zurich" => CreateReportingReportRunParamsParametersTimezone::EuropeZurich,
+            "Factory" => CreateReportingReportRunParamsParametersTimezone::Factory,
+            "GB" => CreateReportingReportRunParamsParametersTimezone::GB,
+            "GB-Eire" => CreateReportingReportRunParamsParametersTimezone::GBEire,
+            "GMT" => CreateReportingReportRunParamsParametersTimezone::GMT,
+            "GMT+0" => CreateReportingReportRunParamsParametersTimezone::GMT0,
+            "GMT-0" => CreateReportingReportRunParamsParametersTimezone::GMT02,
+            "GMT0" => CreateReportingReportRunParamsParametersTimezone::GMT03,
+            "Greenwich" => CreateReportingReportRunParamsParametersTimezone::Greenwich,
+            "HST" => CreateReportingReportRunParamsParametersTimezone::HST,
+            "Hongkong" => CreateReportingReportRunParamsParametersTimezone::Hongkong,
+            "Iceland" => CreateReportingReportRunParamsParametersTimezone::Iceland,
+            "Indian/Antananarivo" => CreateReportingReportRunParamsParametersTimezone::IndianAntananarivo,
+            "Indian/Chagos" => CreateReportingReportRunParamsParametersTimezone::IndianChagos,
+            "Indian/Christmas" => CreateReportingReportRunParamsParametersTimezone::IndianChristmas,
+            "Indian/Cocos" => CreateReportingReportRunParamsParametersTimezone::IndianCocos,
+            "Indian/Comoro" => CreateReportingReportRunParamsParametersTimezone::IndianComoro,
+            "Indian/Kerguelen" => CreateReportingReportRunParamsParametersTimezone::IndianKerguelen,
+            "Indian/Mahe" => CreateReportingReportRunParamsParametersTimezone::IndianMahe,
+            "Indian/Maldives" => CreateReportingReportRunParamsParametersTimezone::IndianMaldives,
+            "Indian/Mauritius" => CreateReportingReportRunParamsParametersTimezone::IndianMauritius,
+            "Indian/Mayotte" => CreateReportingReportRunParamsParametersTimezone::IndianMayotte,
+            "Indian/Reunion" => CreateReportingReportRunParamsParametersTimezone::IndianReunion,
+            "Iran" => CreateReportingReportRunParamsParametersTimezone::Iran,
+            "Israel" => CreateReportingReportRunParamsParametersTimezone::Israel,
+            "Jamaica" => CreateReportingReportRunParamsParametersTimezone::Jamaica,
+            "Japan" => CreateReportingReportRunParamsParametersTimezone::Japan,
+            "Kwajalein" => CreateReportingReportRunParamsParametersTimezone::Kwajalein,
+            "Libya" => CreateReportingReportRunParamsParametersTimezone::Libya,
+            "MET" => CreateReportingReportRunParamsParametersTimezone::MET,
+            "MST" => CreateReportingReportRunParamsParametersTimezone::MST,
+            "MST7MDT" => CreateReportingReportRunParamsParametersTimezone::MST7MDT,
+            "Mexico/BajaNorte" => CreateReportingReportRunParamsParametersTimezone::MexicoBajaNorte,
+            "Mexico/BajaSur" => CreateReportingReportRunParamsParametersTimezone::MexicoBajaSur,
+            "Mexico/General" => CreateReportingReportRunParamsParametersTimezone::MexicoGeneral,
+            "NZ" => CreateReportingReportRunParamsParametersTimezone::NZ,
+            "NZ-CHAT" => CreateReportingReportRunParamsParametersTimezone::NZCHAT,
+            "Navajo" => CreateReportingReportRunParamsParametersTimezone::Navajo,
+            "PRC" => CreateReportingReportRunParamsParametersTimezone::PRC,
+            "PST8PDT" => CreateReportingReportRunParamsParametersTimezone::PST8PDT,
+            "Pacific/Apia" => CreateReportingReportRunParamsParametersTimezone::PacificApia,
+            "Pacific/Auckland" => CreateReportingReportRunParamsParametersTimezone::PacificAuckland,
+            "Pacific/Bougainville" => CreateReportingReportRunParamsParametersTimezone::PacificBougainville,
+            "Pacific/Chatham" => CreateReportingReportRunParamsParametersTimezone::PacificChatham,
+            "Pacific/Chuuk" => CreateReportingReportRunParamsParametersTimezone::PacificChuuk,
+            "Pacific/Easter" => CreateReportingReportRunParamsParametersTimezone::PacificEaster,
+            "Pacific/Efate" => CreateReportingReportRunParamsParametersTimezone::PacificEfate,
+            "Pacific/Enderbury" => CreateReportingReportRunParamsParametersTimezone::PacificEnderbury,
+            "Pacific/Fakaofo" => CreateReportingReportRunParamsParametersTimezone::PacificFakaofo,
+            "Pacific/Fiji" => CreateReportingReportRunParamsParametersTimezone::PacificFiji,
+            "Pacific/Funafuti" => CreateReportingReportRunParamsParametersTimezone::PacificFunafuti,
+            "Pacific/Galapagos" => CreateReportingReportRunParamsParametersTimezone::PacificGalapagos,
+            "Pacific/Gambier" => CreateReportingReportRunParamsParametersTimezone::PacificGambier,
+            "Pacific/Guadalcanal" => CreateReportingReportRunParamsParametersTimezone::PacificGuadalcanal,
+            "Pacific/Guam" => CreateReportingReportRunParamsParametersTimezone::PacificGuam,
+            "Pacific/Honolulu" => CreateReportingReportRunParamsParametersTimezone::PacificHonolulu,
+            "Pacific/Johnston" => CreateReportingReportRunParamsParametersTimezone::PacificJohnston,
+            "Pacific/Kanton" => CreateReportingReportRunParamsParametersTimezone::PacificKanton,
+            "Pacific/Kiritimati" => CreateReportingReportRunParamsParametersTimezone::PacificKiritimati,
+            "Pacific/Kosrae" => CreateReportingReportRunParamsParametersTimezone::PacificKosrae,
+            "Pacific/Kwajalein" => CreateReportingReportRunParamsParametersTimezone::PacificKwajalein,
+            "Pacific/Majuro" => CreateReportingReportRunParamsParametersTimezone::PacificMajuro,
+            "Pacific/Marquesas" => CreateReportingReportRunParamsParametersTimezone::PacificMarquesas,
+            "Pacific/Midway" => CreateReportingReportRunParamsParametersTimezone::PacificMidway,
+            "Pacific/Nauru" => CreateReportingReportRunParamsParametersTimezone::PacificNauru,
+            "Pacific/Niue" => CreateReportingReportRunParamsParametersTimezone::PacificNiue,
+            "Pacific/Norfolk" => CreateReportingReportRunParamsParametersTimezone::PacificNorfolk,
+            "Pacific/Noumea" => CreateReportingReportRunParamsParametersTimezone::PacificNoumea,
+            "Pacific/Pago_Pago" => CreateReportingReportRunParamsParametersTimezone::PacificPagoPago,
+            "Pacific/Palau" => CreateReportingReportRunParamsParametersTimezone::PacificPalau,
+            "Pacific/Pitcairn" => CreateReportingReportRunParamsParametersTimezone::PacificPitcairn,
+            "Pacific/Pohnpei" => CreateReportingReportRunParamsParametersTimezone::PacificPohnpei,
+            "Pacific/Ponape" => CreateReportingReportRunParamsParametersTimezone::PacificPonape,
+            "Pacific/Port_Moresby" => CreateReportingReportRunParamsParametersTimezone::PacificPortMoresby,
+            "Pacific/Rarotonga" => CreateReportingReportRunParamsParametersTimezone::PacificRarotonga,
+            "Pacific/Saipan" => CreateReportingReportRunParamsParametersTimezone::PacificSaipan,
+            "Pacific/Samoa" => CreateReportingReportRunParamsParametersTimezone::PacificSamoa,
+            "Pacific/Tahiti" => CreateReportingReportRunParamsParametersTimezone::PacificTahiti,
+            "Pacific/Tarawa" => CreateReportingReportRunParamsParametersTimezone::PacificTarawa,
+            "Pacific/Tongatapu" => CreateReportingReportRunParamsParametersTimezone::PacificTongatapu,
+            "Pacific/Truk" => CreateReportingReportRunParamsParametersTimezone::PacificTruk,
+            "Pacific/Wake" => CreateReportingReportRunParamsParametersTimezone::PacificWake,
+            "Pacific/Wallis" => CreateReportingReportRunParamsParametersTimezone::PacificWallis,
+            "Pacific/Yap" => CreateReportingReportRunParamsParametersTimezone::PacificYap,
+            "Poland" => CreateReportingReportRunParamsParametersTimezone::Poland,
+            "Portugal" => CreateReportingReportRunParamsParametersTimezone::Portugal,
+            "ROC" => CreateReportingReportRunParamsParametersTimezone::ROC,
+            "ROK" => CreateReportingReportRunParamsParametersTimezone::ROK,
+            "Singapore" => CreateReportingReportRunParamsParametersTimezone::Singapore,
+            "Turkey" => CreateReportingReportRunParamsParametersTimezone::Turkey,
+            "UCT" => CreateReportingReportRunParamsParametersTimezone::UCT,
+            "US/Alaska" => CreateReportingReportRunParamsParametersTimezone::USAlaska,
+            "US/Aleutian" => CreateReportingReportRunParamsParametersTimezone::USAleutian,
+            "US/Arizona" => CreateReportingReportRunParamsParametersTimezone::USArizona,
+            "US/Central" => CreateReportingReportRunParamsParametersTimezone::USCentral,
+            "US/East-Indiana" => CreateReportingReportRunParamsParametersTimezone::USEastIndiana,
+            "US/Eastern" => CreateReportingReportRunParamsParametersTimezone::USEastern,
+            "US/Hawaii" => CreateReportingReportRunParamsParametersTimezone::USHawaii,
+            "US/Indiana-Starke" => CreateReportingReportRunParamsParametersTimezone::USIndianaStarke,
+            "US/Michigan" => CreateReportingReportRunParamsParametersTimezone::USMichigan,
+            "US/Mountain" => CreateReportingReportRunParamsParametersTimezone::USMountain,
+            "US/Pacific" => CreateReportingReportRunParamsParametersTimezone::USPacific,
+            "US/Pacific-New" => CreateReportingReportRunParamsParametersTimezone::USPacificNew,
+            "US/Samoa" => CreateReportingReportRunParamsParametersTimezone::USSamoa,
+            "UTC" => CreateReportingReportRunParamsParametersTimezone::UTC,
+            "Universal" => CreateReportingReportRunParamsParametersTimezone::Universal,
+            "W-SU" => CreateReportingReportRunParamsParametersTimezone::WSU,
+            "WET" => CreateReportingReportRunParamsParametersTimezone::WET,
+            "Zulu" => CreateReportingReportRunParamsParametersTimezone::Zulu,
+            other => CreateReportingReportRunParamsParametersTimezone::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2202,31 +2122,32 @@ impl crate::params::FormEncode for CreateReportingReportRunParamsParametersTimez
 }
 
 #[cfg(any(feature = "events", feature = "reporting"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct FinancialReportingFinanceReportRunRunParameters {
     #[doc = "The set of output columns requested for inclusion in the report run."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub columns: Option<Vec<String>>,
     #[doc = "Connected account ID by which to filter the report run."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub connected_account: Option<String>,
     #[doc = "Currency of objects to be included in the report run."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[doc = "Ending timestamp of data to be included in the report run."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub interval_end: Option<i64>,
     #[doc = "Starting timestamp of data to be included in the report run."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub interval_start: Option<i64>,
     #[doc = "Payout ID by which to filter the report run."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payout: Option<String>,
     #[doc = "Category of balance transactions to be included in the report run."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reporting_category: Option<String>,
     #[doc = "Defaults to `Etc/UTC`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub timezone: Option<String>,
 }
 
@@ -2298,36 +2219,37 @@ impl crate::params::FormEncode for ListReportingReportRunsParamsCreated {
 pub type ListReportingReportTypesParams = crate::reporting::GetReportingReportRunParams;
 
 #[cfg(any(feature = "events", feature = "reporting"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ReportingReportRun {
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "If something should go wrong during the run, a message about the failure (populated when  `status=failed`)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "`true` if the report is run on live mode data and `false` if it is run on test mode data."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::reporting::ReportingReportRunObject,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub parameters: Option<crate::reporting::FinancialReportingFinanceReportRunRunParameters>,
     #[doc = "The ID of the [report type](https://docs.stripe.com/reports/report-types) to run, such as `'balance.summary.1'`."]
-    #[serde(default)]
+    #[json(default)]
     pub report_type: String,
     #[doc = "The file object representing the result of the report run (populated when  `status=succeeded`)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub result: Option<crate::files::File>,
     #[doc = "Status of this report run."]
-    #[serde(default)]
+    #[json(default)]
     pub status: String,
     #[doc = "Timestamp at which this run successfully finished (populated when  `status=succeeded`)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub succeeded_at: Option<i64>,
 }
 
@@ -2365,68 +2287,51 @@ impl Default for ReportingReportRunObject {
 }
 
 #[cfg(any(feature = "events", feature = "reporting"))]
-impl<'de> serde::Deserialize<'de> for ReportingReportRunObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ReportingReportRunObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "reporting.report_run" => ReportingReportRunObject::ReportingReportRun,
-                    other => ReportingReportRunObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ReportingReportRunObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ReportingReportRunObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ReportingReportRunObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "reporting.report_run" => ReportingReportRunObject::ReportingReportRun,
+            other => ReportingReportRunObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "reporting"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ReportingReportType {
     #[doc = "Most recent time for which this Report Type is available."]
-    #[serde(default)]
+    #[json(default)]
     pub data_available_end: i64,
     #[doc = "Earliest time for which this Report Type is available."]
-    #[serde(default)]
+    #[json(default)]
     pub data_available_start: i64,
     #[doc = "List of column names that are included by default when this Report Type gets run."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_columns: Option<Vec<String>>,
     #[doc = "The [ID of the Report Type](https://docs.stripe.com/reporting/statements/api#available-report-types), such as `balanc..."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Human-readable name of the Report Type"]
-    #[serde(default)]
+    #[json(default)]
     pub name: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::reporting::ReportingReportTypeObject,
     #[doc = "When this Report Type was latest updated."]
-    #[serde(default)]
+    #[json(default)]
     pub updated: i64,
     #[doc = "Version of the Report Type."]
-    #[serde(default)]
+    #[json(default)]
     pub version: i64,
 }
 
@@ -2464,36 +2369,18 @@ impl Default for ReportingReportTypeObject {
 }
 
 #[cfg(any(feature = "events", feature = "reporting"))]
-impl<'de> serde::Deserialize<'de> for ReportingReportTypeObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ReportingReportTypeObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "reporting.report_type" => ReportingReportTypeObject::ReportingReportType,
-                    other => ReportingReportTypeObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ReportingReportTypeObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ReportingReportTypeObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ReportingReportTypeObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "reporting.report_type" => ReportingReportTypeObject::ReportingReportType,
+            other => ReportingReportTypeObject::Unknown(other.to_string()),
+        })
     }
 }
 

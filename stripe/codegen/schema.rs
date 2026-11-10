@@ -2,7 +2,9 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
-use serde_json::Value;
+use json::{Map as JsonMap, Value as JsonValue};
+
+type Value = JsonValue<'static>;
 
 use crate::{
     ir::{Field, Mode, TypeDef, TypeKind, TypeRef, UnionArm, Variant},
@@ -225,7 +227,7 @@ impl Builder {
         // Build every component schema into a named type. Schemas for deleted
         // resources are built last, so the live shape owns the shared
         // name (`PriceObject`) and the deleted one aliases it.
-        let mut keys: Vec<String> = self.schemas().keys().cloned().collect();
+        let mut keys: Vec<String> = self.schemas().keys().map(str::to_string).collect();
         keys.sort_by(|a, b| {
             let deleted = |key: &String| key.starts_with("deleted_") || key.contains(".deleted_");
             deleted(a).cmp(&deleted(b)).then_with(|| a.cmp(b))
@@ -278,7 +280,7 @@ impl Builder {
         self.modules.insert("events".to_string());
     }
 
-    fn schemas(&self) -> &serde_json::Map<String, Value> {
+    fn schemas(&self) -> &JsonMap<'static> {
         self.spec
             .pointer("/components/schemas")
             .and_then(Value::as_object)
@@ -341,7 +343,7 @@ impl Builder {
     }
 
     fn reserve_schema_names(&mut self) {
-        let mut keys: Vec<String> = self.schemas().keys().cloned().collect();
+        let mut keys: Vec<String> = self.schemas().keys().map(str::to_string).collect();
         keys.sort();
         for key in keys {
             let module = self.schema_module(&key);
@@ -790,7 +792,9 @@ impl Builder {
             };
             if let Some(props) = resolved.get("properties").and_then(Value::as_object) {
                 for (name, value) in props {
-                    properties.entry(name.clone()).or_insert_with(|| value.clone());
+                    if properties.get(name).is_none() {
+                        properties.insert(name.clone(), value.clone());
+                    }
                 }
             }
             if let Some(req) = resolved.get("required").and_then(Value::as_array) {
@@ -971,12 +975,12 @@ impl Builder {
         let Some(properties) = schema.get("properties").and_then(Value::as_object) else {
             return fields;
         };
-        let mut names: Vec<&String> = properties.keys().collect();
+        let mut names: Vec<&str> = properties.keys().collect();
         // Deterministic order: required fields first is not needed, but keep the
         // spec's property order by sorting for reproducibility.
         names.sort();
         for json_name in names {
-            let property = &properties[json_name];
+            let property = properties.get(json_name).expect("property exists");
             let docs = property.get("description").and_then(Value::as_str).unwrap_or("");
             let rust_name = naming::field_ident(json_name);
             let mut ty = self.type_of(property, ctx, &format!("{hint}{}", naming::pascal_case(json_name)));
@@ -995,7 +999,7 @@ impl Builder {
                 json_name: if rust_name == *json_name {
                     None
                 } else {
-                    Some(json_name.clone())
+                    Some(json_name.to_string())
                 },
                 ty,
                 docs: naming::doc_attribute(docs),
@@ -1269,7 +1273,7 @@ impl Builder {
             .and_then(Value::as_object)
             .cloned()
             .unwrap_or_default();
-        let mut keys: Vec<String> = paths.keys().cloned().collect();
+        let mut keys: Vec<String> = paths.keys().map(str::to_string).collect();
         keys.sort();
         for path in keys {
             let Some(item) = paths.get(&path) else {
@@ -1409,7 +1413,7 @@ impl Builder {
 
         // Collect parameters.
         let mut path_param_names: HashMap<String, String> = HashMap::new();
-        let mut query_properties = serde_json::Map::new();
+        let mut query_properties = JsonMap::new();
         let mut query_required: Vec<Value> = Vec::new();
         if let Some(parameters) = op.get("parameters").and_then(Value::as_array) {
             for parameter in parameters {
@@ -1423,7 +1427,7 @@ impl Builder {
                         if let Some(schema) = parameter.get("schema") {
                             query_properties.insert(name.to_string(), schema.clone());
                             if parameter.get("required").and_then(Value::as_bool) == Some(true) {
-                                query_required.push(Value::String(name.to_string()));
+                                query_required.push(Value::from(name.to_string()));
                             }
                         }
                     }
@@ -1443,7 +1447,7 @@ impl Builder {
 
         // Request body.
         let mut json = false;
-        let mut body_properties = serde_json::Map::new();
+        let mut body_properties = JsonMap::new();
         let mut body_required: Vec<Value> = Vec::new();
         let mut multipart = false;
         if let Some(request_body) = op.get("requestBody") {
@@ -1486,7 +1490,7 @@ impl Builder {
 
         // For GET requests the query parameters are the body; for others the
         // requestBody is. Combine both when present.
-        let mut merged = serde_json::Map::new();
+        let mut merged = JsonMap::new();
         for (name, value) in &query_properties {
             merged.insert(name.clone(), value.clone());
         }
@@ -1496,8 +1500,8 @@ impl Builder {
         let mut required_list = query_required.clone();
         required_list.extend(body_required.clone());
         let merged_schema = Value::Object({
-            let mut object = serde_json::Map::new();
-            object.insert("type".to_string(), Value::String("object".to_string()));
+            let mut object = JsonMap::new();
+            object.insert("type".to_string(), Value::from("object"));
             object.insert("properties".to_string(), Value::Object(merged));
             if !required_list.is_empty() {
                 object.insert("required".to_string(), Value::Array(required_list));
@@ -1589,7 +1593,7 @@ fn type_def_refs(ty: &TypeDef, out: &mut HashSet<String>) {
     }
 }
 
-/// Escapes a JSON pointer token for `serde_json::Value::pointer`.
+/// Escapes a JSON pointer token for `json::Value::pointer`.
 fn json_pointer(path: &str) -> String {
     path.replace('~', "~0").replace('/', "~1")
 }

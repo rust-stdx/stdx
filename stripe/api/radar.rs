@@ -179,43 +179,31 @@ impl CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardCus
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardCustomerPresence
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardCustomerPresence;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "off_session" => CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardCustomerPresence::OffSession,
-                    "on_session" => CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardCustomerPresence::OnSession,
-                    other => CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardCustomerPresence::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardCustomerPresence::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardCustomerPresence::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "off_session" => {
+                CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardCustomerPresence::OffSession
+            }
+            "on_session" => {
+                CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardCustomerPresence::OnSession
+            }
+            other => CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardCustomerPresence::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -262,45 +250,35 @@ impl CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardPay
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardPaymentType
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardPaymentType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "one_off" => CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardPaymentType::OneOff,
-                    "recurring" => CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardPaymentType::Recurring,
-                    "setup_one_off" => CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardPaymentType::SetupOneOff,
-                    "setup_recurring" => CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardPaymentType::SetupRecurring,
-                    other => CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardPaymentType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardPaymentType::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardPaymentType::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "one_off" => CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardPaymentType::OneOff,
+            "recurring" => {
+                CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardPaymentType::Recurring
+            }
+            "setup_one_off" => {
+                CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardPaymentType::SetupOneOff
+            }
+            "setup_recurring" => {
+                CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardPaymentType::SetupRecurring
+            }
+            other => CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsCardPaymentType::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -333,48 +311,26 @@ impl CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsMoneyMo
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsMoneyMovementType
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsMoneyMovementType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "card" => {
-                        CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsMoneyMovementType::Card
-                    }
-                    other => {
-                        CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsMoneyMovementType::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsMoneyMovementType::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsMoneyMovementType::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "card" => CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsMoneyMovementType::Card,
+            other => CreateRadarPaymentEvaluationParamsPaymentDetailsMoneyMovementDetailsMoneyMovementType::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -580,47 +536,29 @@ impl CreateRadarValueListParamsItemType {
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de> for CreateRadarValueListParamsItemType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateRadarValueListParamsItemType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account" => CreateRadarValueListParamsItemType::Account,
-                    "card_bin" => CreateRadarValueListParamsItemType::CardBin,
-                    "card_fingerprint" => CreateRadarValueListParamsItemType::CardFingerprint,
-                    "case_sensitive_string" => CreateRadarValueListParamsItemType::CaseSensitiveString,
-                    "country" => CreateRadarValueListParamsItemType::Country,
-                    "crypto_fingerprint" => CreateRadarValueListParamsItemType::CryptoFingerprint,
-                    "customer_id" => CreateRadarValueListParamsItemType::CustomerId,
-                    "email" => CreateRadarValueListParamsItemType::Email,
-                    "ip_address" => CreateRadarValueListParamsItemType::IpAddress,
-                    "sepa_debit_fingerprint" => CreateRadarValueListParamsItemType::SepaDebitFingerprint,
-                    "string" => CreateRadarValueListParamsItemType::String,
-                    "us_bank_account_fingerprint" => CreateRadarValueListParamsItemType::UsBankAccountFingerprint,
-                    other => CreateRadarValueListParamsItemType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateRadarValueListParamsItemType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateRadarValueListParamsItemType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateRadarValueListParamsItemType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account" => CreateRadarValueListParamsItemType::Account,
+            "card_bin" => CreateRadarValueListParamsItemType::CardBin,
+            "card_fingerprint" => CreateRadarValueListParamsItemType::CardFingerprint,
+            "case_sensitive_string" => CreateRadarValueListParamsItemType::CaseSensitiveString,
+            "country" => CreateRadarValueListParamsItemType::Country,
+            "crypto_fingerprint" => CreateRadarValueListParamsItemType::CryptoFingerprint,
+            "customer_id" => CreateRadarValueListParamsItemType::CustomerId,
+            "email" => CreateRadarValueListParamsItemType::Email,
+            "ip_address" => CreateRadarValueListParamsItemType::IpAddress,
+            "sepa_debit_fingerprint" => CreateRadarValueListParamsItemType::SepaDebitFingerprint,
+            "string" => CreateRadarValueListParamsItemType::String,
+            "us_bank_account_fingerprint" => CreateRadarValueListParamsItemType::UsBankAccountFingerprint,
+            other => CreateRadarValueListParamsItemType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -632,16 +570,17 @@ impl crate::params::FormEncode for CreateRadarValueListParamsItemType {
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DeletedRadarValueList {
     #[doc = "Always true for a deleted object"]
-    #[serde(default)]
+    #[json(default)]
     pub deleted: bool,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::radar::RadarValueListObject,
 }
 
@@ -653,16 +592,17 @@ impl crate::PagedItem for DeletedRadarValueList {
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DeletedRadarValueListItem {
     #[doc = "Always true for a deleted object"]
-    #[serde(default)]
+    #[json(default)]
     pub deleted: bool,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::radar::RadarValueListItemObject,
 }
 
@@ -695,83 +635,88 @@ pub type GetRadarValueListItemParams = crate::radar::GetRadarEarlyFraudWarningPa
 pub type GetRadarValueListParams = crate::radar::GetRadarEarlyFraudWarningParams;
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationAddress {
     #[doc = "City, district, suburb, town, or village."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
     #[doc = "Two-letter country code ([ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2))."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[doc = "Address line 1, such as the street, PO Box, or company name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line1: Option<String>,
     #[doc = "Address line 2, such as the apartment, suite, unit, or building."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line2: Option<String>,
     #[doc = "ZIP or postal code."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub postal_code: Option<String>,
     #[doc = "State, county, province, or region ([ISO 3166-2](https://en.wikipedia.org/wiki/ISO_3166-2))."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationBillingDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<crate::radar::InsightsResourcesPaymentEvaluationAddress>,
     #[doc = "Email address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[doc = "Full name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[doc = "Billing phone number (including extension)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationClientDeviceMetadata {
     #[doc = "ID for the Radar Session associated with the payment evaluation."]
-    #[serde(default)]
+    #[json(default)]
     pub radar_session: String,
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationCustomerDetails {
     #[doc = "The ID of the customer associated with the payment evaluation."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<String>,
     #[doc = "The ID of the Account representing the customer associated with the payment evaluation."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_account: Option<String>,
     #[doc = "The customer's email address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[doc = "The customer's full name or business name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[doc = "The customer's phone number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationDisputeOpened {
     #[doc = "Amount to dispute for this payment."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "Reason given by cardholder for dispute."]
-    #[serde(default)]
+    #[json(default)]
     pub reason: crate::radar::InsightsResourcesPaymentEvaluationDisputeOpenedReason,
 }
 
@@ -822,60 +767,37 @@ impl Default for InsightsResourcesPaymentEvaluationDisputeOpenedReason {
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de> for InsightsResourcesPaymentEvaluationDisputeOpenedReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InsightsResourcesPaymentEvaluationDisputeOpenedReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account_not_available" => {
-                        InsightsResourcesPaymentEvaluationDisputeOpenedReason::AccountNotAvailable
-                    }
-                    "credit_not_processed" => InsightsResourcesPaymentEvaluationDisputeOpenedReason::CreditNotProcessed,
-                    "customer_initiated" => InsightsResourcesPaymentEvaluationDisputeOpenedReason::CustomerInitiated,
-                    "duplicate" => InsightsResourcesPaymentEvaluationDisputeOpenedReason::Duplicate,
-                    "fraudulent" => InsightsResourcesPaymentEvaluationDisputeOpenedReason::Fraudulent,
-                    "general" => InsightsResourcesPaymentEvaluationDisputeOpenedReason::General,
-                    "noncompliant" => InsightsResourcesPaymentEvaluationDisputeOpenedReason::Noncompliant,
-                    "product_not_received" => InsightsResourcesPaymentEvaluationDisputeOpenedReason::ProductNotReceived,
-                    "product_unacceptable" => {
-                        InsightsResourcesPaymentEvaluationDisputeOpenedReason::ProductUnacceptable
-                    }
-                    "subscription_canceled" => {
-                        InsightsResourcesPaymentEvaluationDisputeOpenedReason::SubscriptionCanceled
-                    }
-                    "unrecognized" => InsightsResourcesPaymentEvaluationDisputeOpenedReason::Unrecognized,
-                    other => InsightsResourcesPaymentEvaluationDisputeOpenedReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InsightsResourcesPaymentEvaluationDisputeOpenedReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InsightsResourcesPaymentEvaluationDisputeOpenedReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InsightsResourcesPaymentEvaluationDisputeOpenedReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account_not_available" => InsightsResourcesPaymentEvaluationDisputeOpenedReason::AccountNotAvailable,
+            "credit_not_processed" => InsightsResourcesPaymentEvaluationDisputeOpenedReason::CreditNotProcessed,
+            "customer_initiated" => InsightsResourcesPaymentEvaluationDisputeOpenedReason::CustomerInitiated,
+            "duplicate" => InsightsResourcesPaymentEvaluationDisputeOpenedReason::Duplicate,
+            "fraudulent" => InsightsResourcesPaymentEvaluationDisputeOpenedReason::Fraudulent,
+            "general" => InsightsResourcesPaymentEvaluationDisputeOpenedReason::General,
+            "noncompliant" => InsightsResourcesPaymentEvaluationDisputeOpenedReason::Noncompliant,
+            "product_not_received" => InsightsResourcesPaymentEvaluationDisputeOpenedReason::ProductNotReceived,
+            "product_unacceptable" => InsightsResourcesPaymentEvaluationDisputeOpenedReason::ProductUnacceptable,
+            "subscription_canceled" => InsightsResourcesPaymentEvaluationDisputeOpenedReason::SubscriptionCanceled,
+            "unrecognized" => InsightsResourcesPaymentEvaluationDisputeOpenedReason::Unrecognized,
+            other => InsightsResourcesPaymentEvaluationDisputeOpenedReason::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationEarlyFraudWarningReceived {
     #[doc = "The type of fraud labeled by the issuer."]
-    #[serde(default)]
+    #[json(default)]
     pub fraud_type: crate::radar::InsightsResourcesPaymentEvaluationEarlyFraudWarningReceivedFraudType,
 }
 
@@ -918,70 +840,51 @@ impl Default for InsightsResourcesPaymentEvaluationEarlyFraudWarningReceivedFrau
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de> for InsightsResourcesPaymentEvaluationEarlyFraudWarningReceivedFraudType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InsightsResourcesPaymentEvaluationEarlyFraudWarningReceivedFraudType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "made_with_lost_card" => {
-                        InsightsResourcesPaymentEvaluationEarlyFraudWarningReceivedFraudType::MadeWithLostCard
-                    }
-                    "made_with_stolen_card" => {
-                        InsightsResourcesPaymentEvaluationEarlyFraudWarningReceivedFraudType::MadeWithStolenCard
-                    }
-                    "other" => InsightsResourcesPaymentEvaluationEarlyFraudWarningReceivedFraudType::Other,
-                    "unauthorized_use_of_card" => {
-                        InsightsResourcesPaymentEvaluationEarlyFraudWarningReceivedFraudType::UnauthorizedUseOfCard
-                    }
-                    other => {
-                        InsightsResourcesPaymentEvaluationEarlyFraudWarningReceivedFraudType::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InsightsResourcesPaymentEvaluationEarlyFraudWarningReceivedFraudType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for InsightsResourcesPaymentEvaluationEarlyFraudWarningReceivedFraudType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InsightsResourcesPaymentEvaluationEarlyFraudWarningReceivedFraudType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "made_with_lost_card" => {
+                InsightsResourcesPaymentEvaluationEarlyFraudWarningReceivedFraudType::MadeWithLostCard
+            }
+            "made_with_stolen_card" => {
+                InsightsResourcesPaymentEvaluationEarlyFraudWarningReceivedFraudType::MadeWithStolenCard
+            }
+            "other" => InsightsResourcesPaymentEvaluationEarlyFraudWarningReceivedFraudType::Other,
+            "unauthorized_use_of_card" => {
+                InsightsResourcesPaymentEvaluationEarlyFraudWarningReceivedFraudType::UnauthorizedUseOfCard
+            }
+            other => InsightsResourcesPaymentEvaluationEarlyFraudWarningReceivedFraudType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationEvent {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub dispute_opened: Option<crate::radar::InsightsResourcesPaymentEvaluationDisputeOpened>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub early_fraud_warning_received: Option<crate::radar::InsightsResourcesPaymentEvaluationEarlyFraudWarningReceived>,
     #[doc = "Timestamp when the event occurred."]
-    #[serde(default)]
+    #[json(default)]
     pub occurred_at: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refunded: Option<crate::radar::InsightsResourcesPaymentEvaluationRefunded>,
     #[doc = "Indicates the type of event attached to the payment evaluation."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::radar::InsightsResourcesPaymentEvaluationEventType,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub user_intervention_raised: Option<crate::radar::InsightsResourcesPaymentEvaluationUserInterventionRaised>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub user_intervention_resolved: Option<crate::radar::InsightsResourcesPaymentEvaluationUserInterventionResolved>,
 }
 
@@ -1020,52 +923,31 @@ impl Default for InsightsResourcesPaymentEvaluationEventType {
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de> for InsightsResourcesPaymentEvaluationEventType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InsightsResourcesPaymentEvaluationEventType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "dispute_opened" => InsightsResourcesPaymentEvaluationEventType::DisputeOpened,
-                    "early_fraud_warning_received" => {
-                        InsightsResourcesPaymentEvaluationEventType::EarlyFraudWarningReceived
-                    }
-                    "refunded" => InsightsResourcesPaymentEvaluationEventType::Refunded,
-                    "user_intervention_raised" => InsightsResourcesPaymentEvaluationEventType::UserInterventionRaised,
-                    "user_intervention_resolved" => {
-                        InsightsResourcesPaymentEvaluationEventType::UserInterventionResolved
-                    }
-                    other => InsightsResourcesPaymentEvaluationEventType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InsightsResourcesPaymentEvaluationEventType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InsightsResourcesPaymentEvaluationEventType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InsightsResourcesPaymentEvaluationEventType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "dispute_opened" => InsightsResourcesPaymentEvaluationEventType::DisputeOpened,
+            "early_fraud_warning_received" => InsightsResourcesPaymentEvaluationEventType::EarlyFraudWarningReceived,
+            "refunded" => InsightsResourcesPaymentEvaluationEventType::Refunded,
+            "user_intervention_raised" => InsightsResourcesPaymentEvaluationEventType::UserInterventionRaised,
+            "user_intervention_resolved" => InsightsResourcesPaymentEvaluationEventType::UserInterventionResolved,
+            other => InsightsResourcesPaymentEvaluationEventType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationMerchantBlocked {
     #[doc = "The reason the payment was blocked by the merchant."]
-    #[serde(default)]
+    #[json(default)]
     pub reason: crate::radar::InsightsResourcesPaymentEvaluationMerchantBlockedReason,
 }
 
@@ -1104,52 +986,35 @@ impl Default for InsightsResourcesPaymentEvaluationMerchantBlockedReason {
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de> for InsightsResourcesPaymentEvaluationMerchantBlockedReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InsightsResourcesPaymentEvaluationMerchantBlockedReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "authentication_required" => {
-                        InsightsResourcesPaymentEvaluationMerchantBlockedReason::AuthenticationRequired
-                    }
-                    "blocked_for_fraud" => InsightsResourcesPaymentEvaluationMerchantBlockedReason::BlockedForFraud,
-                    "invalid_payment" => InsightsResourcesPaymentEvaluationMerchantBlockedReason::InvalidPayment,
-                    "other" => InsightsResourcesPaymentEvaluationMerchantBlockedReason::Other,
-                    other => InsightsResourcesPaymentEvaluationMerchantBlockedReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InsightsResourcesPaymentEvaluationMerchantBlockedReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InsightsResourcesPaymentEvaluationMerchantBlockedReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InsightsResourcesPaymentEvaluationMerchantBlockedReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "authentication_required" => {
+                InsightsResourcesPaymentEvaluationMerchantBlockedReason::AuthenticationRequired
+            }
+            "blocked_for_fraud" => InsightsResourcesPaymentEvaluationMerchantBlockedReason::BlockedForFraud,
+            "invalid_payment" => InsightsResourcesPaymentEvaluationMerchantBlockedReason::InvalidPayment,
+            "other" => InsightsResourcesPaymentEvaluationMerchantBlockedReason::Other,
+            other => InsightsResourcesPaymentEvaluationMerchantBlockedReason::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationMoneyMovementCard {
     #[doc = "Describes the presence of the customer during the payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_presence: Option<crate::radar::InsightsResourcesPaymentEvaluationMoneyMovementCardCustomerPresence>,
     #[doc = "Describes the type of payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_type: Option<crate::radar::InsightsResourcesPaymentEvaluationMoneyMovementCardPaymentType>,
 }
 
@@ -1175,41 +1040,21 @@ impl InsightsResourcesPaymentEvaluationMoneyMovementCardCustomerPresence {
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de> for InsightsResourcesPaymentEvaluationMoneyMovementCardCustomerPresence {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InsightsResourcesPaymentEvaluationMoneyMovementCardCustomerPresence;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "off_session" => InsightsResourcesPaymentEvaluationMoneyMovementCardCustomerPresence::OffSession,
-                    "on_session" => InsightsResourcesPaymentEvaluationMoneyMovementCardCustomerPresence::OnSession,
-                    other => {
-                        InsightsResourcesPaymentEvaluationMoneyMovementCardCustomerPresence::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InsightsResourcesPaymentEvaluationMoneyMovementCardCustomerPresence::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for InsightsResourcesPaymentEvaluationMoneyMovementCardCustomerPresence {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InsightsResourcesPaymentEvaluationMoneyMovementCardCustomerPresence::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "off_session" => InsightsResourcesPaymentEvaluationMoneyMovementCardCustomerPresence::OffSession,
+            "on_session" => InsightsResourcesPaymentEvaluationMoneyMovementCardCustomerPresence::OnSession,
+            other => InsightsResourcesPaymentEvaluationMoneyMovementCardCustomerPresence::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1239,52 +1084,35 @@ impl InsightsResourcesPaymentEvaluationMoneyMovementCardPaymentType {
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de> for InsightsResourcesPaymentEvaluationMoneyMovementCardPaymentType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InsightsResourcesPaymentEvaluationMoneyMovementCardPaymentType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "one_off" => InsightsResourcesPaymentEvaluationMoneyMovementCardPaymentType::OneOff,
-                    "recurring" => InsightsResourcesPaymentEvaluationMoneyMovementCardPaymentType::Recurring,
-                    "setup_one_off" => InsightsResourcesPaymentEvaluationMoneyMovementCardPaymentType::SetupOneOff,
-                    "setup_recurring" => InsightsResourcesPaymentEvaluationMoneyMovementCardPaymentType::SetupRecurring,
-                    other => InsightsResourcesPaymentEvaluationMoneyMovementCardPaymentType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InsightsResourcesPaymentEvaluationMoneyMovementCardPaymentType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for InsightsResourcesPaymentEvaluationMoneyMovementCardPaymentType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InsightsResourcesPaymentEvaluationMoneyMovementCardPaymentType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "one_off" => InsightsResourcesPaymentEvaluationMoneyMovementCardPaymentType::OneOff,
+            "recurring" => InsightsResourcesPaymentEvaluationMoneyMovementCardPaymentType::Recurring,
+            "setup_one_off" => InsightsResourcesPaymentEvaluationMoneyMovementCardPaymentType::SetupOneOff,
+            "setup_recurring" => InsightsResourcesPaymentEvaluationMoneyMovementCardPaymentType::SetupRecurring,
+            other => InsightsResourcesPaymentEvaluationMoneyMovementCardPaymentType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationMoneyMovementDetails {
     #[doc = "Describes card money movement details."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::radar::InsightsResourcesPaymentEvaluationMoneyMovementCard>,
     #[doc = "Describes the type of money movement."]
-    #[serde(default)]
+    #[json(default)]
     pub money_movement_type: crate::radar::InsightsResourcesPaymentEvaluationMoneyMovementDetailsMoneyMovementType,
 }
 
@@ -1315,55 +1143,38 @@ impl Default for InsightsResourcesPaymentEvaluationMoneyMovementDetailsMoneyMove
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de> for InsightsResourcesPaymentEvaluationMoneyMovementDetailsMoneyMovementType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InsightsResourcesPaymentEvaluationMoneyMovementDetailsMoneyMovementType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "card" => InsightsResourcesPaymentEvaluationMoneyMovementDetailsMoneyMovementType::Card,
-                    other => InsightsResourcesPaymentEvaluationMoneyMovementDetailsMoneyMovementType::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InsightsResourcesPaymentEvaluationMoneyMovementDetailsMoneyMovementType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InsightsResourcesPaymentEvaluationMoneyMovementDetailsMoneyMovementType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InsightsResourcesPaymentEvaluationMoneyMovementDetailsMoneyMovementType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "card" => InsightsResourcesPaymentEvaluationMoneyMovementDetailsMoneyMovementType::Card,
+            other => {
+                InsightsResourcesPaymentEvaluationMoneyMovementDetailsMoneyMovementType::Unknown(other.to_string())
+            }
+        })
     }
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationOutcome {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub merchant_blocked: Option<crate::radar::InsightsResourcesPaymentEvaluationMerchantBlocked>,
     #[doc = "The PaymentIntent ID associated with the payment evaluation."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_intent_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub rejected: Option<crate::radar::InsightsResourcesPaymentEvaluationRejected>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub succeeded: Option<crate::radar::InsightsResourcesPaymentEvaluationSucceeded>,
     #[doc = "Indicates the outcome of the payment evaluation."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::radar::InsightsResourcesPaymentEvaluationOutcomeType,
 }
 
@@ -1402,91 +1213,76 @@ impl Default for InsightsResourcesPaymentEvaluationOutcomeType {
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de> for InsightsResourcesPaymentEvaluationOutcomeType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InsightsResourcesPaymentEvaluationOutcomeType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "failed" => InsightsResourcesPaymentEvaluationOutcomeType::Failed,
-                    "merchant_blocked" => InsightsResourcesPaymentEvaluationOutcomeType::MerchantBlocked,
-                    "rejected" => InsightsResourcesPaymentEvaluationOutcomeType::Rejected,
-                    "rerouted" => InsightsResourcesPaymentEvaluationOutcomeType::Rerouted,
-                    "succeeded" => InsightsResourcesPaymentEvaluationOutcomeType::Succeeded,
-                    other => InsightsResourcesPaymentEvaluationOutcomeType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InsightsResourcesPaymentEvaluationOutcomeType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InsightsResourcesPaymentEvaluationOutcomeType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InsightsResourcesPaymentEvaluationOutcomeType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "failed" => InsightsResourcesPaymentEvaluationOutcomeType::Failed,
+            "merchant_blocked" => InsightsResourcesPaymentEvaluationOutcomeType::MerchantBlocked,
+            "rejected" => InsightsResourcesPaymentEvaluationOutcomeType::Rejected,
+            "rerouted" => InsightsResourcesPaymentEvaluationOutcomeType::Rerouted,
+            "succeeded" => InsightsResourcesPaymentEvaluationOutcomeType::Succeeded,
+            other => InsightsResourcesPaymentEvaluationOutcomeType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationPaymentDetails {
     #[doc = "Amount intended to be collected by this payment."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "Details about the payment's customer presence and type."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub money_movement_details: Option<crate::radar::InsightsResourcesPaymentEvaluationMoneyMovementDetails>,
     #[doc = "Details about the payment method used for the payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_details: Option<crate::radar::InsightsResourcesPaymentEvaluationPaymentMethodDetails>,
     #[doc = "Shipping details for the payment evaluation."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_details: Option<crate::radar::InsightsResourcesPaymentEvaluationShipping>,
     #[doc = "Payment statement descriptor."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationPaymentMethodDetails {
     #[doc = "Billing information associated with the payment evaluation."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billing_details: Option<crate::radar::InsightsResourcesPaymentEvaluationBillingDetails>,
     #[doc = "The payment method used in this payment evaluation."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method: Option<crate::Expandable<crate::payment_methods::PaymentMethod>>,
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationRefunded {
     #[doc = "Amount refunded for this payment."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "Indicates the reason for the refund."]
-    #[serde(default)]
+    #[json(default)]
     pub reason: crate::radar::InsightsResourcesPaymentEvaluationRefundedReason,
 }
 
@@ -1523,63 +1319,47 @@ impl Default for InsightsResourcesPaymentEvaluationRefundedReason {
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de> for InsightsResourcesPaymentEvaluationRefundedReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InsightsResourcesPaymentEvaluationRefundedReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "duplicate" => InsightsResourcesPaymentEvaluationRefundedReason::Duplicate,
-                    "fraudulent" => InsightsResourcesPaymentEvaluationRefundedReason::Fraudulent,
-                    "other" => InsightsResourcesPaymentEvaluationRefundedReason::Other,
-                    "requested_by_customer" => InsightsResourcesPaymentEvaluationRefundedReason::RequestedByCustomer,
-                    other => InsightsResourcesPaymentEvaluationRefundedReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InsightsResourcesPaymentEvaluationRefundedReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InsightsResourcesPaymentEvaluationRefundedReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InsightsResourcesPaymentEvaluationRefundedReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "duplicate" => InsightsResourcesPaymentEvaluationRefundedReason::Duplicate,
+            "fraudulent" => InsightsResourcesPaymentEvaluationRefundedReason::Fraudulent,
+            "other" => InsightsResourcesPaymentEvaluationRefundedReason::Other,
+            "requested_by_customer" => InsightsResourcesPaymentEvaluationRefundedReason::RequestedByCustomer,
+            other => InsightsResourcesPaymentEvaluationRefundedReason::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationRejected {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::radar::InsightsResourcesPaymentEvaluationRejectedCard>,
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationRejectedCard {
     #[doc = "Result of the address line 1 check."]
-    #[serde(default)]
+    #[json(default)]
     pub address_line1_check: crate::radar::InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check,
     #[doc = "Indicates whether the cardholder provided a postal code and if it matched the cardholder’s billing address."]
-    #[serde(default)]
+    #[json(default)]
     pub address_postal_code_check: crate::radar::InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check,
     #[doc = "Result of the CVC check."]
-    #[serde(default)]
+    #[json(default)]
     pub cvc_check: crate::radar::InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check,
     #[doc = "Card issuer's reason for the network decline."]
-    #[serde(default)]
+    #[json(default)]
     pub reason: crate::radar::InsightsResourcesPaymentEvaluationRejectedCardReason,
 }
 
@@ -1616,43 +1396,23 @@ impl Default for InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de> for InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "fail" => InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check::Fail,
-                    "pass" => InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check::Pass,
-                    "unavailable" => InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check::Unavailable,
-                    "unchecked" => InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check::Unchecked,
-                    other => {
-                        InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "fail" => InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check::Fail,
+            "pass" => InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check::Pass,
+            "unavailable" => InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check::Unavailable,
+            "unchecked" => InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check::Unchecked,
+            other => InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1707,79 +1467,59 @@ impl Default for InsightsResourcesPaymentEvaluationRejectedCardReason {
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de> for InsightsResourcesPaymentEvaluationRejectedCardReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InsightsResourcesPaymentEvaluationRejectedCardReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "authentication_failed" => {
-                        InsightsResourcesPaymentEvaluationRejectedCardReason::AuthenticationFailed
-                    }
-                    "do_not_honor" => InsightsResourcesPaymentEvaluationRejectedCardReason::DoNotHonor,
-                    "expired" => InsightsResourcesPaymentEvaluationRejectedCardReason::Expired,
-                    "incorrect_cvc" => InsightsResourcesPaymentEvaluationRejectedCardReason::IncorrectCvc,
-                    "incorrect_number" => InsightsResourcesPaymentEvaluationRejectedCardReason::IncorrectNumber,
-                    "incorrect_postal_code" => {
-                        InsightsResourcesPaymentEvaluationRejectedCardReason::IncorrectPostalCode
-                    }
-                    "insufficient_funds" => InsightsResourcesPaymentEvaluationRejectedCardReason::InsufficientFunds,
-                    "invalid_account" => InsightsResourcesPaymentEvaluationRejectedCardReason::InvalidAccount,
-                    "lost_card" => InsightsResourcesPaymentEvaluationRejectedCardReason::LostCard,
-                    "other" => InsightsResourcesPaymentEvaluationRejectedCardReason::Other,
-                    "processing_error" => InsightsResourcesPaymentEvaluationRejectedCardReason::ProcessingError,
-                    "reported_stolen" => InsightsResourcesPaymentEvaluationRejectedCardReason::ReportedStolen,
-                    "try_again_later" => InsightsResourcesPaymentEvaluationRejectedCardReason::TryAgainLater,
-                    other => InsightsResourcesPaymentEvaluationRejectedCardReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InsightsResourcesPaymentEvaluationRejectedCardReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InsightsResourcesPaymentEvaluationRejectedCardReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InsightsResourcesPaymentEvaluationRejectedCardReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "authentication_failed" => InsightsResourcesPaymentEvaluationRejectedCardReason::AuthenticationFailed,
+            "do_not_honor" => InsightsResourcesPaymentEvaluationRejectedCardReason::DoNotHonor,
+            "expired" => InsightsResourcesPaymentEvaluationRejectedCardReason::Expired,
+            "incorrect_cvc" => InsightsResourcesPaymentEvaluationRejectedCardReason::IncorrectCvc,
+            "incorrect_number" => InsightsResourcesPaymentEvaluationRejectedCardReason::IncorrectNumber,
+            "incorrect_postal_code" => InsightsResourcesPaymentEvaluationRejectedCardReason::IncorrectPostalCode,
+            "insufficient_funds" => InsightsResourcesPaymentEvaluationRejectedCardReason::InsufficientFunds,
+            "invalid_account" => InsightsResourcesPaymentEvaluationRejectedCardReason::InvalidAccount,
+            "lost_card" => InsightsResourcesPaymentEvaluationRejectedCardReason::LostCard,
+            "other" => InsightsResourcesPaymentEvaluationRejectedCardReason::Other,
+            "processing_error" => InsightsResourcesPaymentEvaluationRejectedCardReason::ProcessingError,
+            "reported_stolen" => InsightsResourcesPaymentEvaluationRejectedCardReason::ReportedStolen,
+            "try_again_later" => InsightsResourcesPaymentEvaluationRejectedCardReason::TryAgainLater,
+            other => InsightsResourcesPaymentEvaluationRejectedCardReason::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationShipping {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<crate::radar::InsightsResourcesPaymentEvaluationAddress>,
     #[doc = "Shipping name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[doc = "Shipping phone number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationSignalV2 {
     #[doc = "The time when this signal was evaluated."]
-    #[serde(default)]
+    #[json(default)]
     pub evaluated_at: i64,
     #[doc = "Risk level of this signal, based on the score."]
-    #[serde(default)]
+    #[json(default)]
     pub risk_level: crate::radar::InsightsResourcesPaymentEvaluationSignalV2RiskLevel,
     #[doc = "Numeric score for this signal, returned with two decimal places."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub score: Option<f64>,
 }
 
@@ -1820,96 +1560,83 @@ impl Default for InsightsResourcesPaymentEvaluationSignalV2RiskLevel {
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de> for InsightsResourcesPaymentEvaluationSignalV2RiskLevel {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InsightsResourcesPaymentEvaluationSignalV2RiskLevel;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "elevated" => InsightsResourcesPaymentEvaluationSignalV2RiskLevel::Elevated,
-                    "highest" => InsightsResourcesPaymentEvaluationSignalV2RiskLevel::Highest,
-                    "low" => InsightsResourcesPaymentEvaluationSignalV2RiskLevel::Low,
-                    "normal" => InsightsResourcesPaymentEvaluationSignalV2RiskLevel::Normal,
-                    "not_assessed" => InsightsResourcesPaymentEvaluationSignalV2RiskLevel::NotAssessed,
-                    "unknown" => InsightsResourcesPaymentEvaluationSignalV2RiskLevel::UnknownValue,
-                    other => InsightsResourcesPaymentEvaluationSignalV2RiskLevel::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InsightsResourcesPaymentEvaluationSignalV2RiskLevel::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InsightsResourcesPaymentEvaluationSignalV2RiskLevel {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InsightsResourcesPaymentEvaluationSignalV2RiskLevel::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "elevated" => InsightsResourcesPaymentEvaluationSignalV2RiskLevel::Elevated,
+            "highest" => InsightsResourcesPaymentEvaluationSignalV2RiskLevel::Highest,
+            "low" => InsightsResourcesPaymentEvaluationSignalV2RiskLevel::Low,
+            "normal" => InsightsResourcesPaymentEvaluationSignalV2RiskLevel::Normal,
+            "not_assessed" => InsightsResourcesPaymentEvaluationSignalV2RiskLevel::NotAssessed,
+            "unknown" => InsightsResourcesPaymentEvaluationSignalV2RiskLevel::UnknownValue,
+            other => InsightsResourcesPaymentEvaluationSignalV2RiskLevel::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationSignals {
     #[doc = "The likelihood that this `PaymentEvaluation` results in an early fraud warning."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub early_fraud_warning: Option<crate::radar::InsightsResourcesPaymentEvaluationSignalV2>,
     #[doc = "The likelihood that this `PaymentEvaluation` results in a dispute with reason code `fraudulent`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fraudulent_dispute: Option<crate::radar::InsightsResourcesPaymentEvaluationSignalV2>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fraudulent_payment: Option<crate::radar::InsightsResourcesPaymentEvaluationSignalV2>,
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationSucceeded {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::radar::InsightsResourcesPaymentEvaluationSucceededCard>,
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationSucceededCard {
     #[doc = "Result of the address line 1 check."]
-    #[serde(default)]
+    #[json(default)]
     pub address_line1_check: crate::radar::InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check,
     #[doc = "Indicates whether the cardholder provided a postal code and if it matched the cardholder’s billing address."]
-    #[serde(default)]
+    #[json(default)]
     pub address_postal_code_check: crate::radar::InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check,
     #[doc = "Result of the CVC check."]
-    #[serde(default)]
+    #[json(default)]
     pub cvc_check: crate::radar::InsightsResourcesPaymentEvaluationRejectedCardAddressLine1Check,
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationUserInterventionRaised {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub custom: Option<crate::radar::InsightsResourcesPaymentEvaluationUserInterventionRaisedCustom>,
     #[doc = "Unique identifier for the user intervention event."]
-    #[serde(default)]
+    #[json(default)]
     pub key: String,
     #[doc = "Type of user intervention raised."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::radar::InsightsResourcesPaymentEvaluationUserInterventionRaisedType,
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationUserInterventionRaisedCustom {
     #[doc = "Custom type of user intervention raised."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: String,
 }
 
@@ -1944,51 +1671,34 @@ impl Default for InsightsResourcesPaymentEvaluationUserInterventionRaisedType {
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de> for InsightsResourcesPaymentEvaluationUserInterventionRaisedType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InsightsResourcesPaymentEvaluationUserInterventionRaisedType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "3ds" => InsightsResourcesPaymentEvaluationUserInterventionRaisedType::N3ds,
-                    "captcha" => InsightsResourcesPaymentEvaluationUserInterventionRaisedType::Captcha,
-                    "custom" => InsightsResourcesPaymentEvaluationUserInterventionRaisedType::Custom,
-                    other => InsightsResourcesPaymentEvaluationUserInterventionRaisedType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InsightsResourcesPaymentEvaluationUserInterventionRaisedType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for InsightsResourcesPaymentEvaluationUserInterventionRaisedType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InsightsResourcesPaymentEvaluationUserInterventionRaisedType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "3ds" => InsightsResourcesPaymentEvaluationUserInterventionRaisedType::N3ds,
+            "captcha" => InsightsResourcesPaymentEvaluationUserInterventionRaisedType::Captcha,
+            "custom" => InsightsResourcesPaymentEvaluationUserInterventionRaisedType::Custom,
+            other => InsightsResourcesPaymentEvaluationUserInterventionRaisedType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InsightsResourcesPaymentEvaluationUserInterventionResolved {
     #[doc = "Unique ID of this intervention."]
-    #[serde(default)]
+    #[json(default)]
     pub key: String,
     #[doc = "Result of the intervention if it has been completed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub outcome: Option<crate::radar::InsightsResourcesPaymentEvaluationUserInterventionResolvedOutcome>,
 }
 
@@ -2016,42 +1726,22 @@ impl InsightsResourcesPaymentEvaluationUserInterventionResolvedOutcome {
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de> for InsightsResourcesPaymentEvaluationUserInterventionResolvedOutcome {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InsightsResourcesPaymentEvaluationUserInterventionResolvedOutcome;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "abandoned" => InsightsResourcesPaymentEvaluationUserInterventionResolvedOutcome::Abandoned,
-                    "failed" => InsightsResourcesPaymentEvaluationUserInterventionResolvedOutcome::Failed,
-                    "passed" => InsightsResourcesPaymentEvaluationUserInterventionResolvedOutcome::Passed,
-                    other => {
-                        InsightsResourcesPaymentEvaluationUserInterventionResolvedOutcome::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InsightsResourcesPaymentEvaluationUserInterventionResolvedOutcome::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for InsightsResourcesPaymentEvaluationUserInterventionResolvedOutcome {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InsightsResourcesPaymentEvaluationUserInterventionResolvedOutcome::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "abandoned" => InsightsResourcesPaymentEvaluationUserInterventionResolvedOutcome::Abandoned,
+            "failed" => InsightsResourcesPaymentEvaluationUserInterventionResolvedOutcome::Failed,
+            "passed" => InsightsResourcesPaymentEvaluationUserInterventionResolvedOutcome::Passed,
+            other => InsightsResourcesPaymentEvaluationUserInterventionResolvedOutcome::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2166,31 +1856,32 @@ impl crate::params::FormEncode for ListRadarValueListsParams {
 pub type ListRadarValueListsParamsCreated = crate::radar::ListRadarEarlyFraudWarningsParamsCreated;
 
 #[cfg(any(feature = "events", feature = "radar"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RadarEarlyFraudWarning {
     #[doc = "An EFW is actionable if it has not received a dispute and has not been fully refunded."]
-    #[serde(default)]
+    #[json(default)]
     pub actionable: bool,
     #[doc = "ID of the charge this early fraud warning is for, optionally expanded."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub charge: Option<crate::Expandable<crate::charges::Charge>>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "The type of fraud labelled by the issuer."]
-    #[serde(default)]
+    #[json(default)]
     pub fraud_type: String,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::radar::RadarEarlyFraudWarningObject,
     #[doc = "ID of the Payment Intent this early fraud warning is for, optionally expanded."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_intent: Option<crate::Expandable<crate::payment_intents::PaymentIntent>>,
 }
 
@@ -2228,73 +1919,56 @@ impl Default for RadarEarlyFraudWarningObject {
 }
 
 #[cfg(any(feature = "events", feature = "radar"))]
-impl<'de> serde::Deserialize<'de> for RadarEarlyFraudWarningObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = RadarEarlyFraudWarningObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "radar.early_fraud_warning" => RadarEarlyFraudWarningObject::RadarEarlyFraudWarning,
-                    other => RadarEarlyFraudWarningObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(RadarEarlyFraudWarningObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for RadarEarlyFraudWarningObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(RadarEarlyFraudWarningObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "radar.early_fraud_warning" => RadarEarlyFraudWarningObject::RadarEarlyFraudWarning,
+            other => RadarEarlyFraudWarningObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RadarPaymentEvaluation {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub client_device_metadata_details: Option<crate::radar::InsightsResourcesPaymentEvaluationClientDeviceMetadata>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created_at: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_details: Option<crate::radar::InsightsResourcesPaymentEvaluationCustomerDetails>,
     #[doc = "Event information associated with the payment evaluation, such as refunds, dispute, early fraud warnings, or user int..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub events: Option<Vec<crate::radar::InsightsResourcesPaymentEvaluationEvent>>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::radar::RadarPaymentEvaluationObject,
     #[doc = "Indicates the final outcome for the payment evaluation."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub outcome: Option<crate::radar::InsightsResourcesPaymentEvaluationOutcome>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_details: Option<crate::radar::InsightsResourcesPaymentEvaluationPaymentDetails>,
     #[doc = "Recommended action based on the score of the `fraudulent_payment` signal."]
-    #[serde(default)]
+    #[json(default)]
     pub recommended_action: crate::radar::RadarPaymentEvaluationRecommendedAction,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub signals: Option<crate::radar::InsightsResourcesPaymentEvaluationSignals>,
 }
 
@@ -2332,36 +2006,18 @@ impl Default for RadarPaymentEvaluationObject {
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de> for RadarPaymentEvaluationObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = RadarPaymentEvaluationObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "radar.payment_evaluation" => RadarPaymentEvaluationObject::RadarPaymentEvaluation,
-                    other => RadarPaymentEvaluationObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(RadarPaymentEvaluationObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for RadarPaymentEvaluationObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(RadarPaymentEvaluationObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "radar.payment_evaluation" => RadarPaymentEvaluationObject::RadarPaymentEvaluation,
+            other => RadarPaymentEvaluationObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2394,37 +2050,19 @@ impl Default for RadarPaymentEvaluationRecommendedAction {
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de> for RadarPaymentEvaluationRecommendedAction {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = RadarPaymentEvaluationRecommendedAction;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "block" => RadarPaymentEvaluationRecommendedAction::Block,
-                    "continue" => RadarPaymentEvaluationRecommendedAction::Continue,
-                    other => RadarPaymentEvaluationRecommendedAction::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(RadarPaymentEvaluationRecommendedAction::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for RadarPaymentEvaluationRecommendedAction {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(RadarPaymentEvaluationRecommendedAction::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "block" => RadarPaymentEvaluationRecommendedAction::Block,
+            "continue" => RadarPaymentEvaluationRecommendedAction::Continue,
+            other => RadarPaymentEvaluationRecommendedAction::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2473,10 +2111,11 @@ impl<'de> serde::Deserialize<'de> for RadarPaymentEvaluationRecommendedAction {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RadarRadarOptions {
     #[doc = "A [Radar Session](https://docs.stripe.com/radar/radar-session) is a snapshot of the browser metadata and device detai..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub session: Option<String>,
 }
 
@@ -2525,22 +2164,23 @@ pub struct RadarRadarOptions {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RadarReviewResourceLocation {
     #[doc = "The city where the payment originated."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
     #[doc = "Two-letter ISO code representing the country where the payment originated."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[doc = "The geographic latitude where the payment originated."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub latitude: Option<f64>,
     #[doc = "The geographic longitude where the payment originated."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub longitude: Option<f64>,
     #[doc = "The state/county/province/region where the payment originated."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub region: Option<String>,
 }
 
@@ -2589,54 +2229,56 @@ pub struct RadarReviewResourceLocation {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RadarReviewResourceSession {
     #[doc = "The browser used in this browser session (e.g., `Chrome`)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub browser: Option<String>,
     #[doc = "Information about the device used for the browser session (e.g., `Samsung SM-G930T`)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub device: Option<String>,
     #[doc = "The platform for the browser session (e.g., `Macintosh`)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub platform: Option<String>,
     #[doc = "The version for the browser session (e.g., `61.0.3163.100`)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub version: Option<String>,
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RadarValueList {
     #[doc = "The name of the value list for use in rules."]
-    #[serde(default)]
+    #[json(default)]
     pub alias: String,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "The name or email address of the user who created this value list."]
-    #[serde(default)]
+    #[json(default)]
     pub created_by: String,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The type of items in the value list."]
-    #[serde(default)]
+    #[json(default)]
     pub item_type: crate::radar::RadarValueListItemType,
     #[doc = "List of items contained within this value list."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub list_items: Option<crate::List<crate::radar::RadarValueListItem>>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "The name of the value list."]
-    #[serde(default)]
+    #[json(default)]
     pub name: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::radar::RadarValueListObject,
 }
 
@@ -2648,28 +2290,29 @@ impl crate::PagedItem for RadarValueList {
 }
 
 #[cfg(feature = "radar")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RadarValueListItem {
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "The name or email address of the user who added this item to the value list."]
-    #[serde(default)]
+    #[json(default)]
     pub created_by: String,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::radar::RadarValueListItemObject,
     #[doc = "The value of the item."]
-    #[serde(default)]
+    #[json(default)]
     pub value: String,
     #[doc = "The identifier of the value list this item belongs to."]
-    #[serde(default)]
+    #[json(default)]
     pub value_list: String,
 }
 
@@ -2707,36 +2350,18 @@ impl Default for RadarValueListItemObject {
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de> for RadarValueListItemObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = RadarValueListItemObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "radar.value_list_item" => RadarValueListItemObject::RadarValueListItem,
-                    other => RadarValueListItemObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(RadarValueListItemObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for RadarValueListItemObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(RadarValueListItemObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "radar.value_list_item" => RadarValueListItemObject::RadarValueListItem,
+            other => RadarValueListItemObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2789,47 +2414,29 @@ impl Default for RadarValueListItemType {
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de> for RadarValueListItemType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = RadarValueListItemType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account" => RadarValueListItemType::Account,
-                    "card_bin" => RadarValueListItemType::CardBin,
-                    "card_fingerprint" => RadarValueListItemType::CardFingerprint,
-                    "case_sensitive_string" => RadarValueListItemType::CaseSensitiveString,
-                    "country" => RadarValueListItemType::Country,
-                    "crypto_fingerprint" => RadarValueListItemType::CryptoFingerprint,
-                    "customer_id" => RadarValueListItemType::CustomerId,
-                    "email" => RadarValueListItemType::Email,
-                    "ip_address" => RadarValueListItemType::IpAddress,
-                    "sepa_debit_fingerprint" => RadarValueListItemType::SepaDebitFingerprint,
-                    "string" => RadarValueListItemType::String,
-                    "us_bank_account_fingerprint" => RadarValueListItemType::UsBankAccountFingerprint,
-                    other => RadarValueListItemType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(RadarValueListItemType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for RadarValueListItemType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(RadarValueListItemType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account" => RadarValueListItemType::Account,
+            "card_bin" => RadarValueListItemType::CardBin,
+            "card_fingerprint" => RadarValueListItemType::CardFingerprint,
+            "case_sensitive_string" => RadarValueListItemType::CaseSensitiveString,
+            "country" => RadarValueListItemType::Country,
+            "crypto_fingerprint" => RadarValueListItemType::CryptoFingerprint,
+            "customer_id" => RadarValueListItemType::CustomerId,
+            "email" => RadarValueListItemType::Email,
+            "ip_address" => RadarValueListItemType::IpAddress,
+            "sepa_debit_fingerprint" => RadarValueListItemType::SepaDebitFingerprint,
+            "string" => RadarValueListItemType::String,
+            "us_bank_account_fingerprint" => RadarValueListItemType::UsBankAccountFingerprint,
+            other => RadarValueListItemType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2860,36 +2467,18 @@ impl Default for RadarValueListObject {
 }
 
 #[cfg(feature = "radar")]
-impl<'de> serde::Deserialize<'de> for RadarValueListObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = RadarValueListObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "radar.value_list" => RadarValueListObject::RadarValueList,
-                    other => RadarValueListObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(RadarValueListObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for RadarValueListObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(RadarValueListObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "radar.value_list" => RadarValueListObject::RadarValueList,
+            other => RadarValueListObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2938,16 +2527,17 @@ impl<'de> serde::Deserialize<'de> for RadarValueListObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Rule {
     #[doc = "The action taken on the payment."]
-    #[serde(default)]
+    #[json(default)]
     pub action: String,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The predicate to evaluate the payment against."]
-    #[serde(default)]
+    #[json(default)]
     pub predicate: String,
 }
 

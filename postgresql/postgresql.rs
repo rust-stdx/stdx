@@ -10,8 +10,8 @@
 //! * **Connection pooling** — bounded pool with idle/lifetime limits and
 //!   connections returned automatically on drop.
 //! * **Ergonomic row mapping** — `#[derive(FromRow)]`, tuples, and scalars.
-//! * **JSON structs** — `#[derive(Json)]` maps a `serde` type straight to a
-//!   `json` / `jsonb` column, with no `serde_json::Value` in between.
+//! * **JSON structs** — `#[derive(Json)]` maps a `json::Encode`/`json::Decode`
+//!   type straight to a `json` / `jsonb` column, with no intermediate value.
 //! * **Iterator array binding** — bind `UNNEST` / `= ANY` arrays from a lazy
 //!   iterator with no intermediate `Vec`.
 //! * **TLS** — rustls with the stdx `crypto_rustls` provider (TLS 1.3).
@@ -287,7 +287,7 @@
 //! | `Vec<u8>` / `&[u8]` | `bytea` |
 //! | `uuid::Uuid` | `uuid` |
 //! | `time::DateTime` | `timestamptz`, `timestamp`, `date`, `time`, `timetz` |
-//! | `serde_json::Value` | `json`, `jsonb` |
+//! | `json::Value<'static>` | `json`, `jsonb` |
 //! | `#[derive(Json)]` types, [`struct@Json<T>`] | `json`, `jsonb` |
 //! | `ipnetwork::IpNetwork` | `inet`, `cidr` |
 //! | [`Interval`] | `interval` |
@@ -348,12 +348,12 @@
 //! # JSON
 //!
 //! The preferred way to map a Rust type to a `json` / `jsonb` column is
-//! `#[derive(Json)]`, together with serde's `Serialize` and `Deserialize`:
+//! `#[derive(Json)]`, together with `json::Encode` and `json::Decode`:
 //!
 //! ```ignore
 //! use postgresql::{FromRow, Json, query, query_as};
 //!
-//! #[derive(serde::Serialize, serde::Deserialize, Json, Debug)]
+//! #[derive(json::Encode, json::Decode, Json, Debug)]
 //! struct User {
 //!     name: String,
 //!     admin: bool,
@@ -414,7 +414,7 @@
 //!
 //! Both forms encode as `jsonb` (with the usual version byte) and accept both
 //! `json` and `jsonb` columns on decode. Writing to an actual `json` (not
-//! `jsonb`) column needs the same SQL cast as `serde_json::Value`
+//! `jsonb`) column needs the same SQL cast as `json::Value`
 //! (`$1::jsonb::json`).
 //!
 //! # Compile-time checking
@@ -481,7 +481,7 @@ pub use transaction::Transaction;
 #[doc(hidden)]
 pub mod __private {
     pub use bytes::{Bytes, BytesMut};
-    pub use serde;
+    pub use json;
 
     use crate::{
         connection::Connection,

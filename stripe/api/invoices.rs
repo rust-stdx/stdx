@@ -46,7 +46,7 @@ pub struct AddLinesParamsLinesItem {
     #[doc = "Controls whether discounts apply to this line item."]
     pub discountable: Option<bool>,
     #[doc = "The coupons, promotion codes & existing discounts which apply to the line item."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "ID of an unassigned invoice item to assign to this invoice."]
     pub invoice_item: Option<String>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
@@ -62,9 +62,9 @@ pub struct AddLinesParamsLinesItem {
     #[doc = "Non-negative decimal with at most 12 decimal places."]
     pub quantity_decimal: Option<String>,
     #[doc = "A list of up to 20 tax amounts for this line item."]
-    pub tax_amounts: Option<serde_json::Value>,
+    pub tax_amounts: Option<json::OwnedValue>,
     #[doc = "The tax rates which apply to the line item."]
-    pub tax_rates: Option<serde_json::Value>,
+    pub tax_rates: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "invoices")]
@@ -163,7 +163,7 @@ pub struct AddLinesParamsLinesItemPriceDataProductDataTaxDetails {
     #[doc = "A tax location ID."]
     pub performance_location: Option<String>,
     #[doc = "A [tax code](https://docs.stripe.com/tax/tax-categories) ID."]
-    pub tax_code: Option<serde_json::Value>,
+    pub tax_code: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "invoices")]
@@ -217,7 +217,7 @@ impl crate::params::FormEncode for AttachPaymentParams {
 #[derive(Debug, Clone, Default)]
 pub struct CreateInvoiceParams {
     #[doc = "The account tax IDs associated with the invoice."]
-    pub account_tax_ids: Option<serde_json::Value>,
+    pub account_tax_ids: Option<json::OwnedValue>,
     #[doc = "A fee in cents (or local equivalent) that will be applied to the invoice and transferred to the application owner's S..."]
     pub application_fee_amount: Option<i64>,
     #[doc = "Controls whether Stripe performs [automatic collection](https://docs.stripe.com/invoicing/integration/automatic-advan..."]
@@ -231,7 +231,7 @@ pub struct CreateInvoiceParams {
     #[doc = "The currency to create this invoice in."]
     pub currency: Option<String>,
     #[doc = "A list of up to 4 custom fields to be displayed on the invoice."]
-    pub custom_fields: Option<serde_json::Value>,
+    pub custom_fields: Option<json::OwnedValue>,
     #[doc = "The ID of the customer to bill."]
     pub customer: Option<String>,
     #[doc = "The ID of the account to bill."]
@@ -247,7 +247,7 @@ pub struct CreateInvoiceParams {
     #[doc = "An arbitrary string attached to the object."]
     pub description: Option<String>,
     #[doc = "The coupons and promotion codes to redeem into discounts for the invoice."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "The date on which payment for this invoice is due."]
     pub due_date: Option<i64>,
     #[doc = "The date when this invoice is in effect."]
@@ -384,37 +384,19 @@ impl CreateInvoiceParamsAutomaticTaxLiabilityType {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreateInvoiceParamsAutomaticTaxLiabilityType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateInvoiceParamsAutomaticTaxLiabilityType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account" => CreateInvoiceParamsAutomaticTaxLiabilityType::Account,
-                    "self" => CreateInvoiceParamsAutomaticTaxLiabilityType::SelfValue,
-                    other => CreateInvoiceParamsAutomaticTaxLiabilityType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateInvoiceParamsAutomaticTaxLiabilityType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateInvoiceParamsAutomaticTaxLiabilityType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateInvoiceParamsAutomaticTaxLiabilityType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account" => CreateInvoiceParamsAutomaticTaxLiabilityType::Account,
+            "self" => CreateInvoiceParamsAutomaticTaxLiabilityType::SelfValue,
+            other => CreateInvoiceParamsAutomaticTaxLiabilityType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -465,36 +447,18 @@ impl CreateInvoiceParamsFromInvoiceAction {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreateInvoiceParamsFromInvoiceAction {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateInvoiceParamsFromInvoiceAction;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "revision" => CreateInvoiceParamsFromInvoiceAction::Revision,
-                    other => CreateInvoiceParamsFromInvoiceAction::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateInvoiceParamsFromInvoiceAction::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateInvoiceParamsFromInvoiceAction {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateInvoiceParamsFromInvoiceAction::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "revision" => CreateInvoiceParamsFromInvoiceAction::Revision,
+            other => CreateInvoiceParamsFromInvoiceAction::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -529,11 +493,11 @@ pub type CreateInvoiceParamsIssuerType = crate::invoices::CreateInvoiceParamsAut
 #[derive(Debug, Clone, Default)]
 pub struct CreateInvoiceParamsPaymentSettings {
     #[doc = "ID of the mandate to be used for this invoice."]
-    pub default_mandate: Option<serde_json::Value>,
+    pub default_mandate: Option<json::OwnedValue>,
     #[doc = "Payment-method-specific configuration to provide to the invoice’s PaymentIntent."]
     pub payment_method_options: Option<crate::invoices::CreateInvoiceParamsPaymentSettingsPaymentMethodOptions>,
     #[doc = "The list of payment method types (e.g."]
-    pub payment_method_types: Option<serde_json::Value>,
+    pub payment_method_types: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "invoices")]
@@ -654,39 +618,33 @@ impl CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandateOptio
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "business" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Business,
-                    "personal" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Personal,
-                    other => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "business" => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Business
+            }
+            "personal" => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Personal
+            }
+            other => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Unknown(
+                    other.to_string(),
+                )
+            }
+        })
     }
 }
 
@@ -725,54 +683,28 @@ impl CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerification
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de>
-    for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "automatic" => {
-                        CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod::Automatic
-                    }
-                    "instant" => {
-                        CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod::Instant
-                    }
-                    "microdeposits" => {
-                        CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod::Microdeposits
-                    }
-                    other => {
-                        CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "automatic" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod::Automatic,
+            "instant" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod::Instant,
+            "microdeposits" => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod::Microdeposits
+            }
+            other => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -824,49 +756,27 @@ impl CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLa
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de>
-    for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "de" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::De,
-                    "en" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::En,
-                    "fr" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::Fr,
-                    "nl" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::Nl,
-                    other => {
-                        CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "de" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::De,
+            "en" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::En,
+            "fr" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::Fr,
+            "nl" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::Nl,
+            other => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -1034,56 +944,70 @@ impl CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsR
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unknown(
+                    String::new(),
+                ),
+            );
+        }
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unnamed,
+            "ch_ein" => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::ChEin
             }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unnamed,
-                    "ch_ein" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::ChEin,
-                    "de_hrb" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::DeHrb,
-                    "dk_cvr" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::DkCvr,
-                    "es_cif" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::EsCif,
-                    "fi_tunnus" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FiTunnus,
-                    "fr_siren" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FrSiren,
-                    "fr_siret" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FrSiret,
-                    "it_rea" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::ItRea,
-                    "nl_kvk" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NlKvk,
-                    "no_org_number" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NoOrgNumber,
-                    "no_pno" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NoPno,
-                    "se_org_number" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::SeOrgNumber,
-                    "se_pno" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::SePno,
-                    "uk_crn" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::UkCrn,
-                    other => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unknown(other.to_string()),
-                })
+            "de_hrb" => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::DeHrb
             }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unknown(
-                        String::new(),
-                    ),
+            "dk_cvr" => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::DkCvr
+            }
+            "es_cif" => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::EsCif
+            }
+            "fi_tunnus" => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FiTunnus
+            }
+            "fr_siren" => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FrSiren
+            }
+            "fr_siret" => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FrSiret
+            }
+            "it_rea" => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::ItRea
+            }
+            "nl_kvk" => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NlKvk
+            }
+            "no_org_number" => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NoOrgNumber
+            }
+            "no_pno" => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NoPno
+            }
+            "se_org_number" => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::SeOrgNumber
+            }
+            "se_pno" => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::SePno
+            }
+            "uk_crn" => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::UkCrn
+            }
+            other => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unknown(
+                    other.to_string(),
                 )
             }
-        }
-        deserializer.deserialize_any(EnumVisitor)
+        })
     }
 }
 
@@ -1183,48 +1107,24 @@ impl CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanI
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de>
-    for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanInterval
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "month" => {
-                        CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanInterval::Month
-                    }
-                    other => {
-                        CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanInterval::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanInterval::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanInterval::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "month" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanInterval::Month,
+            other => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanInterval::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -1259,48 +1159,24 @@ impl CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanT
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "bonus" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanType::Bonus,
-                    "fixed_count" => {
-                        CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanType::FixedCount
-                    }
-                    "revolving" => {
-                        CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanType::Revolving
-                    }
-                    other => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanType::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanType::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanType::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "bonus" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanType::Bonus,
+            "fixed_count" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanType::FixedCount,
+            "revolving" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanType::Revolving,
+            other => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardInstallmentsPlanType::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -1335,48 +1211,24 @@ impl CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecu
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "any" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure::Any,
-                    "automatic" => {
-                        CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure::Automatic
-                    }
-                    "challenge" => {
-                        CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure::Challenge
-                    }
-                    other => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "any" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure::Any,
+            "automatic" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure::Automatic,
+            "challenge" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure::Challenge,
+            other => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -1519,50 +1371,36 @@ impl CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPu
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "dependant_support" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::DependantSupport,
-                    "government" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Government,
-                    "loan" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Loan,
-                    "mortgage" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Mortgage,
-                    "other" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Other,
-                    "pension" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Pension,
-                    "personal" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Personal,
-                    "retail" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Retail,
-                    "salary" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Salary,
-                    "tax" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Tax,
-                    "utility" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Utility,
-                    other => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "dependant_support" => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::DependantSupport
+            }
+            "government" => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Government
+            }
+            "loan" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Loan,
+            "mortgage" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Mortgage,
+            "other" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Other,
+            "pension" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Pension,
+            "personal" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Personal,
+            "retail" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Retail,
+            "salary" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Salary,
+            "tax" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Tax,
+            "utility" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Utility,
+            other => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -1613,39 +1451,23 @@ impl CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPixAmountIncludesIof 
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPixAmountIncludesIof {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPixAmountIncludesIof;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPixAmountIncludesIof::Always,
-                    "never" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPixAmountIncludesIof::Never,
-                    other => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPixAmountIncludesIof::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPixAmountIncludesIof::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPixAmountIncludesIof {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPixAmountIncludesIof::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPixAmountIncludesIof::Always,
+            "never" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPixAmountIncludesIof::Never,
+            other => {
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsPixAmountIncludesIof::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -1721,49 +1543,25 @@ impl CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUpiMandateOptionsAmou
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de>
-    for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUpiMandateOptionsAmountType
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUpiMandateOptionsAmountType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "fixed" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUpiMandateOptionsAmountType::Fixed,
-                    "maximum" => {
-                        CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUpiMandateOptionsAmountType::Maximum
-                    }
-                    other => {
-                        CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUpiMandateOptionsAmountType::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUpiMandateOptionsAmountType::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUpiMandateOptionsAmountType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUpiMandateOptionsAmountType::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "fixed" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUpiMandateOptionsAmountType::Fixed,
+            "maximum" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUpiMandateOptionsAmountType::Maximum,
+            other => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUpiMandateOptionsAmountType::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -1861,37 +1659,19 @@ impl CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancia
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "checking" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem::Checking,
-                    "savings" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem::Savings,
-                    other => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "checking" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem::Checking,
+            "savings" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem::Savings,
+            other => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1928,42 +1708,23 @@ impl CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancia
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value =
-                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "balances" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Balances,
-                    "ownership" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Ownership,
-                    "payment_method" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::PaymentMethod,
-                    "transactions" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Transactions,
-                    other => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "balances" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Balances,
+            "ownership" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Ownership,
+            "payment_method" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::PaymentMethod,
+            "transactions" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Transactions,
+            other => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2000,41 +1761,22 @@ impl CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancia
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value =
-                CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "balances" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Balances,
-                    "ownership" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Ownership,
-                    "transactions" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Transactions,
-                    other => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "balances" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Balances,
+            "ownership" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Ownership,
+            "transactions" => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Transactions,
+            other => CreateInvoiceParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2073,37 +1815,19 @@ impl CreateInvoiceParamsPendingInvoiceItemsBehavior {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreateInvoiceParamsPendingInvoiceItemsBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateInvoiceParamsPendingInvoiceItemsBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exclude" => CreateInvoiceParamsPendingInvoiceItemsBehavior::Exclude,
-                    "include" => CreateInvoiceParamsPendingInvoiceItemsBehavior::Include,
-                    other => CreateInvoiceParamsPendingInvoiceItemsBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateInvoiceParamsPendingInvoiceItemsBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateInvoiceParamsPendingInvoiceItemsBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateInvoiceParamsPendingInvoiceItemsBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exclude" => CreateInvoiceParamsPendingInvoiceItemsBehavior::Exclude,
+            "include" => CreateInvoiceParamsPendingInvoiceItemsBehavior::Include,
+            other => CreateInvoiceParamsPendingInvoiceItemsBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2124,7 +1848,7 @@ pub struct CreateInvoiceParamsRendering {
     #[doc = "ID of the invoice rendering template to use for this invoice."]
     pub template: Option<String>,
     #[doc = "The specific version of invoice rendering template to use for this invoice."]
-    pub template_version: Option<serde_json::Value>,
+    pub template_version: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "invoices")]
@@ -2160,38 +1884,20 @@ impl CreateInvoiceParamsRenderingAmountTaxDisplay {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreateInvoiceParamsRenderingAmountTaxDisplay {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateInvoiceParamsRenderingAmountTaxDisplay;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreateInvoiceParamsRenderingAmountTaxDisplay::Unnamed,
-                    "exclude_tax" => CreateInvoiceParamsRenderingAmountTaxDisplay::ExcludeTax,
-                    "include_inclusive_tax" => CreateInvoiceParamsRenderingAmountTaxDisplay::IncludeInclusiveTax,
-                    other => CreateInvoiceParamsRenderingAmountTaxDisplay::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateInvoiceParamsRenderingAmountTaxDisplay::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateInvoiceParamsRenderingAmountTaxDisplay {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateInvoiceParamsRenderingAmountTaxDisplay::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreateInvoiceParamsRenderingAmountTaxDisplay::Unnamed,
+            "exclude_tax" => CreateInvoiceParamsRenderingAmountTaxDisplay::ExcludeTax,
+            "include_inclusive_tax" => CreateInvoiceParamsRenderingAmountTaxDisplay::IncludeInclusiveTax,
+            other => CreateInvoiceParamsRenderingAmountTaxDisplay::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2240,38 +1946,20 @@ impl CreateInvoiceParamsRenderingPdfPageSize {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreateInvoiceParamsRenderingPdfPageSize {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateInvoiceParamsRenderingPdfPageSize;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "a4" => CreateInvoiceParamsRenderingPdfPageSize::A4,
-                    "auto" => CreateInvoiceParamsRenderingPdfPageSize::Auto,
-                    "letter" => CreateInvoiceParamsRenderingPdfPageSize::Letter,
-                    other => CreateInvoiceParamsRenderingPdfPageSize::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateInvoiceParamsRenderingPdfPageSize::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateInvoiceParamsRenderingPdfPageSize {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateInvoiceParamsRenderingPdfPageSize::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "a4" => CreateInvoiceParamsRenderingPdfPageSize::A4,
+            "auto" => CreateInvoiceParamsRenderingPdfPageSize::Auto,
+            "letter" => CreateInvoiceParamsRenderingPdfPageSize::Letter,
+            other => CreateInvoiceParamsRenderingPdfPageSize::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2397,44 +2085,26 @@ impl CreateInvoiceParamsShippingCostShippingRateDataDeliveryEstimateMaximumUnit 
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreateInvoiceParamsShippingCostShippingRateDataDeliveryEstimateMaximumUnit {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateInvoiceParamsShippingCostShippingRateDataDeliveryEstimateMaximumUnit;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "business_day" => {
-                        CreateInvoiceParamsShippingCostShippingRateDataDeliveryEstimateMaximumUnit::BusinessDay
-                    }
-                    "day" => CreateInvoiceParamsShippingCostShippingRateDataDeliveryEstimateMaximumUnit::Day,
-                    "hour" => CreateInvoiceParamsShippingCostShippingRateDataDeliveryEstimateMaximumUnit::Hour,
-                    "month" => CreateInvoiceParamsShippingCostShippingRateDataDeliveryEstimateMaximumUnit::Month,
-                    "week" => CreateInvoiceParamsShippingCostShippingRateDataDeliveryEstimateMaximumUnit::Week,
-                    other => CreateInvoiceParamsShippingCostShippingRateDataDeliveryEstimateMaximumUnit::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateInvoiceParamsShippingCostShippingRateDataDeliveryEstimateMaximumUnit::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateInvoiceParamsShippingCostShippingRateDataDeliveryEstimateMaximumUnit {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateInvoiceParamsShippingCostShippingRateDataDeliveryEstimateMaximumUnit::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "business_day" => CreateInvoiceParamsShippingCostShippingRateDataDeliveryEstimateMaximumUnit::BusinessDay,
+            "day" => CreateInvoiceParamsShippingCostShippingRateDataDeliveryEstimateMaximumUnit::Day,
+            "hour" => CreateInvoiceParamsShippingCostShippingRateDataDeliveryEstimateMaximumUnit::Hour,
+            "month" => CreateInvoiceParamsShippingCostShippingRateDataDeliveryEstimateMaximumUnit::Month,
+            "week" => CreateInvoiceParamsShippingCostShippingRateDataDeliveryEstimateMaximumUnit::Week,
+            other => {
+                CreateInvoiceParamsShippingCostShippingRateDataDeliveryEstimateMaximumUnit::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -2546,44 +2216,36 @@ impl CreateInvoiceParamsShippingCostShippingRateDataFixedAmountCurrencyOptionsVa
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateInvoiceParamsShippingCostShippingRateDataFixedAmountCurrencyOptionsValueTaxBehavior
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateInvoiceParamsShippingCostShippingRateDataFixedAmountCurrencyOptionsValueTaxBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateInvoiceParamsShippingCostShippingRateDataFixedAmountCurrencyOptionsValueTaxBehavior::Unknown(
+                    String::new(),
+                ),
+            );
+        }
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exclusive" => {
+                CreateInvoiceParamsShippingCostShippingRateDataFixedAmountCurrencyOptionsValueTaxBehavior::Exclusive
             }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exclusive" => CreateInvoiceParamsShippingCostShippingRateDataFixedAmountCurrencyOptionsValueTaxBehavior::Exclusive,
-                    "inclusive" => CreateInvoiceParamsShippingCostShippingRateDataFixedAmountCurrencyOptionsValueTaxBehavior::Inclusive,
-                    "unspecified" => CreateInvoiceParamsShippingCostShippingRateDataFixedAmountCurrencyOptionsValueTaxBehavior::Unspecified,
-                    other => CreateInvoiceParamsShippingCostShippingRateDataFixedAmountCurrencyOptionsValueTaxBehavior::Unknown(other.to_string()),
-                })
+            "inclusive" => {
+                CreateInvoiceParamsShippingCostShippingRateDataFixedAmountCurrencyOptionsValueTaxBehavior::Inclusive
             }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateInvoiceParamsShippingCostShippingRateDataFixedAmountCurrencyOptionsValueTaxBehavior::Unknown(
-                        String::new(),
-                    ),
+            "unspecified" => {
+                CreateInvoiceParamsShippingCostShippingRateDataFixedAmountCurrencyOptionsValueTaxBehavior::Unspecified
+            }
+            other => {
+                CreateInvoiceParamsShippingCostShippingRateDataFixedAmountCurrencyOptionsValueTaxBehavior::Unknown(
+                    other.to_string(),
                 )
             }
-        }
-        deserializer.deserialize_any(EnumVisitor)
+        })
     }
 }
 
@@ -2620,36 +2282,18 @@ impl CreateInvoiceParamsShippingCostShippingRateDataType {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreateInvoiceParamsShippingCostShippingRateDataType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateInvoiceParamsShippingCostShippingRateDataType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "fixed_amount" => CreateInvoiceParamsShippingCostShippingRateDataType::FixedAmount,
-                    other => CreateInvoiceParamsShippingCostShippingRateDataType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateInvoiceParamsShippingCostShippingRateDataType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateInvoiceParamsShippingCostShippingRateDataType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateInvoiceParamsShippingCostShippingRateDataType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "fixed_amount" => CreateInvoiceParamsShippingCostShippingRateDataType::FixedAmount,
+            other => CreateInvoiceParamsShippingCostShippingRateDataType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2668,7 +2312,7 @@ pub struct CreateInvoiceParamsShippingDetails {
     #[doc = "Recipient name."]
     pub name: String,
     #[doc = "Recipient phone (including extension)"]
-    pub phone: Option<serde_json::Value>,
+    pub phone: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "invoices")]
@@ -2714,7 +2358,7 @@ pub struct CreatePreviewParams {
     #[doc = "Details about the customer you want to invoice or overrides for an existing customer."]
     pub customer_details: Option<crate::invoices::CreatePreviewParamsCustomerDetails>,
     #[doc = "The coupons to redeem into discounts for the invoice preview."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "List of invoice items to add or update in the upcoming invoice preview (up to 250)."]
@@ -2722,7 +2366,7 @@ pub struct CreatePreviewParams {
     #[doc = "The connected account that issues the invoice."]
     pub issuer: Option<crate::invoices::CreatePreviewParamsIssuer>,
     #[doc = "The account (if any) for which the funds of the invoice payment are intended."]
-    pub on_behalf_of: Option<serde_json::Value>,
+    pub on_behalf_of: Option<json::OwnedValue>,
     #[doc = "Customizes the types of values to include when calculating the invoice."]
     pub preview_mode: Option<crate::invoices::CreatePreviewParamsPreviewMode>,
     #[doc = "The identifier of the schedule whose upcoming invoice you'd like to retrieve."]
@@ -2859,7 +2503,7 @@ pub type CreatePreviewParamsCustomerDetailsShippingAddress =
 #[derive(Debug, Clone, Default)]
 pub struct CreatePreviewParamsCustomerDetailsTax {
     #[doc = "A recent IP address of the customer used for tax reporting and tax location inference."]
-    pub ip_address: Option<serde_json::Value>,
+    pub ip_address: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "invoices")]
@@ -2895,39 +2539,21 @@ impl CreatePreviewParamsCustomerDetailsTaxExempt {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreatePreviewParamsCustomerDetailsTaxExempt {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePreviewParamsCustomerDetailsTaxExempt;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreatePreviewParamsCustomerDetailsTaxExempt::Unnamed,
-                    "exempt" => CreatePreviewParamsCustomerDetailsTaxExempt::Exempt,
-                    "none" => CreatePreviewParamsCustomerDetailsTaxExempt::None,
-                    "reverse" => CreatePreviewParamsCustomerDetailsTaxExempt::Reverse,
-                    other => CreatePreviewParamsCustomerDetailsTaxExempt::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePreviewParamsCustomerDetailsTaxExempt::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePreviewParamsCustomerDetailsTaxExempt {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePreviewParamsCustomerDetailsTaxExempt::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreatePreviewParamsCustomerDetailsTaxExempt::Unnamed,
+            "exempt" => CreatePreviewParamsCustomerDetailsTaxExempt::Exempt,
+            "none" => CreatePreviewParamsCustomerDetailsTaxExempt::None,
+            "reverse" => CreatePreviewParamsCustomerDetailsTaxExempt::Reverse,
+            other => CreatePreviewParamsCustomerDetailsTaxExempt::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3207,152 +2833,134 @@ impl CreatePreviewParamsCustomerDetailsTaxIdsItemType {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreatePreviewParamsCustomerDetailsTaxIdsItemType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePreviewParamsCustomerDetailsTaxIdsItemType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ad_nrt" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::AdNrt,
-                    "ae_trn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::AeTrn,
-                    "al_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::AlTin,
-                    "am_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::AmTin,
-                    "ao_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::AoTin,
-                    "ar_cuit" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::ArCuit,
-                    "au_abn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::AuAbn,
-                    "au_arn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::AuArn,
-                    "aw_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::AwTin,
-                    "az_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::AzTin,
-                    "ba_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BaTin,
-                    "bb_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BbTin,
-                    "bd_bin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BdBin,
-                    "bf_ifu" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BfIfu,
-                    "bg_uic" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BgUic,
-                    "bh_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BhVat,
-                    "bj_ifu" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BjIfu,
-                    "bo_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BoTin,
-                    "br_cnpj" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BrCnpj,
-                    "br_cpf" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BrCpf,
-                    "bs_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BsTin,
-                    "by_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::ByTin,
-                    "ca_bn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CaBn,
-                    "ca_gst_hst" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CaGstHst,
-                    "ca_pst_bc" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CaPstBc,
-                    "ca_pst_mb" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CaPstMb,
-                    "ca_pst_sk" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CaPstSk,
-                    "ca_qst" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CaQst,
-                    "cd_nif" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CdNif,
-                    "ch_uid" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::ChUid,
-                    "ch_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::ChVat,
-                    "cl_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::ClTin,
-                    "cm_niu" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CmNiu,
-                    "cn_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CnTin,
-                    "co_nit" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CoNit,
-                    "cr_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CrTin,
-                    "cv_nif" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CvNif,
-                    "de_stn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::DeStn,
-                    "do_rcn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::DoRcn,
-                    "ec_ruc" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::EcRuc,
-                    "eg_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::EgTin,
-                    "es_cif" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::EsCif,
-                    "et_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::EtTin,
-                    "eu_oss_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::EuOssVat,
-                    "eu_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::EuVat,
-                    "fo_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::FoVat,
-                    "gb_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::GbVat,
-                    "ge_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::GeVat,
-                    "gi_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::GiTin,
-                    "gn_nif" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::GnNif,
-                    "hk_br" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::HkBr,
-                    "hr_oib" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::HrOib,
-                    "hu_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::HuTin,
-                    "ic_nif" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::IcNif,
-                    "id_npwp" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::IdNpwp,
-                    "il_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::IlVat,
-                    "in_gst" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::InGst,
-                    "is_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::IsVat,
-                    "it_cf" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::ItCf,
-                    "jp_cn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::JpCn,
-                    "jp_rn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::JpRn,
-                    "jp_trn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::JpTrn,
-                    "ke_pin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::KePin,
-                    "kg_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::KgTin,
-                    "kh_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::KhTin,
-                    "kr_brn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::KrBrn,
-                    "kz_bin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::KzBin,
-                    "la_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::LaTin,
-                    "li_uid" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::LiUid,
-                    "li_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::LiVat,
-                    "lk_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::LkVat,
-                    "ma_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::MaVat,
-                    "md_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::MdVat,
-                    "me_pib" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::MePib,
-                    "mk_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::MkVat,
-                    "mr_nif" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::MrNif,
-                    "mx_rfc" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::MxRfc,
-                    "my_frp" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::MyFrp,
-                    "my_itn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::MyItn,
-                    "my_sst" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::MySst,
-                    "ng_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::NgTin,
-                    "no_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::NoVat,
-                    "no_voec" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::NoVoec,
-                    "np_pan" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::NpPan,
-                    "nz_gst" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::NzGst,
-                    "om_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::OmVat,
-                    "pe_ruc" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::PeRuc,
-                    "ph_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::PhTin,
-                    "pl_nip" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::PlNip,
-                    "py_ruc" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::PyRuc,
-                    "ro_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::RoTin,
-                    "rs_pib" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::RsPib,
-                    "ru_inn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::RuInn,
-                    "ru_kpp" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::RuKpp,
-                    "sa_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::SaVat,
-                    "sg_gst" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::SgGst,
-                    "sg_uen" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::SgUen,
-                    "si_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::SiTin,
-                    "sn_ninea" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::SnNinea,
-                    "sr_fin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::SrFin,
-                    "sv_nit" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::SvNit,
-                    "th_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::ThVat,
-                    "tj_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::TjTin,
-                    "tr_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::TrTin,
-                    "tw_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::TwVat,
-                    "tz_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::TzVat,
-                    "ua_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::UaVat,
-                    "ug_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::UgTin,
-                    "us_ein" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::UsEin,
-                    "uy_ruc" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::UyRuc,
-                    "uz_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::UzTin,
-                    "uz_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::UzVat,
-                    "ve_rif" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::VeRif,
-                    "vn_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::VnTin,
-                    "za_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::ZaVat,
-                    "zm_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::ZmTin,
-                    "zw_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::ZwTin,
-                    other => CreatePreviewParamsCustomerDetailsTaxIdsItemType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePreviewParamsCustomerDetailsTaxIdsItemType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePreviewParamsCustomerDetailsTaxIdsItemType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePreviewParamsCustomerDetailsTaxIdsItemType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ad_nrt" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::AdNrt,
+            "ae_trn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::AeTrn,
+            "al_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::AlTin,
+            "am_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::AmTin,
+            "ao_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::AoTin,
+            "ar_cuit" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::ArCuit,
+            "au_abn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::AuAbn,
+            "au_arn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::AuArn,
+            "aw_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::AwTin,
+            "az_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::AzTin,
+            "ba_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BaTin,
+            "bb_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BbTin,
+            "bd_bin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BdBin,
+            "bf_ifu" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BfIfu,
+            "bg_uic" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BgUic,
+            "bh_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BhVat,
+            "bj_ifu" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BjIfu,
+            "bo_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BoTin,
+            "br_cnpj" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BrCnpj,
+            "br_cpf" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BrCpf,
+            "bs_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::BsTin,
+            "by_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::ByTin,
+            "ca_bn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CaBn,
+            "ca_gst_hst" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CaGstHst,
+            "ca_pst_bc" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CaPstBc,
+            "ca_pst_mb" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CaPstMb,
+            "ca_pst_sk" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CaPstSk,
+            "ca_qst" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CaQst,
+            "cd_nif" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CdNif,
+            "ch_uid" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::ChUid,
+            "ch_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::ChVat,
+            "cl_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::ClTin,
+            "cm_niu" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CmNiu,
+            "cn_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CnTin,
+            "co_nit" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CoNit,
+            "cr_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CrTin,
+            "cv_nif" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::CvNif,
+            "de_stn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::DeStn,
+            "do_rcn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::DoRcn,
+            "ec_ruc" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::EcRuc,
+            "eg_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::EgTin,
+            "es_cif" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::EsCif,
+            "et_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::EtTin,
+            "eu_oss_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::EuOssVat,
+            "eu_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::EuVat,
+            "fo_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::FoVat,
+            "gb_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::GbVat,
+            "ge_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::GeVat,
+            "gi_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::GiTin,
+            "gn_nif" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::GnNif,
+            "hk_br" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::HkBr,
+            "hr_oib" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::HrOib,
+            "hu_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::HuTin,
+            "ic_nif" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::IcNif,
+            "id_npwp" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::IdNpwp,
+            "il_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::IlVat,
+            "in_gst" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::InGst,
+            "is_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::IsVat,
+            "it_cf" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::ItCf,
+            "jp_cn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::JpCn,
+            "jp_rn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::JpRn,
+            "jp_trn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::JpTrn,
+            "ke_pin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::KePin,
+            "kg_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::KgTin,
+            "kh_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::KhTin,
+            "kr_brn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::KrBrn,
+            "kz_bin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::KzBin,
+            "la_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::LaTin,
+            "li_uid" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::LiUid,
+            "li_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::LiVat,
+            "lk_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::LkVat,
+            "ma_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::MaVat,
+            "md_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::MdVat,
+            "me_pib" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::MePib,
+            "mk_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::MkVat,
+            "mr_nif" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::MrNif,
+            "mx_rfc" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::MxRfc,
+            "my_frp" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::MyFrp,
+            "my_itn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::MyItn,
+            "my_sst" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::MySst,
+            "ng_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::NgTin,
+            "no_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::NoVat,
+            "no_voec" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::NoVoec,
+            "np_pan" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::NpPan,
+            "nz_gst" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::NzGst,
+            "om_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::OmVat,
+            "pe_ruc" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::PeRuc,
+            "ph_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::PhTin,
+            "pl_nip" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::PlNip,
+            "py_ruc" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::PyRuc,
+            "ro_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::RoTin,
+            "rs_pib" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::RsPib,
+            "ru_inn" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::RuInn,
+            "ru_kpp" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::RuKpp,
+            "sa_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::SaVat,
+            "sg_gst" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::SgGst,
+            "sg_uen" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::SgUen,
+            "si_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::SiTin,
+            "sn_ninea" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::SnNinea,
+            "sr_fin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::SrFin,
+            "sv_nit" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::SvNit,
+            "th_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::ThVat,
+            "tj_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::TjTin,
+            "tr_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::TrTin,
+            "tw_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::TwVat,
+            "tz_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::TzVat,
+            "ua_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::UaVat,
+            "ug_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::UgTin,
+            "us_ein" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::UsEin,
+            "uy_ruc" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::UyRuc,
+            "uz_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::UzTin,
+            "uz_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::UzVat,
+            "ve_rif" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::VeRif,
+            "vn_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::VnTin,
+            "za_vat" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::ZaVat,
+            "zm_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::ZmTin,
+            "zw_tin" => CreatePreviewParamsCustomerDetailsTaxIdsItemType::ZwTin,
+            other => CreatePreviewParamsCustomerDetailsTaxIdsItemType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3375,7 +2983,7 @@ pub struct CreatePreviewParamsInvoiceItemsItem {
     #[doc = "Explicitly controls whether discounts apply to this invoice item."]
     pub discountable: Option<bool>,
     #[doc = "The coupons to redeem into discounts for the invoice item in the preview."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "The ID of the invoice item to update in preview."]
     pub invoiceitem: Option<String>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
@@ -3393,9 +3001,9 @@ pub struct CreatePreviewParamsInvoiceItemsItem {
     #[doc = "Only required if a [default tax behavior](https://docs.stripe.com/tax/products-prices-tax-categories-tax-behavior#set..."]
     pub tax_behavior: Option<crate::invoices::CreatePreviewParamsInvoiceItemsItemTaxBehavior>,
     #[doc = "A [tax code](https://docs.stripe.com/tax/tax-categories) ID."]
-    pub tax_code: Option<serde_json::Value>,
+    pub tax_code: Option<json::OwnedValue>,
     #[doc = "The tax rates that apply to the item."]
-    pub tax_rates: Option<serde_json::Value>,
+    pub tax_rates: Option<json::OwnedValue>,
     #[doc = "The integer unit amount in cents (or local equivalent) of the charge to be applied to the upcoming invoice."]
     pub unit_amount: Option<i64>,
     #[doc = "Same as `unit_amount`, but accepts a decimal value in cents (or local equivalent) with at most 12 decimal places."]
@@ -3519,37 +3127,19 @@ impl CreatePreviewParamsPreviewMode {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreatePreviewParamsPreviewMode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePreviewParamsPreviewMode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "next" => CreatePreviewParamsPreviewMode::Next,
-                    "recurring" => CreatePreviewParamsPreviewMode::Recurring,
-                    other => CreatePreviewParamsPreviewMode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePreviewParamsPreviewMode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePreviewParamsPreviewMode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePreviewParamsPreviewMode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "next" => CreatePreviewParamsPreviewMode::Next,
+            "recurring" => CreatePreviewParamsPreviewMode::Recurring,
+            other => CreatePreviewParamsPreviewMode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3641,39 +3231,21 @@ impl CreatePreviewParamsScheduleDetailsBillingModeFlexibleProrationDiscounts {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreatePreviewParamsScheduleDetailsBillingModeFlexibleProrationDiscounts {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePreviewParamsScheduleDetailsBillingModeFlexibleProrationDiscounts;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "included" => CreatePreviewParamsScheduleDetailsBillingModeFlexibleProrationDiscounts::Included,
-                    "itemized" => CreatePreviewParamsScheduleDetailsBillingModeFlexibleProrationDiscounts::Itemized,
-                    other => CreatePreviewParamsScheduleDetailsBillingModeFlexibleProrationDiscounts::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePreviewParamsScheduleDetailsBillingModeFlexibleProrationDiscounts::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePreviewParamsScheduleDetailsBillingModeFlexibleProrationDiscounts {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePreviewParamsScheduleDetailsBillingModeFlexibleProrationDiscounts::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "included" => CreatePreviewParamsScheduleDetailsBillingModeFlexibleProrationDiscounts::Included,
+            "itemized" => CreatePreviewParamsScheduleDetailsBillingModeFlexibleProrationDiscounts::Itemized,
+            other => {
+                CreatePreviewParamsScheduleDetailsBillingModeFlexibleProrationDiscounts::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -3706,37 +3278,19 @@ impl CreatePreviewParamsScheduleDetailsBillingModeType {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreatePreviewParamsScheduleDetailsBillingModeType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePreviewParamsScheduleDetailsBillingModeType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "classic" => CreatePreviewParamsScheduleDetailsBillingModeType::Classic,
-                    "flexible" => CreatePreviewParamsScheduleDetailsBillingModeType::Flexible,
-                    other => CreatePreviewParamsScheduleDetailsBillingModeType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePreviewParamsScheduleDetailsBillingModeType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePreviewParamsScheduleDetailsBillingModeType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePreviewParamsScheduleDetailsBillingModeType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "classic" => CreatePreviewParamsScheduleDetailsBillingModeType::Classic,
+            "flexible" => CreatePreviewParamsScheduleDetailsBillingModeType::Flexible,
+            other => CreatePreviewParamsScheduleDetailsBillingModeType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3769,37 +3323,19 @@ impl CreatePreviewParamsScheduleDetailsEndBehavior {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreatePreviewParamsScheduleDetailsEndBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePreviewParamsScheduleDetailsEndBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cancel" => CreatePreviewParamsScheduleDetailsEndBehavior::Cancel,
-                    "release" => CreatePreviewParamsScheduleDetailsEndBehavior::Release,
-                    other => CreatePreviewParamsScheduleDetailsEndBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePreviewParamsScheduleDetailsEndBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePreviewParamsScheduleDetailsEndBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePreviewParamsScheduleDetailsEndBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cancel" => CreatePreviewParamsScheduleDetailsEndBehavior::Cancel,
+            "release" => CreatePreviewParamsScheduleDetailsEndBehavior::Release,
+            other => CreatePreviewParamsScheduleDetailsEndBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3831,15 +3367,15 @@ pub struct CreatePreviewParamsScheduleDetailsPhasesItem {
     #[doc = "ID of the default payment method for the subscription schedule."]
     pub default_payment_method: Option<String>,
     #[doc = "A list of [Tax Rate](https://docs.stripe.com/api/tax_rates) ids."]
-    pub default_tax_rates: Option<serde_json::Value>,
+    pub default_tax_rates: Option<json::OwnedValue>,
     #[doc = "Subscription description, meant to be displayable to the customer."]
-    pub description: Option<serde_json::Value>,
+    pub description: Option<json::OwnedValue>,
     #[doc = "The coupons to redeem into discounts for the schedule phase."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "The number of intervals the phase should last."]
     pub duration: Option<crate::invoices::CreatePreviewParamsScheduleDetailsPhasesItemDuration>,
     #[doc = "The date at which this phase of the subscription schedule ends."]
-    pub end_date: Option<serde_json::Value>,
+    pub end_date: Option<json::OwnedValue>,
     #[doc = "All invoices will be billed using the specified settings."]
     pub invoice_settings: Option<crate::invoices::CreatePreviewParamsScheduleDetailsPhasesItemInvoiceSettings>,
     #[doc = "List of configuration items, each with an attached price, to apply during this phase of the subscription schedule."]
@@ -3851,13 +3387,13 @@ pub struct CreatePreviewParamsScheduleDetailsPhasesItem {
     #[doc = "Controls whether the subscription schedule should create [prorations](https://docs.stripe.com/billing/subscriptions/p..."]
     pub proration_behavior: Option<crate::invoices::CreatePreviewParamsScheduleDetailsPhasesItemProrationBehavior>,
     #[doc = "The date at which this phase of the subscription schedule starts or `now`."]
-    pub start_date: Option<serde_json::Value>,
+    pub start_date: Option<json::OwnedValue>,
     #[doc = "The data with which to automatically create a Transfer for each of the associated subscription's invoices."]
     pub transfer_data: Option<crate::invoices::CreatePreviewParamsScheduleDetailsPhasesItemTransferData>,
     #[doc = "If set to true the entire phase is counted as a trial and the customer will not be charged for any fees."]
     pub trial: Option<bool>,
     #[doc = "Sets the phase to trialing from the start date to this date."]
-    pub trial_end: Option<serde_json::Value>,
+    pub trial_end: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "invoices")]
@@ -3911,7 +3447,7 @@ pub struct CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItem {
     #[doc = "Quantity for this item."]
     pub quantity: Option<i64>,
     #[doc = "The tax rates which apply to the item."]
-    pub tax_rates: Option<serde_json::Value>,
+    pub tax_rates: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "invoices")]
@@ -4015,46 +3551,26 @@ impl CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodEndTyp
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodEndType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodEndType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "min_item_period_end" => {
-                        CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodEndType::MinItemPeriodEnd
-                    }
-                    "phase_end" => {
-                        CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodEndType::PhaseEnd
-                    }
-                    "timestamp" => {
-                        CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodEndType::Timestamp
-                    }
-                    other => CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodEndType::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodEndType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodEndType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodEndType::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "min_item_period_end" => {
+                CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodEndType::MinItemPeriodEnd
+            }
+            "phase_end" => CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodEndType::PhaseEnd,
+            "timestamp" => CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodEndType::Timestamp,
+            other => {
+                CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodEndType::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -4108,42 +3624,26 @@ impl CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodStartT
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodStartType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodStartType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "max_item_period_start" => CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodStartType::MaxItemPeriodStart,
-                    "phase_start" => CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodStartType::PhaseStart,
-                    "timestamp" => CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodStartType::Timestamp,
-                    other => CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodStartType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodStartType::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodStartType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodStartType::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "max_item_period_start" => {
+                CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodStartType::MaxItemPeriodStart
+            }
+            "phase_start" => CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodStartType::PhaseStart,
+            "timestamp" => CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodStartType::Timestamp,
+            other => CreatePreviewParamsScheduleDetailsPhasesItemAddInvoiceItemsItemPeriodStartType::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -4245,39 +3745,21 @@ impl CreatePreviewParamsScheduleDetailsPhasesItemBillingCycleAnchor {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreatePreviewParamsScheduleDetailsPhasesItemBillingCycleAnchor {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePreviewParamsScheduleDetailsPhasesItemBillingCycleAnchor;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "automatic" => CreatePreviewParamsScheduleDetailsPhasesItemBillingCycleAnchor::Automatic,
-                    "phase_start" => CreatePreviewParamsScheduleDetailsPhasesItemBillingCycleAnchor::PhaseStart,
-                    other => CreatePreviewParamsScheduleDetailsPhasesItemBillingCycleAnchor::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePreviewParamsScheduleDetailsPhasesItemBillingCycleAnchor::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePreviewParamsScheduleDetailsPhasesItemBillingCycleAnchor {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePreviewParamsScheduleDetailsPhasesItemBillingCycleAnchor::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "automatic" => CreatePreviewParamsScheduleDetailsPhasesItemBillingCycleAnchor::Automatic,
+            "phase_start" => CreatePreviewParamsScheduleDetailsPhasesItemBillingCycleAnchor::PhaseStart,
+            other => CreatePreviewParamsScheduleDetailsPhasesItemBillingCycleAnchor::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4352,41 +3834,23 @@ impl CreatePreviewParamsScheduleDetailsPhasesItemDurationInterval {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreatePreviewParamsScheduleDetailsPhasesItemDurationInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePreviewParamsScheduleDetailsPhasesItemDurationInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "day" => CreatePreviewParamsScheduleDetailsPhasesItemDurationInterval::Day,
-                    "month" => CreatePreviewParamsScheduleDetailsPhasesItemDurationInterval::Month,
-                    "week" => CreatePreviewParamsScheduleDetailsPhasesItemDurationInterval::Week,
-                    "year" => CreatePreviewParamsScheduleDetailsPhasesItemDurationInterval::Year,
-                    other => CreatePreviewParamsScheduleDetailsPhasesItemDurationInterval::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePreviewParamsScheduleDetailsPhasesItemDurationInterval::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePreviewParamsScheduleDetailsPhasesItemDurationInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePreviewParamsScheduleDetailsPhasesItemDurationInterval::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "day" => CreatePreviewParamsScheduleDetailsPhasesItemDurationInterval::Day,
+            "month" => CreatePreviewParamsScheduleDetailsPhasesItemDurationInterval::Month,
+            "week" => CreatePreviewParamsScheduleDetailsPhasesItemDurationInterval::Week,
+            "year" => CreatePreviewParamsScheduleDetailsPhasesItemDurationInterval::Year,
+            other => CreatePreviewParamsScheduleDetailsPhasesItemDurationInterval::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4401,7 +3865,7 @@ impl crate::params::FormEncode for CreatePreviewParamsScheduleDetailsPhasesItemD
 #[derive(Debug, Clone, Default)]
 pub struct CreatePreviewParamsScheduleDetailsPhasesItemInvoiceSettings {
     #[doc = "The account tax IDs associated with this phase of the subscription schedule."]
-    pub account_tax_ids: Option<serde_json::Value>,
+    pub account_tax_ids: Option<json::OwnedValue>,
     #[doc = "Number of days within which a customer must pay invoices generated by this subscription schedule."]
     pub days_until_due: Option<i64>,
     #[doc = "The connected account that issues the invoice."]
@@ -4444,7 +3908,7 @@ pub struct CreatePreviewParamsScheduleDetailsPhasesItemItemsItem {
     pub billing_thresholds:
         Option<crate::invoices::CreatePreviewParamsScheduleDetailsPhasesItemItemsItemBillingThresholds>,
     #[doc = "The coupons to redeem into discounts for the subscription item."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to a configuration item."]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "The plan ID to subscribe to."]
@@ -4456,7 +3920,7 @@ pub struct CreatePreviewParamsScheduleDetailsPhasesItemItemsItem {
     #[doc = "Quantity for the given price."]
     pub quantity: Option<i64>,
     #[doc = "A list of [Tax Rate](https://docs.stripe.com/api/tax_rates) ids."]
-    pub tax_rates: Option<serde_json::Value>,
+    pub tax_rates: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "invoices")]
@@ -4568,42 +4032,22 @@ impl CreatePreviewParamsScheduleDetailsPhasesItemProrationBehavior {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreatePreviewParamsScheduleDetailsPhasesItemProrationBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePreviewParamsScheduleDetailsPhasesItemProrationBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always_invoice" => CreatePreviewParamsScheduleDetailsPhasesItemProrationBehavior::AlwaysInvoice,
-                    "create_prorations" => {
-                        CreatePreviewParamsScheduleDetailsPhasesItemProrationBehavior::CreateProrations
-                    }
-                    "none" => CreatePreviewParamsScheduleDetailsPhasesItemProrationBehavior::None,
-                    other => CreatePreviewParamsScheduleDetailsPhasesItemProrationBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePreviewParamsScheduleDetailsPhasesItemProrationBehavior::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePreviewParamsScheduleDetailsPhasesItemProrationBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePreviewParamsScheduleDetailsPhasesItemProrationBehavior::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always_invoice" => CreatePreviewParamsScheduleDetailsPhasesItemProrationBehavior::AlwaysInvoice,
+            "create_prorations" => CreatePreviewParamsScheduleDetailsPhasesItemProrationBehavior::CreateProrations,
+            "none" => CreatePreviewParamsScheduleDetailsPhasesItemProrationBehavior::None,
+            other => CreatePreviewParamsScheduleDetailsPhasesItemProrationBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4643,15 +4087,15 @@ pub struct CreatePreviewParamsSubscriptionDetails {
     #[doc = "Controls how prorations and invoices for subscriptions are calculated and orchestrated."]
     pub billing_mode: Option<crate::invoices::CreatePreviewParamsSubscriptionDetailsBillingMode>,
     #[doc = "Sets the billing schedules for the subscription."]
-    pub billing_schedules: Option<serde_json::Value>,
+    pub billing_schedules: Option<json::OwnedValue>,
     #[doc = "A timestamp at which the subscription should cancel."]
-    pub cancel_at: Option<serde_json::Value>,
+    pub cancel_at: Option<json::OwnedValue>,
     #[doc = "Indicate whether this subscription should cancel at the end of the current period (`current_period_end`)."]
     pub cancel_at_period_end: Option<bool>,
     #[doc = "This simulates the subscription being canceled or expired immediately."]
     pub cancel_now: Option<bool>,
     #[doc = "If provided, the invoice returned will preview updating or creating a subscription with these default tax rates."]
-    pub default_tax_rates: Option<serde_json::Value>,
+    pub default_tax_rates: Option<json::OwnedValue>,
     #[doc = "A list of up to 20 subscription items, each with an attached price."]
     pub items: Option<Vec<crate::invoices::CreatePreviewParamsSubscriptionDetailsItemsItem>>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
@@ -4667,7 +4111,7 @@ pub struct CreatePreviewParamsSubscriptionDetails {
     #[doc = "Date a subscription is intended to start (can be future or past)."]
     pub start_date: Option<i64>,
     #[doc = "If provided, the invoice returned will preview updating or creating a subscription with that trial end."]
-    pub trial_end: Option<serde_json::Value>,
+    pub trial_end: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "invoices")]
@@ -4736,40 +4180,22 @@ impl CreatePreviewParamsSubscriptionDetailsBillingCycleAnchorType {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreatePreviewParamsSubscriptionDetailsBillingCycleAnchorType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePreviewParamsSubscriptionDetailsBillingCycleAnchorType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "now" => CreatePreviewParamsSubscriptionDetailsBillingCycleAnchorType::Now,
-                    "timestamp" => CreatePreviewParamsSubscriptionDetailsBillingCycleAnchorType::Timestamp,
-                    "unchanged" => CreatePreviewParamsSubscriptionDetailsBillingCycleAnchorType::Unchanged,
-                    other => CreatePreviewParamsSubscriptionDetailsBillingCycleAnchorType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePreviewParamsSubscriptionDetailsBillingCycleAnchorType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePreviewParamsSubscriptionDetailsBillingCycleAnchorType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePreviewParamsSubscriptionDetailsBillingCycleAnchorType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "now" => CreatePreviewParamsSubscriptionDetailsBillingCycleAnchorType::Now,
+            "timestamp" => CreatePreviewParamsSubscriptionDetailsBillingCycleAnchorType::Timestamp,
+            "unchanged" => CreatePreviewParamsSubscriptionDetailsBillingCycleAnchorType::Unchanged,
+            other => CreatePreviewParamsSubscriptionDetailsBillingCycleAnchorType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4832,7 +4258,7 @@ pub struct CreatePreviewParamsSubscriptionDetailsItemsItem {
     #[doc = "A flag that, if set to `true`, will delete the specified item."]
     pub deleted: Option<bool>,
     #[doc = "The coupons to redeem into discounts for the subscription item."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "Subscription item to update."]
     pub id: Option<String>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
@@ -4846,7 +4272,7 @@ pub struct CreatePreviewParamsSubscriptionDetailsItemsItem {
     #[doc = "Quantity for this item."]
     pub quantity: Option<i64>,
     #[doc = "A list of [Tax Rate](https://docs.stripe.com/api/tax_rates) ids."]
-    pub tax_rates: Option<serde_json::Value>,
+    pub tax_rates: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "invoices")]
@@ -5015,43 +4441,23 @@ impl CreatePreviewParamsSubscriptionDetailsPauseBillForOutstandingUsageThroughTy
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreatePreviewParamsSubscriptionDetailsPauseBillForOutstandingUsageThroughType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePreviewParamsSubscriptionDetailsPauseBillForOutstandingUsageThroughType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "none" => CreatePreviewParamsSubscriptionDetailsPauseBillForOutstandingUsageThroughType::None,
-                    "now" => CreatePreviewParamsSubscriptionDetailsPauseBillForOutstandingUsageThroughType::Now,
-                    other => CreatePreviewParamsSubscriptionDetailsPauseBillForOutstandingUsageThroughType::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreatePreviewParamsSubscriptionDetailsPauseBillForOutstandingUsageThroughType::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreatePreviewParamsSubscriptionDetailsPauseBillForOutstandingUsageThroughType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePreviewParamsSubscriptionDetailsPauseBillForOutstandingUsageThroughType::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "none" => CreatePreviewParamsSubscriptionDetailsPauseBillForOutstandingUsageThroughType::None,
+            "now" => CreatePreviewParamsSubscriptionDetailsPauseBillForOutstandingUsageThroughType::Now,
+            other => CreatePreviewParamsSubscriptionDetailsPauseBillForOutstandingUsageThroughType::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -5102,44 +4508,24 @@ impl CreatePreviewParamsSubscriptionDetailsPauseBillForUnusedTimeFromType {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreatePreviewParamsSubscriptionDetailsPauseBillForUnusedTimeFromType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePreviewParamsSubscriptionDetailsPauseBillForUnusedTimeFromType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "item_current_period_start" => {
-                        CreatePreviewParamsSubscriptionDetailsPauseBillForUnusedTimeFromType::ItemCurrentPeriodStart
-                    }
-                    "none" => CreatePreviewParamsSubscriptionDetailsPauseBillForUnusedTimeFromType::None,
-                    "now" => CreatePreviewParamsSubscriptionDetailsPauseBillForUnusedTimeFromType::Now,
-                    other => {
-                        CreatePreviewParamsSubscriptionDetailsPauseBillForUnusedTimeFromType::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePreviewParamsSubscriptionDetailsPauseBillForUnusedTimeFromType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePreviewParamsSubscriptionDetailsPauseBillForUnusedTimeFromType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePreviewParamsSubscriptionDetailsPauseBillForUnusedTimeFromType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "item_current_period_start" => {
+                CreatePreviewParamsSubscriptionDetailsPauseBillForUnusedTimeFromType::ItemCurrentPeriodStart
+            }
+            "none" => CreatePreviewParamsSubscriptionDetailsPauseBillForUnusedTimeFromType::None,
+            "now" => CreatePreviewParamsSubscriptionDetailsPauseBillForUnusedTimeFromType::Now,
+            other => CreatePreviewParamsSubscriptionDetailsPauseBillForUnusedTimeFromType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5172,41 +4558,21 @@ impl CreatePreviewParamsSubscriptionDetailsPauseInvoicingBehavior {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreatePreviewParamsSubscriptionDetailsPauseInvoicingBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePreviewParamsSubscriptionDetailsPauseInvoicingBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "invoice" => CreatePreviewParamsSubscriptionDetailsPauseInvoicingBehavior::Invoice,
-                    "pending_invoice_item" => {
-                        CreatePreviewParamsSubscriptionDetailsPauseInvoicingBehavior::PendingInvoiceItem
-                    }
-                    other => CreatePreviewParamsSubscriptionDetailsPauseInvoicingBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePreviewParamsSubscriptionDetailsPauseInvoicingBehavior::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePreviewParamsSubscriptionDetailsPauseInvoicingBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePreviewParamsSubscriptionDetailsPauseInvoicingBehavior::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "invoice" => CreatePreviewParamsSubscriptionDetailsPauseInvoicingBehavior::Invoice,
+            "pending_invoice_item" => CreatePreviewParamsSubscriptionDetailsPauseInvoicingBehavior::PendingInvoiceItem,
+            other => CreatePreviewParamsSubscriptionDetailsPauseInvoicingBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5237,36 +4603,18 @@ impl CreatePreviewParamsSubscriptionDetailsPauseType {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreatePreviewParamsSubscriptionDetailsPauseType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePreviewParamsSubscriptionDetailsPauseType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "subscription" => CreatePreviewParamsSubscriptionDetailsPauseType::Subscription,
-                    other => CreatePreviewParamsSubscriptionDetailsPauseType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePreviewParamsSubscriptionDetailsPauseType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePreviewParamsSubscriptionDetailsPauseType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePreviewParamsSubscriptionDetailsPauseType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "subscription" => CreatePreviewParamsSubscriptionDetailsPauseType::Subscription,
+            other => CreatePreviewParamsSubscriptionDetailsPauseType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5301,36 +4649,18 @@ impl CreatePreviewParamsSubscriptionDetailsResumeAt {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for CreatePreviewParamsSubscriptionDetailsResumeAt {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePreviewParamsSubscriptionDetailsResumeAt;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "now" => CreatePreviewParamsSubscriptionDetailsResumeAt::Now,
-                    other => CreatePreviewParamsSubscriptionDetailsResumeAt::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePreviewParamsSubscriptionDetailsResumeAt::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePreviewParamsSubscriptionDetailsResumeAt {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePreviewParamsSubscriptionDetailsResumeAt::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "now" => CreatePreviewParamsSubscriptionDetailsResumeAt::Now,
+            other => CreatePreviewParamsSubscriptionDetailsResumeAt::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5342,27 +4672,29 @@ impl crate::params::FormEncode for CreatePreviewParamsSubscriptionDetailsResumeA
 }
 
 #[cfg(any(feature = "events", feature = "invoiceitems"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CreditedItemsInvoiceLineItems {
     #[doc = "The invoice id for the debited line item(s)."]
-    #[serde(default)]
+    #[json(default)]
     pub invoice: String,
     #[doc = "IDs of the debited invoice line item(s) on the invoice that correspond to the credit proration."]
-    #[serde(default)]
+    #[json(default)]
     pub invoice_line_items: Vec<String>,
 }
 
 #[cfg(feature = "invoices")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DeletedInvoice {
     #[doc = "Always true for a deleted object"]
-    #[serde(default)]
+    #[json(default)]
     pub deleted: bool,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::invoices::InvoiceObject,
 }
 
@@ -5452,240 +4784,241 @@ impl crate::params::FormEncode for GetInvoiceParams {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Invoice {
     #[doc = "The country of the business associated with this invoice, most often the business creating the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_country: Option<String>,
     #[doc = "The public name of the business associated with this invoice, most often the business creating the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_name: Option<String>,
     #[doc = "The account tax IDs associated with the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_tax_ids: Option<Vec<crate::Expandable<crate::invoices::InvoiceAccountTaxIdsItemExpanded>>>,
     #[doc = "Final amount due at this time for this invoice."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_due: i64,
     #[doc = "Amount that was overpaid on the invoice."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_overpaid: i64,
     #[doc = "The amount, in cents (or local equivalent), that was paid."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_paid: i64,
     #[doc = "Amount, in cents (or local equivalent), that was paid on the invoice outside of Stripe."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_paid_off_stripe: Option<i64>,
     #[doc = "The difference between amount_due and amount_paid, in cents (or local equivalent)."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_remaining: i64,
     #[doc = "This is the sum of all the shipping amounts."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_shipping: i64,
     #[doc = "ID of the Connect Application that created the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application: Option<crate::Expandable<crate::invoices::InvoiceApplicationExpanded>>,
     #[doc = "Number of payment attempts made for this invoice, from the perspective of the payment retry schedule."]
-    #[serde(default)]
+    #[json(default)]
     pub attempt_count: i64,
     #[doc = "Whether an attempt has been made to pay the invoice."]
-    #[serde(default)]
+    #[json(default)]
     pub attempted: bool,
     #[doc = "Controls whether Stripe performs [automatic collection](https://docs.stripe.com/invoicing/integration/automatic-advan..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub auto_advance: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub automatic_tax: Option<crate::common::AutomaticTax>,
     #[doc = "The time when this invoice is currently scheduled to be automatically finalized."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub automatically_finalizes_at: Option<i64>,
     #[doc = "Indicates the reason why the invoice was created."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billing_reason: Option<crate::invoices::InvoiceBillingReason>,
     #[doc = "Either `charge_automatically`, or `send_invoice`."]
-    #[serde(default)]
+    #[json(default)]
     pub collection_method: crate::invoices::InvoiceCollectionMethod,
     #[doc = "The confirmation secret associated with this invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub confirmation_secret: Option<crate::invoices::InvoicesResourceConfirmationSecret>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "Custom fields displayed on the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub custom_fields: Option<Vec<crate::invoices::InvoiceSettingCustomField>>,
     #[doc = "The ID of the customer to bill."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<crate::Expandable<crate::invoices::InvoiceCustomerExpanded>>,
     #[doc = "The ID of the account representing the customer to bill."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_account: Option<String>,
     #[doc = "The customer's address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_address: Option<crate::common::Address>,
     #[doc = "The customer's email."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_email: Option<String>,
     #[doc = "The customer's name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_name: Option<String>,
     #[doc = "The customer's phone number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_phone: Option<String>,
     #[doc = "The customer's shipping information."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_shipping: Option<crate::common::Shipping>,
     #[doc = "The customer's tax exempt status."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_tax_exempt: Option<crate::invoices::InvoiceCustomerTaxExempt>,
     #[doc = "The customer's tax IDs."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_tax_ids: Option<Vec<crate::invoices::InvoicesResourceInvoiceTaxId>>,
     #[doc = "ID of the default payment method for the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_payment_method: Option<crate::Expandable<crate::payment_methods::PaymentMethod>>,
     #[doc = "ID of the default payment source for the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_source: Option<crate::Expandable<crate::common::PaymentSource>>,
     #[doc = "The tax rates applied to this invoice, if any."]
-    #[serde(default)]
+    #[json(default)]
     pub default_tax_rates: Vec<crate::tax_rates::TaxRate>,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "The discounts applied to the invoice."]
-    #[serde(default)]
+    #[json(default)]
     pub discounts: Vec<crate::Expandable<crate::invoices::InvoiceDiscountsItemExpanded>>,
     #[doc = "The date on which payment for this invoice is due."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub due_date: Option<i64>,
     #[doc = "The date when this invoice is in effect."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub effective_at: Option<i64>,
     #[doc = "Ending customer balance after the invoice is finalized."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ending_balance: Option<i64>,
     #[doc = "Footer displayed on the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub footer: Option<String>,
     #[doc = "Details of the invoice that was cloned."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub from_invoice: Option<crate::invoices::InvoicesResourceFromInvoice>,
     #[doc = "The URL for the hosted invoice page, which allows customers to view and pay an invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hosted_invoice_url: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     #[doc = "The link to download the PDF for the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice_pdf: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuer: Option<crate::accounts::ConnectAccountReference>,
     #[doc = "The error encountered during the previous attempt to finalize the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last_finalization_error: Option<crate::common::ApiErrors>,
     #[doc = "The ID of the most recent non-draft revision of this invoice"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub latest_revision: Option<crate::Expandable<crate::invoices::Invoice>>,
     #[doc = "The individual line items that make up the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub lines: Option<crate::List<crate::invoices::LineItem>>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "The time at which payment will next be attempted."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub next_payment_attempt: Option<i64>,
     #[doc = "A unique, identifying string that appears on emails sent to the customer for this invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub number: Option<String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::invoices::InvoiceObject,
     #[doc = "The account (if any) for which the funds of the invoice payment are intended."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub on_behalf_of: Option<crate::Expandable<crate::account::Account>>,
     #[doc = "The parent that generated this invoice"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<crate::billing::BillingBillResourceInvoicingParentsInvoiceParent>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_settings: Option<crate::invoices::InvoicesPaymentSettings>,
     #[doc = "Payments for this invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payments: Option<crate::List<crate::invoice_payments::InvoicePayment>>,
     #[doc = "The latest timestamp at which invoice items can be associated with this invoice."]
-    #[serde(default)]
+    #[json(default)]
     pub period_end: i64,
     #[doc = "The earliest timestamp at which invoice items can be associated with this invoice."]
-    #[serde(default)]
+    #[json(default)]
     pub period_start: i64,
     #[doc = "Total amount of all post-payment credit notes issued for this invoice."]
-    #[serde(default)]
+    #[json(default)]
     pub post_payment_credit_notes_amount: i64,
     #[doc = "Total amount of all pre-payment credit notes issued for this invoice."]
-    #[serde(default)]
+    #[json(default)]
     pub pre_payment_credit_notes_amount: i64,
     #[doc = "This is the transaction number that appears on email receipts sent for this invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub receipt_number: Option<String>,
     #[doc = "The rendering-related settings that control how invoices render in customer-facing interfaces such as the PDF or host..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub rendering: Option<crate::invoices::InvoicesResourceInvoiceRendering>,
     #[doc = "The details of the cost of shipping, including the ShippingRate applied on the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_cost: Option<crate::invoices::InvoicesResourceShippingCost>,
     #[doc = "Shipping details for the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_details: Option<crate::common::Shipping>,
     #[doc = "Starting customer balance before the invoice is finalized."]
-    #[serde(default)]
+    #[json(default)]
     pub starting_balance: i64,
     #[doc = "Extra information about an invoice for the customer's credit card statement."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
     #[doc = "The status of the invoice, one of `draft`, `open`, `paid`, `uncollectible`, or `void`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<crate::invoices::InvoiceStatus>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status_details: Option<crate::invoices::InvoicesResourceStatusDetails>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status_transitions: Option<crate::invoices::InvoicesResourceStatusTransitions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription: Option<crate::Expandable<crate::subscriptions::Subscription>>,
     #[doc = "Total of all subscriptions, invoice items, and prorations on the invoice before any invoice level discount or exclusi..."]
-    #[serde(default)]
+    #[json(default)]
     pub subtotal: i64,
     #[doc = "The integer amount in cents (or local equivalent) representing the subtotal of the invoice before any invoice level d..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subtotal_excluding_tax: Option<i64>,
     #[doc = "ID of the test clock this invoice belongs to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub test_clock: Option<crate::Expandable<crate::test_helpers::TestHelpersTestClock>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub threshold_reason: Option<crate::invoices::InvoiceThresholdReason>,
     #[doc = "Total after discounts and taxes."]
-    #[serde(default)]
+    #[json(default)]
     pub total: i64,
     #[doc = "The aggregate amounts calculated per discount across all line items."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub total_discount_amounts: Option<Vec<crate::common::DiscountsResourceDiscountAmount>>,
     #[doc = "The integer amount in cents (or local equivalent) representing the total amount of the invoice including all discount..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub total_excluding_tax: Option<i64>,
     #[doc = "Contains pretax credit amounts (ex: discount, credit grants, etc) that apply to this invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub total_pretax_credit_amounts: Option<Vec<crate::invoices::InvoicesResourcePretaxCreditAmount>>,
     #[doc = "The aggregate tax information of all line items."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub total_taxes: Option<Vec<crate::billing::BillingBillResourceInvoicingTaxesTax>>,
     #[doc = "Invoices are automatically paid or sent 1 hour after webhooks are delivered, or until all webhook delivery attempts h..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub webhooks_delivered_at: Option<i64>,
 }
 
@@ -5739,7 +5072,7 @@ pub enum InvoiceAccountTaxIdsItemExpanded {
     /// Expanded `tax_id`.
     TaxId(Box<crate::tax_ids::TaxId>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -5787,17 +5120,15 @@ pub enum InvoiceAccountTaxIdsItemExpanded {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for InvoiceAccountTaxIdsItemExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for InvoiceAccountTaxIdsItemExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "tax_id" => InvoiceAccountTaxIdsItemExpanded::TaxId(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "tax_id" => {
+                InvoiceAccountTaxIdsItemExpanded::TaxId(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
             _ => InvoiceAccountTaxIdsItemExpanded::Other(value),
         })
     }
@@ -5853,7 +5184,7 @@ pub enum InvoiceApplicationExpanded {
     /// Expanded `application`.
     Application(Box<crate::common::Application>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -5901,17 +5232,15 @@ pub enum InvoiceApplicationExpanded {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for InvoiceApplicationExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for InvoiceApplicationExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "application" => InvoiceApplicationExpanded::Application(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "application" => {
+                InvoiceApplicationExpanded::Application(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
             _ => InvoiceApplicationExpanded::Other(value),
         })
     }
@@ -6085,46 +5414,26 @@ impl InvoiceBillingReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for InvoiceBillingReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InvoiceBillingReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "automatic_pending_invoice_item_invoice" => {
-                        InvoiceBillingReason::AutomaticPendingInvoiceItemInvoice
-                    }
-                    "manual" => InvoiceBillingReason::Manual,
-                    "quote_accept" => InvoiceBillingReason::QuoteAccept,
-                    "subscription" => InvoiceBillingReason::Subscription,
-                    "subscription_create" => InvoiceBillingReason::SubscriptionCreate,
-                    "subscription_cycle" => InvoiceBillingReason::SubscriptionCycle,
-                    "subscription_threshold" => InvoiceBillingReason::SubscriptionThreshold,
-                    "subscription_update" => InvoiceBillingReason::SubscriptionUpdate,
-                    "upcoming" => InvoiceBillingReason::Upcoming,
-                    other => InvoiceBillingReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InvoiceBillingReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InvoiceBillingReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InvoiceBillingReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "automatic_pending_invoice_item_invoice" => InvoiceBillingReason::AutomaticPendingInvoiceItemInvoice,
+            "manual" => InvoiceBillingReason::Manual,
+            "quote_accept" => InvoiceBillingReason::QuoteAccept,
+            "subscription" => InvoiceBillingReason::Subscription,
+            "subscription_create" => InvoiceBillingReason::SubscriptionCreate,
+            "subscription_cycle" => InvoiceBillingReason::SubscriptionCycle,
+            "subscription_threshold" => InvoiceBillingReason::SubscriptionThreshold,
+            "subscription_update" => InvoiceBillingReason::SubscriptionUpdate,
+            "upcoming" => InvoiceBillingReason::Upcoming,
+            other => InvoiceBillingReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6333,37 +5642,19 @@ impl Default for InvoiceCollectionMethod {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for InvoiceCollectionMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InvoiceCollectionMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "charge_automatically" => InvoiceCollectionMethod::ChargeAutomatically,
-                    "send_invoice" => InvoiceCollectionMethod::SendInvoice,
-                    other => InvoiceCollectionMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InvoiceCollectionMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InvoiceCollectionMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InvoiceCollectionMethod::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "charge_automatically" => InvoiceCollectionMethod::ChargeAutomatically,
+            "send_invoice" => InvoiceCollectionMethod::SendInvoice,
+            other => InvoiceCollectionMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6417,7 +5708,7 @@ pub enum InvoiceCustomerExpanded {
     /// Expanded `customer`.
     Customer(Box<crate::customers::Customer>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -6465,17 +5756,13 @@ pub enum InvoiceCustomerExpanded {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for InvoiceCustomerExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for InvoiceCustomerExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "customer" => InvoiceCustomerExpanded::Customer(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "customer" => InvoiceCustomerExpanded::Customer(Box::new(json::from_slice_owned(&json::to_vec(&value))?)),
             _ => InvoiceCustomerExpanded::Other(value),
         })
     }
@@ -6637,38 +5924,20 @@ impl InvoiceCustomerTaxExempt {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for InvoiceCustomerTaxExempt {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InvoiceCustomerTaxExempt;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exempt" => InvoiceCustomerTaxExempt::Exempt,
-                    "none" => InvoiceCustomerTaxExempt::None,
-                    "reverse" => InvoiceCustomerTaxExempt::Reverse,
-                    other => InvoiceCustomerTaxExempt::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InvoiceCustomerTaxExempt::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InvoiceCustomerTaxExempt {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InvoiceCustomerTaxExempt::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exempt" => InvoiceCustomerTaxExempt::Exempt,
+            "none" => InvoiceCustomerTaxExempt::None,
+            "reverse" => InvoiceCustomerTaxExempt::Reverse,
+            other => InvoiceCustomerTaxExempt::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6722,7 +5991,7 @@ pub enum InvoiceDiscountsItemExpanded {
     /// Expanded `discount`.
     Discount(Box<crate::coupons::Discount>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -6770,17 +6039,15 @@ pub enum InvoiceDiscountsItemExpanded {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for InvoiceDiscountsItemExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for InvoiceDiscountsItemExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "discount" => InvoiceDiscountsItemExpanded::Discount(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "discount" => {
+                InvoiceDiscountsItemExpanded::Discount(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
             _ => InvoiceDiscountsItemExpanded::Other(value),
         })
     }
@@ -6831,23 +6098,25 @@ impl<'de> serde::Deserialize<'de> for InvoiceDiscountsItemExpanded {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoiceInstallmentsCard {
     #[doc = "Whether Installments are enabled for this Invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub enabled: Option<bool>,
 }
 
 #[cfg(any(feature = "events", feature = "invoiceitems"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoiceItemProrationCreditedItems {
     #[doc = "When `type` is `invoice_item`, the invoice item id for the debited invoice item corresponding to this credit proration."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice_item: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice_line_item_details: Option<crate::invoices::CreditedItemsInvoiceLineItems>,
     #[doc = "Whether the credit references a pending invoice item or one or more invoice line items on an invoice."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::invoices::InvoiceItemProrationCreditedItemsType,
 }
 
@@ -6880,37 +6149,19 @@ impl Default for InvoiceItemProrationCreditedItemsType {
 }
 
 #[cfg(any(feature = "events", feature = "invoiceitems"))]
-impl<'de> serde::Deserialize<'de> for InvoiceItemProrationCreditedItemsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InvoiceItemProrationCreditedItemsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "invoice_item" => InvoiceItemProrationCreditedItemsType::InvoiceItem,
-                    "invoice_line_items" => InvoiceItemProrationCreditedItemsType::InvoiceLineItems,
-                    other => InvoiceItemProrationCreditedItemsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InvoiceItemProrationCreditedItemsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InvoiceItemProrationCreditedItemsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InvoiceItemProrationCreditedItemsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "invoice_item" => InvoiceItemProrationCreditedItemsType::InvoiceItem,
+            "invoice_line_items" => InvoiceItemProrationCreditedItemsType::InvoiceLineItems,
+            other => InvoiceItemProrationCreditedItemsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6959,13 +6210,14 @@ impl<'de> serde::Deserialize<'de> for InvoiceItemProrationCreditedItemsType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoiceItemThresholdReason {
     #[doc = "The IDs of the line items that triggered the threshold invoice."]
-    #[serde(default)]
+    #[json(default)]
     pub line_item_ids: Vec<String>,
     #[doc = "The quantity threshold boundary that applied to the given line item."]
-    #[serde(default)]
+    #[json(default)]
     pub usage_gte: i64,
 }
 
@@ -7014,13 +6266,14 @@ pub struct InvoiceItemThresholdReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoiceLineItemPeriod {
     #[doc = "The end of the period, which must be greater than or equal to the start."]
-    #[serde(default)]
+    #[json(default)]
     pub end: i64,
     #[doc = "The start of the period."]
-    #[serde(default)]
+    #[json(default)]
     pub start: i64,
 }
 
@@ -7069,16 +6322,17 @@ pub struct InvoiceLineItemPeriod {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoiceMandateOptionsCard {
     #[doc = "Amount to be charged for future payments, specified in the presentment currency."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
     #[doc = "One of `fixed` or `maximum`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_type: Option<crate::invoices::InvoiceMandateOptionsCardAmountType>,
     #[doc = "A description of the mandate or subscription that is meant to be displayed to the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 }
 
@@ -7236,37 +6490,19 @@ impl InvoiceMandateOptionsCardAmountType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for InvoiceMandateOptionsCardAmountType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InvoiceMandateOptionsCardAmountType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "fixed" => InvoiceMandateOptionsCardAmountType::Fixed,
-                    "maximum" => InvoiceMandateOptionsCardAmountType::Maximum,
-                    other => InvoiceMandateOptionsCardAmountType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InvoiceMandateOptionsCardAmountType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InvoiceMandateOptionsCardAmountType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InvoiceMandateOptionsCardAmountType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "fixed" => InvoiceMandateOptionsCardAmountType::Fixed,
+            "maximum" => InvoiceMandateOptionsCardAmountType::Maximum,
+            other => InvoiceMandateOptionsCardAmountType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7315,16 +6551,17 @@ impl<'de> serde::Deserialize<'de> for InvoiceMandateOptionsCardAmountType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoiceMandateOptionsPayto {
     #[doc = "The maximum amount that can be collected in a single invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
     #[doc = "Only `maximum` is supported."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_type: Option<crate::invoices::InvoiceMandateOptionsCardAmountType>,
     #[doc = "The purpose for which payments are made."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub purpose: Option<crate::invoices::InvoiceMandateOptionsPaytoPurpose>,
 }
 
@@ -7500,46 +6737,28 @@ impl InvoiceMandateOptionsPaytoPurpose {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for InvoiceMandateOptionsPaytoPurpose {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InvoiceMandateOptionsPaytoPurpose;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "dependant_support" => InvoiceMandateOptionsPaytoPurpose::DependantSupport,
-                    "government" => InvoiceMandateOptionsPaytoPurpose::Government,
-                    "loan" => InvoiceMandateOptionsPaytoPurpose::Loan,
-                    "mortgage" => InvoiceMandateOptionsPaytoPurpose::Mortgage,
-                    "other" => InvoiceMandateOptionsPaytoPurpose::Other,
-                    "pension" => InvoiceMandateOptionsPaytoPurpose::Pension,
-                    "personal" => InvoiceMandateOptionsPaytoPurpose::Personal,
-                    "retail" => InvoiceMandateOptionsPaytoPurpose::Retail,
-                    "salary" => InvoiceMandateOptionsPaytoPurpose::Salary,
-                    "tax" => InvoiceMandateOptionsPaytoPurpose::Tax,
-                    "utility" => InvoiceMandateOptionsPaytoPurpose::Utility,
-                    other => InvoiceMandateOptionsPaytoPurpose::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InvoiceMandateOptionsPaytoPurpose::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InvoiceMandateOptionsPaytoPurpose {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InvoiceMandateOptionsPaytoPurpose::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "dependant_support" => InvoiceMandateOptionsPaytoPurpose::DependantSupport,
+            "government" => InvoiceMandateOptionsPaytoPurpose::Government,
+            "loan" => InvoiceMandateOptionsPaytoPurpose::Loan,
+            "mortgage" => InvoiceMandateOptionsPaytoPurpose::Mortgage,
+            "other" => InvoiceMandateOptionsPaytoPurpose::Other,
+            "pension" => InvoiceMandateOptionsPaytoPurpose::Pension,
+            "personal" => InvoiceMandateOptionsPaytoPurpose::Personal,
+            "retail" => InvoiceMandateOptionsPaytoPurpose::Retail,
+            "salary" => InvoiceMandateOptionsPaytoPurpose::Salary,
+            "tax" => InvoiceMandateOptionsPaytoPurpose::Tax,
+            "utility" => InvoiceMandateOptionsPaytoPurpose::Utility,
+            other => InvoiceMandateOptionsPaytoPurpose::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7746,36 +6965,18 @@ impl Default for InvoiceObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for InvoiceObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InvoiceObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "invoice" => InvoiceObject::Invoice,
-                    other => InvoiceObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InvoiceObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InvoiceObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InvoiceObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "invoice" => InvoiceObject::Invoice,
+            other => InvoiceObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7824,10 +7025,11 @@ impl<'de> serde::Deserialize<'de> for InvoiceObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoiceRenderingPdf {
     #[doc = "Page size of invoice pdf."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub page_size: Option<crate::invoices::InvoiceRenderingPdfPageSize>,
 }
 
@@ -7987,38 +7189,20 @@ impl InvoiceRenderingPdfPageSize {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for InvoiceRenderingPdfPageSize {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InvoiceRenderingPdfPageSize;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "a4" => InvoiceRenderingPdfPageSize::A4,
-                    "auto" => InvoiceRenderingPdfPageSize::Auto,
-                    "letter" => InvoiceRenderingPdfPageSize::Letter,
-                    other => InvoiceRenderingPdfPageSize::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InvoiceRenderingPdfPageSize::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InvoiceRenderingPdfPageSize {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InvoiceRenderingPdfPageSize::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "a4" => InvoiceRenderingPdfPageSize::A4,
+            "auto" => InvoiceRenderingPdfPageSize::Auto,
+            "letter" => InvoiceRenderingPdfPageSize::Letter,
+            other => InvoiceRenderingPdfPageSize::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8029,13 +7213,14 @@ impl<'de> serde::Deserialize<'de> for InvoiceRenderingPdfPageSize {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoiceSettingCheckoutRenderingOptions {
     #[doc = "How line-item prices and amounts will be displayed with respect to tax on invoice PDFs."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_tax_display: Option<String>,
     #[doc = "ID of the invoice rendering template to be used for the generated invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub template: Option<String>,
 }
 
@@ -8084,13 +7269,14 @@ pub struct InvoiceSettingCheckoutRenderingOptions {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoiceSettingCustomField {
     #[doc = "The name of the custom field."]
-    #[serde(default)]
+    #[json(default)]
     pub name: String,
     #[doc = "The value of the custom field."]
-    #[serde(default)]
+    #[json(default)]
     pub value: String,
 }
 
@@ -8139,13 +7325,14 @@ pub struct InvoiceSettingCustomField {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoiceSettingCustomerRenderingOptions {
     #[doc = "How line-item prices and amounts will be displayed with respect to tax on invoice PDFs."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_tax_display: Option<String>,
     #[doc = "ID of the invoice rendering template to be used for this customer's invoices."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub template: Option<String>,
 }
 
@@ -8194,38 +7381,40 @@ pub struct InvoiceSettingCustomerRenderingOptions {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoiceSettingCustomerSetting {
     #[doc = "Default custom fields to be displayed on invoices for this customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub custom_fields: Option<Vec<crate::invoices::InvoiceSettingCustomField>>,
     #[doc = "ID of a payment method that's attached to the customer, to be used as the customer's default payment method for subsc..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_payment_method: Option<crate::Expandable<crate::payment_methods::PaymentMethod>>,
     #[doc = "Default footer to be displayed on invoices for this customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub footer: Option<String>,
     #[doc = "Default options for invoice PDF rendering for this customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub rendering_options: Option<crate::invoices::InvoiceSettingCustomerRenderingOptions>,
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoiceSettingQuoteSetting {
     #[doc = "A list of up to 4 custom fields to be displayed on the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub custom_fields: Option<Vec<crate::invoices::InvoiceSettingCustomField>>,
     #[doc = "Number of days within which a customer must pay invoices generated by this quote."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub days_until_due: Option<i64>,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "Footer to be displayed on the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub footer: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuer: Option<crate::accounts::ConnectAccountReference>,
 }
 
@@ -8274,25 +7463,26 @@ pub struct InvoiceSettingQuoteSetting {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoiceSettingSubscriptionSchedulePhaseSetting {
     #[doc = "The account tax IDs associated with this phase of the subscription schedule."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_tax_ids: Option<Vec<crate::Expandable<crate::invoices::InvoiceAccountTaxIdsItemExpanded>>>,
     #[doc = "A list of up to 4 custom fields to be displayed on the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub custom_fields: Option<Vec<crate::invoices::InvoiceSettingCustomField>>,
     #[doc = "Number of days within which a customer must pay invoices generated by this subscription schedule."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub days_until_due: Option<i64>,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "Footer to be displayed on the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub footer: Option<String>,
     #[doc = "The connected account that issues the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuer: Option<crate::accounts::ConnectAccountReference>,
 }
 
@@ -8341,24 +7531,25 @@ pub struct InvoiceSettingSubscriptionSchedulePhaseSetting {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoiceSettingSubscriptionScheduleSetting {
     #[doc = "The account tax IDs associated with the subscription schedule."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_tax_ids: Option<Vec<crate::Expandable<crate::invoices::InvoiceAccountTaxIdsItemExpanded>>>,
     #[doc = "A list of up to 4 custom fields to be displayed on the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub custom_fields: Option<Vec<crate::invoices::InvoiceSettingCustomField>>,
     #[doc = "Number of days within which a customer must pay invoices generated by this subscription schedule."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub days_until_due: Option<i64>,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "Footer to be displayed on the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub footer: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuer: Option<crate::accounts::ConnectAccountReference>,
 }
 
@@ -8522,40 +7713,22 @@ impl InvoiceStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for InvoiceStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InvoiceStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "draft" => InvoiceStatus::Draft,
-                    "open" => InvoiceStatus::Open,
-                    "paid" => InvoiceStatus::Paid,
-                    "uncollectible" => InvoiceStatus::Uncollectible,
-                    "void" => InvoiceStatus::Void,
-                    other => InvoiceStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InvoiceStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InvoiceStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InvoiceStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "draft" => InvoiceStatus::Draft,
+            "open" => InvoiceStatus::Open,
+            "paid" => InvoiceStatus::Paid,
+            "uncollectible" => InvoiceStatus::Uncollectible,
+            "void" => InvoiceStatus::Void,
+            other => InvoiceStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8604,13 +7777,14 @@ impl<'de> serde::Deserialize<'de> for InvoiceStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoiceThresholdReason {
     #[doc = "The total invoice amount threshold boundary if it triggered the threshold invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_gte: Option<i64>,
     #[doc = "Indicates which line items triggered a threshold invoice."]
-    #[serde(default)]
+    #[json(default)]
     pub item_reasons: Vec<crate::invoices::InvoiceItemThresholdReason>,
 }
 
@@ -8659,43 +7833,44 @@ pub struct InvoiceThresholdReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoicesPaymentMethodOptions {
     #[doc = "If paying by `acss_debit`, this sub-hash contains details about the Canadian pre-authorized debit payment method opti..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub acss_debit: Option<crate::invoice_payments::InvoicePaymentMethodOptionsAcssDebit>,
     #[doc = "If paying by `bancontact`, this sub-hash contains details about the Bancontact payment method options to pass to the ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bancontact: Option<crate::invoice_payments::InvoicePaymentMethodOptionsBancontact>,
     #[doc = "If paying by `billie`, this sub-hash contains details about the Billie payment method options to pass to the invoice’..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billie: Option<crate::invoice_payments::InvoicePaymentMethodOptionsBillie>,
     #[doc = "If paying by `blik`, this sub-hash contains details about the Blik payment method options to pass to the invoice’s Pa..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub blik: Option<crate::invoice_payments::InvoicePaymentMethodOptionsBlik>,
     #[doc = "If paying by `card`, this sub-hash contains details about the Card payment method options to pass to the invoice’s Pa..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::invoice_payments::InvoicePaymentMethodOptionsCard>,
     #[doc = "If paying by `customer_balance`, this sub-hash contains details about the Bank transfer payment method options to pas..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_balance: Option<crate::invoice_payments::InvoicePaymentMethodOptionsCustomerBalance>,
     #[doc = "If paying by `konbini`, this sub-hash contains details about the Konbini payment method options to pass to the invoic..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub konbini: Option<crate::invoice_payments::InvoicePaymentMethodOptionsKonbini>,
     #[doc = "If paying by `payto`, this sub-hash contains details about the PayTo payment method options to pass to the invoice’s ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payto: Option<crate::invoice_payments::InvoicePaymentMethodOptionsPayto>,
     #[doc = "If paying by `pix`, this sub-hash contains details about the Pix payment method options to pass to the invoice’s Paym..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pix: Option<crate::invoice_payments::InvoicePaymentMethodOptionsPix>,
     #[doc = "If paying by `sepa_debit`, this sub-hash contains details about the SEPA Direct Debit payment method options to pass ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sepa_debit: Option<crate::invoice_payments::InvoicePaymentMethodOptionsSepaDebit>,
     #[doc = "If paying by `upi`, this sub-hash contains details about the UPI payment method options to pass to the invoice’s Paym..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub upi: Option<crate::invoice_payments::InvoicePaymentMethodOptionsUpi>,
     #[doc = "If paying by `us_bank_account`, this sub-hash contains details about the ACH direct debit payment method options to p..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us_bank_account: Option<crate::invoice_payments::InvoicePaymentMethodOptionsUsBankAccount>,
 }
 
@@ -8744,16 +7919,17 @@ pub struct InvoicesPaymentMethodOptions {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoicesPaymentSettings {
     #[doc = "ID of the mandate to be used for this invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_mandate: Option<String>,
     #[doc = "Payment-method-specific configuration to provide to the invoice’s PaymentIntent."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_options: Option<crate::invoices::InvoicesPaymentMethodOptions>,
     #[doc = "The list of payment method types (e.g."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_types: Option<Vec<crate::invoices::InvoicesPaymentSettingsPaymentMethodTypesItem>>,
 }
 
@@ -9007,85 +8183,67 @@ impl InvoicesPaymentSettingsPaymentMethodTypesItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for InvoicesPaymentSettingsPaymentMethodTypesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InvoicesPaymentSettingsPaymentMethodTypesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ach_credit_transfer" => InvoicesPaymentSettingsPaymentMethodTypesItem::AchCreditTransfer,
-                    "ach_debit" => InvoicesPaymentSettingsPaymentMethodTypesItem::AchDebit,
-                    "acss_debit" => InvoicesPaymentSettingsPaymentMethodTypesItem::AcssDebit,
-                    "affirm" => InvoicesPaymentSettingsPaymentMethodTypesItem::Affirm,
-                    "alipay" => InvoicesPaymentSettingsPaymentMethodTypesItem::Alipay,
-                    "amazon_pay" => InvoicesPaymentSettingsPaymentMethodTypesItem::AmazonPay,
-                    "au_becs_debit" => InvoicesPaymentSettingsPaymentMethodTypesItem::AuBecsDebit,
-                    "bacs_debit" => InvoicesPaymentSettingsPaymentMethodTypesItem::BacsDebit,
-                    "bancontact" => InvoicesPaymentSettingsPaymentMethodTypesItem::Bancontact,
-                    "billie" => InvoicesPaymentSettingsPaymentMethodTypesItem::Billie,
-                    "blik" => InvoicesPaymentSettingsPaymentMethodTypesItem::Blik,
-                    "boleto" => InvoicesPaymentSettingsPaymentMethodTypesItem::Boleto,
-                    "card" => InvoicesPaymentSettingsPaymentMethodTypesItem::Card,
-                    "cashapp" => InvoicesPaymentSettingsPaymentMethodTypesItem::Cashapp,
-                    "crypto" => InvoicesPaymentSettingsPaymentMethodTypesItem::Crypto,
-                    "custom" => InvoicesPaymentSettingsPaymentMethodTypesItem::Custom,
-                    "customer_balance" => InvoicesPaymentSettingsPaymentMethodTypesItem::CustomerBalance,
-                    "eps" => InvoicesPaymentSettingsPaymentMethodTypesItem::Eps,
-                    "fpx" => InvoicesPaymentSettingsPaymentMethodTypesItem::Fpx,
-                    "giropay" => InvoicesPaymentSettingsPaymentMethodTypesItem::Giropay,
-                    "grabpay" => InvoicesPaymentSettingsPaymentMethodTypesItem::Grabpay,
-                    "ideal" => InvoicesPaymentSettingsPaymentMethodTypesItem::Ideal,
-                    "jp_credit_transfer" => InvoicesPaymentSettingsPaymentMethodTypesItem::JpCreditTransfer,
-                    "kakao_pay" => InvoicesPaymentSettingsPaymentMethodTypesItem::KakaoPay,
-                    "klarna" => InvoicesPaymentSettingsPaymentMethodTypesItem::Klarna,
-                    "konbini" => InvoicesPaymentSettingsPaymentMethodTypesItem::Konbini,
-                    "kr_card" => InvoicesPaymentSettingsPaymentMethodTypesItem::KrCard,
-                    "link" => InvoicesPaymentSettingsPaymentMethodTypesItem::Link,
-                    "mb_way" => InvoicesPaymentSettingsPaymentMethodTypesItem::MbWay,
-                    "multibanco" => InvoicesPaymentSettingsPaymentMethodTypesItem::Multibanco,
-                    "naver_pay" => InvoicesPaymentSettingsPaymentMethodTypesItem::NaverPay,
-                    "nz_bank_account" => InvoicesPaymentSettingsPaymentMethodTypesItem::NzBankAccount,
-                    "p24" => InvoicesPaymentSettingsPaymentMethodTypesItem::P24,
-                    "pay_by_bank" => InvoicesPaymentSettingsPaymentMethodTypesItem::PayByBank,
-                    "payco" => InvoicesPaymentSettingsPaymentMethodTypesItem::Payco,
-                    "paynow" => InvoicesPaymentSettingsPaymentMethodTypesItem::Paynow,
-                    "paypal" => InvoicesPaymentSettingsPaymentMethodTypesItem::Paypal,
-                    "payto" => InvoicesPaymentSettingsPaymentMethodTypesItem::Payto,
-                    "pix" => InvoicesPaymentSettingsPaymentMethodTypesItem::Pix,
-                    "promptpay" => InvoicesPaymentSettingsPaymentMethodTypesItem::Promptpay,
-                    "revolut_pay" => InvoicesPaymentSettingsPaymentMethodTypesItem::RevolutPay,
-                    "satispay" => InvoicesPaymentSettingsPaymentMethodTypesItem::Satispay,
-                    "sepa_credit_transfer" => InvoicesPaymentSettingsPaymentMethodTypesItem::SepaCreditTransfer,
-                    "sepa_debit" => InvoicesPaymentSettingsPaymentMethodTypesItem::SepaDebit,
-                    "sofort" => InvoicesPaymentSettingsPaymentMethodTypesItem::Sofort,
-                    "swish" => InvoicesPaymentSettingsPaymentMethodTypesItem::Swish,
-                    "twint" => InvoicesPaymentSettingsPaymentMethodTypesItem::Twint,
-                    "upi" => InvoicesPaymentSettingsPaymentMethodTypesItem::Upi,
-                    "us_bank_account" => InvoicesPaymentSettingsPaymentMethodTypesItem::UsBankAccount,
-                    "wechat_pay" => InvoicesPaymentSettingsPaymentMethodTypesItem::WechatPay,
-                    other => InvoicesPaymentSettingsPaymentMethodTypesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InvoicesPaymentSettingsPaymentMethodTypesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InvoicesPaymentSettingsPaymentMethodTypesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InvoicesPaymentSettingsPaymentMethodTypesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ach_credit_transfer" => InvoicesPaymentSettingsPaymentMethodTypesItem::AchCreditTransfer,
+            "ach_debit" => InvoicesPaymentSettingsPaymentMethodTypesItem::AchDebit,
+            "acss_debit" => InvoicesPaymentSettingsPaymentMethodTypesItem::AcssDebit,
+            "affirm" => InvoicesPaymentSettingsPaymentMethodTypesItem::Affirm,
+            "alipay" => InvoicesPaymentSettingsPaymentMethodTypesItem::Alipay,
+            "amazon_pay" => InvoicesPaymentSettingsPaymentMethodTypesItem::AmazonPay,
+            "au_becs_debit" => InvoicesPaymentSettingsPaymentMethodTypesItem::AuBecsDebit,
+            "bacs_debit" => InvoicesPaymentSettingsPaymentMethodTypesItem::BacsDebit,
+            "bancontact" => InvoicesPaymentSettingsPaymentMethodTypesItem::Bancontact,
+            "billie" => InvoicesPaymentSettingsPaymentMethodTypesItem::Billie,
+            "blik" => InvoicesPaymentSettingsPaymentMethodTypesItem::Blik,
+            "boleto" => InvoicesPaymentSettingsPaymentMethodTypesItem::Boleto,
+            "card" => InvoicesPaymentSettingsPaymentMethodTypesItem::Card,
+            "cashapp" => InvoicesPaymentSettingsPaymentMethodTypesItem::Cashapp,
+            "crypto" => InvoicesPaymentSettingsPaymentMethodTypesItem::Crypto,
+            "custom" => InvoicesPaymentSettingsPaymentMethodTypesItem::Custom,
+            "customer_balance" => InvoicesPaymentSettingsPaymentMethodTypesItem::CustomerBalance,
+            "eps" => InvoicesPaymentSettingsPaymentMethodTypesItem::Eps,
+            "fpx" => InvoicesPaymentSettingsPaymentMethodTypesItem::Fpx,
+            "giropay" => InvoicesPaymentSettingsPaymentMethodTypesItem::Giropay,
+            "grabpay" => InvoicesPaymentSettingsPaymentMethodTypesItem::Grabpay,
+            "ideal" => InvoicesPaymentSettingsPaymentMethodTypesItem::Ideal,
+            "jp_credit_transfer" => InvoicesPaymentSettingsPaymentMethodTypesItem::JpCreditTransfer,
+            "kakao_pay" => InvoicesPaymentSettingsPaymentMethodTypesItem::KakaoPay,
+            "klarna" => InvoicesPaymentSettingsPaymentMethodTypesItem::Klarna,
+            "konbini" => InvoicesPaymentSettingsPaymentMethodTypesItem::Konbini,
+            "kr_card" => InvoicesPaymentSettingsPaymentMethodTypesItem::KrCard,
+            "link" => InvoicesPaymentSettingsPaymentMethodTypesItem::Link,
+            "mb_way" => InvoicesPaymentSettingsPaymentMethodTypesItem::MbWay,
+            "multibanco" => InvoicesPaymentSettingsPaymentMethodTypesItem::Multibanco,
+            "naver_pay" => InvoicesPaymentSettingsPaymentMethodTypesItem::NaverPay,
+            "nz_bank_account" => InvoicesPaymentSettingsPaymentMethodTypesItem::NzBankAccount,
+            "p24" => InvoicesPaymentSettingsPaymentMethodTypesItem::P24,
+            "pay_by_bank" => InvoicesPaymentSettingsPaymentMethodTypesItem::PayByBank,
+            "payco" => InvoicesPaymentSettingsPaymentMethodTypesItem::Payco,
+            "paynow" => InvoicesPaymentSettingsPaymentMethodTypesItem::Paynow,
+            "paypal" => InvoicesPaymentSettingsPaymentMethodTypesItem::Paypal,
+            "payto" => InvoicesPaymentSettingsPaymentMethodTypesItem::Payto,
+            "pix" => InvoicesPaymentSettingsPaymentMethodTypesItem::Pix,
+            "promptpay" => InvoicesPaymentSettingsPaymentMethodTypesItem::Promptpay,
+            "revolut_pay" => InvoicesPaymentSettingsPaymentMethodTypesItem::RevolutPay,
+            "satispay" => InvoicesPaymentSettingsPaymentMethodTypesItem::Satispay,
+            "sepa_credit_transfer" => InvoicesPaymentSettingsPaymentMethodTypesItem::SepaCreditTransfer,
+            "sepa_debit" => InvoicesPaymentSettingsPaymentMethodTypesItem::SepaDebit,
+            "sofort" => InvoicesPaymentSettingsPaymentMethodTypesItem::Sofort,
+            "swish" => InvoicesPaymentSettingsPaymentMethodTypesItem::Swish,
+            "twint" => InvoicesPaymentSettingsPaymentMethodTypesItem::Twint,
+            "upi" => InvoicesPaymentSettingsPaymentMethodTypesItem::Upi,
+            "us_bank_account" => InvoicesPaymentSettingsPaymentMethodTypesItem::UsBankAccount,
+            "wechat_pay" => InvoicesPaymentSettingsPaymentMethodTypesItem::WechatPay,
+            other => InvoicesPaymentSettingsPaymentMethodTypesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -9134,19 +8292,20 @@ impl<'de> serde::Deserialize<'de> for InvoicesPaymentSettingsPaymentMethodTypesI
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoicesPaymentsInvoicePaymentAssociatedPayment {
     #[doc = "ID of the successful charge for this payment when `type` is `charge`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub charge: Option<crate::Expandable<crate::charges::Charge>>,
     #[doc = "ID of the PaymentIntent associated with this payment when `type` is `payment_intent`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_intent: Option<crate::Expandable<crate::payment_intents::PaymentIntent>>,
     #[doc = "ID of the PaymentRecord associated with this payment when `type` is `payment_record`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_record: Option<crate::Expandable<crate::payment_records::PaymentRecord>>,
     #[doc = "Type of payment object associated with this invoice payment."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::invoices::InvoicesPaymentsInvoicePaymentAssociatedPaymentType,
 }
 
@@ -9357,38 +8516,20 @@ impl Default for InvoicesPaymentsInvoicePaymentAssociatedPaymentType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for InvoicesPaymentsInvoicePaymentAssociatedPaymentType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InvoicesPaymentsInvoicePaymentAssociatedPaymentType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "charge" => InvoicesPaymentsInvoicePaymentAssociatedPaymentType::Charge,
-                    "payment_intent" => InvoicesPaymentsInvoicePaymentAssociatedPaymentType::PaymentIntent,
-                    "payment_record" => InvoicesPaymentsInvoicePaymentAssociatedPaymentType::PaymentRecord,
-                    other => InvoicesPaymentsInvoicePaymentAssociatedPaymentType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InvoicesPaymentsInvoicePaymentAssociatedPaymentType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InvoicesPaymentsInvoicePaymentAssociatedPaymentType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InvoicesPaymentsInvoicePaymentAssociatedPaymentType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "charge" => InvoicesPaymentsInvoicePaymentAssociatedPaymentType::Charge,
+            "payment_intent" => InvoicesPaymentsInvoicePaymentAssociatedPaymentType::PaymentIntent,
+            "payment_record" => InvoicesPaymentsInvoicePaymentAssociatedPaymentType::PaymentRecord,
+            other => InvoicesPaymentsInvoicePaymentAssociatedPaymentType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -9437,13 +8578,14 @@ impl<'de> serde::Deserialize<'de> for InvoicesPaymentsInvoicePaymentAssociatedPa
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoicesPaymentsInvoicePaymentStatusTransitions {
     #[doc = "The time that the payment was canceled."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub canceled_at: Option<i64>,
     #[doc = "The time that the payment succeeded."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paid_at: Option<i64>,
 }
 
@@ -9492,13 +8634,14 @@ pub struct InvoicesPaymentsInvoicePaymentStatusTransitions {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoicesResourceConfirmationSecret {
     #[doc = "The client_secret of the payment that Stripe creates for the invoice after finalization."]
-    #[serde(default)]
+    #[json(default)]
     pub client_secret: String,
     #[doc = "The type of client_secret."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: String,
 }
 
@@ -9547,13 +8690,14 @@ pub struct InvoicesResourceConfirmationSecret {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoicesResourceFromInvoice {
     #[doc = "The relation between this invoice and the cloned invoice"]
-    #[serde(default)]
+    #[json(default)]
     pub action: String,
     #[doc = "The invoice that was cloned."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice: Option<crate::Expandable<crate::invoices::Invoice>>,
 }
 
@@ -9602,19 +8746,20 @@ pub struct InvoicesResourceFromInvoice {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoicesResourceInvoiceRendering {
     #[doc = "How line-item prices and amounts will be displayed with respect to tax on invoice PDFs."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_tax_display: Option<String>,
     #[doc = "Invoice pdf rendering options"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pdf: Option<crate::invoices::InvoiceRenderingPdf>,
     #[doc = "ID of the rendering template that the invoice is formatted by."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub template: Option<String>,
     #[doc = "Version of the rendering template that the invoice is using."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub template_version: Option<i64>,
 }
 
@@ -9663,13 +8808,14 @@ pub struct InvoicesResourceInvoiceRendering {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoicesResourceInvoiceTaxId {
     #[doc = "The type of the tax ID, one of `ad_nrt`, `ar_cuit`, `eu_vat`, `bo_tin`, `br_cnpj`, `br_cpf`, `cn_tin`, `co_nit`, `cr_..."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::invoices::InvoicesResourceInvoiceTaxIdType,
     #[doc = "The value of the tax ID."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
 }
 
@@ -10110,153 +9256,135 @@ impl Default for InvoicesResourceInvoiceTaxIdType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for InvoicesResourceInvoiceTaxIdType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InvoicesResourceInvoiceTaxIdType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ad_nrt" => InvoicesResourceInvoiceTaxIdType::AdNrt,
-                    "ae_trn" => InvoicesResourceInvoiceTaxIdType::AeTrn,
-                    "al_tin" => InvoicesResourceInvoiceTaxIdType::AlTin,
-                    "am_tin" => InvoicesResourceInvoiceTaxIdType::AmTin,
-                    "ao_tin" => InvoicesResourceInvoiceTaxIdType::AoTin,
-                    "ar_cuit" => InvoicesResourceInvoiceTaxIdType::ArCuit,
-                    "au_abn" => InvoicesResourceInvoiceTaxIdType::AuAbn,
-                    "au_arn" => InvoicesResourceInvoiceTaxIdType::AuArn,
-                    "aw_tin" => InvoicesResourceInvoiceTaxIdType::AwTin,
-                    "az_tin" => InvoicesResourceInvoiceTaxIdType::AzTin,
-                    "ba_tin" => InvoicesResourceInvoiceTaxIdType::BaTin,
-                    "bb_tin" => InvoicesResourceInvoiceTaxIdType::BbTin,
-                    "bd_bin" => InvoicesResourceInvoiceTaxIdType::BdBin,
-                    "bf_ifu" => InvoicesResourceInvoiceTaxIdType::BfIfu,
-                    "bg_uic" => InvoicesResourceInvoiceTaxIdType::BgUic,
-                    "bh_vat" => InvoicesResourceInvoiceTaxIdType::BhVat,
-                    "bj_ifu" => InvoicesResourceInvoiceTaxIdType::BjIfu,
-                    "bo_tin" => InvoicesResourceInvoiceTaxIdType::BoTin,
-                    "br_cnpj" => InvoicesResourceInvoiceTaxIdType::BrCnpj,
-                    "br_cpf" => InvoicesResourceInvoiceTaxIdType::BrCpf,
-                    "bs_tin" => InvoicesResourceInvoiceTaxIdType::BsTin,
-                    "by_tin" => InvoicesResourceInvoiceTaxIdType::ByTin,
-                    "ca_bn" => InvoicesResourceInvoiceTaxIdType::CaBn,
-                    "ca_gst_hst" => InvoicesResourceInvoiceTaxIdType::CaGstHst,
-                    "ca_pst_bc" => InvoicesResourceInvoiceTaxIdType::CaPstBc,
-                    "ca_pst_mb" => InvoicesResourceInvoiceTaxIdType::CaPstMb,
-                    "ca_pst_sk" => InvoicesResourceInvoiceTaxIdType::CaPstSk,
-                    "ca_qst" => InvoicesResourceInvoiceTaxIdType::CaQst,
-                    "cd_nif" => InvoicesResourceInvoiceTaxIdType::CdNif,
-                    "ch_uid" => InvoicesResourceInvoiceTaxIdType::ChUid,
-                    "ch_vat" => InvoicesResourceInvoiceTaxIdType::ChVat,
-                    "cl_tin" => InvoicesResourceInvoiceTaxIdType::ClTin,
-                    "cm_niu" => InvoicesResourceInvoiceTaxIdType::CmNiu,
-                    "cn_tin" => InvoicesResourceInvoiceTaxIdType::CnTin,
-                    "co_nit" => InvoicesResourceInvoiceTaxIdType::CoNit,
-                    "cr_tin" => InvoicesResourceInvoiceTaxIdType::CrTin,
-                    "cv_nif" => InvoicesResourceInvoiceTaxIdType::CvNif,
-                    "de_stn" => InvoicesResourceInvoiceTaxIdType::DeStn,
-                    "do_rcn" => InvoicesResourceInvoiceTaxIdType::DoRcn,
-                    "ec_ruc" => InvoicesResourceInvoiceTaxIdType::EcRuc,
-                    "eg_tin" => InvoicesResourceInvoiceTaxIdType::EgTin,
-                    "es_cif" => InvoicesResourceInvoiceTaxIdType::EsCif,
-                    "et_tin" => InvoicesResourceInvoiceTaxIdType::EtTin,
-                    "eu_oss_vat" => InvoicesResourceInvoiceTaxIdType::EuOssVat,
-                    "eu_vat" => InvoicesResourceInvoiceTaxIdType::EuVat,
-                    "fo_vat" => InvoicesResourceInvoiceTaxIdType::FoVat,
-                    "gb_vat" => InvoicesResourceInvoiceTaxIdType::GbVat,
-                    "ge_vat" => InvoicesResourceInvoiceTaxIdType::GeVat,
-                    "gi_tin" => InvoicesResourceInvoiceTaxIdType::GiTin,
-                    "gn_nif" => InvoicesResourceInvoiceTaxIdType::GnNif,
-                    "hk_br" => InvoicesResourceInvoiceTaxIdType::HkBr,
-                    "hr_oib" => InvoicesResourceInvoiceTaxIdType::HrOib,
-                    "hu_tin" => InvoicesResourceInvoiceTaxIdType::HuTin,
-                    "ic_nif" => InvoicesResourceInvoiceTaxIdType::IcNif,
-                    "id_npwp" => InvoicesResourceInvoiceTaxIdType::IdNpwp,
-                    "il_vat" => InvoicesResourceInvoiceTaxIdType::IlVat,
-                    "in_gst" => InvoicesResourceInvoiceTaxIdType::InGst,
-                    "is_vat" => InvoicesResourceInvoiceTaxIdType::IsVat,
-                    "it_cf" => InvoicesResourceInvoiceTaxIdType::ItCf,
-                    "jp_cn" => InvoicesResourceInvoiceTaxIdType::JpCn,
-                    "jp_rn" => InvoicesResourceInvoiceTaxIdType::JpRn,
-                    "jp_trn" => InvoicesResourceInvoiceTaxIdType::JpTrn,
-                    "ke_pin" => InvoicesResourceInvoiceTaxIdType::KePin,
-                    "kg_tin" => InvoicesResourceInvoiceTaxIdType::KgTin,
-                    "kh_tin" => InvoicesResourceInvoiceTaxIdType::KhTin,
-                    "kr_brn" => InvoicesResourceInvoiceTaxIdType::KrBrn,
-                    "kz_bin" => InvoicesResourceInvoiceTaxIdType::KzBin,
-                    "la_tin" => InvoicesResourceInvoiceTaxIdType::LaTin,
-                    "li_uid" => InvoicesResourceInvoiceTaxIdType::LiUid,
-                    "li_vat" => InvoicesResourceInvoiceTaxIdType::LiVat,
-                    "lk_vat" => InvoicesResourceInvoiceTaxIdType::LkVat,
-                    "ma_vat" => InvoicesResourceInvoiceTaxIdType::MaVat,
-                    "md_vat" => InvoicesResourceInvoiceTaxIdType::MdVat,
-                    "me_pib" => InvoicesResourceInvoiceTaxIdType::MePib,
-                    "mk_vat" => InvoicesResourceInvoiceTaxIdType::MkVat,
-                    "mr_nif" => InvoicesResourceInvoiceTaxIdType::MrNif,
-                    "mx_rfc" => InvoicesResourceInvoiceTaxIdType::MxRfc,
-                    "my_frp" => InvoicesResourceInvoiceTaxIdType::MyFrp,
-                    "my_itn" => InvoicesResourceInvoiceTaxIdType::MyItn,
-                    "my_sst" => InvoicesResourceInvoiceTaxIdType::MySst,
-                    "ng_tin" => InvoicesResourceInvoiceTaxIdType::NgTin,
-                    "no_vat" => InvoicesResourceInvoiceTaxIdType::NoVat,
-                    "no_voec" => InvoicesResourceInvoiceTaxIdType::NoVoec,
-                    "np_pan" => InvoicesResourceInvoiceTaxIdType::NpPan,
-                    "nz_gst" => InvoicesResourceInvoiceTaxIdType::NzGst,
-                    "om_vat" => InvoicesResourceInvoiceTaxIdType::OmVat,
-                    "pe_ruc" => InvoicesResourceInvoiceTaxIdType::PeRuc,
-                    "ph_tin" => InvoicesResourceInvoiceTaxIdType::PhTin,
-                    "pl_nip" => InvoicesResourceInvoiceTaxIdType::PlNip,
-                    "py_ruc" => InvoicesResourceInvoiceTaxIdType::PyRuc,
-                    "ro_tin" => InvoicesResourceInvoiceTaxIdType::RoTin,
-                    "rs_pib" => InvoicesResourceInvoiceTaxIdType::RsPib,
-                    "ru_inn" => InvoicesResourceInvoiceTaxIdType::RuInn,
-                    "ru_kpp" => InvoicesResourceInvoiceTaxIdType::RuKpp,
-                    "sa_vat" => InvoicesResourceInvoiceTaxIdType::SaVat,
-                    "sg_gst" => InvoicesResourceInvoiceTaxIdType::SgGst,
-                    "sg_uen" => InvoicesResourceInvoiceTaxIdType::SgUen,
-                    "si_tin" => InvoicesResourceInvoiceTaxIdType::SiTin,
-                    "sn_ninea" => InvoicesResourceInvoiceTaxIdType::SnNinea,
-                    "sr_fin" => InvoicesResourceInvoiceTaxIdType::SrFin,
-                    "sv_nit" => InvoicesResourceInvoiceTaxIdType::SvNit,
-                    "th_vat" => InvoicesResourceInvoiceTaxIdType::ThVat,
-                    "tj_tin" => InvoicesResourceInvoiceTaxIdType::TjTin,
-                    "tr_tin" => InvoicesResourceInvoiceTaxIdType::TrTin,
-                    "tw_vat" => InvoicesResourceInvoiceTaxIdType::TwVat,
-                    "tz_vat" => InvoicesResourceInvoiceTaxIdType::TzVat,
-                    "ua_vat" => InvoicesResourceInvoiceTaxIdType::UaVat,
-                    "ug_tin" => InvoicesResourceInvoiceTaxIdType::UgTin,
-                    "unknown" => InvoicesResourceInvoiceTaxIdType::UnknownValue,
-                    "us_ein" => InvoicesResourceInvoiceTaxIdType::UsEin,
-                    "uy_ruc" => InvoicesResourceInvoiceTaxIdType::UyRuc,
-                    "uz_tin" => InvoicesResourceInvoiceTaxIdType::UzTin,
-                    "uz_vat" => InvoicesResourceInvoiceTaxIdType::UzVat,
-                    "ve_rif" => InvoicesResourceInvoiceTaxIdType::VeRif,
-                    "vn_tin" => InvoicesResourceInvoiceTaxIdType::VnTin,
-                    "za_vat" => InvoicesResourceInvoiceTaxIdType::ZaVat,
-                    "zm_tin" => InvoicesResourceInvoiceTaxIdType::ZmTin,
-                    "zw_tin" => InvoicesResourceInvoiceTaxIdType::ZwTin,
-                    other => InvoicesResourceInvoiceTaxIdType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InvoicesResourceInvoiceTaxIdType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InvoicesResourceInvoiceTaxIdType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InvoicesResourceInvoiceTaxIdType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ad_nrt" => InvoicesResourceInvoiceTaxIdType::AdNrt,
+            "ae_trn" => InvoicesResourceInvoiceTaxIdType::AeTrn,
+            "al_tin" => InvoicesResourceInvoiceTaxIdType::AlTin,
+            "am_tin" => InvoicesResourceInvoiceTaxIdType::AmTin,
+            "ao_tin" => InvoicesResourceInvoiceTaxIdType::AoTin,
+            "ar_cuit" => InvoicesResourceInvoiceTaxIdType::ArCuit,
+            "au_abn" => InvoicesResourceInvoiceTaxIdType::AuAbn,
+            "au_arn" => InvoicesResourceInvoiceTaxIdType::AuArn,
+            "aw_tin" => InvoicesResourceInvoiceTaxIdType::AwTin,
+            "az_tin" => InvoicesResourceInvoiceTaxIdType::AzTin,
+            "ba_tin" => InvoicesResourceInvoiceTaxIdType::BaTin,
+            "bb_tin" => InvoicesResourceInvoiceTaxIdType::BbTin,
+            "bd_bin" => InvoicesResourceInvoiceTaxIdType::BdBin,
+            "bf_ifu" => InvoicesResourceInvoiceTaxIdType::BfIfu,
+            "bg_uic" => InvoicesResourceInvoiceTaxIdType::BgUic,
+            "bh_vat" => InvoicesResourceInvoiceTaxIdType::BhVat,
+            "bj_ifu" => InvoicesResourceInvoiceTaxIdType::BjIfu,
+            "bo_tin" => InvoicesResourceInvoiceTaxIdType::BoTin,
+            "br_cnpj" => InvoicesResourceInvoiceTaxIdType::BrCnpj,
+            "br_cpf" => InvoicesResourceInvoiceTaxIdType::BrCpf,
+            "bs_tin" => InvoicesResourceInvoiceTaxIdType::BsTin,
+            "by_tin" => InvoicesResourceInvoiceTaxIdType::ByTin,
+            "ca_bn" => InvoicesResourceInvoiceTaxIdType::CaBn,
+            "ca_gst_hst" => InvoicesResourceInvoiceTaxIdType::CaGstHst,
+            "ca_pst_bc" => InvoicesResourceInvoiceTaxIdType::CaPstBc,
+            "ca_pst_mb" => InvoicesResourceInvoiceTaxIdType::CaPstMb,
+            "ca_pst_sk" => InvoicesResourceInvoiceTaxIdType::CaPstSk,
+            "ca_qst" => InvoicesResourceInvoiceTaxIdType::CaQst,
+            "cd_nif" => InvoicesResourceInvoiceTaxIdType::CdNif,
+            "ch_uid" => InvoicesResourceInvoiceTaxIdType::ChUid,
+            "ch_vat" => InvoicesResourceInvoiceTaxIdType::ChVat,
+            "cl_tin" => InvoicesResourceInvoiceTaxIdType::ClTin,
+            "cm_niu" => InvoicesResourceInvoiceTaxIdType::CmNiu,
+            "cn_tin" => InvoicesResourceInvoiceTaxIdType::CnTin,
+            "co_nit" => InvoicesResourceInvoiceTaxIdType::CoNit,
+            "cr_tin" => InvoicesResourceInvoiceTaxIdType::CrTin,
+            "cv_nif" => InvoicesResourceInvoiceTaxIdType::CvNif,
+            "de_stn" => InvoicesResourceInvoiceTaxIdType::DeStn,
+            "do_rcn" => InvoicesResourceInvoiceTaxIdType::DoRcn,
+            "ec_ruc" => InvoicesResourceInvoiceTaxIdType::EcRuc,
+            "eg_tin" => InvoicesResourceInvoiceTaxIdType::EgTin,
+            "es_cif" => InvoicesResourceInvoiceTaxIdType::EsCif,
+            "et_tin" => InvoicesResourceInvoiceTaxIdType::EtTin,
+            "eu_oss_vat" => InvoicesResourceInvoiceTaxIdType::EuOssVat,
+            "eu_vat" => InvoicesResourceInvoiceTaxIdType::EuVat,
+            "fo_vat" => InvoicesResourceInvoiceTaxIdType::FoVat,
+            "gb_vat" => InvoicesResourceInvoiceTaxIdType::GbVat,
+            "ge_vat" => InvoicesResourceInvoiceTaxIdType::GeVat,
+            "gi_tin" => InvoicesResourceInvoiceTaxIdType::GiTin,
+            "gn_nif" => InvoicesResourceInvoiceTaxIdType::GnNif,
+            "hk_br" => InvoicesResourceInvoiceTaxIdType::HkBr,
+            "hr_oib" => InvoicesResourceInvoiceTaxIdType::HrOib,
+            "hu_tin" => InvoicesResourceInvoiceTaxIdType::HuTin,
+            "ic_nif" => InvoicesResourceInvoiceTaxIdType::IcNif,
+            "id_npwp" => InvoicesResourceInvoiceTaxIdType::IdNpwp,
+            "il_vat" => InvoicesResourceInvoiceTaxIdType::IlVat,
+            "in_gst" => InvoicesResourceInvoiceTaxIdType::InGst,
+            "is_vat" => InvoicesResourceInvoiceTaxIdType::IsVat,
+            "it_cf" => InvoicesResourceInvoiceTaxIdType::ItCf,
+            "jp_cn" => InvoicesResourceInvoiceTaxIdType::JpCn,
+            "jp_rn" => InvoicesResourceInvoiceTaxIdType::JpRn,
+            "jp_trn" => InvoicesResourceInvoiceTaxIdType::JpTrn,
+            "ke_pin" => InvoicesResourceInvoiceTaxIdType::KePin,
+            "kg_tin" => InvoicesResourceInvoiceTaxIdType::KgTin,
+            "kh_tin" => InvoicesResourceInvoiceTaxIdType::KhTin,
+            "kr_brn" => InvoicesResourceInvoiceTaxIdType::KrBrn,
+            "kz_bin" => InvoicesResourceInvoiceTaxIdType::KzBin,
+            "la_tin" => InvoicesResourceInvoiceTaxIdType::LaTin,
+            "li_uid" => InvoicesResourceInvoiceTaxIdType::LiUid,
+            "li_vat" => InvoicesResourceInvoiceTaxIdType::LiVat,
+            "lk_vat" => InvoicesResourceInvoiceTaxIdType::LkVat,
+            "ma_vat" => InvoicesResourceInvoiceTaxIdType::MaVat,
+            "md_vat" => InvoicesResourceInvoiceTaxIdType::MdVat,
+            "me_pib" => InvoicesResourceInvoiceTaxIdType::MePib,
+            "mk_vat" => InvoicesResourceInvoiceTaxIdType::MkVat,
+            "mr_nif" => InvoicesResourceInvoiceTaxIdType::MrNif,
+            "mx_rfc" => InvoicesResourceInvoiceTaxIdType::MxRfc,
+            "my_frp" => InvoicesResourceInvoiceTaxIdType::MyFrp,
+            "my_itn" => InvoicesResourceInvoiceTaxIdType::MyItn,
+            "my_sst" => InvoicesResourceInvoiceTaxIdType::MySst,
+            "ng_tin" => InvoicesResourceInvoiceTaxIdType::NgTin,
+            "no_vat" => InvoicesResourceInvoiceTaxIdType::NoVat,
+            "no_voec" => InvoicesResourceInvoiceTaxIdType::NoVoec,
+            "np_pan" => InvoicesResourceInvoiceTaxIdType::NpPan,
+            "nz_gst" => InvoicesResourceInvoiceTaxIdType::NzGst,
+            "om_vat" => InvoicesResourceInvoiceTaxIdType::OmVat,
+            "pe_ruc" => InvoicesResourceInvoiceTaxIdType::PeRuc,
+            "ph_tin" => InvoicesResourceInvoiceTaxIdType::PhTin,
+            "pl_nip" => InvoicesResourceInvoiceTaxIdType::PlNip,
+            "py_ruc" => InvoicesResourceInvoiceTaxIdType::PyRuc,
+            "ro_tin" => InvoicesResourceInvoiceTaxIdType::RoTin,
+            "rs_pib" => InvoicesResourceInvoiceTaxIdType::RsPib,
+            "ru_inn" => InvoicesResourceInvoiceTaxIdType::RuInn,
+            "ru_kpp" => InvoicesResourceInvoiceTaxIdType::RuKpp,
+            "sa_vat" => InvoicesResourceInvoiceTaxIdType::SaVat,
+            "sg_gst" => InvoicesResourceInvoiceTaxIdType::SgGst,
+            "sg_uen" => InvoicesResourceInvoiceTaxIdType::SgUen,
+            "si_tin" => InvoicesResourceInvoiceTaxIdType::SiTin,
+            "sn_ninea" => InvoicesResourceInvoiceTaxIdType::SnNinea,
+            "sr_fin" => InvoicesResourceInvoiceTaxIdType::SrFin,
+            "sv_nit" => InvoicesResourceInvoiceTaxIdType::SvNit,
+            "th_vat" => InvoicesResourceInvoiceTaxIdType::ThVat,
+            "tj_tin" => InvoicesResourceInvoiceTaxIdType::TjTin,
+            "tr_tin" => InvoicesResourceInvoiceTaxIdType::TrTin,
+            "tw_vat" => InvoicesResourceInvoiceTaxIdType::TwVat,
+            "tz_vat" => InvoicesResourceInvoiceTaxIdType::TzVat,
+            "ua_vat" => InvoicesResourceInvoiceTaxIdType::UaVat,
+            "ug_tin" => InvoicesResourceInvoiceTaxIdType::UgTin,
+            "unknown" => InvoicesResourceInvoiceTaxIdType::UnknownValue,
+            "us_ein" => InvoicesResourceInvoiceTaxIdType::UsEin,
+            "uy_ruc" => InvoicesResourceInvoiceTaxIdType::UyRuc,
+            "uz_tin" => InvoicesResourceInvoiceTaxIdType::UzTin,
+            "uz_vat" => InvoicesResourceInvoiceTaxIdType::UzVat,
+            "ve_rif" => InvoicesResourceInvoiceTaxIdType::VeRif,
+            "vn_tin" => InvoicesResourceInvoiceTaxIdType::VnTin,
+            "za_vat" => InvoicesResourceInvoiceTaxIdType::ZaVat,
+            "zm_tin" => InvoicesResourceInvoiceTaxIdType::ZmTin,
+            "zw_tin" => InvoicesResourceInvoiceTaxIdType::ZwTin,
+            other => InvoicesResourceInvoiceTaxIdType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -10305,19 +9433,20 @@ impl<'de> serde::Deserialize<'de> for InvoicesResourceInvoiceTaxIdType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoicesResourcePretaxCreditAmount {
     #[doc = "The amount, in cents (or local equivalent), of the pretax credit amount."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "The credit balance transaction that was applied to get this pretax credit amount."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub credit_balance_transaction: Option<crate::Expandable<crate::billing::BillingCreditBalanceTransaction>>,
     #[doc = "The discount that was applied to get this pretax credit amount."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub discount: Option<crate::Expandable<crate::invoices::InvoiceDiscountsItemExpanded>>,
     #[doc = "Type of the pretax credit amount referenced."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::invoices::InvoicesResourcePretaxCreditAmountType,
 }
 
@@ -10526,37 +9655,19 @@ impl Default for InvoicesResourcePretaxCreditAmountType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for InvoicesResourcePretaxCreditAmountType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InvoicesResourcePretaxCreditAmountType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "credit_balance_transaction" => InvoicesResourcePretaxCreditAmountType::CreditBalanceTransaction,
-                    "discount" => InvoicesResourcePretaxCreditAmountType::Discount,
-                    other => InvoicesResourcePretaxCreditAmountType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InvoicesResourcePretaxCreditAmountType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InvoicesResourcePretaxCreditAmountType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InvoicesResourcePretaxCreditAmountType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "credit_balance_transaction" => InvoicesResourcePretaxCreditAmountType::CreditBalanceTransaction,
+            "discount" => InvoicesResourcePretaxCreditAmountType::Discount,
+            other => InvoicesResourcePretaxCreditAmountType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -10605,22 +9716,23 @@ impl<'de> serde::Deserialize<'de> for InvoicesResourcePretaxCreditAmountType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoicesResourceShippingCost {
     #[doc = "Total shipping cost before any taxes are applied."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_subtotal: i64,
     #[doc = "Total tax amount applied due to shipping costs."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_tax: i64,
     #[doc = "Total shipping cost after taxes are applied."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_total: i64,
     #[doc = "The ID of the ShippingRate for this invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_rate: Option<crate::Expandable<crate::shipping_rates::ShippingRate>>,
     #[doc = "The taxes applied to the shipping rate."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub taxes: Option<Vec<crate::common::LineItemsTaxAmount>>,
 }
 
@@ -10669,9 +9781,10 @@ pub struct InvoicesResourceShippingCost {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoicesResourceStatusDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub uncollectible: Option<crate::invoices::InvoicesResourceUncollectibleStatusDetails>,
 }
 
@@ -10720,19 +9833,20 @@ pub struct InvoicesResourceStatusDetails {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoicesResourceStatusTransitions {
     #[doc = "The time that the invoice draft was finalized."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub finalized_at: Option<i64>,
     #[doc = "The time that the invoice was marked uncollectible."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub marked_uncollectible_at: Option<i64>,
     #[doc = "The time that the invoice was paid."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paid_at: Option<i64>,
     #[doc = "The time that the invoice was voided."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub voided_at: Option<i64>,
 }
 
@@ -10781,10 +9895,11 @@ pub struct InvoicesResourceStatusTransitions {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoicesResourceUncollectibleStatusDetails {
     #[doc = "The reason why the invoice is uncollectible."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<crate::invoices::InvoicesResourceUncollectibleStatusDetailsReason>,
 }
 
@@ -10948,48 +10063,31 @@ impl InvoicesResourceUncollectibleStatusDetailsReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for InvoicesResourceUncollectibleStatusDetailsReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InvoicesResourceUncollectibleStatusDetailsReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "max_payment_attempts" => InvoicesResourceUncollectibleStatusDetailsReason::MaxPaymentAttempts,
-                    "payment_not_received" => InvoicesResourceUncollectibleStatusDetailsReason::PaymentNotReceived,
-                    "subscription_canceled" => InvoicesResourceUncollectibleStatusDetailsReason::SubscriptionCanceled,
-                    "subscription_paused" => InvoicesResourceUncollectibleStatusDetailsReason::SubscriptionPaused,
-                    "user_forgiven" => InvoicesResourceUncollectibleStatusDetailsReason::UserForgiven,
-                    other => InvoicesResourceUncollectibleStatusDetailsReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InvoicesResourceUncollectibleStatusDetailsReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InvoicesResourceUncollectibleStatusDetailsReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InvoicesResourceUncollectibleStatusDetailsReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "max_payment_attempts" => InvoicesResourceUncollectibleStatusDetailsReason::MaxPaymentAttempts,
+            "payment_not_received" => InvoicesResourceUncollectibleStatusDetailsReason::PaymentNotReceived,
+            "subscription_canceled" => InvoicesResourceUncollectibleStatusDetailsReason::SubscriptionCanceled,
+            "subscription_paused" => InvoicesResourceUncollectibleStatusDetailsReason::SubscriptionPaused,
+            "user_forgiven" => InvoicesResourceUncollectibleStatusDetailsReason::UserForgiven,
+            other => InvoicesResourceUncollectibleStatusDetailsReason::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "invoiceitems"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InvoicingRule {
     #[doc = "The type of invoicing rule."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::invoices::InvoicingRuleType,
 }
 
@@ -11020,36 +10118,18 @@ impl Default for InvoicingRuleType {
 }
 
 #[cfg(any(feature = "events", feature = "invoiceitems"))]
-impl<'de> serde::Deserialize<'de> for InvoicingRuleType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InvoicingRuleType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "defer_until_credited_items_resolved" => InvoicingRuleType::DeferUntilCreditedItemsResolved,
-                    other => InvoicingRuleType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InvoicingRuleType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InvoicingRuleType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InvoicingRuleType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "defer_until_credited_items_resolved" => InvoicingRuleType::DeferUntilCreditedItemsResolved,
+            other => InvoicingRuleType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -11098,65 +10178,66 @@ impl<'de> serde::Deserialize<'de> for InvoicingRuleType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct LineItem {
     #[doc = "The amount, in cents (or local equivalent)."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "The amount of discount calculated per discount for this line item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub discount_amounts: Option<Vec<crate::common::DiscountsResourceDiscountAmount>>,
     #[doc = "If true, discounts will apply to this line item."]
-    #[serde(default)]
+    #[json(default)]
     pub discountable: bool,
     #[doc = "The discounts applied to the invoice line item."]
-    #[serde(default)]
+    #[json(default)]
     pub discounts: Vec<crate::Expandable<crate::coupons::Discount>>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The ID of the invoice that contains this line item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice: Option<String>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::invoices::LineItemObject,
     #[doc = "The parent that generated this line item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<crate::billing::BillingBillResourceInvoicingLinesParentsInvoiceLineItemParent>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub period: Option<crate::invoices::InvoiceLineItemPeriod>,
     #[doc = "Contains pretax credit amounts (ex: discount, credit grants, etc) that apply to this line item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pretax_credit_amounts: Option<Vec<crate::invoices::InvoicesResourcePretaxCreditAmount>>,
     #[doc = "The pricing information of the line item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pricing: Option<crate::billing::BillingBillResourceInvoicingPricingPricing>,
     #[doc = "Quantity of units for the invoice line item in integer format, with any decimal precision truncated."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub quantity: Option<i64>,
     #[doc = "Non-negative decimal with at most 12 decimal places."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub quantity_decimal: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription: Option<crate::Expandable<crate::subscriptions::Subscription>>,
     #[doc = "The subtotal of the line item, in cents (or local equivalent), before any discounts or taxes."]
-    #[serde(default)]
+    #[json(default)]
     pub subtotal: i64,
     #[doc = "The tax information of the line item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub taxes: Option<Vec<crate::billing::BillingBillResourceInvoicingTaxesTax>>,
 }
 
@@ -11414,36 +10495,18 @@ impl Default for LineItemObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for LineItemObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = LineItemObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "line_item" => LineItemObject::LineItem,
-                    other => LineItemObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(LineItemObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for LineItemObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(LineItemObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "line_item" => LineItemObject::LineItem,
+            other => LineItemObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -11525,37 +10588,19 @@ impl ListInvoicesParamsCollectionMethod {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for ListInvoicesParamsCollectionMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListInvoicesParamsCollectionMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "charge_automatically" => ListInvoicesParamsCollectionMethod::ChargeAutomatically,
-                    "send_invoice" => ListInvoicesParamsCollectionMethod::SendInvoice,
-                    other => ListInvoicesParamsCollectionMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListInvoicesParamsCollectionMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListInvoicesParamsCollectionMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListInvoicesParamsCollectionMethod::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "charge_automatically" => ListInvoicesParamsCollectionMethod::ChargeAutomatically,
+            "send_invoice" => ListInvoicesParamsCollectionMethod::SendInvoice,
+            other => ListInvoicesParamsCollectionMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -11620,40 +10665,22 @@ impl ListInvoicesParamsStatus {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for ListInvoicesParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListInvoicesParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "draft" => ListInvoicesParamsStatus::Draft,
-                    "open" => ListInvoicesParamsStatus::Open,
-                    "paid" => ListInvoicesParamsStatus::Paid,
-                    "uncollectible" => ListInvoicesParamsStatus::Uncollectible,
-                    "void" => ListInvoicesParamsStatus::Void,
-                    other => ListInvoicesParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListInvoicesParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListInvoicesParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListInvoicesParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "draft" => ListInvoicesParamsStatus::Draft,
+            "open" => ListInvoicesParamsStatus::Open,
+            "paid" => ListInvoicesParamsStatus::Paid,
+            "uncollectible" => ListInvoicesParamsStatus::Uncollectible,
+            "void" => ListInvoicesParamsStatus::Void,
+            other => ListInvoicesParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -11675,7 +10702,7 @@ pub struct PayInvoiceParams {
     #[doc = "In cases where the source used to pay the invoice has insufficient funds, passing `forgive=true` controls whether a c..."]
     pub forgive: Option<bool>,
     #[doc = "ID of the mandate to be used for this invoice."]
-    pub mandate: Option<serde_json::Value>,
+    pub mandate: Option<json::OwnedValue>,
     #[doc = "Indicates if a customer is on or off-session while an invoice payment is attempted."]
     pub off_session: Option<bool>,
     #[doc = "Boolean representing whether an invoice is paid outside of Stripe."]
@@ -11701,13 +10728,14 @@ impl crate::params::FormEncode for PayInvoiceParams {
 }
 
 #[cfg(any(feature = "events", feature = "invoiceitems"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ProrationDetails {
     #[doc = "For a credit proration, links to the debit invoice line items or invoice item that the credit applies to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub credited_items: Option<crate::invoices::InvoiceItemProrationCreditedItems>,
     #[doc = "Discount amounts applied when the proration was created."]
-    #[serde(default)]
+    #[json(default)]
     pub discount_amounts: Vec<crate::common::DiscountsResourceDiscountAmount>,
 }
 
@@ -11778,37 +10806,19 @@ impl RemoveLinesParamsLinesItemBehavior {
 }
 
 #[cfg(feature = "invoices")]
-impl<'de> serde::Deserialize<'de> for RemoveLinesParamsLinesItemBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = RemoveLinesParamsLinesItemBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "delete" => RemoveLinesParamsLinesItemBehavior::Delete,
-                    "unassign" => RemoveLinesParamsLinesItemBehavior::Unassign,
-                    other => RemoveLinesParamsLinesItemBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(RemoveLinesParamsLinesItemBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for RemoveLinesParamsLinesItemBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(RemoveLinesParamsLinesItemBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "delete" => RemoveLinesParamsLinesItemBehavior::Delete,
+            "unassign" => RemoveLinesParamsLinesItemBehavior::Unassign,
+            other => RemoveLinesParamsLinesItemBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -11853,7 +10863,7 @@ pub struct UpdateInvoiceLineParams {
     #[doc = "Controls whether discounts apply to this line item."]
     pub discountable: Option<bool>,
     #[doc = "The coupons, promotion codes & existing discounts which apply to the line item."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
@@ -11869,9 +10879,9 @@ pub struct UpdateInvoiceLineParams {
     #[doc = "Non-negative decimal with at most 12 decimal places."]
     pub quantity_decimal: Option<String>,
     #[doc = "A list of up to 20 tax amounts for this line item."]
-    pub tax_amounts: Option<serde_json::Value>,
+    pub tax_amounts: Option<json::OwnedValue>,
     #[doc = "The tax rates which apply to the line item."]
-    pub tax_rates: Option<serde_json::Value>,
+    pub tax_rates: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "invoices")]
@@ -11981,7 +10991,7 @@ pub type UpdateInvoiceLineParamsPricing = crate::invoices::AddLinesParamsLinesIt
 #[derive(Debug, Clone, Default)]
 pub struct UpdateInvoiceParams {
     #[doc = "The account tax IDs associated with the invoice."]
-    pub account_tax_ids: Option<serde_json::Value>,
+    pub account_tax_ids: Option<json::OwnedValue>,
     #[doc = "A fee in cents (or local equivalent) that will be applied to the invoice and transferred to the application owner's S..."]
     pub application_fee_amount: Option<i64>,
     #[doc = "Controls whether Stripe performs [automatic collection](https://docs.stripe.com/invoicing/integration/automatic-advan..."]
@@ -11993,23 +11003,23 @@ pub struct UpdateInvoiceParams {
     #[doc = "Either `charge_automatically` or `send_invoice`."]
     pub collection_method: Option<crate::invoices::UpdateInvoiceParamsCollectionMethod>,
     #[doc = "A list of up to 4 custom fields to be displayed on the invoice."]
-    pub custom_fields: Option<serde_json::Value>,
+    pub custom_fields: Option<json::OwnedValue>,
     #[doc = "The number of days from which the invoice is created until it is due."]
     pub days_until_due: Option<i64>,
     #[doc = "ID of the default payment method for the invoice."]
     pub default_payment_method: Option<String>,
     #[doc = "ID of the default payment source for the invoice."]
-    pub default_source: Option<serde_json::Value>,
+    pub default_source: Option<json::OwnedValue>,
     #[doc = "The tax rates that will apply to any line item that does not have `tax_rates` set."]
-    pub default_tax_rates: Option<serde_json::Value>,
+    pub default_tax_rates: Option<json::OwnedValue>,
     #[doc = "An arbitrary string attached to the object."]
     pub description: Option<String>,
     #[doc = "The discounts that will apply to the invoice."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "The date on which payment for this invoice is due."]
     pub due_date: Option<i64>,
     #[doc = "The date when this invoice is in effect."]
-    pub effective_at: Option<serde_json::Value>,
+    pub effective_at: Option<json::OwnedValue>,
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "Footer to be displayed on the invoice."]
@@ -12019,9 +11029,9 @@ pub struct UpdateInvoiceParams {
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "Set the number for this invoice."]
-    pub number: Option<serde_json::Value>,
+    pub number: Option<json::OwnedValue>,
     #[doc = "The account (if any) for which the funds of the invoice payment are intended."]
-    pub on_behalf_of: Option<serde_json::Value>,
+    pub on_behalf_of: Option<json::OwnedValue>,
     #[doc = "Configuration settings for the PaymentIntent that is generated when the invoice is finalized."]
     pub payment_settings: Option<crate::invoices::UpdateInvoiceParamsPaymentSettings>,
     #[doc = "The rendering-related settings that control how invoices render in customer-facing interfaces such as the PDF or host..."]
@@ -12131,11 +11141,11 @@ pub type UpdateInvoiceParamsIssuerType = crate::invoices::CreateInvoiceParamsAut
 #[derive(Debug, Clone, Default)]
 pub struct UpdateInvoiceParamsPaymentSettings {
     #[doc = "ID of the mandate to be used for this invoice."]
-    pub default_mandate: Option<serde_json::Value>,
+    pub default_mandate: Option<json::OwnedValue>,
     #[doc = "Payment-method-specific configuration to provide to the invoice’s PaymentIntent."]
     pub payment_method_options: Option<crate::invoices::UpdateInvoiceParamsPaymentSettingsPaymentMethodOptions>,
     #[doc = "The list of payment method types (e.g."]
-    pub payment_method_types: Option<serde_json::Value>,
+    pub payment_method_types: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "invoices")]
@@ -12625,7 +11635,7 @@ pub struct UpdateInvoiceParamsRendering {
     #[doc = "ID of the invoice rendering template to use for this invoice."]
     pub template: Option<String>,
     #[doc = "The specific version of invoice rendering template to use for this invoice."]
-    pub template_version: Option<serde_json::Value>,
+    pub template_version: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "invoices")]
@@ -12837,7 +11847,7 @@ pub struct UpdateInvoiceParamsShippingDetails {
     #[doc = "Recipient name."]
     pub name: String,
     #[doc = "Recipient phone (including extension)"]
-    pub phone: Option<serde_json::Value>,
+    pub phone: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "invoices")]
@@ -12893,7 +11903,7 @@ pub struct UpdateLinesParamsLinesItem {
     #[doc = "Controls whether discounts apply to this line item."]
     pub discountable: Option<bool>,
     #[doc = "The coupons, promotion codes & existing discounts which apply to the line item."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "ID of an existing line item on the invoice."]
     pub id: String,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
@@ -12909,9 +11919,9 @@ pub struct UpdateLinesParamsLinesItem {
     #[doc = "Non-negative decimal with at most 12 decimal places."]
     pub quantity_decimal: Option<String>,
     #[doc = "A list of up to 20 tax amounts for this line item."]
-    pub tax_amounts: Option<serde_json::Value>,
+    pub tax_amounts: Option<json::OwnedValue>,
     #[doc = "The tax rates which apply to the line item."]
-    pub tax_rates: Option<serde_json::Value>,
+    pub tax_rates: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "invoices")]

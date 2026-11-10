@@ -9,9 +9,8 @@ dependencies = [
  "base64 0.1.0",
  "crypto",
  "crypto_rustls",
+ "json",
  "reqwest",
- "serde",
- "serde_json",
  "thiserror 2.0.21",
  "tokio",
 ]
@@ -199,6 +198,7 @@ dependencies = [
  "arbitrary",
  "base64 0.1.0",
  "ipnetwork",
+ "json",
  "nom",
  "paste",
  "regex",
@@ -216,8 +216,8 @@ dependencies = [
  "anyerr",
  "axum",
  "bel",
+ "json",
  "serde",
- "serde_json",
  "thiserror 2.0.21",
  "time",
  "tokio",
@@ -616,8 +616,8 @@ dependencies = [
  "bytes",
  "hyper",
  "hyper_utils",
+ "json",
  "serde",
- "serde_json",
  "serde_urlencoded",
  "thiserror 2.0.21",
  "tokio",
@@ -1270,11 +1270,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "json"
+version = "0.1.0"
+dependencies = [
+ "alloc_counter",
+ "bytes",
+ "heapless",
+ "json_derive",
+ "small_collections",
+ "utf8",
+ "zmij 1.0.23",
+]
+
+[[package]]
+name = "json_derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
+]
+
+[[package]]
 name = "json_rpc"
 version = "0.1.0"
 dependencies = [
- "serde",
- "serde_json",
+ "json",
  "tokio",
 ]
 
@@ -1285,8 +1306,7 @@ dependencies = [
  "base64 0.1.0",
  "constant_time_eq",
  "crypto",
- "serde",
- "serde_json",
+ "json",
  "small_collections",
 ]
 
@@ -1539,14 +1559,13 @@ dependencies = [
  "futures-util",
  "indexmap 2.14.2",
  "ipnetwork",
+ "json",
  "percent_encoding",
  "postgresql_derive",
  "postgresql_macros",
  "postgresql_protocol",
  "rand",
  "rustls",
- "serde",
- "serde_json",
  "small_collections",
  "thiserror 2.0.21",
  "time",
@@ -1603,8 +1622,8 @@ name = "postmark"
 version = "0.1.0"
 dependencies = [
  "crypto_rustls",
+ "json",
  "reqwest",
- "serde",
 ]
 
 [[package]]
@@ -1729,8 +1748,6 @@ dependencies = [
  "rustls",
  "rustls-pki-types",
  "rustls-platform-verifier",
- "serde",
- "serde_json",
  "sync_wrapper",
  "tokio",
  "tokio-rustls",
@@ -2000,7 +2017,7 @@ dependencies = [
  "memchr",
  "serde",
  "serde_core",
- "zmij",
+ "zmij 1.0.23 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2150,9 +2167,8 @@ dependencies = [
  "crypto",
  "crypto_rustls",
  "futures-util",
+ "json",
  "reqwest",
- "serde",
- "serde_json",
  "stripe_codegen",
  "tokio",
  "uuid 0.1.0",
@@ -2163,8 +2179,7 @@ dependencies = [
 name = "stripe_codegen"
 version = "0.1.0"
 dependencies = [
- "serde",
- "serde_json",
+ "json",
 ]
 
 [[package]]
@@ -2914,6 +2929,10 @@ name = "zlib-rs"
 version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b268e58e7c693d7c271f93ffc4ba3b380412554231c85bf61ca7af91042a4112"
+
+[[package]]
+name = "zmij"
+version = "1.0.23"
 
 [[package]]
 name = "zmij"

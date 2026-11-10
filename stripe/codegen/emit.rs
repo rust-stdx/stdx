@@ -213,12 +213,12 @@ impl Emitter<'_> {
         let mut derives = String::from("Debug, Clone");
         match ty.mode {
             Mode::Response => {
-                derives.push_str(", serde::Deserialize");
+                derives.push_str(", json::Decode");
                 if ty.serialize {
-                    derives.push_str(", serde::Serialize");
+                    derives.push_str(", json::Encode");
                 }
             }
-            Mode::Json => derives.push_str(", serde::Serialize"),
+            Mode::Json => derives.push_str(", json::Encode"),
             Mode::Form => {}
         }
         let all_defaultable = fields.iter().all(|f| self.is_defaultable(&f.ty));
@@ -226,6 +226,9 @@ impl Emitter<'_> {
             derives.push_str(", Default");
         }
         out.push_str(&format!("#[derive({derives})]\n"));
+        if ty.mode != Mode::Form {
+            out.push_str("#[json(deny_duplicate_fields)]\n");
+        }
         out.push_str(&format!("pub struct {} {{\n", ty.name));
         for field in fields {
             if !field.docs.is_empty() {
@@ -245,7 +248,7 @@ impl Emitter<'_> {
                     attributes.push("skip_serializing_if = \"Option::is_none\"".to_string());
                 }
                 if !attributes.is_empty() {
-                    out.push_str(&format!("    #[serde({})]\n", attributes.join(", ")));
+                    out.push_str(&format!("    #[json({})]\n", attributes.join(", ")));
                 }
             }
             out.push_str(&format!("    pub {}: {},\n", field.rust_name, field.rendered_type()));
@@ -469,29 +472,28 @@ impl Emitter<'_> {
         // Only types a JSON (v2) request can reference are ever serialized.
         if ty.serialize {
             out.push_str(&format!(
-                "impl serde::Serialize for {} {{\n    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>\n    where\n        S: serde::Serializer,\n    {{\n        serializer.serialize_str(self.as_str())\n    }}\n}}\n",
+                "impl json::Encode for {} {{\n    fn encode<W: json::Write>(&self, encoder: &mut json::Encoder<W>) -> Result<(), W::Error> {{\n        encoder.string(self.as_str())\n    }}\n}}\n",
                 ty.name
             ));
             items.push(std::mem::take(&mut out));
         }
 
-        // Deserialize (tolerant: unknown values are preserved).
-        out.push_str(&format!("impl<'de> serde::Deserialize<'de> for {} {{\n", ty.name));
-        out.push_str("    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>\n    where\n        D: serde::Deserializer<'de>,\n    {\n");
-        out.push_str("        struct EnumVisitor;\n");
-        out.push_str("        impl<'de> serde::de::Visitor<'de> for EnumVisitor {\n");
-        out.push_str(&format!("            type Value = {};\n", ty.name));
-        out.push_str("            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {\n                formatter.write_str(\"a string\")\n            }\n");
-        out.push_str("            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>\n            where\n                E: serde::de::Error,\n            {\n                Ok(match value {\n");
+        // Decode (tolerant: unknown values are preserved).
+        out.push_str(&format!("impl<'json> json::Decode<'json> for {} {{\n", ty.name));
+        out.push_str("    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {\n");
+        out.push_str("        decoder.skip_ws()?;\n");
+        out.push_str("        if decoder.peek_byte() == Some(b'n') {\n            decoder.decode_null()?;\n            return Ok(");
+        out.push_str(&format!("{}::Unknown(String::new()));\n        }}\n", ty.name));
+        out.push_str("        let value = decoder.decode_string()?;\n        Ok(match value.as_str() {\n");
         for variant in variants {
             out.push_str(&format!(
-                "                    \"{}\" => {}::{},\n",
+                "            \"{}\" => {}::{},\n",
                 variant.wire, ty.name, variant.rust_name
             ));
         }
         out.push_str(&format!(
-            "                    other => {}::Unknown(other.to_string()),\n                }})\n            }}\n\n            fn visit_unit<E>(self) -> Result<Self::Value, E>\n            where\n                E: serde::de::Error,\n            {{\n                // An explicit `null` is treated like a missing value.\n                Ok({}::Unknown(String::new()))\n            }}\n        }}\n        deserializer.deserialize_any(EnumVisitor)\n    }}\n}}\n",
-            ty.name, ty.name
+            "            other => {}::Unknown(other.to_string()),\n        }})\n    }}\n}}\n",
+            ty.name
         ));
         items.push(std::mem::take(&mut out));
 
@@ -516,18 +518,19 @@ impl Emitter<'_> {
             out.push_str(&format!("    {}(Box<{}>),\n", arm.rust_name, arm.ty.render()));
         }
         out.push_str("    /// An object type not known to this version of the crate.\n");
-        out.push_str("    Other(serde_json::Value),\n");
+        out.push_str("    Other(json::OwnedValue),\n");
         out.push_str("}\n");
         items.push(std::mem::take(&mut out));
 
-        out.push_str(&format!("impl<'de> serde::Deserialize<'de> for {} {{\n", ty.name));
-        out.push_str("    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>\n    where\n        D: serde::Deserializer<'de>,\n    {\n");
-        out.push_str("        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;\n");
-        out.push_str("        let tag = value.get(\"object\").and_then(serde_json::Value::as_str).unwrap_or(\"\");\n");
+        out.push_str(&format!("impl<'json> json::Decode<'json> for {} {{\n", ty.name));
+        out.push_str("    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {\n");
+        out.push_str("        let raw = decoder.raw_value()?;\n");
+        out.push_str("        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;\n");
+        out.push_str("        let tag = value.get(\"object\").and_then(json::Value::as_str).unwrap_or(\"\");\n");
         out.push_str("        Ok(match tag {\n");
         for arm in arms {
             out.push_str(&format!(
-                "            \"{}\" => {ty}::{}(Box::new(serde_json::from_value(value).map_err(serde::de::Error::custom)?)),\n",
+                "            \"{}\" => {ty}::{}(Box::new(json::from_slice_owned(&json::to_vec(&value))?)),\n",
                 arm.wire,
                 arm.rust_name,
                 ty = ty.name
@@ -541,17 +544,17 @@ impl Emitter<'_> {
 
         if ty.serialize {
             out.push_str(&format!(
-                "impl serde::Serialize for {} {{\n    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>\n    where\n        S: serde::Serializer,\n    {{\n        match self {{\n",
+                "impl json::Encode for {} {{\n    fn encode<W: json::Write>(&self, encoder: &mut json::Encoder<W>) -> Result<(), W::Error> {{\n        match self {{\n",
                 ty.name
             ));
             for arm in arms {
                 out.push_str(&format!(
-                    "            {}::{}(value) => serde::Serialize::serialize(&**value, serializer),\n",
+                    "            {}::{}(value) => value.encode(encoder),\n",
                     ty.name, arm.rust_name
                 ));
             }
             out.push_str(&format!(
-                "            {}::Other(value) => serde::Serialize::serialize(value, serializer),\n        }}\n    }}\n}}\n",
+                "            {}::Other(value) => value.encode(encoder),\n        }}\n    }}\n}}\n",
                 ty.name
             ));
             items.push(out);

@@ -38,22 +38,23 @@ impl crate::params::FormEncode for CreateEntitlementFeatureParams {
 }
 
 #[cfg(any(feature = "entitlements", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct EntitlementsActiveEntitlement {
     #[doc = "The [Feature](https://docs.stripe.com/api/entitlements/feature) that the customer is entitled to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub feature: Option<crate::Expandable<crate::entitlements::EntitlementsFeature>>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "A unique key you provide as your own system identifier."]
-    #[serde(default)]
+    #[json(default)]
     pub lookup_key: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::entitlements::EntitlementsActiveEntitlementObject,
 }
 
@@ -91,55 +92,36 @@ impl Default for EntitlementsActiveEntitlementObject {
 }
 
 #[cfg(any(feature = "entitlements", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for EntitlementsActiveEntitlementObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = EntitlementsActiveEntitlementObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "entitlements.active_entitlement" => {
-                        EntitlementsActiveEntitlementObject::EntitlementsActiveEntitlement
-                    }
-                    other => EntitlementsActiveEntitlementObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(EntitlementsActiveEntitlementObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for EntitlementsActiveEntitlementObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(EntitlementsActiveEntitlementObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "entitlements.active_entitlement" => EntitlementsActiveEntitlementObject::EntitlementsActiveEntitlement,
+            other => EntitlementsActiveEntitlementObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "events")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct EntitlementsActiveEntitlementSummary {
     #[doc = "The customer that is entitled to this feature."]
-    #[serde(default)]
+    #[json(default)]
     pub customer: String,
     #[doc = "The list of entitlements this customer has."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub entitlements: Option<crate::List<crate::entitlements::EntitlementsActiveEntitlement>>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::entitlements::EntitlementsActiveEntitlementSummaryObject,
 }
 
@@ -172,64 +154,47 @@ impl Default for EntitlementsActiveEntitlementSummaryObject {
 }
 
 #[cfg(feature = "events")]
-impl<'de> serde::Deserialize<'de> for EntitlementsActiveEntitlementSummaryObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = EntitlementsActiveEntitlementSummaryObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "entitlements.active_entitlement_summary" => {
-                        EntitlementsActiveEntitlementSummaryObject::EntitlementsActiveEntitlementSummary
-                    }
-                    other => EntitlementsActiveEntitlementSummaryObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(EntitlementsActiveEntitlementSummaryObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for EntitlementsActiveEntitlementSummaryObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(EntitlementsActiveEntitlementSummaryObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "entitlements.active_entitlement_summary" => {
+                EntitlementsActiveEntitlementSummaryObject::EntitlementsActiveEntitlementSummary
+            }
+            other => EntitlementsActiveEntitlementSummaryObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "entitlements", feature = "events", feature = "products"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct EntitlementsFeature {
     #[doc = "Inactive features cannot be attached to new products and will not be returned from the features list endpoint."]
-    #[serde(default)]
+    #[json(default)]
     pub active: bool,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "A unique key you provide as your own system identifier."]
-    #[serde(default)]
+    #[json(default)]
     pub lookup_key: String,
     #[doc = "Set of key-value pairs that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "The feature's name, for your own purpose, not meant to be displayable to the customer."]
-    #[serde(default)]
+    #[json(default)]
     pub name: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::entitlements::EntitlementsFeatureObject,
 }
 
@@ -267,36 +232,18 @@ impl Default for EntitlementsFeatureObject {
 }
 
 #[cfg(any(feature = "entitlements", feature = "events", feature = "products"))]
-impl<'de> serde::Deserialize<'de> for EntitlementsFeatureObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = EntitlementsFeatureObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "entitlements.feature" => EntitlementsFeatureObject::EntitlementsFeature,
-                    other => EntitlementsFeatureObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(EntitlementsFeatureObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for EntitlementsFeatureObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(EntitlementsFeatureObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "entitlements.feature" => EntitlementsFeatureObject::EntitlementsFeature,
+            other => EntitlementsFeatureObject::Unknown(other.to_string()),
+        })
     }
 }
 

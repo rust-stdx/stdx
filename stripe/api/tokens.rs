@@ -94,39 +94,21 @@ impl CreateTokenParamsAccountBusinessType {
 }
 
 #[cfg(feature = "tokens")]
-impl<'de> serde::Deserialize<'de> for CreateTokenParamsAccountBusinessType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTokenParamsAccountBusinessType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "company" => CreateTokenParamsAccountBusinessType::Company,
-                    "government_entity" => CreateTokenParamsAccountBusinessType::GovernmentEntity,
-                    "individual" => CreateTokenParamsAccountBusinessType::Individual,
-                    "non_profit" => CreateTokenParamsAccountBusinessType::NonProfit,
-                    other => CreateTokenParamsAccountBusinessType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTokenParamsAccountBusinessType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTokenParamsAccountBusinessType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTokenParamsAccountBusinessType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "company" => CreateTokenParamsAccountBusinessType::Company,
+            "government_entity" => CreateTokenParamsAccountBusinessType::GovernmentEntity,
+            "individual" => CreateTokenParamsAccountBusinessType::Individual,
+            "non_profit" => CreateTokenParamsAccountBusinessType::NonProfit,
+            other => CreateTokenParamsAccountBusinessType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -348,38 +330,24 @@ impl CreateTokenParamsAccountCompanyOwnershipExemptionReason {
 }
 
 #[cfg(feature = "tokens")]
-impl<'de> serde::Deserialize<'de> for CreateTokenParamsAccountCompanyOwnershipExemptionReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTokenParamsAccountCompanyOwnershipExemptionReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreateTokenParamsAccountCompanyOwnershipExemptionReason::Unnamed,
-                    "qualified_entity_exceeds_ownership_threshold" => CreateTokenParamsAccountCompanyOwnershipExemptionReason::QualifiedEntityExceedsOwnershipThreshold,
-                    "qualifies_as_financial_institution" => CreateTokenParamsAccountCompanyOwnershipExemptionReason::QualifiesAsFinancialInstitution,
-                    other => CreateTokenParamsAccountCompanyOwnershipExemptionReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTokenParamsAccountCompanyOwnershipExemptionReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTokenParamsAccountCompanyOwnershipExemptionReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTokenParamsAccountCompanyOwnershipExemptionReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreateTokenParamsAccountCompanyOwnershipExemptionReason::Unnamed,
+            "qualified_entity_exceeds_ownership_threshold" => {
+                CreateTokenParamsAccountCompanyOwnershipExemptionReason::QualifiedEntityExceedsOwnershipThreshold
+            }
+            "qualifies_as_financial_institution" => {
+                CreateTokenParamsAccountCompanyOwnershipExemptionReason::QualifiesAsFinancialInstitution
+            }
+            other => CreateTokenParamsAccountCompanyOwnershipExemptionReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -486,63 +454,43 @@ impl CreateTokenParamsAccountCompanyStructure {
 }
 
 #[cfg(feature = "tokens")]
-impl<'de> serde::Deserialize<'de> for CreateTokenParamsAccountCompanyStructure {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTokenParamsAccountCompanyStructure;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreateTokenParamsAccountCompanyStructure::Unnamed,
-                    "free_zone_establishment" => CreateTokenParamsAccountCompanyStructure::FreeZoneEstablishment,
-                    "free_zone_llc" => CreateTokenParamsAccountCompanyStructure::FreeZoneLlc,
-                    "government_instrumentality" => CreateTokenParamsAccountCompanyStructure::GovernmentInstrumentality,
-                    "governmental_unit" => CreateTokenParamsAccountCompanyStructure::GovernmentalUnit,
-                    "incorporated_non_profit" => CreateTokenParamsAccountCompanyStructure::IncorporatedNonProfit,
-                    "incorporated_partnership" => CreateTokenParamsAccountCompanyStructure::IncorporatedPartnership,
-                    "limited_liability_partnership" => {
-                        CreateTokenParamsAccountCompanyStructure::LimitedLiabilityPartnership
-                    }
-                    "llc" => CreateTokenParamsAccountCompanyStructure::Llc,
-                    "multi_member_llc" => CreateTokenParamsAccountCompanyStructure::MultiMemberLlc,
-                    "private_company" => CreateTokenParamsAccountCompanyStructure::PrivateCompany,
-                    "private_corporation" => CreateTokenParamsAccountCompanyStructure::PrivateCorporation,
-                    "private_partnership" => CreateTokenParamsAccountCompanyStructure::PrivatePartnership,
-                    "public_company" => CreateTokenParamsAccountCompanyStructure::PublicCompany,
-                    "public_corporation" => CreateTokenParamsAccountCompanyStructure::PublicCorporation,
-                    "public_partnership" => CreateTokenParamsAccountCompanyStructure::PublicPartnership,
-                    "registered_charity" => CreateTokenParamsAccountCompanyStructure::RegisteredCharity,
-                    "single_member_llc" => CreateTokenParamsAccountCompanyStructure::SingleMemberLlc,
-                    "sole_establishment" => CreateTokenParamsAccountCompanyStructure::SoleEstablishment,
-                    "sole_proprietorship" => CreateTokenParamsAccountCompanyStructure::SoleProprietorship,
-                    "tax_exempt_government_instrumentality" => {
-                        CreateTokenParamsAccountCompanyStructure::TaxExemptGovernmentInstrumentality
-                    }
-                    "unincorporated_association" => CreateTokenParamsAccountCompanyStructure::UnincorporatedAssociation,
-                    "unincorporated_non_profit" => CreateTokenParamsAccountCompanyStructure::UnincorporatedNonProfit,
-                    "unincorporated_partnership" => CreateTokenParamsAccountCompanyStructure::UnincorporatedPartnership,
-                    other => CreateTokenParamsAccountCompanyStructure::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTokenParamsAccountCompanyStructure::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTokenParamsAccountCompanyStructure {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTokenParamsAccountCompanyStructure::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreateTokenParamsAccountCompanyStructure::Unnamed,
+            "free_zone_establishment" => CreateTokenParamsAccountCompanyStructure::FreeZoneEstablishment,
+            "free_zone_llc" => CreateTokenParamsAccountCompanyStructure::FreeZoneLlc,
+            "government_instrumentality" => CreateTokenParamsAccountCompanyStructure::GovernmentInstrumentality,
+            "governmental_unit" => CreateTokenParamsAccountCompanyStructure::GovernmentalUnit,
+            "incorporated_non_profit" => CreateTokenParamsAccountCompanyStructure::IncorporatedNonProfit,
+            "incorporated_partnership" => CreateTokenParamsAccountCompanyStructure::IncorporatedPartnership,
+            "limited_liability_partnership" => CreateTokenParamsAccountCompanyStructure::LimitedLiabilityPartnership,
+            "llc" => CreateTokenParamsAccountCompanyStructure::Llc,
+            "multi_member_llc" => CreateTokenParamsAccountCompanyStructure::MultiMemberLlc,
+            "private_company" => CreateTokenParamsAccountCompanyStructure::PrivateCompany,
+            "private_corporation" => CreateTokenParamsAccountCompanyStructure::PrivateCorporation,
+            "private_partnership" => CreateTokenParamsAccountCompanyStructure::PrivatePartnership,
+            "public_company" => CreateTokenParamsAccountCompanyStructure::PublicCompany,
+            "public_corporation" => CreateTokenParamsAccountCompanyStructure::PublicCorporation,
+            "public_partnership" => CreateTokenParamsAccountCompanyStructure::PublicPartnership,
+            "registered_charity" => CreateTokenParamsAccountCompanyStructure::RegisteredCharity,
+            "single_member_llc" => CreateTokenParamsAccountCompanyStructure::SingleMemberLlc,
+            "sole_establishment" => CreateTokenParamsAccountCompanyStructure::SoleEstablishment,
+            "sole_proprietorship" => CreateTokenParamsAccountCompanyStructure::SoleProprietorship,
+            "tax_exempt_government_instrumentality" => {
+                CreateTokenParamsAccountCompanyStructure::TaxExemptGovernmentInstrumentality
+            }
+            "unincorporated_association" => CreateTokenParamsAccountCompanyStructure::UnincorporatedAssociation,
+            "unincorporated_non_profit" => CreateTokenParamsAccountCompanyStructure::UnincorporatedNonProfit,
+            "unincorporated_partnership" => CreateTokenParamsAccountCompanyStructure::UnincorporatedPartnership,
+            other => CreateTokenParamsAccountCompanyStructure::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -604,7 +552,7 @@ pub struct CreateTokenParamsAccountIndividual {
     #[doc = "The Kanji variation of the individual's first name (Japan only)."]
     pub first_name_kanji: Option<String>,
     #[doc = "A list of alternate names or aliases that the individual is known by."]
-    pub full_name_aliases: Option<serde_json::Value>,
+    pub full_name_aliases: Option<json::OwnedValue>,
     #[doc = "The individual's gender"]
     pub gender: Option<String>,
     #[doc = "The government-issued ID number of the individual, as appropriate for the representative's country."]
@@ -701,37 +649,19 @@ impl CreateTokenParamsAccountIndividualPoliticalExposure {
 }
 
 #[cfg(feature = "tokens")]
-impl<'de> serde::Deserialize<'de> for CreateTokenParamsAccountIndividualPoliticalExposure {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTokenParamsAccountIndividualPoliticalExposure;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "existing" => CreateTokenParamsAccountIndividualPoliticalExposure::Existing,
-                    "none" => CreateTokenParamsAccountIndividualPoliticalExposure::None,
-                    other => CreateTokenParamsAccountIndividualPoliticalExposure::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTokenParamsAccountIndividualPoliticalExposure::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTokenParamsAccountIndividualPoliticalExposure {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTokenParamsAccountIndividualPoliticalExposure::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "existing" => CreateTokenParamsAccountIndividualPoliticalExposure::Existing,
+            "none" => CreateTokenParamsAccountIndividualPoliticalExposure::None,
+            other => CreateTokenParamsAccountIndividualPoliticalExposure::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -755,7 +685,7 @@ pub struct CreateTokenParamsAccountIndividualRelationship {
     #[doc = "Whether the person is an owner of the account’s legal entity."]
     pub owner: Option<bool>,
     #[doc = "The percent owned by the person of the account's legal entity."]
-    pub percent_ownership: Option<serde_json::Value>,
+    pub percent_ownership: Option<json::OwnedValue>,
     #[doc = "The person's title (e.g., CEO, Support Engineer)."]
     pub title: Option<String>,
 }
@@ -852,37 +782,19 @@ impl CreateTokenParamsBankAccountAccountHolderType {
 }
 
 #[cfg(feature = "tokens")]
-impl<'de> serde::Deserialize<'de> for CreateTokenParamsBankAccountAccountHolderType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTokenParamsBankAccountAccountHolderType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "company" => CreateTokenParamsBankAccountAccountHolderType::Company,
-                    "individual" => CreateTokenParamsBankAccountAccountHolderType::Individual,
-                    other => CreateTokenParamsBankAccountAccountHolderType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTokenParamsBankAccountAccountHolderType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTokenParamsBankAccountAccountHolderType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTokenParamsBankAccountAccountHolderType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "company" => CreateTokenParamsBankAccountAccountHolderType::Company,
+            "individual" => CreateTokenParamsBankAccountAccountHolderType::Individual,
+            other => CreateTokenParamsBankAccountAccountHolderType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -919,39 +831,21 @@ impl CreateTokenParamsBankAccountAccountType {
 }
 
 #[cfg(feature = "tokens")]
-impl<'de> serde::Deserialize<'de> for CreateTokenParamsBankAccountAccountType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTokenParamsBankAccountAccountType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "checking" => CreateTokenParamsBankAccountAccountType::Checking,
-                    "futsu" => CreateTokenParamsBankAccountAccountType::Futsu,
-                    "savings" => CreateTokenParamsBankAccountAccountType::Savings,
-                    "toza" => CreateTokenParamsBankAccountAccountType::Toza,
-                    other => CreateTokenParamsBankAccountAccountType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTokenParamsBankAccountAccountType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTokenParamsBankAccountAccountType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTokenParamsBankAccountAccountType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "checking" => CreateTokenParamsBankAccountAccountType::Checking,
+            "futsu" => CreateTokenParamsBankAccountAccountType::Futsu,
+            "savings" => CreateTokenParamsBankAccountAccountType::Savings,
+            "toza" => CreateTokenParamsBankAccountAccountType::Toza,
+            other => CreateTokenParamsBankAccountAccountType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1050,38 +944,20 @@ impl CreateTokenParamsCardNetworksPreferred {
 }
 
 #[cfg(feature = "tokens")]
-impl<'de> serde::Deserialize<'de> for CreateTokenParamsCardNetworksPreferred {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTokenParamsCardNetworksPreferred;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cartes_bancaires" => CreateTokenParamsCardNetworksPreferred::CartesBancaires,
-                    "mastercard" => CreateTokenParamsCardNetworksPreferred::Mastercard,
-                    "visa" => CreateTokenParamsCardNetworksPreferred::Visa,
-                    other => CreateTokenParamsCardNetworksPreferred::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTokenParamsCardNetworksPreferred::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTokenParamsCardNetworksPreferred {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTokenParamsCardNetworksPreferred::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cartes_bancaires" => CreateTokenParamsCardNetworksPreferred::CartesBancaires,
+            "mastercard" => CreateTokenParamsCardNetworksPreferred::Mastercard,
+            "visa" => CreateTokenParamsCardNetworksPreferred::Visa,
+            other => CreateTokenParamsCardNetworksPreferred::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1130,7 +1006,7 @@ pub struct CreateTokenParamsPerson {
     #[doc = "The Kanji variation of the person's first name (Japan only)."]
     pub first_name_kanji: Option<String>,
     #[doc = "A list of alternate names or aliases that the person is known by."]
-    pub full_name_aliases: Option<serde_json::Value>,
+    pub full_name_aliases: Option<json::OwnedValue>,
     #[doc = "The person's gender (International regulations require either 'male' or 'female')."]
     pub gender: Option<String>,
     #[doc = "The person's ID number, as appropriate for their country."]
@@ -1223,7 +1099,7 @@ pub struct CreateTokenParamsPersonAdditionalTosAcceptancesAccount {
     #[doc = "The IP address from which the account representative accepted the service agreement."]
     pub ip: Option<String>,
     #[doc = "The user agent of the browser from which the account representative accepted the service agreement."]
-    pub user_agent: Option<serde_json::Value>,
+    pub user_agent: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "tokens")]
@@ -1270,7 +1146,7 @@ impl crate::params::FormEncode for CreateTokenParamsPersonDocuments {
 #[derive(Debug, Clone, Default)]
 pub struct CreateTokenParamsPersonDocumentsCompanyAuthorization {
     #[doc = "One or more document ids returned by a [file upload](https://docs.stripe.com/api#create_file) with a `purpose` value ..."]
-    pub files: Option<Vec<serde_json::Value>>,
+    pub files: Option<Vec<json::OwnedValue>>,
 }
 
 #[cfg(feature = "tokens")]
@@ -1306,7 +1182,7 @@ pub struct CreateTokenParamsPersonRelationship {
     #[doc = "Whether the person is an owner of the account’s legal entity."]
     pub owner: Option<bool>,
     #[doc = "The percent owned by the person of the account's legal entity."]
-    pub percent_ownership: Option<serde_json::Value>,
+    pub percent_ownership: Option<json::OwnedValue>,
     #[doc = "Whether the person is authorized as the primary representative of the account."]
     pub representative: Option<bool>,
     #[doc = "The person's title (e.g., CEO, Support Engineer)."]
@@ -1401,52 +1277,30 @@ impl CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem {
 }
 
 #[cfg(feature = "tokens")]
-impl<'de> serde::Deserialize<'de> for CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cuban" => CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem::Cuban,
-                    "hispanic_or_latino" => {
-                        CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem::HispanicOrLatino
-                    }
-                    "mexican" => CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem::Mexican,
-                    "not_hispanic_or_latino" => {
-                        CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem::NotHispanicOrLatino
-                    }
-                    "other_hispanic_or_latino" => {
-                        CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem::OtherHispanicOrLatino
-                    }
-                    "prefer_not_to_answer" => {
-                        CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem::PreferNotToAnswer
-                    }
-                    "puerto_rican" => CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem::PuertoRican,
-                    other => CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cuban" => CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem::Cuban,
+            "hispanic_or_latino" => CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem::HispanicOrLatino,
+            "mexican" => CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem::Mexican,
+            "not_hispanic_or_latino" => {
+                CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem::NotHispanicOrLatino
+            }
+            "other_hispanic_or_latino" => {
+                CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem::OtherHispanicOrLatino
+            }
+            "prefer_not_to_answer" => CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem::PreferNotToAnswer,
+            "puerto_rican" => CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem::PuertoRican,
+            other => CreateTokenParamsPersonUsCfpbDataEthnicityDetailsEthnicityItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1548,71 +1402,47 @@ impl CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem {
 }
 
 #[cfg(feature = "tokens")]
-impl<'de> serde::Deserialize<'de> for CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "african_american" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::AfricanAmerican,
-                    "american_indian_or_alaska_native" => {
-                        CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::AmericanIndianOrAlaskaNative
-                    }
-                    "asian" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Asian,
-                    "asian_indian" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::AsianIndian,
-                    "black_or_african_american" => {
-                        CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::BlackOrAfricanAmerican
-                    }
-                    "chinese" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Chinese,
-                    "ethiopian" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Ethiopian,
-                    "filipino" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Filipino,
-                    "guamanian_or_chamorro" => {
-                        CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::GuamanianOrChamorro
-                    }
-                    "haitian" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Haitian,
-                    "jamaican" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Jamaican,
-                    "japanese" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Japanese,
-                    "korean" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Korean,
-                    "native_hawaiian" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::NativeHawaiian,
-                    "native_hawaiian_or_other_pacific_islander" => {
-                        CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::NativeHawaiianOrOtherPacificIslander
-                    }
-                    "nigerian" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Nigerian,
-                    "other_asian" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::OtherAsian,
-                    "other_black_or_african_american" => {
-                        CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::OtherBlackOrAfricanAmerican
-                    }
-                    "other_pacific_islander" => {
-                        CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::OtherPacificIslander
-                    }
-                    "prefer_not_to_answer" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::PreferNotToAnswer,
-                    "samoan" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Samoan,
-                    "somali" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Somali,
-                    "vietnamese" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Vietnamese,
-                    "white" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::White,
-                    other => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "african_american" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::AfricanAmerican,
+            "american_indian_or_alaska_native" => {
+                CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::AmericanIndianOrAlaskaNative
+            }
+            "asian" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Asian,
+            "asian_indian" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::AsianIndian,
+            "black_or_african_american" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::BlackOrAfricanAmerican,
+            "chinese" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Chinese,
+            "ethiopian" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Ethiopian,
+            "filipino" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Filipino,
+            "guamanian_or_chamorro" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::GuamanianOrChamorro,
+            "haitian" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Haitian,
+            "jamaican" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Jamaican,
+            "japanese" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Japanese,
+            "korean" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Korean,
+            "native_hawaiian" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::NativeHawaiian,
+            "native_hawaiian_or_other_pacific_islander" => {
+                CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::NativeHawaiianOrOtherPacificIslander
+            }
+            "nigerian" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Nigerian,
+            "other_asian" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::OtherAsian,
+            "other_black_or_african_american" => {
+                CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::OtherBlackOrAfricanAmerican
+            }
+            "other_pacific_islander" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::OtherPacificIslander,
+            "prefer_not_to_answer" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::PreferNotToAnswer,
+            "samoan" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Samoan,
+            "somali" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Somali,
+            "vietnamese" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Vietnamese,
+            "white" => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::White,
+            other => CreateTokenParamsPersonUsCfpbDataRaceDetailsRaceItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1678,32 +1508,33 @@ impl crate::params::FormEncode for GetTokenParams {
 }
 
 #[cfg(any(feature = "financial_connections", feature = "tokens"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Token {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_account: Option<crate::payment_methods::BankAccount>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::payment_methods::Card>,
     #[doc = "IP address of the client that generates the token."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub client_ip: Option<String>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::tokens::TokenObject,
     #[doc = "Type of the token: `account`, `bank_account`, `card`, or `pii`."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: String,
     #[doc = "Determines if you have already used this token (you can only use tokens once)."]
-    #[serde(default)]
+    #[json(default)]
     pub used: bool,
 }
 
@@ -1759,10 +1590,11 @@ impl crate::PagedItem for Token {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TokenCardNetworks {
     #[doc = "The preferred network for co-branded cards."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub preferred: Option<String>,
 }
 
@@ -1793,36 +1625,18 @@ impl Default for TokenObject {
 }
 
 #[cfg(any(feature = "financial_connections", feature = "tokens"))]
-impl<'de> serde::Deserialize<'de> for TokenObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TokenObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "token" => TokenObject::Token,
-                    other => TokenObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TokenObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TokenObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TokenObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "token" => TokenObject::Token,
+            other => TokenObject::Unknown(other.to_string()),
+        })
     }
 }
 

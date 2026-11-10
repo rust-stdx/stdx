@@ -43,7 +43,7 @@ fn encode_iter_array(c: &mut Criterion) {
 }
 
 fn encode_jsonb(c: &mut Criterion) {
-    let value = serde_json::json!({
+    let value = json::json!({
         "name": "carol",
         "admin": true,
         "roles": ["reader", "writer", "admin"],

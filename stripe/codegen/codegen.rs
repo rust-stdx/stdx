@@ -15,7 +15,9 @@ pub mod schema;
 
 use std::{collections::BTreeSet, fs, path::Path};
 
-use serde_json::Value;
+use json::Value as JsonValue;
+
+type Value = JsonValue<'static>;
 
 use crate::schema::Builder;
 
@@ -66,7 +68,7 @@ pub fn generate(spec_path: &Path, out_dir: &Path, fetch: bool) -> Result<Report,
     }
 
     let bytes = fs::read(spec_path).map_err(|error| format!("reading {spec_path:?}: {error}"))?;
-    let spec: Value = serde_json::from_slice(&bytes).map_err(|error| format!("parsing {spec_path:?}: {error}"))?;
+    let spec: Value = json::from_slice_owned(&bytes).map_err(|error| format!("parsing {spec_path:?}: {error}"))?;
 
     let model = Builder::new(spec).build()?;
     let files = emit::emit(&model);

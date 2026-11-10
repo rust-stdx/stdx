@@ -311,152 +311,134 @@ impl CreateTaxIdParamsType {
 }
 
 #[cfg(feature = "tax_ids")]
-impl<'de> serde::Deserialize<'de> for CreateTaxIdParamsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTaxIdParamsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ad_nrt" => CreateTaxIdParamsType::AdNrt,
-                    "ae_trn" => CreateTaxIdParamsType::AeTrn,
-                    "al_tin" => CreateTaxIdParamsType::AlTin,
-                    "am_tin" => CreateTaxIdParamsType::AmTin,
-                    "ao_tin" => CreateTaxIdParamsType::AoTin,
-                    "ar_cuit" => CreateTaxIdParamsType::ArCuit,
-                    "au_abn" => CreateTaxIdParamsType::AuAbn,
-                    "au_arn" => CreateTaxIdParamsType::AuArn,
-                    "aw_tin" => CreateTaxIdParamsType::AwTin,
-                    "az_tin" => CreateTaxIdParamsType::AzTin,
-                    "ba_tin" => CreateTaxIdParamsType::BaTin,
-                    "bb_tin" => CreateTaxIdParamsType::BbTin,
-                    "bd_bin" => CreateTaxIdParamsType::BdBin,
-                    "bf_ifu" => CreateTaxIdParamsType::BfIfu,
-                    "bg_uic" => CreateTaxIdParamsType::BgUic,
-                    "bh_vat" => CreateTaxIdParamsType::BhVat,
-                    "bj_ifu" => CreateTaxIdParamsType::BjIfu,
-                    "bo_tin" => CreateTaxIdParamsType::BoTin,
-                    "br_cnpj" => CreateTaxIdParamsType::BrCnpj,
-                    "br_cpf" => CreateTaxIdParamsType::BrCpf,
-                    "bs_tin" => CreateTaxIdParamsType::BsTin,
-                    "by_tin" => CreateTaxIdParamsType::ByTin,
-                    "ca_bn" => CreateTaxIdParamsType::CaBn,
-                    "ca_gst_hst" => CreateTaxIdParamsType::CaGstHst,
-                    "ca_pst_bc" => CreateTaxIdParamsType::CaPstBc,
-                    "ca_pst_mb" => CreateTaxIdParamsType::CaPstMb,
-                    "ca_pst_sk" => CreateTaxIdParamsType::CaPstSk,
-                    "ca_qst" => CreateTaxIdParamsType::CaQst,
-                    "cd_nif" => CreateTaxIdParamsType::CdNif,
-                    "ch_uid" => CreateTaxIdParamsType::ChUid,
-                    "ch_vat" => CreateTaxIdParamsType::ChVat,
-                    "cl_tin" => CreateTaxIdParamsType::ClTin,
-                    "cm_niu" => CreateTaxIdParamsType::CmNiu,
-                    "cn_tin" => CreateTaxIdParamsType::CnTin,
-                    "co_nit" => CreateTaxIdParamsType::CoNit,
-                    "cr_tin" => CreateTaxIdParamsType::CrTin,
-                    "cv_nif" => CreateTaxIdParamsType::CvNif,
-                    "de_stn" => CreateTaxIdParamsType::DeStn,
-                    "do_rcn" => CreateTaxIdParamsType::DoRcn,
-                    "ec_ruc" => CreateTaxIdParamsType::EcRuc,
-                    "eg_tin" => CreateTaxIdParamsType::EgTin,
-                    "es_cif" => CreateTaxIdParamsType::EsCif,
-                    "et_tin" => CreateTaxIdParamsType::EtTin,
-                    "eu_oss_vat" => CreateTaxIdParamsType::EuOssVat,
-                    "eu_vat" => CreateTaxIdParamsType::EuVat,
-                    "fo_vat" => CreateTaxIdParamsType::FoVat,
-                    "gb_vat" => CreateTaxIdParamsType::GbVat,
-                    "ge_vat" => CreateTaxIdParamsType::GeVat,
-                    "gi_tin" => CreateTaxIdParamsType::GiTin,
-                    "gn_nif" => CreateTaxIdParamsType::GnNif,
-                    "hk_br" => CreateTaxIdParamsType::HkBr,
-                    "hr_oib" => CreateTaxIdParamsType::HrOib,
-                    "hu_tin" => CreateTaxIdParamsType::HuTin,
-                    "ic_nif" => CreateTaxIdParamsType::IcNif,
-                    "id_npwp" => CreateTaxIdParamsType::IdNpwp,
-                    "il_vat" => CreateTaxIdParamsType::IlVat,
-                    "in_gst" => CreateTaxIdParamsType::InGst,
-                    "is_vat" => CreateTaxIdParamsType::IsVat,
-                    "it_cf" => CreateTaxIdParamsType::ItCf,
-                    "jp_cn" => CreateTaxIdParamsType::JpCn,
-                    "jp_rn" => CreateTaxIdParamsType::JpRn,
-                    "jp_trn" => CreateTaxIdParamsType::JpTrn,
-                    "ke_pin" => CreateTaxIdParamsType::KePin,
-                    "kg_tin" => CreateTaxIdParamsType::KgTin,
-                    "kh_tin" => CreateTaxIdParamsType::KhTin,
-                    "kr_brn" => CreateTaxIdParamsType::KrBrn,
-                    "kz_bin" => CreateTaxIdParamsType::KzBin,
-                    "la_tin" => CreateTaxIdParamsType::LaTin,
-                    "li_uid" => CreateTaxIdParamsType::LiUid,
-                    "li_vat" => CreateTaxIdParamsType::LiVat,
-                    "lk_vat" => CreateTaxIdParamsType::LkVat,
-                    "ma_vat" => CreateTaxIdParamsType::MaVat,
-                    "md_vat" => CreateTaxIdParamsType::MdVat,
-                    "me_pib" => CreateTaxIdParamsType::MePib,
-                    "mk_vat" => CreateTaxIdParamsType::MkVat,
-                    "mr_nif" => CreateTaxIdParamsType::MrNif,
-                    "mx_rfc" => CreateTaxIdParamsType::MxRfc,
-                    "my_frp" => CreateTaxIdParamsType::MyFrp,
-                    "my_itn" => CreateTaxIdParamsType::MyItn,
-                    "my_sst" => CreateTaxIdParamsType::MySst,
-                    "ng_tin" => CreateTaxIdParamsType::NgTin,
-                    "no_vat" => CreateTaxIdParamsType::NoVat,
-                    "no_voec" => CreateTaxIdParamsType::NoVoec,
-                    "np_pan" => CreateTaxIdParamsType::NpPan,
-                    "nz_gst" => CreateTaxIdParamsType::NzGst,
-                    "om_vat" => CreateTaxIdParamsType::OmVat,
-                    "pe_ruc" => CreateTaxIdParamsType::PeRuc,
-                    "ph_tin" => CreateTaxIdParamsType::PhTin,
-                    "pl_nip" => CreateTaxIdParamsType::PlNip,
-                    "py_ruc" => CreateTaxIdParamsType::PyRuc,
-                    "ro_tin" => CreateTaxIdParamsType::RoTin,
-                    "rs_pib" => CreateTaxIdParamsType::RsPib,
-                    "ru_inn" => CreateTaxIdParamsType::RuInn,
-                    "ru_kpp" => CreateTaxIdParamsType::RuKpp,
-                    "sa_vat" => CreateTaxIdParamsType::SaVat,
-                    "sg_gst" => CreateTaxIdParamsType::SgGst,
-                    "sg_uen" => CreateTaxIdParamsType::SgUen,
-                    "si_tin" => CreateTaxIdParamsType::SiTin,
-                    "sn_ninea" => CreateTaxIdParamsType::SnNinea,
-                    "sr_fin" => CreateTaxIdParamsType::SrFin,
-                    "sv_nit" => CreateTaxIdParamsType::SvNit,
-                    "th_vat" => CreateTaxIdParamsType::ThVat,
-                    "tj_tin" => CreateTaxIdParamsType::TjTin,
-                    "tr_tin" => CreateTaxIdParamsType::TrTin,
-                    "tw_vat" => CreateTaxIdParamsType::TwVat,
-                    "tz_vat" => CreateTaxIdParamsType::TzVat,
-                    "ua_vat" => CreateTaxIdParamsType::UaVat,
-                    "ug_tin" => CreateTaxIdParamsType::UgTin,
-                    "us_ein" => CreateTaxIdParamsType::UsEin,
-                    "uy_ruc" => CreateTaxIdParamsType::UyRuc,
-                    "uz_tin" => CreateTaxIdParamsType::UzTin,
-                    "uz_vat" => CreateTaxIdParamsType::UzVat,
-                    "ve_rif" => CreateTaxIdParamsType::VeRif,
-                    "vn_tin" => CreateTaxIdParamsType::VnTin,
-                    "za_vat" => CreateTaxIdParamsType::ZaVat,
-                    "zm_tin" => CreateTaxIdParamsType::ZmTin,
-                    "zw_tin" => CreateTaxIdParamsType::ZwTin,
-                    other => CreateTaxIdParamsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTaxIdParamsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTaxIdParamsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTaxIdParamsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ad_nrt" => CreateTaxIdParamsType::AdNrt,
+            "ae_trn" => CreateTaxIdParamsType::AeTrn,
+            "al_tin" => CreateTaxIdParamsType::AlTin,
+            "am_tin" => CreateTaxIdParamsType::AmTin,
+            "ao_tin" => CreateTaxIdParamsType::AoTin,
+            "ar_cuit" => CreateTaxIdParamsType::ArCuit,
+            "au_abn" => CreateTaxIdParamsType::AuAbn,
+            "au_arn" => CreateTaxIdParamsType::AuArn,
+            "aw_tin" => CreateTaxIdParamsType::AwTin,
+            "az_tin" => CreateTaxIdParamsType::AzTin,
+            "ba_tin" => CreateTaxIdParamsType::BaTin,
+            "bb_tin" => CreateTaxIdParamsType::BbTin,
+            "bd_bin" => CreateTaxIdParamsType::BdBin,
+            "bf_ifu" => CreateTaxIdParamsType::BfIfu,
+            "bg_uic" => CreateTaxIdParamsType::BgUic,
+            "bh_vat" => CreateTaxIdParamsType::BhVat,
+            "bj_ifu" => CreateTaxIdParamsType::BjIfu,
+            "bo_tin" => CreateTaxIdParamsType::BoTin,
+            "br_cnpj" => CreateTaxIdParamsType::BrCnpj,
+            "br_cpf" => CreateTaxIdParamsType::BrCpf,
+            "bs_tin" => CreateTaxIdParamsType::BsTin,
+            "by_tin" => CreateTaxIdParamsType::ByTin,
+            "ca_bn" => CreateTaxIdParamsType::CaBn,
+            "ca_gst_hst" => CreateTaxIdParamsType::CaGstHst,
+            "ca_pst_bc" => CreateTaxIdParamsType::CaPstBc,
+            "ca_pst_mb" => CreateTaxIdParamsType::CaPstMb,
+            "ca_pst_sk" => CreateTaxIdParamsType::CaPstSk,
+            "ca_qst" => CreateTaxIdParamsType::CaQst,
+            "cd_nif" => CreateTaxIdParamsType::CdNif,
+            "ch_uid" => CreateTaxIdParamsType::ChUid,
+            "ch_vat" => CreateTaxIdParamsType::ChVat,
+            "cl_tin" => CreateTaxIdParamsType::ClTin,
+            "cm_niu" => CreateTaxIdParamsType::CmNiu,
+            "cn_tin" => CreateTaxIdParamsType::CnTin,
+            "co_nit" => CreateTaxIdParamsType::CoNit,
+            "cr_tin" => CreateTaxIdParamsType::CrTin,
+            "cv_nif" => CreateTaxIdParamsType::CvNif,
+            "de_stn" => CreateTaxIdParamsType::DeStn,
+            "do_rcn" => CreateTaxIdParamsType::DoRcn,
+            "ec_ruc" => CreateTaxIdParamsType::EcRuc,
+            "eg_tin" => CreateTaxIdParamsType::EgTin,
+            "es_cif" => CreateTaxIdParamsType::EsCif,
+            "et_tin" => CreateTaxIdParamsType::EtTin,
+            "eu_oss_vat" => CreateTaxIdParamsType::EuOssVat,
+            "eu_vat" => CreateTaxIdParamsType::EuVat,
+            "fo_vat" => CreateTaxIdParamsType::FoVat,
+            "gb_vat" => CreateTaxIdParamsType::GbVat,
+            "ge_vat" => CreateTaxIdParamsType::GeVat,
+            "gi_tin" => CreateTaxIdParamsType::GiTin,
+            "gn_nif" => CreateTaxIdParamsType::GnNif,
+            "hk_br" => CreateTaxIdParamsType::HkBr,
+            "hr_oib" => CreateTaxIdParamsType::HrOib,
+            "hu_tin" => CreateTaxIdParamsType::HuTin,
+            "ic_nif" => CreateTaxIdParamsType::IcNif,
+            "id_npwp" => CreateTaxIdParamsType::IdNpwp,
+            "il_vat" => CreateTaxIdParamsType::IlVat,
+            "in_gst" => CreateTaxIdParamsType::InGst,
+            "is_vat" => CreateTaxIdParamsType::IsVat,
+            "it_cf" => CreateTaxIdParamsType::ItCf,
+            "jp_cn" => CreateTaxIdParamsType::JpCn,
+            "jp_rn" => CreateTaxIdParamsType::JpRn,
+            "jp_trn" => CreateTaxIdParamsType::JpTrn,
+            "ke_pin" => CreateTaxIdParamsType::KePin,
+            "kg_tin" => CreateTaxIdParamsType::KgTin,
+            "kh_tin" => CreateTaxIdParamsType::KhTin,
+            "kr_brn" => CreateTaxIdParamsType::KrBrn,
+            "kz_bin" => CreateTaxIdParamsType::KzBin,
+            "la_tin" => CreateTaxIdParamsType::LaTin,
+            "li_uid" => CreateTaxIdParamsType::LiUid,
+            "li_vat" => CreateTaxIdParamsType::LiVat,
+            "lk_vat" => CreateTaxIdParamsType::LkVat,
+            "ma_vat" => CreateTaxIdParamsType::MaVat,
+            "md_vat" => CreateTaxIdParamsType::MdVat,
+            "me_pib" => CreateTaxIdParamsType::MePib,
+            "mk_vat" => CreateTaxIdParamsType::MkVat,
+            "mr_nif" => CreateTaxIdParamsType::MrNif,
+            "mx_rfc" => CreateTaxIdParamsType::MxRfc,
+            "my_frp" => CreateTaxIdParamsType::MyFrp,
+            "my_itn" => CreateTaxIdParamsType::MyItn,
+            "my_sst" => CreateTaxIdParamsType::MySst,
+            "ng_tin" => CreateTaxIdParamsType::NgTin,
+            "no_vat" => CreateTaxIdParamsType::NoVat,
+            "no_voec" => CreateTaxIdParamsType::NoVoec,
+            "np_pan" => CreateTaxIdParamsType::NpPan,
+            "nz_gst" => CreateTaxIdParamsType::NzGst,
+            "om_vat" => CreateTaxIdParamsType::OmVat,
+            "pe_ruc" => CreateTaxIdParamsType::PeRuc,
+            "ph_tin" => CreateTaxIdParamsType::PhTin,
+            "pl_nip" => CreateTaxIdParamsType::PlNip,
+            "py_ruc" => CreateTaxIdParamsType::PyRuc,
+            "ro_tin" => CreateTaxIdParamsType::RoTin,
+            "rs_pib" => CreateTaxIdParamsType::RsPib,
+            "ru_inn" => CreateTaxIdParamsType::RuInn,
+            "ru_kpp" => CreateTaxIdParamsType::RuKpp,
+            "sa_vat" => CreateTaxIdParamsType::SaVat,
+            "sg_gst" => CreateTaxIdParamsType::SgGst,
+            "sg_uen" => CreateTaxIdParamsType::SgUen,
+            "si_tin" => CreateTaxIdParamsType::SiTin,
+            "sn_ninea" => CreateTaxIdParamsType::SnNinea,
+            "sr_fin" => CreateTaxIdParamsType::SrFin,
+            "sv_nit" => CreateTaxIdParamsType::SvNit,
+            "th_vat" => CreateTaxIdParamsType::ThVat,
+            "tj_tin" => CreateTaxIdParamsType::TjTin,
+            "tr_tin" => CreateTaxIdParamsType::TrTin,
+            "tw_vat" => CreateTaxIdParamsType::TwVat,
+            "tz_vat" => CreateTaxIdParamsType::TzVat,
+            "ua_vat" => CreateTaxIdParamsType::UaVat,
+            "ug_tin" => CreateTaxIdParamsType::UgTin,
+            "us_ein" => CreateTaxIdParamsType::UsEin,
+            "uy_ruc" => CreateTaxIdParamsType::UyRuc,
+            "uz_tin" => CreateTaxIdParamsType::UzTin,
+            "uz_vat" => CreateTaxIdParamsType::UzVat,
+            "ve_rif" => CreateTaxIdParamsType::VeRif,
+            "vn_tin" => CreateTaxIdParamsType::VnTin,
+            "za_vat" => CreateTaxIdParamsType::ZaVat,
+            "zm_tin" => CreateTaxIdParamsType::ZmTin,
+            "zw_tin" => CreateTaxIdParamsType::ZwTin,
+            other => CreateTaxIdParamsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -468,16 +450,17 @@ impl crate::params::FormEncode for CreateTaxIdParamsType {
 }
 
 #[cfg(any(feature = "customers", feature = "tax_ids"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DeletedTaxId {
     #[doc = "Always true for a deleted object"]
-    #[serde(default)]
+    #[json(default)]
     pub deleted: bool,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::tax_ids::TaxIdObject,
 }
 
@@ -575,39 +558,21 @@ impl ListTaxIdsParamsOwnerType {
 }
 
 #[cfg(feature = "tax_ids")]
-impl<'de> serde::Deserialize<'de> for ListTaxIdsParamsOwnerType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListTaxIdsParamsOwnerType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account" => ListTaxIdsParamsOwnerType::Account,
-                    "application" => ListTaxIdsParamsOwnerType::Application,
-                    "customer" => ListTaxIdsParamsOwnerType::Customer,
-                    "self" => ListTaxIdsParamsOwnerType::SelfValue,
-                    other => ListTaxIdsParamsOwnerType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListTaxIdsParamsOwnerType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListTaxIdsParamsOwnerType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListTaxIdsParamsOwnerType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account" => ListTaxIdsParamsOwnerType::Account,
+            "application" => ListTaxIdsParamsOwnerType::Application,
+            "customer" => ListTaxIdsParamsOwnerType::Customer,
+            "self" => ListTaxIdsParamsOwnerType::SelfValue,
+            other => ListTaxIdsParamsOwnerType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -663,40 +628,41 @@ impl crate::params::FormEncode for ListTaxIdsParamsOwnerType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxId {
     #[doc = "Two-letter ISO code representing the country of the tax ID."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "ID of the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<crate::Expandable<crate::customers::Customer>>,
     #[doc = "ID of the Account representing the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_account: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::tax_ids::TaxIdObject,
     #[doc = "The account or customer the tax ID belongs to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub owner: Option<crate::tax::TaxIDsOwner>,
     #[doc = "Type of the tax ID, one of `ad_nrt`, `ae_trn`, `al_tin`, `am_tin`, `ao_tin`, `ar_cuit`, `au_abn`, `au_arn`, `aw_tin`,..."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::tax_ids::TaxIdType,
     #[doc = "Value of the tax ID."]
-    #[serde(default)]
+    #[json(default)]
     pub value: String,
     #[doc = "Tax ID verification information."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verification: Option<crate::tax_ids::TaxIdVerification>,
 }
 
@@ -954,36 +920,18 @@ impl Default for TaxIdObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for TaxIdObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxIdObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "tax_id" => TaxIdObject::TaxId,
-                    other => TaxIdObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxIdObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxIdObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxIdObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "tax_id" => TaxIdObject::TaxId,
+            other => TaxIdObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1424,153 +1372,135 @@ impl Default for TaxIdType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for TaxIdType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxIdType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ad_nrt" => TaxIdType::AdNrt,
-                    "ae_trn" => TaxIdType::AeTrn,
-                    "al_tin" => TaxIdType::AlTin,
-                    "am_tin" => TaxIdType::AmTin,
-                    "ao_tin" => TaxIdType::AoTin,
-                    "ar_cuit" => TaxIdType::ArCuit,
-                    "au_abn" => TaxIdType::AuAbn,
-                    "au_arn" => TaxIdType::AuArn,
-                    "aw_tin" => TaxIdType::AwTin,
-                    "az_tin" => TaxIdType::AzTin,
-                    "ba_tin" => TaxIdType::BaTin,
-                    "bb_tin" => TaxIdType::BbTin,
-                    "bd_bin" => TaxIdType::BdBin,
-                    "bf_ifu" => TaxIdType::BfIfu,
-                    "bg_uic" => TaxIdType::BgUic,
-                    "bh_vat" => TaxIdType::BhVat,
-                    "bj_ifu" => TaxIdType::BjIfu,
-                    "bo_tin" => TaxIdType::BoTin,
-                    "br_cnpj" => TaxIdType::BrCnpj,
-                    "br_cpf" => TaxIdType::BrCpf,
-                    "bs_tin" => TaxIdType::BsTin,
-                    "by_tin" => TaxIdType::ByTin,
-                    "ca_bn" => TaxIdType::CaBn,
-                    "ca_gst_hst" => TaxIdType::CaGstHst,
-                    "ca_pst_bc" => TaxIdType::CaPstBc,
-                    "ca_pst_mb" => TaxIdType::CaPstMb,
-                    "ca_pst_sk" => TaxIdType::CaPstSk,
-                    "ca_qst" => TaxIdType::CaQst,
-                    "cd_nif" => TaxIdType::CdNif,
-                    "ch_uid" => TaxIdType::ChUid,
-                    "ch_vat" => TaxIdType::ChVat,
-                    "cl_tin" => TaxIdType::ClTin,
-                    "cm_niu" => TaxIdType::CmNiu,
-                    "cn_tin" => TaxIdType::CnTin,
-                    "co_nit" => TaxIdType::CoNit,
-                    "cr_tin" => TaxIdType::CrTin,
-                    "cv_nif" => TaxIdType::CvNif,
-                    "de_stn" => TaxIdType::DeStn,
-                    "do_rcn" => TaxIdType::DoRcn,
-                    "ec_ruc" => TaxIdType::EcRuc,
-                    "eg_tin" => TaxIdType::EgTin,
-                    "es_cif" => TaxIdType::EsCif,
-                    "et_tin" => TaxIdType::EtTin,
-                    "eu_oss_vat" => TaxIdType::EuOssVat,
-                    "eu_vat" => TaxIdType::EuVat,
-                    "fo_vat" => TaxIdType::FoVat,
-                    "gb_vat" => TaxIdType::GbVat,
-                    "ge_vat" => TaxIdType::GeVat,
-                    "gi_tin" => TaxIdType::GiTin,
-                    "gn_nif" => TaxIdType::GnNif,
-                    "hk_br" => TaxIdType::HkBr,
-                    "hr_oib" => TaxIdType::HrOib,
-                    "hu_tin" => TaxIdType::HuTin,
-                    "ic_nif" => TaxIdType::IcNif,
-                    "id_npwp" => TaxIdType::IdNpwp,
-                    "il_vat" => TaxIdType::IlVat,
-                    "in_gst" => TaxIdType::InGst,
-                    "is_vat" => TaxIdType::IsVat,
-                    "it_cf" => TaxIdType::ItCf,
-                    "jp_cn" => TaxIdType::JpCn,
-                    "jp_rn" => TaxIdType::JpRn,
-                    "jp_trn" => TaxIdType::JpTrn,
-                    "ke_pin" => TaxIdType::KePin,
-                    "kg_tin" => TaxIdType::KgTin,
-                    "kh_tin" => TaxIdType::KhTin,
-                    "kr_brn" => TaxIdType::KrBrn,
-                    "kz_bin" => TaxIdType::KzBin,
-                    "la_tin" => TaxIdType::LaTin,
-                    "li_uid" => TaxIdType::LiUid,
-                    "li_vat" => TaxIdType::LiVat,
-                    "lk_vat" => TaxIdType::LkVat,
-                    "ma_vat" => TaxIdType::MaVat,
-                    "md_vat" => TaxIdType::MdVat,
-                    "me_pib" => TaxIdType::MePib,
-                    "mk_vat" => TaxIdType::MkVat,
-                    "mr_nif" => TaxIdType::MrNif,
-                    "mx_rfc" => TaxIdType::MxRfc,
-                    "my_frp" => TaxIdType::MyFrp,
-                    "my_itn" => TaxIdType::MyItn,
-                    "my_sst" => TaxIdType::MySst,
-                    "ng_tin" => TaxIdType::NgTin,
-                    "no_vat" => TaxIdType::NoVat,
-                    "no_voec" => TaxIdType::NoVoec,
-                    "np_pan" => TaxIdType::NpPan,
-                    "nz_gst" => TaxIdType::NzGst,
-                    "om_vat" => TaxIdType::OmVat,
-                    "pe_ruc" => TaxIdType::PeRuc,
-                    "ph_tin" => TaxIdType::PhTin,
-                    "pl_nip" => TaxIdType::PlNip,
-                    "py_ruc" => TaxIdType::PyRuc,
-                    "ro_tin" => TaxIdType::RoTin,
-                    "rs_pib" => TaxIdType::RsPib,
-                    "ru_inn" => TaxIdType::RuInn,
-                    "ru_kpp" => TaxIdType::RuKpp,
-                    "sa_vat" => TaxIdType::SaVat,
-                    "sg_gst" => TaxIdType::SgGst,
-                    "sg_uen" => TaxIdType::SgUen,
-                    "si_tin" => TaxIdType::SiTin,
-                    "sn_ninea" => TaxIdType::SnNinea,
-                    "sr_fin" => TaxIdType::SrFin,
-                    "sv_nit" => TaxIdType::SvNit,
-                    "th_vat" => TaxIdType::ThVat,
-                    "tj_tin" => TaxIdType::TjTin,
-                    "tr_tin" => TaxIdType::TrTin,
-                    "tw_vat" => TaxIdType::TwVat,
-                    "tz_vat" => TaxIdType::TzVat,
-                    "ua_vat" => TaxIdType::UaVat,
-                    "ug_tin" => TaxIdType::UgTin,
-                    "unknown" => TaxIdType::UnknownValue,
-                    "us_ein" => TaxIdType::UsEin,
-                    "uy_ruc" => TaxIdType::UyRuc,
-                    "uz_tin" => TaxIdType::UzTin,
-                    "uz_vat" => TaxIdType::UzVat,
-                    "ve_rif" => TaxIdType::VeRif,
-                    "vn_tin" => TaxIdType::VnTin,
-                    "za_vat" => TaxIdType::ZaVat,
-                    "zm_tin" => TaxIdType::ZmTin,
-                    "zw_tin" => TaxIdType::ZwTin,
-                    other => TaxIdType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxIdType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxIdType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxIdType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ad_nrt" => TaxIdType::AdNrt,
+            "ae_trn" => TaxIdType::AeTrn,
+            "al_tin" => TaxIdType::AlTin,
+            "am_tin" => TaxIdType::AmTin,
+            "ao_tin" => TaxIdType::AoTin,
+            "ar_cuit" => TaxIdType::ArCuit,
+            "au_abn" => TaxIdType::AuAbn,
+            "au_arn" => TaxIdType::AuArn,
+            "aw_tin" => TaxIdType::AwTin,
+            "az_tin" => TaxIdType::AzTin,
+            "ba_tin" => TaxIdType::BaTin,
+            "bb_tin" => TaxIdType::BbTin,
+            "bd_bin" => TaxIdType::BdBin,
+            "bf_ifu" => TaxIdType::BfIfu,
+            "bg_uic" => TaxIdType::BgUic,
+            "bh_vat" => TaxIdType::BhVat,
+            "bj_ifu" => TaxIdType::BjIfu,
+            "bo_tin" => TaxIdType::BoTin,
+            "br_cnpj" => TaxIdType::BrCnpj,
+            "br_cpf" => TaxIdType::BrCpf,
+            "bs_tin" => TaxIdType::BsTin,
+            "by_tin" => TaxIdType::ByTin,
+            "ca_bn" => TaxIdType::CaBn,
+            "ca_gst_hst" => TaxIdType::CaGstHst,
+            "ca_pst_bc" => TaxIdType::CaPstBc,
+            "ca_pst_mb" => TaxIdType::CaPstMb,
+            "ca_pst_sk" => TaxIdType::CaPstSk,
+            "ca_qst" => TaxIdType::CaQst,
+            "cd_nif" => TaxIdType::CdNif,
+            "ch_uid" => TaxIdType::ChUid,
+            "ch_vat" => TaxIdType::ChVat,
+            "cl_tin" => TaxIdType::ClTin,
+            "cm_niu" => TaxIdType::CmNiu,
+            "cn_tin" => TaxIdType::CnTin,
+            "co_nit" => TaxIdType::CoNit,
+            "cr_tin" => TaxIdType::CrTin,
+            "cv_nif" => TaxIdType::CvNif,
+            "de_stn" => TaxIdType::DeStn,
+            "do_rcn" => TaxIdType::DoRcn,
+            "ec_ruc" => TaxIdType::EcRuc,
+            "eg_tin" => TaxIdType::EgTin,
+            "es_cif" => TaxIdType::EsCif,
+            "et_tin" => TaxIdType::EtTin,
+            "eu_oss_vat" => TaxIdType::EuOssVat,
+            "eu_vat" => TaxIdType::EuVat,
+            "fo_vat" => TaxIdType::FoVat,
+            "gb_vat" => TaxIdType::GbVat,
+            "ge_vat" => TaxIdType::GeVat,
+            "gi_tin" => TaxIdType::GiTin,
+            "gn_nif" => TaxIdType::GnNif,
+            "hk_br" => TaxIdType::HkBr,
+            "hr_oib" => TaxIdType::HrOib,
+            "hu_tin" => TaxIdType::HuTin,
+            "ic_nif" => TaxIdType::IcNif,
+            "id_npwp" => TaxIdType::IdNpwp,
+            "il_vat" => TaxIdType::IlVat,
+            "in_gst" => TaxIdType::InGst,
+            "is_vat" => TaxIdType::IsVat,
+            "it_cf" => TaxIdType::ItCf,
+            "jp_cn" => TaxIdType::JpCn,
+            "jp_rn" => TaxIdType::JpRn,
+            "jp_trn" => TaxIdType::JpTrn,
+            "ke_pin" => TaxIdType::KePin,
+            "kg_tin" => TaxIdType::KgTin,
+            "kh_tin" => TaxIdType::KhTin,
+            "kr_brn" => TaxIdType::KrBrn,
+            "kz_bin" => TaxIdType::KzBin,
+            "la_tin" => TaxIdType::LaTin,
+            "li_uid" => TaxIdType::LiUid,
+            "li_vat" => TaxIdType::LiVat,
+            "lk_vat" => TaxIdType::LkVat,
+            "ma_vat" => TaxIdType::MaVat,
+            "md_vat" => TaxIdType::MdVat,
+            "me_pib" => TaxIdType::MePib,
+            "mk_vat" => TaxIdType::MkVat,
+            "mr_nif" => TaxIdType::MrNif,
+            "mx_rfc" => TaxIdType::MxRfc,
+            "my_frp" => TaxIdType::MyFrp,
+            "my_itn" => TaxIdType::MyItn,
+            "my_sst" => TaxIdType::MySst,
+            "ng_tin" => TaxIdType::NgTin,
+            "no_vat" => TaxIdType::NoVat,
+            "no_voec" => TaxIdType::NoVoec,
+            "np_pan" => TaxIdType::NpPan,
+            "nz_gst" => TaxIdType::NzGst,
+            "om_vat" => TaxIdType::OmVat,
+            "pe_ruc" => TaxIdType::PeRuc,
+            "ph_tin" => TaxIdType::PhTin,
+            "pl_nip" => TaxIdType::PlNip,
+            "py_ruc" => TaxIdType::PyRuc,
+            "ro_tin" => TaxIdType::RoTin,
+            "rs_pib" => TaxIdType::RsPib,
+            "ru_inn" => TaxIdType::RuInn,
+            "ru_kpp" => TaxIdType::RuKpp,
+            "sa_vat" => TaxIdType::SaVat,
+            "sg_gst" => TaxIdType::SgGst,
+            "sg_uen" => TaxIdType::SgUen,
+            "si_tin" => TaxIdType::SiTin,
+            "sn_ninea" => TaxIdType::SnNinea,
+            "sr_fin" => TaxIdType::SrFin,
+            "sv_nit" => TaxIdType::SvNit,
+            "th_vat" => TaxIdType::ThVat,
+            "tj_tin" => TaxIdType::TjTin,
+            "tr_tin" => TaxIdType::TrTin,
+            "tw_vat" => TaxIdType::TwVat,
+            "tz_vat" => TaxIdType::TzVat,
+            "ua_vat" => TaxIdType::UaVat,
+            "ug_tin" => TaxIdType::UgTin,
+            "unknown" => TaxIdType::UnknownValue,
+            "us_ein" => TaxIdType::UsEin,
+            "uy_ruc" => TaxIdType::UyRuc,
+            "uz_tin" => TaxIdType::UzTin,
+            "uz_vat" => TaxIdType::UzVat,
+            "ve_rif" => TaxIdType::VeRif,
+            "vn_tin" => TaxIdType::VnTin,
+            "za_vat" => TaxIdType::ZaVat,
+            "zm_tin" => TaxIdType::ZmTin,
+            "zw_tin" => TaxIdType::ZwTin,
+            other => TaxIdType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1619,16 +1549,17 @@ impl<'de> serde::Deserialize<'de> for TaxIdType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxIdVerification {
     #[doc = "Verification status, one of `pending`, `verified`, `unverified`, or `unavailable`."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::tax_ids::TaxIdVerificationStatus,
     #[doc = "Verified address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verified_address: Option<String>,
     #[doc = "Verified name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verified_name: Option<String>,
 }
 
@@ -1841,39 +1772,21 @@ impl Default for TaxIdVerificationStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for TaxIdVerificationStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxIdVerificationStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "pending" => TaxIdVerificationStatus::Pending,
-                    "unavailable" => TaxIdVerificationStatus::Unavailable,
-                    "unverified" => TaxIdVerificationStatus::Unverified,
-                    "verified" => TaxIdVerificationStatus::Verified,
-                    other => TaxIdVerificationStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxIdVerificationStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxIdVerificationStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxIdVerificationStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "pending" => TaxIdVerificationStatus::Pending,
+            "unavailable" => TaxIdVerificationStatus::Unavailable,
+            "unverified" => TaxIdVerificationStatus::Unverified,
+            "verified" => TaxIdVerificationStatus::Verified,
+            other => TaxIdVerificationStatus::Unknown(other.to_string()),
+        })
     }
 }
 

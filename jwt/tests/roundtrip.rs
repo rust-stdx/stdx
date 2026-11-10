@@ -10,8 +10,8 @@ use crypto::{
 use jwt::*;
 use small_collections::SmallString;
 
-fn claims() -> serde_json::Value {
-    serde_json::json!({ "sub": "user123", "exp": 9999999999_u64, "nbf": 0_u64 })
+fn claims() -> json::OwnedValue {
+    json::json!({ "sub": "user123", "exp": 9999999999_u64, "nbf": 0_u64 }).into()
 }
 
 fn assert_sign_verify<V: Verifier>(signing_key: &dyn Signer, verifying_key: &V, alg: Algorithm) {
@@ -23,9 +23,9 @@ fn assert_sign_verify<V: Verifier>(signing_key: &dyn Signer, verifying_key: &V, 
     let parsed_header = parse_header(&token).unwrap();
     assert_eq!(parsed_header.alg, alg);
 
-    let verified: serde_json::Value =
+    let verified: json::OwnedValue =
         parse_and_verify(verifying_key, &parsed_header, &token, &VerifyOptions::default()).unwrap();
-    assert_eq!(verified["sub"], "user123");
+    assert_eq!(verified["sub"].as_str(), Some("user123"));
 }
 
 #[test]
@@ -49,15 +49,9 @@ fn p521_roundtrip() {
     assert_sign_verify(&secret_key, &public_key, Algorithm::ES512);
 }
 
-fn sign_es384(secret_key: &p384::SecretKey, header: &Header, claims: &serde_json::Value) -> String {
-    let header_base64 = base64::encode(
-        serde_json::to_string(header).unwrap().as_bytes(),
-        base64::Alphabet::UrlNoPadding,
-    );
-    let claims_base64 = base64::encode(
-        serde_json::to_string(claims).unwrap().as_bytes(),
-        base64::Alphabet::UrlNoPadding,
-    );
+fn sign_es384(secret_key: &p384::SecretKey, header: &Header, claims: &json::OwnedValue) -> String {
+    let header_base64 = base64::encode(json::to_string(header).as_bytes(), base64::Alphabet::UrlNoPadding);
+    let claims_base64 = base64::encode(json::to_string(claims).as_bytes(), base64::Alphabet::UrlNoPadding);
     let signing_input = format!("{header_base64}.{claims_base64}");
     let signature = secret_key.sign(signing_input.as_bytes()).unwrap();
     format!("{signing_input}.{}", base64::encode(signature, base64::Alphabet::UrlNoPadding))
@@ -76,9 +70,9 @@ fn p384_public_verify() {
     let parsed_header = parse_header(&token).unwrap();
     assert_eq!(parsed_header.alg, Algorithm::ES384);
 
-    let verified: serde_json::Value =
+    let verified: json::OwnedValue =
         parse_and_verify(&public_key, &parsed_header, &token, &VerifyOptions::default()).unwrap();
-    assert_eq!(verified["sub"], "user123");
+    assert_eq!(verified["sub"].as_str(), Some("user123"));
 }
 
 #[test]
@@ -96,7 +90,7 @@ fn p384_tampered_token_is_rejected() {
     tampered.push(if last == 'A' { 'B' } else { 'A' });
 
     let parsed_header = parse_header(&tampered).unwrap();
-    let result: Result<serde_json::Value, _> =
+    let result: Result<json::OwnedValue, _> =
         parse_and_verify(&public_key, &parsed_header, &tampered, &VerifyOptions::default());
     assert!(result.is_err());
 }
@@ -207,7 +201,7 @@ fn tampered_token_is_rejected() {
     tampered.push(if last == 'A' { 'B' } else { 'A' });
 
     let parsed_header = parse_header(&tampered).unwrap();
-    let result: Result<serde_json::Value, _> =
+    let result: Result<json::OwnedValue, _> =
         parse_and_verify(&public_key, &parsed_header, &tampered, &VerifyOptions::default());
     assert!(result.is_err());
 }
@@ -245,7 +239,7 @@ fn jwk_roundtrip_p384_public() {
     let public_jwk = Jwk::from(&secret_key.public_key());
     assert_eq!(public_jwk.algorithm, Algorithm::ES384);
 
-    let json = serde_json::to_string(&public_jwk).unwrap();
+    let json = json::to_string(&public_jwk);
     assert!(json.contains(r#""crv":"P-384""#), "{json}");
 
     let public_key = p384::PublicKey::try_from(&public_jwk).unwrap();
@@ -259,7 +253,7 @@ fn jwk_roundtrip_p521() {
     let public_jwk = Jwk::from(&secret_key.public_key());
     assert_eq!(public_jwk.algorithm, Algorithm::ES512);
 
-    let json = serde_json::to_string(&public_jwk).unwrap();
+    let json = json::to_string(&public_jwk);
     assert!(json.contains(r#""crv":"P-521""#), "{json}");
 
     let public_key = p521::PublicKey::try_from(&public_jwk).unwrap();
@@ -297,7 +291,7 @@ fn jwk_roundtrip_mldsa44() {
     let secret_key2 = MlDsa44SecretKey::try_from(&secret_jwk).unwrap();
     assert_eq!(secret_key2.public_key().to_bytes(), secret_key.public_key().to_bytes());
 
-    let json = serde_json::to_string(&secret_jwk).unwrap();
+    let json = json::to_string(&secret_jwk);
     assert!(json.contains(r#""kty":"AKP""#), "{json}");
     assert!(json.contains(r#""alg":"ML-DSA-44""#), "{json}");
     assert!(json.contains(r#""pub":"#), "{json}");
@@ -316,7 +310,7 @@ fn jwk_roundtrip_mldsa65() {
     let secret_key2 = MlDsa65SecretKey::try_from(&secret_jwk).unwrap();
     assert_eq!(secret_key2.public_key().to_bytes(), secret_key.public_key().to_bytes());
 
-    let json = serde_json::to_string(&secret_jwk).unwrap();
+    let json = json::to_string(&secret_jwk);
     assert!(json.contains(r#""kty":"AKP""#), "{json}");
     assert!(json.contains(r#""alg":"ML-DSA-65""#), "{json}");
 }
@@ -333,7 +327,7 @@ fn jwk_roundtrip_mldsa87() {
     let secret_key2 = MlDsa87SecretKey::try_from(&secret_jwk).unwrap();
     assert_eq!(secret_key2.public_key().to_bytes(), secret_key.public_key().to_bytes());
 
-    let json = serde_json::to_string(&secret_jwk).unwrap();
+    let json = json::to_string(&secret_jwk);
     assert!(json.contains(r#""kty":"AKP""#), "{json}");
     assert!(json.contains(r#""alg":"ML-DSA-87""#), "{json}");
     assert!(json.contains(r#""pub":"#), "{json}");
@@ -384,9 +378,8 @@ fn assert_key_roundtrip(signing_key: &dyn Signer, jwk: &Jwk, alg: Algorithm) {
     };
     let token = sign(signing_key, &header, &claims()).unwrap();
     let parsed_header = parse_header(&token).unwrap();
-    let verified: serde_json::Value =
-        parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default()).unwrap();
-    assert_eq!(verified["sub"], "user123");
+    let verified: json::OwnedValue = parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default()).unwrap();
+    assert_eq!(verified["sub"].as_str(), Some("user123"));
 }
 
 #[test]
@@ -433,9 +426,8 @@ fn key_decodes_p384() {
     };
     let token = sign_es384(&secret_key, &header, &claims());
     let parsed_header = parse_header(&token).unwrap();
-    let verified: serde_json::Value =
-        parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default()).unwrap();
-    assert_eq!(verified["sub"], "user123");
+    let verified: json::OwnedValue = parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default()).unwrap();
+    assert_eq!(verified["sub"].as_str(), Some("user123"));
 }
 
 #[test]
@@ -528,9 +520,8 @@ fn key_secret_signs_and_verifies() {
     };
     let token = sign(&key, &header, &claims()).unwrap();
     let parsed_header = parse_header(&token).unwrap();
-    let verified: serde_json::Value =
-        parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default()).unwrap();
-    assert_eq!(verified["sub"], "user123");
+    let verified: json::OwnedValue = parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default()).unwrap();
+    assert_eq!(verified["sub"].as_str(), Some("user123"));
 }
 
 #[test]
@@ -596,7 +587,7 @@ fn header_serializes_small_strings_as_plain_json_strings() {
         ..Default::default()
     };
 
-    let json = serde_json::to_string(&header).unwrap();
+    let json = json::to_string(&header);
     assert!(json.contains(r#""cty":"JWT""#), "{json}");
     assert!(json.contains(r#""kid":"key-1""#), "{json}");
     assert!(json.contains(r#""x5t":"thumbprint""#), "{json}");
@@ -604,7 +595,7 @@ fn header_serializes_small_strings_as_plain_json_strings() {
     assert!(!json.contains("Inline"), "{json}");
     assert!(!json.contains("Heap"), "{json}");
 
-    let back: Header = serde_json::from_str(&json).unwrap();
+    let back: Header = json::from_str(&json).unwrap();
     assert_eq!(back, header);
 }
 
@@ -620,14 +611,14 @@ fn registered_claims_serialize_small_strings_as_plain_json_strings() {
         jti: Some(SmallString::from_str("id-1")),
     };
 
-    let json = serde_json::to_string(&claims).unwrap();
+    let json = json::to_string(&claims);
     assert!(json.contains(r#""iss":"issuer""#), "{json}");
     assert!(json.contains(r#""sub":"subject""#), "{json}");
     assert!(json.contains(r#""aud":"audience""#), "{json}");
     assert!(json.contains(r#""jti":"id-1""#), "{json}");
     assert!(!json.contains("Inline"), "{json}");
 
-    let back: RegisteredClaims = serde_json::from_str(&json).unwrap();
+    let back: RegisteredClaims = json::from_str(&json).unwrap();
     assert_eq!(back, claims);
 }
 
@@ -637,7 +628,7 @@ fn jwk_kid_serializes_as_plain_json_string() {
     let mut public_jwk = Jwk::from(&secret_key.public_key());
     public_jwk.kid = SmallString::from_str("kid-123");
 
-    let json = serde_json::to_string(&public_jwk).unwrap();
+    let json = json::to_string(&public_jwk);
     assert!(json.contains(r#""kid":"kid-123""#), "{json}");
     assert!(!json.contains("Inline"), "{json}");
 }
@@ -664,7 +655,7 @@ fn exp_check_does_not_underflow_before_the_epoch() {
         alg: Algorithm::HS256,
         ..Default::default()
     };
-    let token = sign(&key, &header, &serde_json::json!({ "exp": 1u64 })).unwrap();
+    let token = sign(&key, &header, &json::json!({ "exp": 1u64 })).unwrap();
     let parsed = parse_header(&token).unwrap();
 
     let clock = FixedClock(0);
@@ -677,8 +668,8 @@ fn exp_check_does_not_underflow_before_the_epoch() {
     };
 
     // The token is not expired: `exp` is after the saturated lower bound.
-    let verified: serde_json::Value = parse_and_verify(&key, &parsed, &token, &options).unwrap();
-    assert_eq!(verified["exp"], 1);
+    let verified: json::OwnedValue = parse_and_verify(&key, &parsed, &token, &options).unwrap();
+    assert_eq!(verified["exp"].as_u64(), Some(1));
 }
 
 #[test]
@@ -692,7 +683,7 @@ fn nbf_check_does_not_overflow_near_u64_max() {
         alg: Algorithm::HS256,
         ..Default::default()
     };
-    let token = sign(&key, &header, &serde_json::json!({ "nbf": 1u64 })).unwrap();
+    let token = sign(&key, &header, &json::json!({ "nbf": 1u64 })).unwrap();
     let parsed = parse_header(&token).unwrap();
 
     let clock = FixedClock(u64::MAX);
@@ -704,6 +695,6 @@ fn nbf_check_does_not_overflow_near_u64_max() {
         ..Default::default()
     };
 
-    let verified: serde_json::Value = parse_and_verify(&key, &parsed, &token, &options).unwrap();
-    assert_eq!(verified["nbf"], 1);
+    let verified: json::OwnedValue = parse_and_verify(&key, &parsed, &token, &options).unwrap();
+    assert_eq!(verified["nbf"].as_u64(), Some(1));
 }

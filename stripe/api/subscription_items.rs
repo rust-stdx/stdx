@@ -16,7 +16,7 @@ pub struct CreateSubscriptionItemParams {
     #[doc = "The trial offer to apply to this subscription item."]
     pub current_trial: Option<crate::subscription_items::CreateSubscriptionItemParamsCurrentTrial>,
     #[doc = "The coupons to redeem into discounts for the subscription item."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
@@ -38,7 +38,7 @@ pub struct CreateSubscriptionItemParams {
     #[doc = "The identifier of the subscription to modify."]
     pub subscription: String,
     #[doc = "A list of [Tax Rate](https://docs.stripe.com/api/tax_rates) ids."]
-    pub tax_rates: Option<serde_json::Value>,
+    pub tax_rates: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "subscription_items")]
@@ -119,39 +119,21 @@ impl CreateSubscriptionItemParamsPaymentBehavior {
 }
 
 #[cfg(feature = "subscription_items")]
-impl<'de> serde::Deserialize<'de> for CreateSubscriptionItemParamsPaymentBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionItemParamsPaymentBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "allow_incomplete" => CreateSubscriptionItemParamsPaymentBehavior::AllowIncomplete,
-                    "default_incomplete" => CreateSubscriptionItemParamsPaymentBehavior::DefaultIncomplete,
-                    "error_if_incomplete" => CreateSubscriptionItemParamsPaymentBehavior::ErrorIfIncomplete,
-                    "pending_if_incomplete" => CreateSubscriptionItemParamsPaymentBehavior::PendingIfIncomplete,
-                    other => CreateSubscriptionItemParamsPaymentBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionItemParamsPaymentBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateSubscriptionItemParamsPaymentBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionItemParamsPaymentBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "allow_incomplete" => CreateSubscriptionItemParamsPaymentBehavior::AllowIncomplete,
+            "default_incomplete" => CreateSubscriptionItemParamsPaymentBehavior::DefaultIncomplete,
+            "error_if_incomplete" => CreateSubscriptionItemParamsPaymentBehavior::ErrorIfIncomplete,
+            "pending_if_incomplete" => CreateSubscriptionItemParamsPaymentBehavior::PendingIfIncomplete,
+            other => CreateSubscriptionItemParamsPaymentBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -234,39 +216,21 @@ impl CreateSubscriptionItemParamsPriceDataRecurringInterval {
 }
 
 #[cfg(feature = "subscription_items")]
-impl<'de> serde::Deserialize<'de> for CreateSubscriptionItemParamsPriceDataRecurringInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionItemParamsPriceDataRecurringInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "day" => CreateSubscriptionItemParamsPriceDataRecurringInterval::Day,
-                    "month" => CreateSubscriptionItemParamsPriceDataRecurringInterval::Month,
-                    "week" => CreateSubscriptionItemParamsPriceDataRecurringInterval::Week,
-                    "year" => CreateSubscriptionItemParamsPriceDataRecurringInterval::Year,
-                    other => CreateSubscriptionItemParamsPriceDataRecurringInterval::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionItemParamsPriceDataRecurringInterval::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateSubscriptionItemParamsPriceDataRecurringInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionItemParamsPriceDataRecurringInterval::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "day" => CreateSubscriptionItemParamsPriceDataRecurringInterval::Day,
+            "month" => CreateSubscriptionItemParamsPriceDataRecurringInterval::Month,
+            "week" => CreateSubscriptionItemParamsPriceDataRecurringInterval::Week,
+            "year" => CreateSubscriptionItemParamsPriceDataRecurringInterval::Year,
+            other => CreateSubscriptionItemParamsPriceDataRecurringInterval::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -301,38 +265,20 @@ impl CreateSubscriptionItemParamsPriceDataTaxBehavior {
 }
 
 #[cfg(feature = "subscription_items")]
-impl<'de> serde::Deserialize<'de> for CreateSubscriptionItemParamsPriceDataTaxBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionItemParamsPriceDataTaxBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exclusive" => CreateSubscriptionItemParamsPriceDataTaxBehavior::Exclusive,
-                    "inclusive" => CreateSubscriptionItemParamsPriceDataTaxBehavior::Inclusive,
-                    "unspecified" => CreateSubscriptionItemParamsPriceDataTaxBehavior::Unspecified,
-                    other => CreateSubscriptionItemParamsPriceDataTaxBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionItemParamsPriceDataTaxBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateSubscriptionItemParamsPriceDataTaxBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionItemParamsPriceDataTaxBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exclusive" => CreateSubscriptionItemParamsPriceDataTaxBehavior::Exclusive,
+            "inclusive" => CreateSubscriptionItemParamsPriceDataTaxBehavior::Inclusive,
+            "unspecified" => CreateSubscriptionItemParamsPriceDataTaxBehavior::Unspecified,
+            other => CreateSubscriptionItemParamsPriceDataTaxBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -367,38 +313,20 @@ impl CreateSubscriptionItemParamsProrationBehavior {
 }
 
 #[cfg(feature = "subscription_items")]
-impl<'de> serde::Deserialize<'de> for CreateSubscriptionItemParamsProrationBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionItemParamsProrationBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always_invoice" => CreateSubscriptionItemParamsProrationBehavior::AlwaysInvoice,
-                    "create_prorations" => CreateSubscriptionItemParamsProrationBehavior::CreateProrations,
-                    "none" => CreateSubscriptionItemParamsProrationBehavior::None,
-                    other => CreateSubscriptionItemParamsProrationBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionItemParamsProrationBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateSubscriptionItemParamsProrationBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionItemParamsProrationBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always_invoice" => CreateSubscriptionItemParamsProrationBehavior::AlwaysInvoice,
+            "create_prorations" => CreateSubscriptionItemParamsProrationBehavior::CreateProrations,
+            "none" => CreateSubscriptionItemParamsProrationBehavior::None,
+            other => CreateSubscriptionItemParamsProrationBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -441,16 +369,17 @@ pub type DeleteSubscriptionItemParamsProrationBehavior =
     crate::subscription_items::CreateSubscriptionItemParamsProrationBehavior;
 
 #[cfg(feature = "subscription_items")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DeletedSubscriptionItem {
     #[doc = "Always true for a deleted object"]
-    #[serde(default)]
+    #[json(default)]
     pub deleted: bool,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::subscription_items::SubscriptionItemObject,
 }
 
@@ -544,50 +473,51 @@ impl crate::params::FormEncode for ListSubscriptionItemsParams {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionItem {
     #[doc = "The time period the subscription item has been billed for."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billed_until: Option<i64>,
     #[doc = "Define thresholds at which an invoice will be sent, and the related subscription advanced to a new billing period"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billing_thresholds: Option<crate::subscription_items::SubscriptionItemBillingThresholds>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "The end time of this subscription item's current billing period."]
-    #[serde(default)]
+    #[json(default)]
     pub current_period_end: i64,
     #[doc = "The start time of this subscription item's current billing period."]
-    #[serde(default)]
+    #[json(default)]
     pub current_period_start: i64,
     #[doc = "The current trial that is applied to this subscription item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub current_trial: Option<crate::subscriptions::SubscriptionsTrialsResourceCurrentTrial>,
     #[doc = "The discounts applied to the subscription item."]
-    #[serde(default)]
+    #[json(default)]
     pub discounts: Vec<crate::Expandable<crate::coupons::Discount>>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::subscription_items::SubscriptionItemObject,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub plan: Option<crate::plans::Plan>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub price: Option<crate::prices::Price>,
     #[doc = "The [quantity](https://docs.stripe.com/subscriptions/quantities) of the plan to which the customer should be subscribed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub quantity: Option<i64>,
     #[doc = "The `subscription` this `subscription_item` belongs to."]
-    #[serde(default)]
+    #[json(default)]
     pub subscription: String,
     #[doc = "The tax rates which apply to this `subscription_item`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_rates: Option<Vec<crate::tax_rates::TaxRate>>,
 }
 
@@ -687,10 +617,11 @@ impl crate::PagedItem for SubscriptionItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionItemBillingThresholds {
     #[doc = "Usage threshold that triggers the subscription to create an invoice"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub usage_gte: Option<i64>,
 }
 
@@ -897,36 +828,18 @@ impl Default for SubscriptionItemObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionItemObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscriptionItemObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "subscription_item" => SubscriptionItemObject::SubscriptionItem,
-                    other => SubscriptionItemObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscriptionItemObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SubscriptionItemObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscriptionItemObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "subscription_item" => SubscriptionItemObject::SubscriptionItem,
+            other => SubscriptionItemObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -938,7 +851,7 @@ pub struct UpdateSubscriptionItemParams {
     #[doc = "The trial offer to apply to this subscription item."]
     pub current_trial: Option<crate::subscription_items::UpdateSubscriptionItemParamsCurrentTrial>,
     #[doc = "The coupons to redeem into discounts for the subscription item."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
@@ -960,7 +873,7 @@ pub struct UpdateSubscriptionItemParams {
     #[doc = "The quantity you'd like to apply to the subscription item you're creating."]
     pub quantity: Option<i64>,
     #[doc = "A list of [Tax Rate](https://docs.stripe.com/api/tax_rates) ids."]
-    pub tax_rates: Option<serde_json::Value>,
+    pub tax_rates: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "subscription_items")]

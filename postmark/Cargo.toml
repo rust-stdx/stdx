@@ -12,5 +12,5 @@ path = "./postmark.rs"
 
 [dependencies]
 crypto_rustls = { path = "../crypto_rustls" }
+json = { workspace = true, features = ["derive"] }
 reqwest = { workspace = true }
-serde = { workspace = true }

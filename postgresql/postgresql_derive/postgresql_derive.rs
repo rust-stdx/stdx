@@ -279,10 +279,10 @@ fn expand_to_row(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
 
 /// Derives `json` / `jsonb` encoding and decoding for a type.
 ///
-/// The type must also derive `serde::Serialize` (to be written as a parameter
-/// or `COPY` field) and `serde::Deserialize` (to be read from a result
-/// column). The generated impls map the whole value to a single `jsonb`
-/// column: `FromSql`, `ToSql`, `StaticType`, `FromRow` and `RowShape`.
+/// The type must also derive `json::Encode` (to be written as a parameter or
+/// `COPY` field) and `json::Decode` (to be read from a result column). The
+/// generated impls map the whole value to a single `jsonb` column: `FromSql`,
+/// `ToSql`, `StaticType`, `FromRow` and `RowShape`.
 ///
 /// Because it defines `FromRow` and `RowShape`, a type cannot derive both
 /// `Json` and `FromRow`; use `postgresql::Json<T>` for the JSON role in that
@@ -302,10 +302,10 @@ fn expand_json(input: &DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     let self_ty = quote! { #name #ty_generics };
 
     let deserialize: WherePredicate = syn::parse_quote! {
-        #self_ty: ::postgresql::__private::serde::de::DeserializeOwned
+        #self_ty: ::postgresql::__private::json::DecodeOwned
     };
     let serialize: WherePredicate = syn::parse_quote! {
-        #self_ty: ::postgresql::__private::serde::Serialize
+        #self_ty: ::postgresql::__private::json::Encode
     };
     let send_sync: WherePredicate = syn::parse_quote! {
         #self_ty: ::core::marker::Send + ::core::marker::Sync

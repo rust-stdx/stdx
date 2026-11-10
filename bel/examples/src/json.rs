@@ -8,5 +8,5 @@ fn main() {
     // Convert the return type to JSON and cast to object
     let json = value.json().unwrap();
     let object = json.as_object().unwrap();
-    assert_eq!(Some(&serde_json::Value::Bool(true)), object.get("foo"));
+    assert_eq!(Some(&json::Value::Bool(true)), object.get("foo"));
 }

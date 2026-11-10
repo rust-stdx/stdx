@@ -9,7 +9,7 @@ mod common;
 use std::collections::HashMap;
 
 use common::MockClient;
-use serde_json::json;
+use json::json;
 #[cfg(feature = "v2_core")]
 use stripe::v2_core::{CreateCoreAccountParams, V2CoreAccount, create_core_account};
 use stripe::{
@@ -26,9 +26,14 @@ const CHARGE_FIXTURE: &str = include_str!("fixtures/charge.json");
 const CUSTOMER_FIXTURE: &str = include_str!("fixtures/customer.json");
 const PAYMENT_INTENT_FIXTURE: &str = include_str!("fixtures/payment_intent.json");
 
+fn decode_value<T: json::DecodeOwned>(value: impl Into<json::OwnedValue>) -> Result<T, String> {
+    let value: json::OwnedValue = value.into();
+    T::decode_owned(&json::to_vec(&value)).map_err(|error| error.to_string())
+}
+
 #[test]
 fn parses_official_customer_fixture() {
-    let customer: Customer = serde_json::from_str(CUSTOMER_FIXTURE).expect("customer fixture");
+    let customer: Customer = json::from_str(CUSTOMER_FIXTURE).expect("customer fixture");
     assert_eq!(customer.object.as_str(), "customer");
     assert!(matches!(customer.object, CustomerObject::Customer));
     assert!(!customer.id.is_empty());
@@ -37,7 +42,7 @@ fn parses_official_customer_fixture() {
 
 #[test]
 fn parses_official_charge_fixture() {
-    let charge: Charge = serde_json::from_str(CHARGE_FIXTURE).expect("charge fixture");
+    let charge: Charge = json::from_str(CHARGE_FIXTURE).expect("charge fixture");
     assert_eq!(charge.object.as_str(), "charge");
     assert!(!charge.id.is_empty());
     assert!(charge.amount > 0);
@@ -47,17 +52,17 @@ fn parses_official_charge_fixture() {
 
 #[test]
 fn parses_official_payment_intent_fixture() {
-    let intent: PaymentIntent = serde_json::from_str(PAYMENT_INTENT_FIXTURE).expect("intent fixture");
+    let intent: PaymentIntent = json::from_str(PAYMENT_INTENT_FIXTURE).expect("intent fixture");
     assert_eq!(intent.object.as_str(), "payment_intent");
     assert!(!intent.id.is_empty());
 }
 
 #[test]
 fn expandable_field_distinguishes_id_from_object() {
-    let mut value: serde_json::Value = serde_json::from_str(CHARGE_FIXTURE).unwrap();
+    let mut value: json::OwnedValue = json::from_str(CHARGE_FIXTURE).unwrap();
 
     value["customer"] = json!("cus_123");
-    let charge: Charge = serde_json::from_value(value.clone()).unwrap();
+    let charge: Charge = decode_value(&value).unwrap();
     match charge.customer {
         Some(Expandable::Id(id)) => assert_eq!(id, "cus_123"),
         other => panic!("expected an id, got {other:?}"),
@@ -69,7 +74,7 @@ fn expandable_field_distinguishes_id_from_object() {
         "created": 1700000000,
         "livemode": false
     });
-    let charge: Charge = serde_json::from_value(value).unwrap();
+    let charge: Charge = decode_value(&value).unwrap();
     match charge.customer {
         Some(Expandable::Object(object)) => match *object {
             ChargeCustomerExpanded::Customer(customer) => assert_eq!(customer.id, "cus_123"),
@@ -81,9 +86,9 @@ fn expandable_field_distinguishes_id_from_object() {
 
 #[test]
 fn unknown_enum_value_is_preserved() {
-    let mut value: serde_json::Value = serde_json::from_str(CUSTOMER_FIXTURE).unwrap();
+    let mut value: json::OwnedValue = json::from_str(CUSTOMER_FIXTURE).unwrap();
     value["object"] = json!("a_future_object_type");
-    let customer: Customer = serde_json::from_value(value).unwrap();
+    let customer: Customer = decode_value(&value).unwrap();
     assert_eq!(customer.object.as_str(), "a_future_object_type");
     assert!(matches!(customer.object, CustomerObject::Unknown(ref value) if value == "a_future_object_type"));
 }
@@ -94,7 +99,7 @@ fn list_type_decodes_a_page() {
         r#"{{"object":"list","url":"/v1/customers","has_more":false,"data":[{}]}}"#,
         CUSTOMER_FIXTURE
     );
-    let list: stripe::List<Customer> = serde_json::from_str(&body).unwrap();
+    let list: stripe::List<Customer> = json::from_str(&body).unwrap();
     assert_eq!(list.data.len(), 1);
     assert!(!list.has_more);
     assert!(!list.has_next_page());
@@ -103,7 +108,7 @@ fn list_type_decodes_a_page() {
 #[test]
 fn list_type_decodes_a_v2_page() {
     let body = format!(r#"{{"data":[{CUSTOMER_FIXTURE}],"next_page_url":"/v1/customers?page=2"}}"#);
-    let list: stripe::List<Customer> = serde_json::from_str(&body).unwrap();
+    let list: stripe::List<Customer> = json::from_str(&body).unwrap();
     assert_eq!(list.data.len(), 1);
     assert!(!list.has_more);
     assert!(list.has_next_page());

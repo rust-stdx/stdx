@@ -9,25 +9,26 @@
 #![allow(non_camel_case_types)]
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AddressApiResourceTerminal {
     #[doc = "City, district, suburb, town, or village."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
     #[doc = "Two-letter country code ([ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2))."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[doc = "Address line 1, such as the street, PO Box, or company name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line1: Option<String>,
     #[doc = "Address line 2, such as the apartment, suite, unit, or building."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line2: Option<String>,
     #[doc = "ZIP or postal code."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub postal_code: Option<String>,
     #[doc = "State, county, province, or region ([ISO 3166-2](https://en.wikipedia.org/wiki/ISO_3166-2))."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
 }
 
@@ -173,37 +174,19 @@ impl CollectInputsParamsInputsItemSelectionChoicesItemStyle {
 }
 
 #[cfg(feature = "terminal")]
-impl<'de> serde::Deserialize<'de> for CollectInputsParamsInputsItemSelectionChoicesItemStyle {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CollectInputsParamsInputsItemSelectionChoicesItemStyle;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "primary" => CollectInputsParamsInputsItemSelectionChoicesItemStyle::Primary,
-                    "secondary" => CollectInputsParamsInputsItemSelectionChoicesItemStyle::Secondary,
-                    other => CollectInputsParamsInputsItemSelectionChoicesItemStyle::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CollectInputsParamsInputsItemSelectionChoicesItemStyle::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CollectInputsParamsInputsItemSelectionChoicesItemStyle {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CollectInputsParamsInputsItemSelectionChoicesItemStyle::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "primary" => CollectInputsParamsInputsItemSelectionChoicesItemStyle::Primary,
+            "secondary" => CollectInputsParamsInputsItemSelectionChoicesItemStyle::Secondary,
+            other => CollectInputsParamsInputsItemSelectionChoicesItemStyle::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -256,37 +239,19 @@ impl CollectInputsParamsInputsItemTogglesItemDefaultValue {
 }
 
 #[cfg(feature = "terminal")]
-impl<'de> serde::Deserialize<'de> for CollectInputsParamsInputsItemTogglesItemDefaultValue {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CollectInputsParamsInputsItemTogglesItemDefaultValue;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "disabled" => CollectInputsParamsInputsItemTogglesItemDefaultValue::Disabled,
-                    "enabled" => CollectInputsParamsInputsItemTogglesItemDefaultValue::Enabled,
-                    other => CollectInputsParamsInputsItemTogglesItemDefaultValue::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CollectInputsParamsInputsItemTogglesItemDefaultValue::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CollectInputsParamsInputsItemTogglesItemDefaultValue {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CollectInputsParamsInputsItemTogglesItemDefaultValue::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "disabled" => CollectInputsParamsInputsItemTogglesItemDefaultValue::Disabled,
+            "enabled" => CollectInputsParamsInputsItemTogglesItemDefaultValue::Enabled,
+            other => CollectInputsParamsInputsItemTogglesItemDefaultValue::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -327,41 +292,23 @@ impl CollectInputsParamsInputsItemType {
 }
 
 #[cfg(feature = "terminal")]
-impl<'de> serde::Deserialize<'de> for CollectInputsParamsInputsItemType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CollectInputsParamsInputsItemType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "email" => CollectInputsParamsInputsItemType::Email,
-                    "numeric" => CollectInputsParamsInputsItemType::Numeric,
-                    "phone" => CollectInputsParamsInputsItemType::Phone,
-                    "selection" => CollectInputsParamsInputsItemType::Selection,
-                    "signature" => CollectInputsParamsInputsItemType::Signature,
-                    "text" => CollectInputsParamsInputsItemType::Text,
-                    other => CollectInputsParamsInputsItemType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CollectInputsParamsInputsItemType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CollectInputsParamsInputsItemType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CollectInputsParamsInputsItemType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "email" => CollectInputsParamsInputsItemType::Email,
+            "numeric" => CollectInputsParamsInputsItemType::Numeric,
+            "phone" => CollectInputsParamsInputsItemType::Phone,
+            "selection" => CollectInputsParamsInputsItemType::Selection,
+            "signature" => CollectInputsParamsInputsItemType::Signature,
+            "text" => CollectInputsParamsInputsItemType::Text,
+            other => CollectInputsParamsInputsItemType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -441,38 +388,20 @@ impl CollectPaymentMethodParamsCollectConfigAllowRedisplay {
 }
 
 #[cfg(feature = "terminal")]
-impl<'de> serde::Deserialize<'de> for CollectPaymentMethodParamsCollectConfigAllowRedisplay {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CollectPaymentMethodParamsCollectConfigAllowRedisplay;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => CollectPaymentMethodParamsCollectConfigAllowRedisplay::Always,
-                    "limited" => CollectPaymentMethodParamsCollectConfigAllowRedisplay::Limited,
-                    "unspecified" => CollectPaymentMethodParamsCollectConfigAllowRedisplay::Unspecified,
-                    other => CollectPaymentMethodParamsCollectConfigAllowRedisplay::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CollectPaymentMethodParamsCollectConfigAllowRedisplay::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CollectPaymentMethodParamsCollectConfigAllowRedisplay {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CollectPaymentMethodParamsCollectConfigAllowRedisplay::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => CollectPaymentMethodParamsCollectConfigAllowRedisplay::Always,
+            "limited" => CollectPaymentMethodParamsCollectConfigAllowRedisplay::Limited,
+            "unspecified" => CollectPaymentMethodParamsCollectConfigAllowRedisplay::Unspecified,
+            other => CollectPaymentMethodParamsCollectConfigAllowRedisplay::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -598,7 +527,7 @@ impl crate::params::FormEncode for CreateTerminalConfigurationParams {
 #[derive(Debug, Clone, Default)]
 pub struct CreateTerminalConfigurationParamsBbposWisepad3 {
     #[doc = "A File ID representing an image you want to display on the reader."]
-    pub splashscreen: Option<serde_json::Value>,
+    pub splashscreen: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "terminal")]
@@ -943,38 +872,20 @@ impl CreateTerminalConfigurationParamsWifiType {
 }
 
 #[cfg(feature = "terminal")]
-impl<'de> serde::Deserialize<'de> for CreateTerminalConfigurationParamsWifiType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTerminalConfigurationParamsWifiType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "enterprise_eap_peap" => CreateTerminalConfigurationParamsWifiType::EnterpriseEapPeap,
-                    "enterprise_eap_tls" => CreateTerminalConfigurationParamsWifiType::EnterpriseEapTls,
-                    "personal_psk" => CreateTerminalConfigurationParamsWifiType::PersonalPsk,
-                    other => CreateTerminalConfigurationParamsWifiType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTerminalConfigurationParamsWifiType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTerminalConfigurationParamsWifiType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTerminalConfigurationParamsWifiType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "enterprise_eap_peap" => CreateTerminalConfigurationParamsWifiType::EnterpriseEapPeap,
+            "enterprise_eap_tls" => CreateTerminalConfigurationParamsWifiType::EnterpriseEapTls,
+            "personal_psk" => CreateTerminalConfigurationParamsWifiType::PersonalPsk,
+            other => CreateTerminalConfigurationParamsWifiType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1192,36 +1103,18 @@ impl CreateTerminalOnboardingLinkParamsLinkType {
 }
 
 #[cfg(feature = "terminal")]
-impl<'de> serde::Deserialize<'de> for CreateTerminalOnboardingLinkParamsLinkType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTerminalOnboardingLinkParamsLinkType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "apple_terms_and_conditions" => CreateTerminalOnboardingLinkParamsLinkType::AppleTermsAndConditions,
-                    other => CreateTerminalOnboardingLinkParamsLinkType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTerminalOnboardingLinkParamsLinkType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTerminalOnboardingLinkParamsLinkType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTerminalOnboardingLinkParamsLinkType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "apple_terms_and_conditions" => CreateTerminalOnboardingLinkParamsLinkType::AppleTermsAndConditions,
+            other => CreateTerminalOnboardingLinkParamsLinkType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1265,16 +1158,17 @@ impl crate::params::FormEncode for CreateTerminalReaderParams {
 }
 
 #[cfg(feature = "terminal")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DeletedTerminalConfiguration {
     #[doc = "Always true for a deleted object"]
-    #[serde(default)]
+    #[json(default)]
     pub deleted: bool,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::terminal::TerminalConfigurationObject,
 }
 
@@ -1286,16 +1180,17 @@ impl crate::PagedItem for DeletedTerminalConfiguration {
 }
 
 #[cfg(feature = "terminal")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DeletedTerminalLocation {
     #[doc = "Always true for a deleted object"]
-    #[serde(default)]
+    #[json(default)]
     pub deleted: bool,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::terminal::TerminalLocationObject,
 }
 
@@ -1307,22 +1202,23 @@ impl crate::PagedItem for DeletedTerminalLocation {
 }
 
 #[cfg(feature = "terminal")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DeletedTerminalReader {
     #[doc = "Always true for a deleted object"]
-    #[serde(default)]
+    #[json(default)]
     pub deleted: bool,
     #[doc = "Device type of the reader."]
-    #[serde(default)]
+    #[json(default)]
     pub device_type: crate::terminal::TerminalReaderDeviceType,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::terminal::TerminalReaderObject,
     #[doc = "Serial number of the reader."]
-    #[serde(default)]
+    #[json(default)]
     pub serial_number: String,
 }
 
@@ -1354,20 +1250,18 @@ pub enum GetTerminalConfigurationResponseExpanded {
     /// Expanded `terminal.configuration`.
     TerminalConfiguration(Box<crate::terminal::TerminalConfiguration>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(feature = "terminal")]
-impl<'de> serde::Deserialize<'de> for GetTerminalConfigurationResponseExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for GetTerminalConfigurationResponseExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
             "terminal.configuration" => GetTerminalConfigurationResponseExpanded::TerminalConfiguration(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
+                json::from_slice_owned(&json::to_vec(&value))?,
             )),
             _ => GetTerminalConfigurationResponseExpanded::Other(value),
         })
@@ -1383,20 +1277,18 @@ pub enum GetTerminalLocationResponseExpanded {
     /// Expanded `terminal.location`.
     TerminalLocation(Box<crate::terminal::TerminalLocation>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(feature = "terminal")]
-impl<'de> serde::Deserialize<'de> for GetTerminalLocationResponseExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for GetTerminalLocationResponseExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
             "terminal.location" => GetTerminalLocationResponseExpanded::TerminalLocation(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
+                json::from_slice_owned(&json::to_vec(&value))?,
             )),
             _ => GetTerminalLocationResponseExpanded::Other(value),
         })
@@ -1412,21 +1304,19 @@ pub enum GetTerminalReaderResponseExpanded {
     /// Expanded `terminal.reader`.
     TerminalReader(Box<crate::terminal::TerminalReader>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(feature = "terminal")]
-impl<'de> serde::Deserialize<'de> for GetTerminalReaderResponseExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for GetTerminalReaderResponseExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "terminal.reader" => GetTerminalReaderResponseExpanded::TerminalReader(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "terminal.reader" => GetTerminalReaderResponseExpanded::TerminalReader(Box::new(json::from_slice_owned(
+                &json::to_vec(&value),
+            )?)),
             _ => GetTerminalReaderResponseExpanded::Other(value),
         })
     }
@@ -1561,54 +1451,36 @@ impl ListTerminalReadersParamsDeviceType {
 }
 
 #[cfg(feature = "terminal")]
-impl<'de> serde::Deserialize<'de> for ListTerminalReadersParamsDeviceType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListTerminalReadersParamsDeviceType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "bbpos_chipper2x" => ListTerminalReadersParamsDeviceType::BbposChipper2x,
-                    "bbpos_wisepad3" => ListTerminalReadersParamsDeviceType::BbposWisepad3,
-                    "bbpos_wisepos_e" => ListTerminalReadersParamsDeviceType::BbposWiseposE,
-                    "mobile_phone_reader" => ListTerminalReadersParamsDeviceType::MobilePhoneReader,
-                    "simulated_stripe_s700" => ListTerminalReadersParamsDeviceType::SimulatedStripeS700,
-                    "simulated_stripe_s710" => ListTerminalReadersParamsDeviceType::SimulatedStripeS710,
-                    "simulated_verifone_m425" => ListTerminalReadersParamsDeviceType::SimulatedVerifoneM425,
-                    "simulated_verifone_p630" => ListTerminalReadersParamsDeviceType::SimulatedVerifoneP630,
-                    "simulated_verifone_ux700" => ListTerminalReadersParamsDeviceType::SimulatedVerifoneUx700,
-                    "simulated_verifone_v660p" => ListTerminalReadersParamsDeviceType::SimulatedVerifoneV660p,
-                    "simulated_wisepos_e" => ListTerminalReadersParamsDeviceType::SimulatedWiseposE,
-                    "stripe_m2" => ListTerminalReadersParamsDeviceType::StripeM2,
-                    "stripe_s700" => ListTerminalReadersParamsDeviceType::StripeS700,
-                    "stripe_s710" => ListTerminalReadersParamsDeviceType::StripeS710,
-                    "verifone_P400" => ListTerminalReadersParamsDeviceType::VerifoneP400,
-                    "verifone_m425" => ListTerminalReadersParamsDeviceType::VerifoneM425,
-                    "verifone_p630" => ListTerminalReadersParamsDeviceType::VerifoneP630,
-                    "verifone_ux700" => ListTerminalReadersParamsDeviceType::VerifoneUx700,
-                    "verifone_v660p" => ListTerminalReadersParamsDeviceType::VerifoneV660p,
-                    other => ListTerminalReadersParamsDeviceType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListTerminalReadersParamsDeviceType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListTerminalReadersParamsDeviceType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListTerminalReadersParamsDeviceType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "bbpos_chipper2x" => ListTerminalReadersParamsDeviceType::BbposChipper2x,
+            "bbpos_wisepad3" => ListTerminalReadersParamsDeviceType::BbposWisepad3,
+            "bbpos_wisepos_e" => ListTerminalReadersParamsDeviceType::BbposWiseposE,
+            "mobile_phone_reader" => ListTerminalReadersParamsDeviceType::MobilePhoneReader,
+            "simulated_stripe_s700" => ListTerminalReadersParamsDeviceType::SimulatedStripeS700,
+            "simulated_stripe_s710" => ListTerminalReadersParamsDeviceType::SimulatedStripeS710,
+            "simulated_verifone_m425" => ListTerminalReadersParamsDeviceType::SimulatedVerifoneM425,
+            "simulated_verifone_p630" => ListTerminalReadersParamsDeviceType::SimulatedVerifoneP630,
+            "simulated_verifone_ux700" => ListTerminalReadersParamsDeviceType::SimulatedVerifoneUx700,
+            "simulated_verifone_v660p" => ListTerminalReadersParamsDeviceType::SimulatedVerifoneV660p,
+            "simulated_wisepos_e" => ListTerminalReadersParamsDeviceType::SimulatedWiseposE,
+            "stripe_m2" => ListTerminalReadersParamsDeviceType::StripeM2,
+            "stripe_s700" => ListTerminalReadersParamsDeviceType::StripeS700,
+            "stripe_s710" => ListTerminalReadersParamsDeviceType::StripeS710,
+            "verifone_P400" => ListTerminalReadersParamsDeviceType::VerifoneP400,
+            "verifone_m425" => ListTerminalReadersParamsDeviceType::VerifoneM425,
+            "verifone_p630" => ListTerminalReadersParamsDeviceType::VerifoneP630,
+            "verifone_ux700" => ListTerminalReadersParamsDeviceType::VerifoneUx700,
+            "verifone_v660p" => ListTerminalReadersParamsDeviceType::VerifoneV660p,
+            other => ListTerminalReadersParamsDeviceType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1641,37 +1513,19 @@ impl ListTerminalReadersParamsStatus {
 }
 
 #[cfg(feature = "terminal")]
-impl<'de> serde::Deserialize<'de> for ListTerminalReadersParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListTerminalReadersParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "offline" => ListTerminalReadersParamsStatus::Offline,
-                    "online" => ListTerminalReadersParamsStatus::Online,
-                    other => ListTerminalReadersParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListTerminalReadersParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListTerminalReadersParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListTerminalReadersParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "offline" => ListTerminalReadersParamsStatus::Offline,
+            "online" => ListTerminalReadersParamsStatus::Online,
+            other => ListTerminalReadersParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1727,7 +1581,8 @@ impl crate::params::FormEncode for ListTerminalReadersParamsStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct OfflineAcceptance {}
 
 #[cfg(any(
@@ -1775,13 +1630,14 @@ pub struct OfflineAcceptance {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct OnlineAcceptance {
     #[doc = "The customer accepts the mandate from this IP address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ip_address: Option<String>,
     #[doc = "The customer accepts the mandate using the user agent of the browser."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub user_agent: Option<String>,
 }
 
@@ -2015,36 +1871,18 @@ impl SetReaderDisplayParamsType {
 }
 
 #[cfg(feature = "terminal")]
-impl<'de> serde::Deserialize<'de> for SetReaderDisplayParamsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SetReaderDisplayParamsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cart" => SetReaderDisplayParamsType::Cart,
-                    other => SetReaderDisplayParamsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SetReaderDisplayParamsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SetReaderDisplayParamsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SetReaderDisplayParamsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cart" => SetReaderDisplayParamsType::Cart,
+            other => SetReaderDisplayParamsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2056,50 +1894,51 @@ impl crate::params::FormEncode for SetReaderDisplayParamsType {
 }
 
 #[cfg(feature = "terminal")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalConfiguration {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bbpos_wisepad3: Option<crate::terminal::TerminalConfigurationConfigurationResourceDeviceTypeSpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bbpos_wisepos_e: Option<crate::terminal::TerminalConfigurationConfigurationResourceDeviceTypeSpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cellular: Option<crate::terminal::TerminalConfigurationConfigurationResourceCellularConfig>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "Whether this Configuration is the default for your account"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub is_account_default: Option<bool>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String indicating the name of the Configuration object, set by the user"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::terminal::TerminalConfigurationObject,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub offline: Option<crate::terminal::TerminalConfigurationConfigurationResourceOfflineConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reboot_window: Option<crate::terminal::TerminalConfigurationConfigurationResourceRebootWindow>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub stripe_s700: Option<crate::terminal::TerminalConfigurationConfigurationResourceDeviceTypeSpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub stripe_s710: Option<crate::terminal::TerminalConfigurationConfigurationResourceDeviceTypeSpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tipping: Option<crate::terminal::TerminalConfigurationConfigurationResourceTipping>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verifone_m425: Option<crate::terminal::TerminalConfigurationConfigurationResourceDeviceTypeSpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verifone_p400: Option<crate::terminal::TerminalConfigurationConfigurationResourceDeviceTypeSpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verifone_p630: Option<crate::terminal::TerminalConfigurationConfigurationResourceDeviceTypeSpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verifone_ux700: Option<crate::terminal::TerminalConfigurationConfigurationResourceDeviceTypeSpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verifone_v660p: Option<crate::terminal::TerminalConfigurationConfigurationResourceDeviceTypeSpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub wifi: Option<crate::terminal::TerminalConfigurationConfigurationResourceWifiConfig>,
 }
 
@@ -2111,160 +1950,170 @@ impl crate::PagedItem for TerminalConfiguration {
 }
 
 #[cfg(feature = "terminal")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalConfigurationConfigurationResourceCellularConfig {
     #[doc = "Whether a cellular-capable reader can connect to the internet over cellular."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
 }
 
 #[cfg(feature = "terminal")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalConfigurationConfigurationResourceCurrencySpecificConfig {
     #[doc = "Fixed amounts displayed when collecting a tip"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fixed_amounts: Option<Vec<i64>>,
     #[doc = "Percentages displayed when collecting a tip"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub percentages: Option<Vec<i64>>,
     #[doc = "Below this amount, fixed amounts will be displayed; above it, percentages will be displayed"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub smart_tip_threshold: Option<i64>,
 }
 
 #[cfg(feature = "terminal")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalConfigurationConfigurationResourceDeviceTypeSpecificConfig {
     #[doc = "A File ID representing an image to display on the reader"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub splashscreen: Option<crate::Expandable<crate::files::File>>,
 }
 
 #[cfg(feature = "terminal")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalConfigurationConfigurationResourceEnterprisePeapWifi {
     #[doc = "A File ID representing a PEM file containing the server certificate"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ca_certificate_file: Option<String>,
     #[doc = "Password for connecting to the WiFi network"]
-    #[serde(default)]
+    #[json(default)]
     pub password: String,
     #[doc = "Name of the WiFi network"]
-    #[serde(default)]
+    #[json(default)]
     pub ssid: String,
     #[doc = "Username for connecting to the WiFi network"]
-    #[serde(default)]
+    #[json(default)]
     pub username: String,
 }
 
 #[cfg(feature = "terminal")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalConfigurationConfigurationResourceEnterpriseTlsWifi {
     #[doc = "A File ID representing a PEM file containing the server certificate"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ca_certificate_file: Option<String>,
     #[doc = "A File ID representing a PEM file containing the client certificate"]
-    #[serde(default)]
+    #[json(default)]
     pub client_certificate_file: String,
     #[doc = "A File ID representing a PEM file containing the client RSA private key"]
-    #[serde(default)]
+    #[json(default)]
     pub private_key_file: String,
     #[doc = "Password for the private key file"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub private_key_file_password: Option<String>,
     #[doc = "Name of the WiFi network"]
-    #[serde(default)]
+    #[json(default)]
     pub ssid: String,
 }
 
 #[cfg(feature = "terminal")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalConfigurationConfigurationResourceOfflineConfig {
     #[doc = "Determines whether to allow transactions to be collected while reader is offline."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub enabled: Option<bool>,
 }
 
 #[cfg(feature = "terminal")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalConfigurationConfigurationResourcePersonalPskWifi {
     #[doc = "Password for connecting to the WiFi network"]
-    #[serde(default)]
+    #[json(default)]
     pub password: String,
     #[doc = "Name of the WiFi network"]
-    #[serde(default)]
+    #[json(default)]
     pub ssid: String,
 }
 
 #[cfg(feature = "terminal")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalConfigurationConfigurationResourceRebootWindow {
     #[doc = "Integer between 0 to 23 that represents the end hour of the reboot time window."]
-    #[serde(default)]
+    #[json(default)]
     pub end_hour: i64,
     #[doc = "Integer between 0 to 23 that represents the start hour of the reboot time window."]
-    #[serde(default)]
+    #[json(default)]
     pub start_hour: i64,
 }
 
 #[cfg(feature = "terminal")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalConfigurationConfigurationResourceTipping {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub aed: Option<crate::terminal::TerminalConfigurationConfigurationResourceCurrencySpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub aud: Option<crate::terminal::TerminalConfigurationConfigurationResourceCurrencySpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cad: Option<crate::terminal::TerminalConfigurationConfigurationResourceCurrencySpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub chf: Option<crate::terminal::TerminalConfigurationConfigurationResourceCurrencySpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub czk: Option<crate::terminal::TerminalConfigurationConfigurationResourceCurrencySpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub dkk: Option<crate::terminal::TerminalConfigurationConfigurationResourceCurrencySpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub eur: Option<crate::terminal::TerminalConfigurationConfigurationResourceCurrencySpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub gbp: Option<crate::terminal::TerminalConfigurationConfigurationResourceCurrencySpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub gip: Option<crate::terminal::TerminalConfigurationConfigurationResourceCurrencySpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hkd: Option<crate::terminal::TerminalConfigurationConfigurationResourceCurrencySpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub huf: Option<crate::terminal::TerminalConfigurationConfigurationResourceCurrencySpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub jpy: Option<crate::terminal::TerminalConfigurationConfigurationResourceCurrencySpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mxn: Option<crate::terminal::TerminalConfigurationConfigurationResourceCurrencySpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub myr: Option<crate::terminal::TerminalConfigurationConfigurationResourceCurrencySpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub nok: Option<crate::terminal::TerminalConfigurationConfigurationResourceCurrencySpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub nzd: Option<crate::terminal::TerminalConfigurationConfigurationResourceCurrencySpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pln: Option<crate::terminal::TerminalConfigurationConfigurationResourceCurrencySpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ron: Option<crate::terminal::TerminalConfigurationConfigurationResourceCurrencySpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sek: Option<crate::terminal::TerminalConfigurationConfigurationResourceCurrencySpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sgd: Option<crate::terminal::TerminalConfigurationConfigurationResourceCurrencySpecificConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub usd: Option<crate::terminal::TerminalConfigurationConfigurationResourceCurrencySpecificConfig>,
 }
 
 #[cfg(feature = "terminal")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalConfigurationConfigurationResourceWifiConfig {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub enterprise_eap_peap: Option<crate::terminal::TerminalConfigurationConfigurationResourceEnterprisePeapWifi>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub enterprise_eap_tls: Option<crate::terminal::TerminalConfigurationConfigurationResourceEnterpriseTlsWifi>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub personal_psk: Option<crate::terminal::TerminalConfigurationConfigurationResourcePersonalPskWifi>,
     #[doc = "Security type of the WiFi network."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::terminal::TerminalConfigurationConfigurationResourceWifiConfigType,
 }
 
@@ -2299,40 +2148,20 @@ impl Default for TerminalConfigurationConfigurationResourceWifiConfigType {
 }
 
 #[cfg(feature = "terminal")]
-impl<'de> serde::Deserialize<'de> for TerminalConfigurationConfigurationResourceWifiConfigType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TerminalConfigurationConfigurationResourceWifiConfigType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "enterprise_eap_peap" => {
-                        TerminalConfigurationConfigurationResourceWifiConfigType::EnterpriseEapPeap
-                    }
-                    "enterprise_eap_tls" => TerminalConfigurationConfigurationResourceWifiConfigType::EnterpriseEapTls,
-                    "personal_psk" => TerminalConfigurationConfigurationResourceWifiConfigType::PersonalPsk,
-                    other => TerminalConfigurationConfigurationResourceWifiConfigType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TerminalConfigurationConfigurationResourceWifiConfigType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TerminalConfigurationConfigurationResourceWifiConfigType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TerminalConfigurationConfigurationResourceWifiConfigType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "enterprise_eap_peap" => TerminalConfigurationConfigurationResourceWifiConfigType::EnterpriseEapPeap,
+            "enterprise_eap_tls" => TerminalConfigurationConfigurationResourceWifiConfigType::EnterpriseEapTls,
+            "personal_psk" => TerminalConfigurationConfigurationResourceWifiConfigType::PersonalPsk,
+            other => TerminalConfigurationConfigurationResourceWifiConfigType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2363,50 +2192,33 @@ impl Default for TerminalConfigurationObject {
 }
 
 #[cfg(feature = "terminal")]
-impl<'de> serde::Deserialize<'de> for TerminalConfigurationObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TerminalConfigurationObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "terminal.configuration" => TerminalConfigurationObject::TerminalConfiguration,
-                    other => TerminalConfigurationObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TerminalConfigurationObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TerminalConfigurationObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TerminalConfigurationObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "terminal.configuration" => TerminalConfigurationObject::TerminalConfiguration,
+            other => TerminalConfigurationObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "terminal")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalConnectionToken {
     #[doc = "The id of the location that this connection token is scoped to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub location: Option<String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::terminal::TerminalConnectionTokenObject,
     #[doc = "Your application should pass this token to the Stripe Terminal SDK."]
-    #[serde(default)]
+    #[json(default)]
     pub secret: String,
 }
 
@@ -2437,74 +2249,57 @@ impl Default for TerminalConnectionTokenObject {
 }
 
 #[cfg(feature = "terminal")]
-impl<'de> serde::Deserialize<'de> for TerminalConnectionTokenObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TerminalConnectionTokenObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "terminal.connection_token" => TerminalConnectionTokenObject::TerminalConnectionToken,
-                    other => TerminalConnectionTokenObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TerminalConnectionTokenObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TerminalConnectionTokenObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TerminalConnectionTokenObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "terminal.connection_token" => TerminalConnectionTokenObject::TerminalConnectionToken,
+            other => TerminalConnectionTokenObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalLocation {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<crate::terminal::AddressApiResourceTerminal>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address_kana: Option<crate::accounts::LegalEntityJapanAddress>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address_kanji: Option<crate::accounts::LegalEntityJapanAddress>,
     #[doc = "The ID of a configuration that will be used to customize all readers in this location."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub configuration_overrides: Option<String>,
     #[doc = "The display name of the location."]
-    #[serde(default)]
+    #[json(default)]
     pub display_name: String,
     #[doc = "The Kana variation of the display name of the location."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub display_name_kana: Option<String>,
     #[doc = "The Kanji variation of the display name of the location."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub display_name_kanji: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::terminal::TerminalLocationObject,
     #[doc = "The phone number of the location."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
 }
 
@@ -2542,73 +2337,58 @@ impl Default for TerminalLocationObject {
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-impl<'de> serde::Deserialize<'de> for TerminalLocationObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TerminalLocationObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "terminal.location" => TerminalLocationObject::TerminalLocation,
-                    other => TerminalLocationObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TerminalLocationObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TerminalLocationObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TerminalLocationObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "terminal.location" => TerminalLocationObject::TerminalLocation,
+            other => TerminalLocationObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "terminal")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalOnboardingLink {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub link_options: Option<crate::terminal::TerminalOnboardingLinkLinkOptions>,
     #[doc = "The type of link being generated."]
-    #[serde(default)]
+    #[json(default)]
     pub link_type: crate::terminal::TerminalOnboardingLinkLinkType,
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::terminal::TerminalOnboardingLinkObject,
     #[doc = "Stripe account ID to generate the link for."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub on_behalf_of: Option<String>,
     #[doc = "The link passed back to the user for their onboarding."]
-    #[serde(default)]
+    #[json(default)]
     pub redirect_url: String,
 }
 
 #[cfg(feature = "terminal")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalOnboardingLinkAppleTermsAndConditions {
     #[doc = "Whether the link should also support users relinking their Apple account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub allow_relinking: Option<bool>,
     #[doc = "The business name of the merchant accepting Apple's Terms and Conditions."]
-    #[serde(default)]
+    #[json(default)]
     pub merchant_display_name: String,
 }
 
 #[cfg(feature = "terminal")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalOnboardingLinkLinkOptions {
     #[doc = "The options associated with the Apple Terms and Conditions link type."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub apple_terms_and_conditions: Option<crate::terminal::TerminalOnboardingLinkAppleTermsAndConditions>,
 }
 
@@ -2639,36 +2419,18 @@ impl Default for TerminalOnboardingLinkLinkType {
 }
 
 #[cfg(feature = "terminal")]
-impl<'de> serde::Deserialize<'de> for TerminalOnboardingLinkLinkType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TerminalOnboardingLinkLinkType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "apple_terms_and_conditions" => TerminalOnboardingLinkLinkType::AppleTermsAndConditions,
-                    other => TerminalOnboardingLinkLinkType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TerminalOnboardingLinkLinkType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TerminalOnboardingLinkLinkType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TerminalOnboardingLinkLinkType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "apple_terms_and_conditions" => TerminalOnboardingLinkLinkType::AppleTermsAndConditions,
+            other => TerminalOnboardingLinkLinkType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2699,80 +2461,63 @@ impl Default for TerminalOnboardingLinkObject {
 }
 
 #[cfg(feature = "terminal")]
-impl<'de> serde::Deserialize<'de> for TerminalOnboardingLinkObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TerminalOnboardingLinkObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "terminal.onboarding_link" => TerminalOnboardingLinkObject::TerminalOnboardingLink,
-                    other => TerminalOnboardingLinkObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TerminalOnboardingLinkObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TerminalOnboardingLinkObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TerminalOnboardingLinkObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "terminal.onboarding_link" => TerminalOnboardingLinkObject::TerminalOnboardingLink,
+            other => TerminalOnboardingLinkObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReader {
     #[doc = "The most recent action performed by the reader."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub action: Option<crate::terminal::TerminalReaderReaderResourceReaderAction>,
     #[doc = "The current software version of the reader."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub device_sw_version: Option<String>,
     #[doc = "Device type of the reader."]
-    #[serde(default)]
+    #[json(default)]
     pub device_type: crate::terminal::TerminalReaderDeviceType,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The local IP address of the reader."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ip_address: Option<String>,
     #[doc = "Custom label given to the reader for easier identification."]
-    #[serde(default)]
+    #[json(default)]
     pub label: String,
     #[doc = "The last time this reader reported to Stripe backend."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last_seen_at: Option<i64>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "The location identifier of the reader."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub location: Option<crate::Expandable<crate::terminal::TerminalLocation>>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::terminal::TerminalReaderObject,
     #[doc = "Serial number of the reader."]
-    #[serde(default)]
+    #[json(default)]
     pub serial_number: String,
     #[doc = "The networking status of the reader."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<crate::terminal::TerminalReaderStatus>,
 }
 
@@ -2846,54 +2591,36 @@ impl Default for TerminalReaderDeviceType {
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-impl<'de> serde::Deserialize<'de> for TerminalReaderDeviceType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TerminalReaderDeviceType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "bbpos_chipper2x" => TerminalReaderDeviceType::BbposChipper2x,
-                    "bbpos_wisepad3" => TerminalReaderDeviceType::BbposWisepad3,
-                    "bbpos_wisepos_e" => TerminalReaderDeviceType::BbposWiseposE,
-                    "mobile_phone_reader" => TerminalReaderDeviceType::MobilePhoneReader,
-                    "simulated_stripe_s700" => TerminalReaderDeviceType::SimulatedStripeS700,
-                    "simulated_stripe_s710" => TerminalReaderDeviceType::SimulatedStripeS710,
-                    "simulated_verifone_m425" => TerminalReaderDeviceType::SimulatedVerifoneM425,
-                    "simulated_verifone_p630" => TerminalReaderDeviceType::SimulatedVerifoneP630,
-                    "simulated_verifone_ux700" => TerminalReaderDeviceType::SimulatedVerifoneUx700,
-                    "simulated_verifone_v660p" => TerminalReaderDeviceType::SimulatedVerifoneV660p,
-                    "simulated_wisepos_e" => TerminalReaderDeviceType::SimulatedWiseposE,
-                    "stripe_m2" => TerminalReaderDeviceType::StripeM2,
-                    "stripe_s700" => TerminalReaderDeviceType::StripeS700,
-                    "stripe_s710" => TerminalReaderDeviceType::StripeS710,
-                    "verifone_P400" => TerminalReaderDeviceType::VerifoneP400,
-                    "verifone_m425" => TerminalReaderDeviceType::VerifoneM425,
-                    "verifone_p630" => TerminalReaderDeviceType::VerifoneP630,
-                    "verifone_ux700" => TerminalReaderDeviceType::VerifoneUx700,
-                    "verifone_v660p" => TerminalReaderDeviceType::VerifoneV660p,
-                    other => TerminalReaderDeviceType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TerminalReaderDeviceType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TerminalReaderDeviceType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TerminalReaderDeviceType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "bbpos_chipper2x" => TerminalReaderDeviceType::BbposChipper2x,
+            "bbpos_wisepad3" => TerminalReaderDeviceType::BbposWisepad3,
+            "bbpos_wisepos_e" => TerminalReaderDeviceType::BbposWiseposE,
+            "mobile_phone_reader" => TerminalReaderDeviceType::MobilePhoneReader,
+            "simulated_stripe_s700" => TerminalReaderDeviceType::SimulatedStripeS700,
+            "simulated_stripe_s710" => TerminalReaderDeviceType::SimulatedStripeS710,
+            "simulated_verifone_m425" => TerminalReaderDeviceType::SimulatedVerifoneM425,
+            "simulated_verifone_p630" => TerminalReaderDeviceType::SimulatedVerifoneP630,
+            "simulated_verifone_ux700" => TerminalReaderDeviceType::SimulatedVerifoneUx700,
+            "simulated_verifone_v660p" => TerminalReaderDeviceType::SimulatedVerifoneV660p,
+            "simulated_wisepos_e" => TerminalReaderDeviceType::SimulatedWiseposE,
+            "stripe_m2" => TerminalReaderDeviceType::StripeM2,
+            "stripe_s700" => TerminalReaderDeviceType::StripeS700,
+            "stripe_s710" => TerminalReaderDeviceType::StripeS710,
+            "verifone_P400" => TerminalReaderDeviceType::VerifoneP400,
+            "verifone_m425" => TerminalReaderDeviceType::VerifoneM425,
+            "verifone_p630" => TerminalReaderDeviceType::VerifoneP630,
+            "verifone_ux700" => TerminalReaderDeviceType::VerifoneUx700,
+            "verifone_v660p" => TerminalReaderDeviceType::VerifoneV660p,
+            other => TerminalReaderDeviceType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2924,67 +2651,51 @@ impl Default for TerminalReaderObject {
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-impl<'de> serde::Deserialize<'de> for TerminalReaderObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TerminalReaderObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "terminal.reader" => TerminalReaderObject::TerminalReader,
-                    other => TerminalReaderObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TerminalReaderObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TerminalReaderObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TerminalReaderObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "terminal.reader" => TerminalReaderObject::TerminalReader,
+            other => TerminalReaderObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceCart {
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "List of line items in the cart."]
-    #[serde(default)]
+    #[json(default)]
     pub line_items: Vec<crate::terminal::TerminalReaderReaderResourceLineItem>,
     #[doc = "Tax amount for the entire cart."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax: Option<i64>,
     #[doc = "Total amount for the entire cart, including tax."]
-    #[serde(default)]
+    #[json(default)]
     pub total: i64,
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceChoice {
     #[doc = "The identifier for the selected choice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     #[doc = "The button style for the choice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub style: Option<crate::terminal::TerminalReaderReaderResourceChoiceStyle>,
     #[doc = "The text to be selected."]
-    #[serde(default)]
+    #[json(default)]
     pub text: String,
 }
 
@@ -3010,165 +2721,156 @@ impl TerminalReaderReaderResourceChoiceStyle {
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-impl<'de> serde::Deserialize<'de> for TerminalReaderReaderResourceChoiceStyle {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TerminalReaderReaderResourceChoiceStyle;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "primary" => TerminalReaderReaderResourceChoiceStyle::Primary,
-                    "secondary" => TerminalReaderReaderResourceChoiceStyle::Secondary,
-                    other => TerminalReaderReaderResourceChoiceStyle::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TerminalReaderReaderResourceChoiceStyle::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TerminalReaderReaderResourceChoiceStyle {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TerminalReaderReaderResourceChoiceStyle::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "primary" => TerminalReaderReaderResourceChoiceStyle::Primary,
+            "secondary" => TerminalReaderReaderResourceChoiceStyle::Secondary,
+            other => TerminalReaderReaderResourceChoiceStyle::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceCollectConfig {
     #[doc = "Enable customer-initiated cancellation when processing this payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub enable_customer_cancellation: Option<bool>,
     #[doc = "Override showing a tipping selection screen on this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub skip_tipping: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tipping: Option<crate::terminal::TerminalReaderReaderResourceTippingConfig>,
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceCollectInputsAction {
     #[doc = "List of inputs to be collected."]
-    #[serde(default)]
+    #[json(default)]
     pub inputs: Vec<crate::terminal::TerminalReaderReaderResourceInput>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceCollectPaymentMethodAction {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub collect_config: Option<crate::terminal::TerminalReaderReaderResourceCollectConfig>,
     #[doc = "Most recent PaymentIntent processed by the reader."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_intent: Option<crate::Expandable<crate::payment_intents::PaymentIntent>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method: Option<crate::payment_methods::PaymentMethod>,
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceConfirmConfig {
     #[doc = "If the customer doesn't abandon authenticating the payment, they're redirected to this URL after completion."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub return_url: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceConfirmPaymentIntentAction {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub confirm_config: Option<crate::terminal::TerminalReaderReaderResourceConfirmConfig>,
     #[doc = "Most recent PaymentIntent processed by the reader."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_intent: Option<crate::Expandable<crate::payment_intents::PaymentIntent>>,
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceCustomText {
     #[doc = "Customize the default description for this input"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "Customize the default label for this input's skip button"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub skip_button: Option<String>,
     #[doc = "Customize the default label for this input's submit button"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub submit_button: Option<String>,
     #[doc = "Customize the default title for this input"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceEmail {
     #[doc = "The collected email address"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceFileMetadata {
     #[doc = "Creation time of the object (in seconds since the Unix epoch)."]
-    #[serde(default)]
+    #[json(default)]
     pub created_at: i64,
     #[doc = "The original name of the uploaded file (e.g."]
-    #[serde(default)]
+    #[json(default)]
     pub filename: String,
     #[doc = "The size (in bytes) of the uploaded file."]
-    #[serde(default)]
+    #[json(default)]
     pub size: i64,
     #[doc = "The format of the uploaded file."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: String,
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceInput {
     #[doc = "Default text of input being collected."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub custom_text: Option<crate::terminal::TerminalReaderReaderResourceCustomText>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<crate::terminal::TerminalReaderReaderResourceEmail>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub numeric: Option<crate::terminal::TerminalReaderReaderResourceNumeric>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone: Option<crate::terminal::TerminalReaderReaderResourcePhone>,
     #[doc = "Indicate that this input is required, disabling the skip button."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub required: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub selection: Option<crate::terminal::TerminalReaderReaderResourceSelection>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub signature: Option<crate::terminal::TerminalReaderReaderResourceSignature>,
     #[doc = "Indicate that this input was skipped by the user."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub skipped: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<crate::terminal::TerminalReaderReaderResourceText>,
     #[doc = "List of toggles being collected."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub toggles: Option<Vec<crate::terminal::TerminalReaderReaderResourceToggle>>,
     #[doc = "Type of input being collected."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::terminal::TerminalReaderReaderResourceInputType,
 }
 
@@ -3209,81 +2911,67 @@ impl Default for TerminalReaderReaderResourceInputType {
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-impl<'de> serde::Deserialize<'de> for TerminalReaderReaderResourceInputType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TerminalReaderReaderResourceInputType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "email" => TerminalReaderReaderResourceInputType::Email,
-                    "numeric" => TerminalReaderReaderResourceInputType::Numeric,
-                    "phone" => TerminalReaderReaderResourceInputType::Phone,
-                    "selection" => TerminalReaderReaderResourceInputType::Selection,
-                    "signature" => TerminalReaderReaderResourceInputType::Signature,
-                    "text" => TerminalReaderReaderResourceInputType::Text,
-                    other => TerminalReaderReaderResourceInputType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TerminalReaderReaderResourceInputType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TerminalReaderReaderResourceInputType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TerminalReaderReaderResourceInputType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "email" => TerminalReaderReaderResourceInputType::Email,
+            "numeric" => TerminalReaderReaderResourceInputType::Numeric,
+            "phone" => TerminalReaderReaderResourceInputType::Phone,
+            "selection" => TerminalReaderReaderResourceInputType::Selection,
+            "signature" => TerminalReaderReaderResourceInputType::Signature,
+            "text" => TerminalReaderReaderResourceInputType::Text,
+            other => TerminalReaderReaderResourceInputType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceLineItem {
     #[doc = "The amount of the line item."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Description of the line item."]
-    #[serde(default)]
+    #[json(default)]
     pub description: String,
     #[doc = "The quantity of the line item."]
-    #[serde(default)]
+    #[json(default)]
     pub quantity: i64,
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceNumeric {
     #[doc = "The collected number"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourcePhone {
     #[doc = "The collected phone number"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourcePrintContent {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub image: Option<crate::terminal::TerminalReaderReaderResourceFileMetadata>,
     #[doc = "The type of content to print."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::terminal::TerminalReaderReaderResourcePrintContentType,
 }
 
@@ -3314,119 +3002,106 @@ impl Default for TerminalReaderReaderResourcePrintContentType {
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-impl<'de> serde::Deserialize<'de> for TerminalReaderReaderResourcePrintContentType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TerminalReaderReaderResourcePrintContentType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "image" => TerminalReaderReaderResourcePrintContentType::Image,
-                    other => TerminalReaderReaderResourcePrintContentType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TerminalReaderReaderResourcePrintContentType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TerminalReaderReaderResourcePrintContentType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TerminalReaderReaderResourcePrintContentType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "image" => TerminalReaderReaderResourcePrintContentType::Image,
+            other => TerminalReaderReaderResourcePrintContentType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceProcessConfig {
     #[doc = "Enable customer-initiated cancellation when processing this payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub enable_customer_cancellation: Option<bool>,
     #[doc = "If the customer doesn't abandon authenticating the payment, they're redirected to this URL after completion."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub return_url: Option<String>,
     #[doc = "Override showing a tipping selection screen on this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub skip_tipping: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tipping: Option<crate::terminal::TerminalReaderReaderResourceTippingConfig>,
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceProcessPaymentIntentAction {
     #[doc = "Most recent PaymentIntent processed by the reader."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_intent: Option<crate::Expandable<crate::payment_intents::PaymentIntent>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub process_config: Option<crate::terminal::TerminalReaderReaderResourceProcessConfig>,
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceProcessSetupConfig {
     #[doc = "Enable customer-initiated cancellation when processing this SetupIntent."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub enable_customer_cancellation: Option<bool>,
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceProcessSetupIntentAction {
     #[doc = "ID of a card PaymentMethod generated from the card_present PaymentMethod that may be attached to a Customer for futur..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub generated_card: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub process_config: Option<crate::terminal::TerminalReaderReaderResourceProcessSetupConfig>,
     #[doc = "Most recent SetupIntent processed by the reader."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_intent: Option<crate::Expandable<crate::setup_intents::SetupIntent>>,
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceReaderAction {
     #[doc = "The reader action failed due to an [API error](https://docs.stripe.com/api/errors)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub api_error: Option<crate::common::ApiErrors>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub collect_inputs: Option<crate::terminal::TerminalReaderReaderResourceCollectInputsAction>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub collect_payment_method: Option<crate::terminal::TerminalReaderReaderResourceCollectPaymentMethodAction>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub confirm_payment_intent: Option<crate::terminal::TerminalReaderReaderResourceConfirmPaymentIntentAction>,
     #[doc = "Failure code, only set if status is `failed`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub failure_code: Option<String>,
     #[doc = "Detailed failure message, only set if status is `failed`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub failure_message: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub print_content: Option<crate::terminal::TerminalReaderReaderResourcePrintContent>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub process_payment_intent: Option<crate::terminal::TerminalReaderReaderResourceProcessPaymentIntentAction>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub process_setup_intent: Option<crate::terminal::TerminalReaderReaderResourceProcessSetupIntentAction>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_payment: Option<crate::terminal::TerminalReaderReaderResourceRefundPaymentAction>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub set_reader_display: Option<crate::terminal::TerminalReaderReaderResourceSetReaderDisplayAction>,
     #[doc = "Status of the action performed by the reader."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::terminal::TerminalReaderReaderResourceReaderActionStatus,
     #[doc = "Type of action performed by the reader."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::terminal::TerminalReaderReaderResourceReaderActionType,
 }
 
@@ -3461,38 +3136,20 @@ impl Default for TerminalReaderReaderResourceReaderActionStatus {
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-impl<'de> serde::Deserialize<'de> for TerminalReaderReaderResourceReaderActionStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TerminalReaderReaderResourceReaderActionStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "failed" => TerminalReaderReaderResourceReaderActionStatus::Failed,
-                    "in_progress" => TerminalReaderReaderResourceReaderActionStatus::InProgress,
-                    "succeeded" => TerminalReaderReaderResourceReaderActionStatus::Succeeded,
-                    other => TerminalReaderReaderResourceReaderActionStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TerminalReaderReaderResourceReaderActionStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TerminalReaderReaderResourceReaderActionStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TerminalReaderReaderResourceReaderActionStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "failed" => TerminalReaderReaderResourceReaderActionStatus::Failed,
+            "in_progress" => TerminalReaderReaderResourceReaderActionStatus::InProgress,
+            "succeeded" => TerminalReaderReaderResourceReaderActionStatus::Succeeded,
+            other => TerminalReaderReaderResourceReaderActionStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3537,74 +3194,57 @@ impl Default for TerminalReaderReaderResourceReaderActionType {
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-impl<'de> serde::Deserialize<'de> for TerminalReaderReaderResourceReaderActionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TerminalReaderReaderResourceReaderActionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "collect_inputs" => TerminalReaderReaderResourceReaderActionType::CollectInputs,
-                    "collect_payment_method" => TerminalReaderReaderResourceReaderActionType::CollectPaymentMethod,
-                    "confirm_payment_intent" => TerminalReaderReaderResourceReaderActionType::ConfirmPaymentIntent,
-                    "print_content" => TerminalReaderReaderResourceReaderActionType::PrintContent,
-                    "process_payment_intent" => TerminalReaderReaderResourceReaderActionType::ProcessPaymentIntent,
-                    "process_setup_intent" => TerminalReaderReaderResourceReaderActionType::ProcessSetupIntent,
-                    "refund_payment" => TerminalReaderReaderResourceReaderActionType::RefundPayment,
-                    "set_reader_display" => TerminalReaderReaderResourceReaderActionType::SetReaderDisplay,
-                    other => TerminalReaderReaderResourceReaderActionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TerminalReaderReaderResourceReaderActionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TerminalReaderReaderResourceReaderActionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TerminalReaderReaderResourceReaderActionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "collect_inputs" => TerminalReaderReaderResourceReaderActionType::CollectInputs,
+            "collect_payment_method" => TerminalReaderReaderResourceReaderActionType::CollectPaymentMethod,
+            "confirm_payment_intent" => TerminalReaderReaderResourceReaderActionType::ConfirmPaymentIntent,
+            "print_content" => TerminalReaderReaderResourceReaderActionType::PrintContent,
+            "process_payment_intent" => TerminalReaderReaderResourceReaderActionType::ProcessPaymentIntent,
+            "process_setup_intent" => TerminalReaderReaderResourceReaderActionType::ProcessSetupIntent,
+            "refund_payment" => TerminalReaderReaderResourceReaderActionType::RefundPayment,
+            "set_reader_display" => TerminalReaderReaderResourceReaderActionType::SetReaderDisplay,
+            other => TerminalReaderReaderResourceReaderActionType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceRefundPaymentAction {
     #[doc = "The amount being refunded."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
     #[doc = "Charge that is being refunded."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub charge: Option<crate::Expandable<crate::charges::Charge>>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "Payment intent that is being refunded."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_intent: Option<crate::Expandable<crate::payment_intents::PaymentIntent>>,
     #[doc = "The reason for the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<crate::terminal::TerminalReaderReaderResourceRefundPaymentActionReason>,
     #[doc = "Unique identifier for the refund object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund: Option<crate::Expandable<crate::refunds::Refund>>,
     #[doc = "Boolean indicating whether the application fee should be refunded when refunding this charge."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_application_fee: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_payment_config: Option<crate::terminal::TerminalReaderReaderResourceRefundPaymentConfig>,
     #[doc = "Boolean indicating whether the transfer should be reversed when refunding this charge."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reverse_transfer: Option<bool>,
 }
 
@@ -3632,73 +3272,56 @@ impl TerminalReaderReaderResourceRefundPaymentActionReason {
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-impl<'de> serde::Deserialize<'de> for TerminalReaderReaderResourceRefundPaymentActionReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TerminalReaderReaderResourceRefundPaymentActionReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "duplicate" => TerminalReaderReaderResourceRefundPaymentActionReason::Duplicate,
-                    "fraudulent" => TerminalReaderReaderResourceRefundPaymentActionReason::Fraudulent,
-                    "requested_by_customer" => {
-                        TerminalReaderReaderResourceRefundPaymentActionReason::RequestedByCustomer
-                    }
-                    other => TerminalReaderReaderResourceRefundPaymentActionReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TerminalReaderReaderResourceRefundPaymentActionReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TerminalReaderReaderResourceRefundPaymentActionReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TerminalReaderReaderResourceRefundPaymentActionReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "duplicate" => TerminalReaderReaderResourceRefundPaymentActionReason::Duplicate,
+            "fraudulent" => TerminalReaderReaderResourceRefundPaymentActionReason::Fraudulent,
+            "requested_by_customer" => TerminalReaderReaderResourceRefundPaymentActionReason::RequestedByCustomer,
+            other => TerminalReaderReaderResourceRefundPaymentActionReason::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceRefundPaymentConfig {
     #[doc = "Enable customer-initiated cancellation when refunding this payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub enable_customer_cancellation: Option<bool>,
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceSelection {
     #[doc = "List of possible choices to be selected"]
-    #[serde(default)]
+    #[json(default)]
     pub choices: Vec<crate::terminal::TerminalReaderReaderResourceChoice>,
     #[doc = "The id of the selected choice"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     #[doc = "The text of the selected choice"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceSetReaderDisplayAction {
     #[doc = "Cart object to be displayed by the reader, including line items, amounts, and currency."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cart: Option<crate::terminal::TerminalReaderReaderResourceCart>,
     #[doc = "Type of information to be displayed by the reader."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::terminal::TerminalReaderReaderResourceSetReaderDisplayActionType,
 }
 
@@ -3729,77 +3352,63 @@ impl Default for TerminalReaderReaderResourceSetReaderDisplayActionType {
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-impl<'de> serde::Deserialize<'de> for TerminalReaderReaderResourceSetReaderDisplayActionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TerminalReaderReaderResourceSetReaderDisplayActionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cart" => TerminalReaderReaderResourceSetReaderDisplayActionType::Cart,
-                    other => TerminalReaderReaderResourceSetReaderDisplayActionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TerminalReaderReaderResourceSetReaderDisplayActionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TerminalReaderReaderResourceSetReaderDisplayActionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TerminalReaderReaderResourceSetReaderDisplayActionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cart" => TerminalReaderReaderResourceSetReaderDisplayActionType::Cart,
+            other => TerminalReaderReaderResourceSetReaderDisplayActionType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceSignature {
     #[doc = "The File ID of a collected signature image"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceText {
     #[doc = "The collected text value"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceTippingConfig {
     #[doc = "Amount used to calculate tip suggestions on tipping selection screen for this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_eligible: Option<i64>,
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TerminalReaderReaderResourceToggle {
     #[doc = "The toggle's default value."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_value: Option<crate::terminal::TerminalReaderReaderResourceToggleDefaultValue>,
     #[doc = "The toggle's description text."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "The toggle's title text."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     #[doc = "The toggle's collected value."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<crate::terminal::TerminalReaderReaderResourceToggleDefaultValue>,
 }
 
@@ -3825,37 +3434,19 @@ impl TerminalReaderReaderResourceToggleDefaultValue {
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-impl<'de> serde::Deserialize<'de> for TerminalReaderReaderResourceToggleDefaultValue {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TerminalReaderReaderResourceToggleDefaultValue;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "disabled" => TerminalReaderReaderResourceToggleDefaultValue::Disabled,
-                    "enabled" => TerminalReaderReaderResourceToggleDefaultValue::Enabled,
-                    other => TerminalReaderReaderResourceToggleDefaultValue::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TerminalReaderReaderResourceToggleDefaultValue::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TerminalReaderReaderResourceToggleDefaultValue {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TerminalReaderReaderResourceToggleDefaultValue::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "disabled" => TerminalReaderReaderResourceToggleDefaultValue::Disabled,
+            "enabled" => TerminalReaderReaderResourceToggleDefaultValue::Enabled,
+            other => TerminalReaderReaderResourceToggleDefaultValue::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3881,37 +3472,19 @@ impl TerminalReaderStatus {
 }
 
 #[cfg(any(feature = "events", feature = "terminal", feature = "test_helpers"))]
-impl<'de> serde::Deserialize<'de> for TerminalReaderStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TerminalReaderStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "offline" => TerminalReaderStatus::Offline,
-                    "online" => TerminalReaderStatus::Online,
-                    other => TerminalReaderStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TerminalReaderStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TerminalReaderStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TerminalReaderStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "offline" => TerminalReaderStatus::Offline,
+            "online" => TerminalReaderStatus::Online,
+            other => TerminalReaderStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4204,19 +3777,19 @@ pub struct UpdateTerminalLocationParams {
     #[doc = "The Kanji variation of the full address of the location (Japan only)."]
     pub address_kanji: Option<crate::terminal::UpdateTerminalLocationParamsAddressKanji>,
     #[doc = "The ID of a configuration that will be used to customize all readers in this location."]
-    pub configuration_overrides: Option<serde_json::Value>,
+    pub configuration_overrides: Option<json::OwnedValue>,
     #[doc = "A name for the location."]
-    pub display_name: Option<serde_json::Value>,
+    pub display_name: Option<json::OwnedValue>,
     #[doc = "The Kana variation of the name for the location (Japan only)."]
-    pub display_name_kana: Option<serde_json::Value>,
+    pub display_name_kana: Option<json::OwnedValue>,
     #[doc = "The Kanji variation of the name for the location (Japan only)."]
-    pub display_name_kanji: Option<serde_json::Value>,
+    pub display_name_kanji: Option<json::OwnedValue>,
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "The phone number for the location."]
-    pub phone: Option<serde_json::Value>,
+    pub phone: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "terminal")]
@@ -4277,7 +3850,7 @@ pub struct UpdateTerminalReaderParams {
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "The new label of the reader."]
-    pub label: Option<serde_json::Value>,
+    pub label: Option<json::OwnedValue>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
     pub metadata: Option<std::collections::HashMap<String, String>>,
 }

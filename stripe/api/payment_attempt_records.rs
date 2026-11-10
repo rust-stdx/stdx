@@ -45,63 +45,64 @@ impl crate::params::FormEncode for ListPaymentAttemptRecordsParams {
 }
 
 #[cfg(feature = "payment_attempt_records")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentAttemptRecord {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<crate::payment_records::PaymentsPrimitivesPaymentRecordsResourceAmount>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_authorized: Option<crate::payment_records::PaymentsPrimitivesPaymentRecordsResourceAmount>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_canceled: Option<crate::payment_records::PaymentsPrimitivesPaymentRecordsResourceAmount>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_failed: Option<crate::payment_records::PaymentsPrimitivesPaymentRecordsResourceAmount>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_guaranteed: Option<crate::payment_records::PaymentsPrimitivesPaymentRecordsResourceAmount>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_refunded: Option<crate::payment_records::PaymentsPrimitivesPaymentRecordsResourceAmount>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_requested: Option<crate::payment_records::PaymentsPrimitivesPaymentRecordsResourceAmount>,
     #[doc = "ID of the Connect application that created the PaymentAttemptRecord."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application: Option<String>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Customer information for this payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_details: Option<crate::payment_records::PaymentsPrimitivesPaymentRecordsResourceCustomerDetails>,
     #[doc = "Indicates whether the customer was present in your checkout flow during this payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_presence: Option<crate::payment_attempt_records::PaymentAttemptRecordCustomerPresence>,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::payment_attempt_records::PaymentAttemptRecordObject,
     #[doc = "Information about the Payment Method debited for this payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_details:
         Option<crate::payment_records::PaymentsPrimitivesPaymentRecordsResourcePaymentMethodDetails>,
     #[doc = "ID of the Payment Record this Payment Attempt Record belongs to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_record: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub processor_details: Option<crate::payment_records::PaymentsPrimitivesPaymentRecordsResourceProcessorDetails>,
     #[doc = "Indicates who reported the payment."]
-    #[serde(default)]
+    #[json(default)]
     pub reported_by: crate::payment_attempt_records::PaymentAttemptRecordReportedBy,
     #[doc = "Shipping information for this payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_details: Option<crate::payment_records::PaymentsPrimitivesPaymentRecordsResourceShippingDetails>,
 }
 
@@ -134,37 +135,19 @@ impl PaymentAttemptRecordCustomerPresence {
 }
 
 #[cfg(feature = "payment_attempt_records")]
-impl<'de> serde::Deserialize<'de> for PaymentAttemptRecordCustomerPresence {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentAttemptRecordCustomerPresence;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "off_session" => PaymentAttemptRecordCustomerPresence::OffSession,
-                    "on_session" => PaymentAttemptRecordCustomerPresence::OnSession,
-                    other => PaymentAttemptRecordCustomerPresence::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentAttemptRecordCustomerPresence::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentAttemptRecordCustomerPresence {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentAttemptRecordCustomerPresence::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "off_session" => PaymentAttemptRecordCustomerPresence::OffSession,
+            "on_session" => PaymentAttemptRecordCustomerPresence::OnSession,
+            other => PaymentAttemptRecordCustomerPresence::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -195,36 +178,18 @@ impl Default for PaymentAttemptRecordObject {
 }
 
 #[cfg(feature = "payment_attempt_records")]
-impl<'de> serde::Deserialize<'de> for PaymentAttemptRecordObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentAttemptRecordObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "payment_attempt_record" => PaymentAttemptRecordObject::PaymentAttemptRecord,
-                    other => PaymentAttemptRecordObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentAttemptRecordObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentAttemptRecordObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentAttemptRecordObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "payment_attempt_record" => PaymentAttemptRecordObject::PaymentAttemptRecord,
+            other => PaymentAttemptRecordObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -257,37 +222,19 @@ impl Default for PaymentAttemptRecordReportedBy {
 }
 
 #[cfg(feature = "payment_attempt_records")]
-impl<'de> serde::Deserialize<'de> for PaymentAttemptRecordReportedBy {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentAttemptRecordReportedBy;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "self" => PaymentAttemptRecordReportedBy::SelfValue,
-                    "stripe" => PaymentAttemptRecordReportedBy::Stripe,
-                    other => PaymentAttemptRecordReportedBy::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentAttemptRecordReportedBy::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentAttemptRecordReportedBy {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentAttemptRecordReportedBy::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "self" => PaymentAttemptRecordReportedBy::SelfValue,
+            "stripe" => PaymentAttemptRecordReportedBy::Stripe,
+            other => PaymentAttemptRecordReportedBy::Unknown(other.to_string()),
+        })
     }
 }
 

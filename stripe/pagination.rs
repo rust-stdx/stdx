@@ -2,7 +2,7 @@
 
 use core::marker::PhantomData;
 
-use serde::de::DeserializeOwned;
+use json::DecodeOwned;
 
 use crate::{client::Client, error::Error};
 
@@ -15,24 +15,24 @@ use crate::{client::Client, error::Error};
 /// v1 lists carry `has_more` and are followed with `starting_after`; v2 lists
 /// carry `next_page_url`, which [`Pager`] follows after checking that it stays
 /// on the configured host.
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, json::Decode, json::Encode)]
 pub struct List<T> {
     /// The object type, always `"list"`.
-    #[serde(default)]
+    #[json(default)]
     pub object: String,
     /// The items on this page.
     pub data: Vec<T>,
     /// Whether more pages are available (v1 lists).
-    #[serde(default)]
+    #[json(default)]
     pub has_more: bool,
     /// The URL this list was fetched from.
-    #[serde(default)]
+    #[json(default)]
     pub url: String,
     /// Total count, when the endpoint provides one.
-    #[serde(default)]
+    #[json(default)]
     pub total_count: Option<u64>,
     /// The URL of the next page, for the v2 APIs that page by URL.
-    #[serde(default)]
+    #[json(default)]
     pub next_page_url: Option<String>,
 }
 
@@ -108,7 +108,7 @@ impl<'a, T> Pager<'a, T> {
     /// `next_page_url` points outside the configured base URL.
     pub async fn next_page(&mut self) -> Result<Option<List<T>>, Error>
     where
-        T: DeserializeOwned + PagedItem,
+        T: for<'de> json::Decode<'de> + DecodeOwned + PagedItem,
     {
         if self.finished || !self.has_more {
             return Ok(None);

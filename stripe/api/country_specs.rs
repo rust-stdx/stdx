@@ -9,30 +9,31 @@
 #![allow(non_camel_case_types)]
 
 #[cfg(feature = "country_specs")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CountrySpec {
     #[doc = "The default currency for this country."]
-    #[serde(default)]
+    #[json(default)]
     pub default_currency: String,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::country_specs::CountrySpecObject,
     #[doc = "Currencies that can be accepted in the specific country (for transfers)."]
-    #[serde(default)]
+    #[json(default)]
     pub supported_bank_account_currencies: std::collections::HashMap<String, Vec<String>>,
     #[doc = "Currencies that can be accepted in the specified country (for payments)."]
-    #[serde(default)]
+    #[json(default)]
     pub supported_payment_currencies: Vec<String>,
     #[doc = "Payment methods available in the specified country."]
-    #[serde(default)]
+    #[json(default)]
     pub supported_payment_methods: Vec<String>,
     #[doc = "Countries that can accept transfers from the specified country."]
-    #[serde(default)]
+    #[json(default)]
     pub supported_transfer_countries: Vec<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verification_fields: Option<crate::country_specs::CountrySpecVerificationFields>,
 }
 
@@ -70,56 +71,40 @@ impl Default for CountrySpecObject {
 }
 
 #[cfg(feature = "country_specs")]
-impl<'de> serde::Deserialize<'de> for CountrySpecObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CountrySpecObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "country_spec" => CountrySpecObject::CountrySpec,
-                    other => CountrySpecObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CountrySpecObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CountrySpecObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CountrySpecObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "country_spec" => CountrySpecObject::CountrySpec,
+            other => CountrySpecObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "country_specs")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CountrySpecVerificationFieldDetails {
     #[doc = "Additional fields which are only required for some users."]
-    #[serde(default)]
+    #[json(default)]
     pub additional: Vec<String>,
     #[doc = "Fields which every account must eventually provide."]
-    #[serde(default)]
+    #[json(default)]
     pub minimum: Vec<String>,
 }
 
 #[cfg(feature = "country_specs")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CountrySpecVerificationFields {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub company: Option<crate::country_specs::CountrySpecVerificationFieldDetails>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub individual: Option<crate::country_specs::CountrySpecVerificationFieldDetails>,
 }
 

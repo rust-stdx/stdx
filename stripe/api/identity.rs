@@ -125,44 +125,22 @@ impl CreateIdentityVerificationSessionParamsOptionsDocumentAllowedTypesItem {
 }
 
 #[cfg(feature = "identity")]
-impl<'de> serde::Deserialize<'de> for CreateIdentityVerificationSessionParamsOptionsDocumentAllowedTypesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateIdentityVerificationSessionParamsOptionsDocumentAllowedTypesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "driving_license" => {
-                        CreateIdentityVerificationSessionParamsOptionsDocumentAllowedTypesItem::DrivingLicense
-                    }
-                    "id_card" => CreateIdentityVerificationSessionParamsOptionsDocumentAllowedTypesItem::IdCard,
-                    "passport" => CreateIdentityVerificationSessionParamsOptionsDocumentAllowedTypesItem::Passport,
-                    other => CreateIdentityVerificationSessionParamsOptionsDocumentAllowedTypesItem::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateIdentityVerificationSessionParamsOptionsDocumentAllowedTypesItem::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateIdentityVerificationSessionParamsOptionsDocumentAllowedTypesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateIdentityVerificationSessionParamsOptionsDocumentAllowedTypesItem::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "driving_license" => CreateIdentityVerificationSessionParamsOptionsDocumentAllowedTypesItem::DrivingLicense,
+            "id_card" => CreateIdentityVerificationSessionParamsOptionsDocumentAllowedTypesItem::IdCard,
+            "passport" => CreateIdentityVerificationSessionParamsOptionsDocumentAllowedTypesItem::Passport,
+            other => CreateIdentityVerificationSessionParamsOptionsDocumentAllowedTypesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -211,133 +189,140 @@ impl crate::params::FormEncode for CreateIdentityVerificationSessionParamsRelate
 pub type CreateIdentityVerificationSessionParamsType = crate::identity::ListIdentityVerificationReportsParamsType;
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoDataDocumentReportDateOfBirth {
     #[doc = "Numerical day between 1 and 31."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub day: Option<i64>,
     #[doc = "Numerical month between 1 and 12."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub month: Option<i64>,
     #[doc = "The four-digit year."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub year: Option<i64>,
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoDataDocumentReportExpirationDate {
     #[doc = "Numerical day between 1 and 31."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub day: Option<i64>,
     #[doc = "Numerical month between 1 and 12."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub month: Option<i64>,
     #[doc = "The four-digit year."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub year: Option<i64>,
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoDataDocumentReportIssuedDate {
     #[doc = "Numerical day between 1 and 31."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub day: Option<i64>,
     #[doc = "Numerical month between 1 and 12."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub month: Option<i64>,
     #[doc = "The four-digit year."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub year: Option<i64>,
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoDataIdNumberReportDate {
     #[doc = "Numerical day between 1 and 31."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub day: Option<i64>,
     #[doc = "Numerical month between 1 and 12."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub month: Option<i64>,
     #[doc = "The four-digit year."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub year: Option<i64>,
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoDataVerifiedOutputsDate {
     #[doc = "Numerical day between 1 and 31."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub day: Option<i64>,
     #[doc = "Numerical month between 1 and 12."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub month: Option<i64>,
     #[doc = "The four-digit year."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub year: Option<i64>,
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoDocumentReport {
     #[doc = "Address as it appears in the document."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<crate::common::Address>,
     #[doc = "Date of birth as it appears in the document."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub dob: Option<crate::identity::GelatoDataDocumentReportDateOfBirth>,
     #[doc = "Details on the verification error."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<crate::identity::GelatoDocumentReportError>,
     #[doc = "Expiration date of the document."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expiration_date: Option<crate::identity::GelatoDataDocumentReportExpirationDate>,
     #[doc = "Array of [File](https://docs.stripe.com/api/files) ids containing images for this document."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub files: Option<Vec<String>>,
     #[doc = "First name as it appears in the document."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub first_name: Option<String>,
     #[doc = "Issued date of the document."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issued_date: Option<crate::identity::GelatoDataDocumentReportIssuedDate>,
     #[doc = "Issuing country of the document."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuing_country: Option<String>,
     #[doc = "Last name as it appears in the document."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last_name: Option<String>,
     #[doc = "Document ID number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub number: Option<String>,
     #[doc = "Sex of the person in the document."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sex: Option<crate::identity::GelatoDocumentReportSex>,
     #[doc = "Status of this `document` check."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::identity::GelatoDocumentReportStatus,
     #[doc = "Type of the document."]
-    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    #[json(rename = "type", default, skip_serializing_if = "Option::is_none")]
     pub r#type: Option<crate::identity::GelatoDocumentReportType>,
     #[doc = "Place of birth as it appears in the document."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unparsed_place_of_birth: Option<String>,
     #[doc = "Sex as it appears in the document."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unparsed_sex: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoDocumentReportError {
     #[doc = "A short machine-readable string giving the reason for the verification failure."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub code: Option<crate::identity::GelatoDocumentReportErrorCode>,
     #[doc = "A human-readable message giving the reason for the failure."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
 }
 
@@ -365,38 +350,20 @@ impl GelatoDocumentReportErrorCode {
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-impl<'de> serde::Deserialize<'de> for GelatoDocumentReportErrorCode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = GelatoDocumentReportErrorCode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "document_expired" => GelatoDocumentReportErrorCode::DocumentExpired,
-                    "document_type_not_supported" => GelatoDocumentReportErrorCode::DocumentTypeNotSupported,
-                    "document_unverified_other" => GelatoDocumentReportErrorCode::DocumentUnverifiedOther,
-                    other => GelatoDocumentReportErrorCode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(GelatoDocumentReportErrorCode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for GelatoDocumentReportErrorCode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(GelatoDocumentReportErrorCode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "document_expired" => GelatoDocumentReportErrorCode::DocumentExpired,
+            "document_type_not_supported" => GelatoDocumentReportErrorCode::DocumentTypeNotSupported,
+            "document_unverified_other" => GelatoDocumentReportErrorCode::DocumentUnverifiedOther,
+            other => GelatoDocumentReportErrorCode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -426,39 +393,21 @@ impl GelatoDocumentReportSex {
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-impl<'de> serde::Deserialize<'de> for GelatoDocumentReportSex {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = GelatoDocumentReportSex;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "[redacted]" => GelatoDocumentReportSex::Redacted,
-                    "female" => GelatoDocumentReportSex::Female,
-                    "male" => GelatoDocumentReportSex::Male,
-                    "unknown" => GelatoDocumentReportSex::UnknownValue,
-                    other => GelatoDocumentReportSex::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(GelatoDocumentReportSex::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for GelatoDocumentReportSex {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(GelatoDocumentReportSex::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "[redacted]" => GelatoDocumentReportSex::Redacted,
+            "female" => GelatoDocumentReportSex::Female,
+            "male" => GelatoDocumentReportSex::Male,
+            "unknown" => GelatoDocumentReportSex::UnknownValue,
+            other => GelatoDocumentReportSex::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -491,37 +440,19 @@ impl Default for GelatoDocumentReportStatus {
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-impl<'de> serde::Deserialize<'de> for GelatoDocumentReportStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = GelatoDocumentReportStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "unverified" => GelatoDocumentReportStatus::Unverified,
-                    "verified" => GelatoDocumentReportStatus::Verified,
-                    other => GelatoDocumentReportStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(GelatoDocumentReportStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for GelatoDocumentReportStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(GelatoDocumentReportStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "unverified" => GelatoDocumentReportStatus::Unverified,
+            "verified" => GelatoDocumentReportStatus::Verified,
+            other => GelatoDocumentReportStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -549,63 +480,47 @@ impl GelatoDocumentReportType {
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-impl<'de> serde::Deserialize<'de> for GelatoDocumentReportType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = GelatoDocumentReportType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "driving_license" => GelatoDocumentReportType::DrivingLicense,
-                    "id_card" => GelatoDocumentReportType::IdCard,
-                    "passport" => GelatoDocumentReportType::Passport,
-                    other => GelatoDocumentReportType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(GelatoDocumentReportType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for GelatoDocumentReportType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(GelatoDocumentReportType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "driving_license" => GelatoDocumentReportType::DrivingLicense,
+            "id_card" => GelatoDocumentReportType::IdCard,
+            "passport" => GelatoDocumentReportType::Passport,
+            other => GelatoDocumentReportType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoEmailReport {
     #[doc = "Email to be verified."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[doc = "Details on the verification error."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<crate::identity::GelatoEmailReportError>,
     #[doc = "Status of this `email` check."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::identity::GelatoDocumentReportStatus,
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoEmailReportError {
     #[doc = "A short machine-readable string giving the reason for the verification failure."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub code: Option<crate::identity::GelatoEmailReportErrorCode>,
     #[doc = "A human-readable message giving the reason for the failure."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
 }
 
@@ -631,74 +546,58 @@ impl GelatoEmailReportErrorCode {
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-impl<'de> serde::Deserialize<'de> for GelatoEmailReportErrorCode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = GelatoEmailReportErrorCode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "email_unverified_other" => GelatoEmailReportErrorCode::EmailUnverifiedOther,
-                    "email_verification_declined" => GelatoEmailReportErrorCode::EmailVerificationDeclined,
-                    other => GelatoEmailReportErrorCode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(GelatoEmailReportErrorCode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for GelatoEmailReportErrorCode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(GelatoEmailReportErrorCode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "email_unverified_other" => GelatoEmailReportErrorCode::EmailUnverifiedOther,
+            "email_verification_declined" => GelatoEmailReportErrorCode::EmailVerificationDeclined,
+            other => GelatoEmailReportErrorCode::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoIdNumberReport {
     #[doc = "Date of birth."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub dob: Option<crate::identity::GelatoDataIdNumberReportDate>,
     #[doc = "Details on the verification error."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<crate::identity::GelatoIdNumberReportError>,
     #[doc = "First name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub first_name: Option<String>,
     #[doc = "ID number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub id_number: Option<String>,
     #[doc = "Type of ID number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub id_number_type: Option<crate::identity::GelatoIdNumberReportIdNumberType>,
     #[doc = "Last name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last_name: Option<String>,
     #[doc = "Status of this `id_number` check."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::identity::GelatoDocumentReportStatus,
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoIdNumberReportError {
     #[doc = "A short machine-readable string giving the reason for the verification failure."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub code: Option<crate::identity::GelatoIdNumberReportErrorCode>,
     #[doc = "A human-readable message giving the reason for the failure."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
 }
 
@@ -726,40 +625,20 @@ impl GelatoIdNumberReportErrorCode {
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-impl<'de> serde::Deserialize<'de> for GelatoIdNumberReportErrorCode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = GelatoIdNumberReportErrorCode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "id_number_insufficient_document_data" => {
-                        GelatoIdNumberReportErrorCode::IdNumberInsufficientDocumentData
-                    }
-                    "id_number_mismatch" => GelatoIdNumberReportErrorCode::IdNumberMismatch,
-                    "id_number_unverified_other" => GelatoIdNumberReportErrorCode::IdNumberUnverifiedOther,
-                    other => GelatoIdNumberReportErrorCode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(GelatoIdNumberReportErrorCode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for GelatoIdNumberReportErrorCode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(GelatoIdNumberReportErrorCode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "id_number_insufficient_document_data" => GelatoIdNumberReportErrorCode::IdNumberInsufficientDocumentData,
+            "id_number_mismatch" => GelatoIdNumberReportErrorCode::IdNumberMismatch,
+            "id_number_unverified_other" => GelatoIdNumberReportErrorCode::IdNumberUnverifiedOther,
+            other => GelatoIdNumberReportErrorCode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -787,63 +666,47 @@ impl GelatoIdNumberReportIdNumberType {
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-impl<'de> serde::Deserialize<'de> for GelatoIdNumberReportIdNumberType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = GelatoIdNumberReportIdNumberType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "br_cpf" => GelatoIdNumberReportIdNumberType::BrCpf,
-                    "sg_nric" => GelatoIdNumberReportIdNumberType::SgNric,
-                    "us_ssn" => GelatoIdNumberReportIdNumberType::UsSsn,
-                    other => GelatoIdNumberReportIdNumberType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(GelatoIdNumberReportIdNumberType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for GelatoIdNumberReportIdNumberType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(GelatoIdNumberReportIdNumberType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "br_cpf" => GelatoIdNumberReportIdNumberType::BrCpf,
+            "sg_nric" => GelatoIdNumberReportIdNumberType::SgNric,
+            "us_ssn" => GelatoIdNumberReportIdNumberType::UsSsn,
+            other => GelatoIdNumberReportIdNumberType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoPhoneReport {
     #[doc = "Details on the verification error."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<crate::identity::GelatoPhoneReportError>,
     #[doc = "Phone to be verified."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     #[doc = "Status of this `phone` check."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::identity::GelatoDocumentReportStatus,
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoPhoneReportError {
     #[doc = "A short machine-readable string giving the reason for the verification failure."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub code: Option<crate::identity::GelatoPhoneReportErrorCode>,
     #[doc = "A human-readable message giving the reason for the failure."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
 }
 
@@ -869,108 +732,96 @@ impl GelatoPhoneReportErrorCode {
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-impl<'de> serde::Deserialize<'de> for GelatoPhoneReportErrorCode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = GelatoPhoneReportErrorCode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "phone_unverified_other" => GelatoPhoneReportErrorCode::PhoneUnverifiedOther,
-                    "phone_verification_declined" => GelatoPhoneReportErrorCode::PhoneVerificationDeclined,
-                    other => GelatoPhoneReportErrorCode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(GelatoPhoneReportErrorCode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for GelatoPhoneReportErrorCode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(GelatoPhoneReportErrorCode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "phone_unverified_other" => GelatoPhoneReportErrorCode::PhoneUnverifiedOther,
+            "phone_verification_declined" => GelatoPhoneReportErrorCode::PhoneVerificationDeclined,
+            other => GelatoPhoneReportErrorCode::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoProvidedDetails {
     #[doc = "Email of user being verified"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[doc = "Phone number of user being verified"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoRelatedPerson {
     #[doc = "Token referencing the associated Account of the related Person resource."]
-    #[serde(default)]
+    #[json(default)]
     pub account: String,
     #[doc = "Token referencing the related Person resource."]
-    #[serde(default)]
+    #[json(default)]
     pub person: String,
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoReportDocumentOptions {
     #[doc = "Array of strings of allowed identity document types."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub allowed_types: Option<Vec<crate::identity::GelatoDocumentReportType>>,
     #[doc = "Collect an ID number and perform an [ID number check](https://docs.stripe.com/identity/verification-checks?type=id-nu..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub require_id_number: Option<bool>,
     #[doc = "Disable image uploads, identity document images have to be captured using the device’s camera."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub require_live_capture: Option<bool>,
     #[doc = "Capture a face image and perform a [selfie check](https://docs.stripe.com/identity/verification-checks?type=selfie) c..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub require_matching_selfie: Option<bool>,
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoReportIdNumberOptions {}
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoSelfieReport {
     #[doc = "ID of the [File](https://docs.stripe.com/api/files) holding the image of the identity document used in this check."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub document: Option<String>,
     #[doc = "Details on the verification error."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<crate::identity::GelatoSelfieReportError>,
     #[doc = "ID of the [File](https://docs.stripe.com/api/files) holding the image of the selfie used in this check."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub selfie: Option<String>,
     #[doc = "Status of this `selfie` check."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::identity::GelatoDocumentReportStatus,
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoSelfieReportError {
     #[doc = "A short machine-readable string giving the reason for the verification failure."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub code: Option<crate::identity::GelatoSelfieReportErrorCode>,
     #[doc = "A human-readable message giving the reason for the failure."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
 }
 
@@ -1000,79 +851,65 @@ impl GelatoSelfieReportErrorCode {
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-impl<'de> serde::Deserialize<'de> for GelatoSelfieReportErrorCode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = GelatoSelfieReportErrorCode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "selfie_document_missing_photo" => GelatoSelfieReportErrorCode::SelfieDocumentMissingPhoto,
-                    "selfie_face_mismatch" => GelatoSelfieReportErrorCode::SelfieFaceMismatch,
-                    "selfie_manipulated" => GelatoSelfieReportErrorCode::SelfieManipulated,
-                    "selfie_unverified_other" => GelatoSelfieReportErrorCode::SelfieUnverifiedOther,
-                    other => GelatoSelfieReportErrorCode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(GelatoSelfieReportErrorCode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for GelatoSelfieReportErrorCode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(GelatoSelfieReportErrorCode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "selfie_document_missing_photo" => GelatoSelfieReportErrorCode::SelfieDocumentMissingPhoto,
+            "selfie_face_mismatch" => GelatoSelfieReportErrorCode::SelfieFaceMismatch,
+            "selfie_manipulated" => GelatoSelfieReportErrorCode::SelfieManipulated,
+            "selfie_unverified_other" => GelatoSelfieReportErrorCode::SelfieUnverifiedOther,
+            other => GelatoSelfieReportErrorCode::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoSessionDocumentOptions {
     #[doc = "Array of strings of allowed identity document types."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub allowed_types: Option<Vec<crate::identity::GelatoDocumentReportType>>,
     #[doc = "Collect an ID number and perform an [ID number check](https://docs.stripe.com/identity/verification-checks?type=id-nu..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub require_id_number: Option<bool>,
     #[doc = "Disable image uploads, identity document images have to be captured using the device’s camera."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub require_live_capture: Option<bool>,
     #[doc = "Capture a face image and perform a [selfie check](https://docs.stripe.com/identity/verification-checks?type=selfie) c..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub require_matching_selfie: Option<bool>,
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoSessionEmailOptions {
     #[doc = "Request one time password verification of `provided_details.email`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub require_verification: Option<bool>,
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoSessionIdNumberOptions {}
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoSessionLastError {
     #[doc = "A short machine-readable string giving the reason for the verification or user-session failure."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub code: Option<crate::identity::GelatoSessionLastErrorCode>,
     #[doc = "A message that explains the reason for verification or user-session failure."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
 }
 
@@ -1132,67 +969,48 @@ impl GelatoSessionLastErrorCode {
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-impl<'de> serde::Deserialize<'de> for GelatoSessionLastErrorCode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = GelatoSessionLastErrorCode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "abandoned" => GelatoSessionLastErrorCode::Abandoned,
-                    "consent_declined" => GelatoSessionLastErrorCode::ConsentDeclined,
-                    "country_not_supported" => GelatoSessionLastErrorCode::CountryNotSupported,
-                    "device_not_supported" => GelatoSessionLastErrorCode::DeviceNotSupported,
-                    "document_expired" => GelatoSessionLastErrorCode::DocumentExpired,
-                    "document_type_not_supported" => GelatoSessionLastErrorCode::DocumentTypeNotSupported,
-                    "document_unverified_other" => GelatoSessionLastErrorCode::DocumentUnverifiedOther,
-                    "email_unverified_other" => GelatoSessionLastErrorCode::EmailUnverifiedOther,
-                    "email_verification_declined" => GelatoSessionLastErrorCode::EmailVerificationDeclined,
-                    "id_number_insufficient_document_data" => {
-                        GelatoSessionLastErrorCode::IdNumberInsufficientDocumentData
-                    }
-                    "id_number_mismatch" => GelatoSessionLastErrorCode::IdNumberMismatch,
-                    "id_number_unverified_other" => GelatoSessionLastErrorCode::IdNumberUnverifiedOther,
-                    "phone_unverified_other" => GelatoSessionLastErrorCode::PhoneUnverifiedOther,
-                    "phone_verification_declined" => GelatoSessionLastErrorCode::PhoneVerificationDeclined,
-                    "selfie_document_missing_photo" => GelatoSessionLastErrorCode::SelfieDocumentMissingPhoto,
-                    "selfie_face_mismatch" => GelatoSessionLastErrorCode::SelfieFaceMismatch,
-                    "selfie_manipulated" => GelatoSessionLastErrorCode::SelfieManipulated,
-                    "selfie_unverified_other" => GelatoSessionLastErrorCode::SelfieUnverifiedOther,
-                    "under_supported_age" => GelatoSessionLastErrorCode::UnderSupportedAge,
-                    other => GelatoSessionLastErrorCode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(GelatoSessionLastErrorCode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for GelatoSessionLastErrorCode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(GelatoSessionLastErrorCode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "abandoned" => GelatoSessionLastErrorCode::Abandoned,
+            "consent_declined" => GelatoSessionLastErrorCode::ConsentDeclined,
+            "country_not_supported" => GelatoSessionLastErrorCode::CountryNotSupported,
+            "device_not_supported" => GelatoSessionLastErrorCode::DeviceNotSupported,
+            "document_expired" => GelatoSessionLastErrorCode::DocumentExpired,
+            "document_type_not_supported" => GelatoSessionLastErrorCode::DocumentTypeNotSupported,
+            "document_unverified_other" => GelatoSessionLastErrorCode::DocumentUnverifiedOther,
+            "email_unverified_other" => GelatoSessionLastErrorCode::EmailUnverifiedOther,
+            "email_verification_declined" => GelatoSessionLastErrorCode::EmailVerificationDeclined,
+            "id_number_insufficient_document_data" => GelatoSessionLastErrorCode::IdNumberInsufficientDocumentData,
+            "id_number_mismatch" => GelatoSessionLastErrorCode::IdNumberMismatch,
+            "id_number_unverified_other" => GelatoSessionLastErrorCode::IdNumberUnverifiedOther,
+            "phone_unverified_other" => GelatoSessionLastErrorCode::PhoneUnverifiedOther,
+            "phone_verification_declined" => GelatoSessionLastErrorCode::PhoneVerificationDeclined,
+            "selfie_document_missing_photo" => GelatoSessionLastErrorCode::SelfieDocumentMissingPhoto,
+            "selfie_face_mismatch" => GelatoSessionLastErrorCode::SelfieFaceMismatch,
+            "selfie_manipulated" => GelatoSessionLastErrorCode::SelfieManipulated,
+            "selfie_unverified_other" => GelatoSessionLastErrorCode::SelfieUnverifiedOther,
+            "under_supported_age" => GelatoSessionLastErrorCode::UnderSupportedAge,
+            other => GelatoSessionLastErrorCode::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoSessionMatchingOptions {
     #[doc = "Strictness of the DOB matching policy to apply."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub dob: Option<crate::identity::GelatoSessionMatchingOptionsDob>,
     #[doc = "Strictness of the name matching policy to apply."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<crate::identity::GelatoSessionMatchingOptionsDob>,
 }
 
@@ -1218,107 +1036,93 @@ impl GelatoSessionMatchingOptionsDob {
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-impl<'de> serde::Deserialize<'de> for GelatoSessionMatchingOptionsDob {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = GelatoSessionMatchingOptionsDob;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "none" => GelatoSessionMatchingOptionsDob::None,
-                    "similar" => GelatoSessionMatchingOptionsDob::Similar,
-                    other => GelatoSessionMatchingOptionsDob::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(GelatoSessionMatchingOptionsDob::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for GelatoSessionMatchingOptionsDob {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(GelatoSessionMatchingOptionsDob::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "none" => GelatoSessionMatchingOptionsDob::None,
+            "similar" => GelatoSessionMatchingOptionsDob::Similar,
+            other => GelatoSessionMatchingOptionsDob::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoSessionPhoneOptions {
     #[doc = "Request one time password verification of `provided_details.phone`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub require_verification: Option<bool>,
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoVerificationReportOptions {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub document: Option<crate::identity::GelatoReportDocumentOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub id_number: Option<crate::identity::GelatoReportIdNumberOptions>,
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoVerificationSessionOptions {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub document: Option<crate::identity::GelatoSessionDocumentOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<crate::identity::GelatoSessionEmailOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub id_number: Option<crate::identity::GelatoSessionIdNumberOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub matching: Option<crate::identity::GelatoSessionMatchingOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone: Option<crate::identity::GelatoSessionPhoneOptions>,
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct GelatoVerifiedOutputs {
     #[doc = "The user's verified address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<crate::common::Address>,
     #[doc = "The user’s verified date of birth."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub dob: Option<crate::identity::GelatoDataVerifiedOutputsDate>,
     #[doc = "The user's verified email address"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[doc = "The user's verified first name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub first_name: Option<String>,
     #[doc = "The user's verified id number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub id_number: Option<String>,
     #[doc = "The user's verified id number type."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub id_number_type: Option<crate::identity::GelatoIdNumberReportIdNumberType>,
     #[doc = "The user's verified last name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last_name: Option<String>,
     #[doc = "The user's verified phone number"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     #[doc = "The user's verified sex."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sex: Option<crate::identity::GelatoDocumentReportSex>,
     #[doc = "The user's verified place of birth as it appears in the document."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unparsed_place_of_birth: Option<String>,
     #[doc = "The user's verified sex as it appears in the document."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unparsed_sex: Option<String>,
 }
 
@@ -1341,43 +1145,44 @@ impl crate::params::FormEncode for GetIdentityVerificationReportParams {
 pub type GetIdentityVerificationSessionParams = crate::identity::GetIdentityVerificationReportParams;
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IdentityVerificationReport {
     #[doc = "A string to reference this user."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub client_reference_id: Option<String>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub document: Option<crate::identity::GelatoDocumentReport>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<crate::identity::GelatoEmailReport>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub id_number: Option<crate::identity::GelatoIdNumberReport>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::identity::IdentityVerificationReportObject,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub options: Option<crate::identity::GelatoVerificationReportOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone: Option<crate::identity::GelatoPhoneReport>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub selfie: Option<crate::identity::GelatoSelfieReport>,
     #[doc = "Type of report."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::identity::IdentityVerificationReportType,
     #[doc = "The configuration token of a verification flow from the dashboard."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verification_flow: Option<String>,
     #[doc = "ID of the VerificationSession that created this report."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verification_session: Option<String>,
 }
 
@@ -1415,36 +1220,18 @@ impl Default for IdentityVerificationReportObject {
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-impl<'de> serde::Deserialize<'de> for IdentityVerificationReportObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IdentityVerificationReportObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "identity.verification_report" => IdentityVerificationReportObject::IdentityVerificationReport,
-                    other => IdentityVerificationReportObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IdentityVerificationReportObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IdentityVerificationReportObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IdentityVerificationReportObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "identity.verification_report" => IdentityVerificationReportObject::IdentityVerificationReport,
+            other => IdentityVerificationReportObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1479,102 +1266,85 @@ impl Default for IdentityVerificationReportType {
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-impl<'de> serde::Deserialize<'de> for IdentityVerificationReportType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IdentityVerificationReportType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "document" => IdentityVerificationReportType::Document,
-                    "id_number" => IdentityVerificationReportType::IdNumber,
-                    "verification_flow" => IdentityVerificationReportType::VerificationFlow,
-                    other => IdentityVerificationReportType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IdentityVerificationReportType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IdentityVerificationReportType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IdentityVerificationReportType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "document" => IdentityVerificationReportType::Document,
+            "id_number" => IdentityVerificationReportType::IdNumber,
+            "verification_flow" => IdentityVerificationReportType::VerificationFlow,
+            other => IdentityVerificationReportType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IdentityVerificationSession {
     #[doc = "A string to reference this user."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub client_reference_id: Option<String>,
     #[doc = "The short-lived client secret used by Stripe.js to [show a verification modal](https://docs.stripe.com/js/identity/mo..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub client_secret: Option<String>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If present, this property tells you the last error encountered when processing the verification."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last_error: Option<crate::identity::GelatoSessionLastError>,
     #[doc = "ID of the most recent VerificationReport."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last_verification_report: Option<crate::Expandable<crate::identity::IdentityVerificationReport>>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::identity::IdentityVerificationSessionObject,
     #[doc = "A set of options for the session’s verification checks."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub options: Option<crate::identity::GelatoVerificationSessionOptions>,
     #[doc = "Details provided about the user being verified."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub provided_details: Option<crate::identity::GelatoProvidedDetails>,
     #[doc = "Redaction status of this VerificationSession."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub redaction: Option<crate::identity::VerificationSessionRedaction>,
     #[doc = "Customer ID"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub related_customer: Option<String>,
     #[doc = "The ID of the Account representing a customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub related_customer_account: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub related_person: Option<crate::identity::GelatoRelatedPerson>,
     #[doc = "Status of this VerificationSession."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::identity::IdentityVerificationSessionStatus,
     #[doc = "The type of [verification check](https://docs.stripe.com/identity/verification-checks) to be performed."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::identity::IdentityVerificationReportType,
     #[doc = "The short-lived URL that you use to redirect a user to Stripe to submit their identity information."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
     #[doc = "The configuration token of a verification flow from the dashboard."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verification_flow: Option<String>,
     #[doc = "The user’s verified data."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verified_outputs: Option<crate::identity::GelatoVerifiedOutputs>,
 }
 
@@ -1612,36 +1382,18 @@ impl Default for IdentityVerificationSessionObject {
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-impl<'de> serde::Deserialize<'de> for IdentityVerificationSessionObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IdentityVerificationSessionObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "identity.verification_session" => IdentityVerificationSessionObject::IdentityVerificationSession,
-                    other => IdentityVerificationSessionObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IdentityVerificationSessionObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IdentityVerificationSessionObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IdentityVerificationSessionObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "identity.verification_session" => IdentityVerificationSessionObject::IdentityVerificationSession,
+            other => IdentityVerificationSessionObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1678,39 +1430,21 @@ impl Default for IdentityVerificationSessionStatus {
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-impl<'de> serde::Deserialize<'de> for IdentityVerificationSessionStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IdentityVerificationSessionStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "canceled" => IdentityVerificationSessionStatus::Canceled,
-                    "processing" => IdentityVerificationSessionStatus::Processing,
-                    "requires_input" => IdentityVerificationSessionStatus::RequiresInput,
-                    "verified" => IdentityVerificationSessionStatus::Verified,
-                    other => IdentityVerificationSessionStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IdentityVerificationSessionStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IdentityVerificationSessionStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IdentityVerificationSessionStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "canceled" => IdentityVerificationSessionStatus::Canceled,
+            "processing" => IdentityVerificationSessionStatus::Processing,
+            "requires_input" => IdentityVerificationSessionStatus::RequiresInput,
+            "verified" => IdentityVerificationSessionStatus::Verified,
+            other => IdentityVerificationSessionStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1788,37 +1522,19 @@ impl ListIdentityVerificationReportsParamsType {
 }
 
 #[cfg(feature = "identity")]
-impl<'de> serde::Deserialize<'de> for ListIdentityVerificationReportsParamsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListIdentityVerificationReportsParamsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "document" => ListIdentityVerificationReportsParamsType::Document,
-                    "id_number" => ListIdentityVerificationReportsParamsType::IdNumber,
-                    other => ListIdentityVerificationReportsParamsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListIdentityVerificationReportsParamsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListIdentityVerificationReportsParamsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListIdentityVerificationReportsParamsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "document" => ListIdentityVerificationReportsParamsType::Document,
+            "id_number" => ListIdentityVerificationReportsParamsType::IdNumber,
+            other => ListIdentityVerificationReportsParamsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1889,39 +1605,21 @@ impl ListIdentityVerificationSessionsParamsStatus {
 }
 
 #[cfg(feature = "identity")]
-impl<'de> serde::Deserialize<'de> for ListIdentityVerificationSessionsParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListIdentityVerificationSessionsParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "canceled" => ListIdentityVerificationSessionsParamsStatus::Canceled,
-                    "processing" => ListIdentityVerificationSessionsParamsStatus::Processing,
-                    "requires_input" => ListIdentityVerificationSessionsParamsStatus::RequiresInput,
-                    "verified" => ListIdentityVerificationSessionsParamsStatus::Verified,
-                    other => ListIdentityVerificationSessionsParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListIdentityVerificationSessionsParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListIdentityVerificationSessionsParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListIdentityVerificationSessionsParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "canceled" => ListIdentityVerificationSessionsParamsStatus::Canceled,
+            "processing" => ListIdentityVerificationSessionsParamsStatus::Processing,
+            "requires_input" => ListIdentityVerificationSessionsParamsStatus::RequiresInput,
+            "verified" => ListIdentityVerificationSessionsParamsStatus::Verified,
+            other => ListIdentityVerificationSessionsParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2021,10 +1719,11 @@ pub type UpdateIdentityVerificationSessionParamsProvidedDetails =
 pub type UpdateIdentityVerificationSessionParamsType = crate::identity::ListIdentityVerificationReportsParamsType;
 
 #[cfg(any(feature = "events", feature = "identity"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct VerificationSessionRedaction {
     #[doc = "Indicates whether this object and its related objects have been redacted or not."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::identity::VerificationSessionRedactionStatus,
 }
 
@@ -2059,38 +1758,20 @@ impl Default for VerificationSessionRedactionStatus {
 }
 
 #[cfg(any(feature = "events", feature = "identity"))]
-impl<'de> serde::Deserialize<'de> for VerificationSessionRedactionStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = VerificationSessionRedactionStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "processing" => VerificationSessionRedactionStatus::Processing,
-                    "redacted" => VerificationSessionRedactionStatus::Redacted,
-                    "validated" => VerificationSessionRedactionStatus::Validated,
-                    other => VerificationSessionRedactionStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(VerificationSessionRedactionStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for VerificationSessionRedactionStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(VerificationSessionRedactionStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "processing" => VerificationSessionRedactionStatus::Processing,
+            "redacted" => VerificationSessionRedactionStatus::Redacted,
+            "validated" => VerificationSessionRedactionStatus::Validated,
+            other => VerificationSessionRedactionStatus::Unknown(other.to_string()),
+        })
     }
 }
 

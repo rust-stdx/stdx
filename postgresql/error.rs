@@ -81,7 +81,7 @@ pub enum Error {
 
     /// A value was not valid JSON.
     #[error("json error: {0}")]
-    Json(#[from] serde_json::Error),
+    Json(#[from] json::Error),
 
     /// A value was not a valid IP network.
     #[error("ipnetwork error: {0}")]

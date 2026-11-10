@@ -95,7 +95,7 @@ fn rustfmt(paths: &[PathBuf]) -> bool {
 fn committed_generated_code_matches_the_specification() {
     let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
     let spec_bytes = fs::read(manifest.join("spec/openapi.spec3.sdk.json")).expect("the vendored specification");
-    let spec: serde_json::Value = serde_json::from_slice(&spec_bytes).expect("the specification is JSON");
+    let spec: json::Value<'static> = json::from_slice_owned(&spec_bytes).expect("the specification is JSON");
     let model = Builder::new(spec).build().expect("the specification builds a model");
     let files = emit::emit(&model);
 

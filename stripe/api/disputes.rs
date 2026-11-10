@@ -56,58 +56,59 @@ pub type CloseDisputeParams = crate::disputes::GetDisputeParams;
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Dispute {
     #[doc = "Disputed amount."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "List of zero, one, or two balance transactions that show funds withdrawn and reinstated to your Stripe account as a r..."]
-    #[serde(default)]
+    #[json(default)]
     pub balance_transactions: Vec<crate::balance_transactions::BalanceTransaction>,
     #[doc = "ID of the charge that's disputed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub charge: Option<crate::Expandable<crate::charges::Charge>>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "List of eligibility types that are included in `enhanced_evidence`."]
-    #[serde(default)]
+    #[json(default)]
     pub enhanced_eligibility_types: Vec<crate::disputes::DisputeEnhancedEligibilityTypesItem>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub evidence: Option<crate::disputes::DisputeEvidence>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub evidence_details: Option<crate::disputes::DisputeEvidenceDetails>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If true, it's still possible to refund the disputed payment."]
-    #[serde(default)]
+    #[json(default)]
     pub is_charge_refundable: bool,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "Network-dependent reason code for the dispute."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub network_reason_code: Option<String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::disputes::DisputeObject,
     #[doc = "ID of the PaymentIntent that's disputed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_intent: Option<crate::Expandable<crate::payment_intents::PaymentIntent>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_details: Option<crate::disputes::DisputePaymentMethodDetails>,
     #[doc = "Reason given by cardholder for dispute."]
-    #[serde(default)]
+    #[json(default)]
     pub reason: String,
     #[doc = "The current status of a dispute."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::disputes::DisputeStatus,
 }
 
@@ -207,13 +208,14 @@ impl crate::PagedItem for Dispute {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DisputeEnhancedEligibility {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mastercard_compliance: Option<crate::disputes::DisputeEnhancedEligibilityMastercardCompliance>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub visa_compelling_evidence_3: Option<crate::disputes::DisputeEnhancedEligibilityVisaCompellingEvidence3>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub visa_compliance: Option<crate::disputes::DisputeEnhancedEligibilityVisaCompliance>,
 }
 
@@ -262,10 +264,11 @@ pub struct DisputeEnhancedEligibility {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DisputeEnhancedEligibilityMastercardCompliance {
     #[doc = "Mastercard compliance eligibility status."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::disputes::DisputeEnhancedEligibilityMastercardComplianceStatus,
 }
 
@@ -476,39 +479,21 @@ impl Default for DisputeEnhancedEligibilityMastercardComplianceStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for DisputeEnhancedEligibilityMastercardComplianceStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = DisputeEnhancedEligibilityMastercardComplianceStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "fee_acknowledged" => DisputeEnhancedEligibilityMastercardComplianceStatus::FeeAcknowledged,
-                    "requires_fee_acknowledgement" => {
-                        DisputeEnhancedEligibilityMastercardComplianceStatus::RequiresFeeAcknowledgement
-                    }
-                    other => DisputeEnhancedEligibilityMastercardComplianceStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(DisputeEnhancedEligibilityMastercardComplianceStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for DisputeEnhancedEligibilityMastercardComplianceStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(DisputeEnhancedEligibilityMastercardComplianceStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "fee_acknowledged" => DisputeEnhancedEligibilityMastercardComplianceStatus::FeeAcknowledged,
+            "requires_fee_acknowledgement" => {
+                DisputeEnhancedEligibilityMastercardComplianceStatus::RequiresFeeAcknowledgement
+            }
+            other => DisputeEnhancedEligibilityMastercardComplianceStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -668,38 +653,20 @@ impl DisputeEnhancedEligibilityTypesItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for DisputeEnhancedEligibilityTypesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = DisputeEnhancedEligibilityTypesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "mastercard_compliance" => DisputeEnhancedEligibilityTypesItem::MastercardCompliance,
-                    "visa_compelling_evidence_3" => DisputeEnhancedEligibilityTypesItem::VisaCompellingEvidence3,
-                    "visa_compliance" => DisputeEnhancedEligibilityTypesItem::VisaCompliance,
-                    other => DisputeEnhancedEligibilityTypesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(DisputeEnhancedEligibilityTypesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for DisputeEnhancedEligibilityTypesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(DisputeEnhancedEligibilityTypesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "mastercard_compliance" => DisputeEnhancedEligibilityTypesItem::MastercardCompliance,
+            "visa_compelling_evidence_3" => DisputeEnhancedEligibilityTypesItem::VisaCompellingEvidence3,
+            "visa_compliance" => DisputeEnhancedEligibilityTypesItem::VisaCompliance,
+            other => DisputeEnhancedEligibilityTypesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -748,13 +715,14 @@ impl<'de> serde::Deserialize<'de> for DisputeEnhancedEligibilityTypesItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DisputeEnhancedEligibilityVisaCompellingEvidence3 {
     #[doc = "List of actions required to qualify dispute for Visa Compelling Evidence 3.0 evidence submission."]
-    #[serde(default)]
+    #[json(default)]
     pub required_actions: Vec<crate::disputes::DisputeEnhancedEligibilityVisaCompellingEvidence3RequiredActionsItem>,
     #[doc = "Visa Compelling Evidence 3.0 eligibility status."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::disputes::DisputeEnhancedEligibilityVisaCompellingEvidence3Status,
 }
 
@@ -918,42 +886,24 @@ impl DisputeEnhancedEligibilityVisaCompellingEvidence3RequiredActionsItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for DisputeEnhancedEligibilityVisaCompellingEvidence3RequiredActionsItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = DisputeEnhancedEligibilityVisaCompellingEvidence3RequiredActionsItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "missing_customer_identifiers" => DisputeEnhancedEligibilityVisaCompellingEvidence3RequiredActionsItem::MissingCustomerIdentifiers,
-                    "missing_disputed_transaction_description" => DisputeEnhancedEligibilityVisaCompellingEvidence3RequiredActionsItem::MissingDisputedTransactionDescription,
-                    "missing_merchandise_or_services" => DisputeEnhancedEligibilityVisaCompellingEvidence3RequiredActionsItem::MissingMerchandiseOrServices,
-                    "missing_prior_undisputed_transaction_description" => DisputeEnhancedEligibilityVisaCompellingEvidence3RequiredActionsItem::MissingPriorUndisputedTransactionDescription,
-                    "missing_prior_undisputed_transactions" => DisputeEnhancedEligibilityVisaCompellingEvidence3RequiredActionsItem::MissingPriorUndisputedTransactions,
-                    other => DisputeEnhancedEligibilityVisaCompellingEvidence3RequiredActionsItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(DisputeEnhancedEligibilityVisaCompellingEvidence3RequiredActionsItem::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for DisputeEnhancedEligibilityVisaCompellingEvidence3RequiredActionsItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(DisputeEnhancedEligibilityVisaCompellingEvidence3RequiredActionsItem::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "missing_customer_identifiers" => DisputeEnhancedEligibilityVisaCompellingEvidence3RequiredActionsItem::MissingCustomerIdentifiers,
+            "missing_disputed_transaction_description" => DisputeEnhancedEligibilityVisaCompellingEvidence3RequiredActionsItem::MissingDisputedTransactionDescription,
+            "missing_merchandise_or_services" => DisputeEnhancedEligibilityVisaCompellingEvidence3RequiredActionsItem::MissingMerchandiseOrServices,
+            "missing_prior_undisputed_transaction_description" => DisputeEnhancedEligibilityVisaCompellingEvidence3RequiredActionsItem::MissingPriorUndisputedTransactionDescription,
+            "missing_prior_undisputed_transactions" => DisputeEnhancedEligibilityVisaCompellingEvidence3RequiredActionsItem::MissingPriorUndisputedTransactions,
+            other => DisputeEnhancedEligibilityVisaCompellingEvidence3RequiredActionsItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1164,38 +1114,20 @@ impl Default for DisputeEnhancedEligibilityVisaCompellingEvidence3Status {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for DisputeEnhancedEligibilityVisaCompellingEvidence3Status {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = DisputeEnhancedEligibilityVisaCompellingEvidence3Status;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "not_qualified" => DisputeEnhancedEligibilityVisaCompellingEvidence3Status::NotQualified,
-                    "qualified" => DisputeEnhancedEligibilityVisaCompellingEvidence3Status::Qualified,
-                    "requires_action" => DisputeEnhancedEligibilityVisaCompellingEvidence3Status::RequiresAction,
-                    other => DisputeEnhancedEligibilityVisaCompellingEvidence3Status::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(DisputeEnhancedEligibilityVisaCompellingEvidence3Status::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for DisputeEnhancedEligibilityVisaCompellingEvidence3Status {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(DisputeEnhancedEligibilityVisaCompellingEvidence3Status::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "not_qualified" => DisputeEnhancedEligibilityVisaCompellingEvidence3Status::NotQualified,
+            "qualified" => DisputeEnhancedEligibilityVisaCompellingEvidence3Status::Qualified,
+            "requires_action" => DisputeEnhancedEligibilityVisaCompellingEvidence3Status::RequiresAction,
+            other => DisputeEnhancedEligibilityVisaCompellingEvidence3Status::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1244,10 +1176,11 @@ impl<'de> serde::Deserialize<'de> for DisputeEnhancedEligibilityVisaCompellingEv
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DisputeEnhancedEligibilityVisaCompliance {
     #[doc = "Visa compliance eligibility status."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::disputes::DisputeEnhancedEligibilityMastercardComplianceStatus,
 }
 
@@ -1296,13 +1229,14 @@ pub struct DisputeEnhancedEligibilityVisaCompliance {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DisputeEnhancedEvidence {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mastercard_compliance: Option<crate::disputes::DisputeEnhancedEvidenceMastercardCompliance>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub visa_compelling_evidence_3: Option<crate::disputes::DisputeEnhancedEvidenceVisaCompellingEvidence3>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub visa_compliance: Option<crate::disputes::DisputeEnhancedEvidenceVisaCompliance>,
 }
 
@@ -1351,10 +1285,11 @@ pub struct DisputeEnhancedEvidence {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DisputeEnhancedEvidenceMastercardCompliance {
     #[doc = "A field acknowledging the fee incurred when countering a Mastercard compliance dispute."]
-    #[serde(default)]
+    #[json(default)]
     pub fee_acknowledged: bool,
 }
 
@@ -1403,13 +1338,14 @@ pub struct DisputeEnhancedEvidenceMastercardCompliance {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DisputeEnhancedEvidenceVisaCompellingEvidence3 {
     #[doc = "Disputed transaction details for Visa Compelling Evidence 3.0 evidence submission."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub disputed_transaction: Option<crate::disputes::DisputeVisaCompellingEvidence3DisputedTransaction>,
     #[doc = "List of exactly two prior undisputed transaction objects for Visa Compelling Evidence 3.0 evidence submission."]
-    #[serde(default)]
+    #[json(default)]
     pub prior_undisputed_transactions: Vec<crate::disputes::DisputeVisaCompellingEvidence3PriorUndisputedTransaction>,
 }
 
@@ -1458,10 +1394,11 @@ pub struct DisputeEnhancedEvidenceVisaCompellingEvidence3 {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DisputeEnhancedEvidenceVisaCompliance {
     #[doc = "A field acknowledging the fee incurred when countering a Visa compliance dispute."]
-    #[serde(default)]
+    #[json(default)]
     pub fee_acknowledged: bool,
 }
 
@@ -1510,90 +1447,91 @@ pub struct DisputeEnhancedEvidenceVisaCompliance {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DisputeEvidence {
     #[doc = "Any server or activity logs showing proof that the customer accessed or downloaded the purchased digital product."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub access_activity_log: Option<String>,
     #[doc = "The billing address provided by the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billing_address: Option<String>,
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Your subscription cancellation policy, as shown t..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cancellation_policy: Option<crate::Expandable<crate::files::File>>,
     #[doc = "An explanation of how and when the customer was shown your refund policy prior to purchase."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cancellation_policy_disclosure: Option<String>,
     #[doc = "A justification for why the customer's subscription was not canceled."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cancellation_rebuttal: Option<String>,
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Any communication with the customer that you feel..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_communication: Option<crate::Expandable<crate::files::File>>,
     #[doc = "The email address of the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_email_address: Option<String>,
     #[doc = "The name of the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_name: Option<String>,
     #[doc = "The IP address that the customer used when making the purchase."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_purchase_ip: Option<String>,
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) A relevant document or contract showing the custo..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_signature: Option<crate::Expandable<crate::files::File>>,
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Documentation for the prior charge that can uniqu..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub duplicate_charge_documentation: Option<crate::Expandable<crate::files::File>>,
     #[doc = "An explanation of the difference between the disputed charge versus the prior charge that appears to be a duplicate."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub duplicate_charge_explanation: Option<String>,
     #[doc = "The Stripe ID for the prior charge which appears to be a duplicate of the disputed charge."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub duplicate_charge_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub enhanced_evidence: Option<crate::disputes::DisputeEnhancedEvidence>,
     #[doc = "A description of the product or service that was sold."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub product_description: Option<String>,
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Any receipt or message sent to the customer notif..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub receipt: Option<crate::Expandable<crate::files::File>>,
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Your refund policy, as shown to the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_policy: Option<crate::Expandable<crate::files::File>>,
     #[doc = "Documentation demonstrating that the customer was shown your refund policy prior to purchase."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_policy_disclosure: Option<String>,
     #[doc = "A justification for why the customer is not entitled to a refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_refusal_explanation: Option<String>,
     #[doc = "The date on which the customer received or began receiving the purchased service, in a clear human-readable format."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub service_date: Option<String>,
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Documentation showing proof that a service was pr..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub service_documentation: Option<crate::Expandable<crate::files::File>>,
     #[doc = "The address to which a physical product was shipped."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_address: Option<String>,
     #[doc = "The delivery service that shipped a physical product, such as Fedex, UPS, USPS, etc."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_carrier: Option<String>,
     #[doc = "The date on which a physical product began its route to the shipping address, in a clear human-readable format."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_date: Option<String>,
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Documentation showing proof that a product was sh..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_documentation: Option<crate::Expandable<crate::files::File>>,
     #[doc = "The tracking number for a physical product, obtained from the delivery service."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_tracking_number: Option<String>,
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Any additional evidence or statements."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub uncategorized_file: Option<crate::Expandable<crate::files::File>>,
     #[doc = "Any additional evidence or statements."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub uncategorized_text: Option<String>,
 }
 
@@ -1642,21 +1580,22 @@ pub struct DisputeEvidence {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DisputeEvidenceDetails {
     #[doc = "Date by which evidence must be submitted in order to successfully challenge dispute."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub due_by: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub enhanced_eligibility: Option<crate::disputes::DisputeEnhancedEligibility>,
     #[doc = "Whether evidence has been staged for this dispute."]
-    #[serde(default)]
+    #[json(default)]
     pub has_evidence: bool,
     #[doc = "Whether the last evidence submission was submitted past the due date."]
-    #[serde(default)]
+    #[json(default)]
     pub past_due: bool,
     #[doc = "The number of times evidence has been submitted."]
-    #[serde(default)]
+    #[json(default)]
     pub submission_count: i64,
 }
 
@@ -1863,36 +1802,18 @@ impl Default for DisputeObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for DisputeObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = DisputeObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "dispute" => DisputeObject::Dispute,
-                    other => DisputeObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(DisputeObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for DisputeObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(DisputeObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "dispute" => DisputeObject::Dispute,
+            other => DisputeObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1941,18 +1862,19 @@ impl<'de> serde::Deserialize<'de> for DisputeObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DisputePaymentMethodDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amazon_pay: Option<crate::disputes::DisputePaymentMethodDetailsAmazonPay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::disputes::DisputePaymentMethodDetailsCard>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub klarna: Option<crate::disputes::DisputePaymentMethodDetailsKlarna>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paypal: Option<crate::disputes::DisputePaymentMethodDetailsPaypal>,
     #[doc = "Payment method type."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::disputes::DisputePaymentMethodDetailsType,
 }
 
@@ -2001,10 +1923,11 @@ pub struct DisputePaymentMethodDetails {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DisputePaymentMethodDetailsAmazonPay {
     #[doc = "The AmazonPay dispute type, chargeback or claim"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub dispute_type: Option<crate::disputes::DisputePaymentMethodDetailsAmazonPayDisputeType>,
 }
 
@@ -2162,37 +2085,19 @@ impl DisputePaymentMethodDetailsAmazonPayDisputeType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for DisputePaymentMethodDetailsAmazonPayDisputeType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = DisputePaymentMethodDetailsAmazonPayDisputeType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "chargeback" => DisputePaymentMethodDetailsAmazonPayDisputeType::Chargeback,
-                    "claim" => DisputePaymentMethodDetailsAmazonPayDisputeType::Claim,
-                    other => DisputePaymentMethodDetailsAmazonPayDisputeType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(DisputePaymentMethodDetailsAmazonPayDisputeType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for DisputePaymentMethodDetailsAmazonPayDisputeType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(DisputePaymentMethodDetailsAmazonPayDisputeType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "chargeback" => DisputePaymentMethodDetailsAmazonPayDisputeType::Chargeback,
+            "claim" => DisputePaymentMethodDetailsAmazonPayDisputeType::Claim,
+            other => DisputePaymentMethodDetailsAmazonPayDisputeType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2241,19 +2146,20 @@ impl<'de> serde::Deserialize<'de> for DisputePaymentMethodDetailsAmazonPayDisput
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DisputePaymentMethodDetailsCard {
     #[doc = "Card brand."]
-    #[serde(default)]
+    #[json(default)]
     pub brand: String,
     #[doc = "The type of dispute opened."]
-    #[serde(default)]
+    #[json(default)]
     pub case_type: crate::disputes::DisputePaymentMethodDetailsCardCaseType,
     #[doc = "Identifies which network this charge was processed on."]
-    #[serde(default)]
+    #[json(default)]
     pub network: String,
     #[doc = "The card network's specific dispute reason code, which maps to one of Stripe's primary dispute categories to simplify..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub network_reason_code: Option<String>,
 }
 
@@ -2468,40 +2374,22 @@ impl Default for DisputePaymentMethodDetailsCardCaseType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for DisputePaymentMethodDetailsCardCaseType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = DisputePaymentMethodDetailsCardCaseType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "block" => DisputePaymentMethodDetailsCardCaseType::Block,
-                    "chargeback" => DisputePaymentMethodDetailsCardCaseType::Chargeback,
-                    "compliance" => DisputePaymentMethodDetailsCardCaseType::Compliance,
-                    "inquiry" => DisputePaymentMethodDetailsCardCaseType::Inquiry,
-                    "resolution" => DisputePaymentMethodDetailsCardCaseType::Resolution,
-                    other => DisputePaymentMethodDetailsCardCaseType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(DisputePaymentMethodDetailsCardCaseType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for DisputePaymentMethodDetailsCardCaseType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(DisputePaymentMethodDetailsCardCaseType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "block" => DisputePaymentMethodDetailsCardCaseType::Block,
+            "chargeback" => DisputePaymentMethodDetailsCardCaseType::Chargeback,
+            "compliance" => DisputePaymentMethodDetailsCardCaseType::Compliance,
+            "inquiry" => DisputePaymentMethodDetailsCardCaseType::Inquiry,
+            "resolution" => DisputePaymentMethodDetailsCardCaseType::Resolution,
+            other => DisputePaymentMethodDetailsCardCaseType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2550,13 +2438,14 @@ impl<'de> serde::Deserialize<'de> for DisputePaymentMethodDetailsCardCaseType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DisputePaymentMethodDetailsKlarna {
     #[doc = "Chargeback loss reason mapped by Stripe from Klarna's chargeback loss reason"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub chargeback_loss_reason_code: Option<String>,
     #[doc = "The reason for the dispute as defined by Klarna"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reason_code: Option<String>,
 }
 
@@ -2605,13 +2494,14 @@ pub struct DisputePaymentMethodDetailsKlarna {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DisputePaymentMethodDetailsPaypal {
     #[doc = "The ID of the dispute in PayPal."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub case_id: Option<String>,
     #[doc = "The reason for the dispute as defined by PayPal"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reason_code: Option<String>,
 }
 
@@ -2824,39 +2714,21 @@ impl Default for DisputePaymentMethodDetailsType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for DisputePaymentMethodDetailsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = DisputePaymentMethodDetailsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "amazon_pay" => DisputePaymentMethodDetailsType::AmazonPay,
-                    "card" => DisputePaymentMethodDetailsType::Card,
-                    "klarna" => DisputePaymentMethodDetailsType::Klarna,
-                    "paypal" => DisputePaymentMethodDetailsType::Paypal,
-                    other => DisputePaymentMethodDetailsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(DisputePaymentMethodDetailsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for DisputePaymentMethodDetailsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(DisputePaymentMethodDetailsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "amazon_pay" => DisputePaymentMethodDetailsType::AmazonPay,
+            "card" => DisputePaymentMethodDetailsType::Card,
+            "klarna" => DisputePaymentMethodDetailsType::Klarna,
+            "paypal" => DisputePaymentMethodDetailsType::Paypal,
+            other => DisputePaymentMethodDetailsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3077,43 +2949,25 @@ impl Default for DisputeStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for DisputeStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = DisputeStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "lost" => DisputeStatus::Lost,
-                    "needs_response" => DisputeStatus::NeedsResponse,
-                    "prevented" => DisputeStatus::Prevented,
-                    "under_review" => DisputeStatus::UnderReview,
-                    "warning_closed" => DisputeStatus::WarningClosed,
-                    "warning_needs_response" => DisputeStatus::WarningNeedsResponse,
-                    "warning_under_review" => DisputeStatus::WarningUnderReview,
-                    "won" => DisputeStatus::Won,
-                    other => DisputeStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(DisputeStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for DisputeStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(DisputeStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "lost" => DisputeStatus::Lost,
+            "needs_response" => DisputeStatus::NeedsResponse,
+            "prevented" => DisputeStatus::Prevented,
+            "under_review" => DisputeStatus::UnderReview,
+            "warning_closed" => DisputeStatus::WarningClosed,
+            "warning_needs_response" => DisputeStatus::WarningNeedsResponse,
+            "warning_under_review" => DisputeStatus::WarningUnderReview,
+            "won" => DisputeStatus::Won,
+            other => DisputeStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3162,25 +3016,26 @@ impl<'de> serde::Deserialize<'de> for DisputeStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DisputeTransactionShippingAddress {
     #[doc = "City, district, suburb, town, or village."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
     #[doc = "Two-letter country code ([ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2))."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[doc = "Address line 1, such as the street, PO Box, or company name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line1: Option<String>,
     #[doc = "Address line 2, such as the apartment, suite, unit, or building."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line2: Option<String>,
     #[doc = "ZIP or postal code."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub postal_code: Option<String>,
     #[doc = "State, county, province, or region ([ISO 3166-2](https://en.wikipedia.org/wiki/ISO_3166-2))."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
 }
 
@@ -3229,32 +3084,33 @@ pub struct DisputeTransactionShippingAddress {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DisputeVisaCompellingEvidence3DisputedTransaction {
     #[doc = "User Account ID used to log into business platform."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_account_id: Option<String>,
     #[doc = "Unique identifier of the cardholder’s device derived from a combination of at least two hardware and software attribu..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_device_fingerprint: Option<String>,
     #[doc = "Unique identifier of the cardholder’s device such as a device serial number (e.g., International Mobile Equipment Ide..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_device_id: Option<String>,
     #[doc = "The email address of the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_email_address: Option<String>,
     #[doc = "The IP address that the customer used when making the purchase."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_purchase_ip: Option<String>,
     #[doc = "Categorization of disputed payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub merchandise_or_services:
         Option<crate::disputes::DisputeVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices>,
     #[doc = "A description of the product or service that was sold."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub product_description: Option<String>,
     #[doc = "The address to which a physical product was shipped."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_address: Option<crate::disputes::DisputeTransactionShippingAddress>,
 }
 
@@ -3412,43 +3268,21 @@ impl DisputeVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for DisputeVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = DisputeVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "merchandise" => {
-                        DisputeVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices::Merchandise
-                    }
-                    "services" => DisputeVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices::Services,
-                    other => DisputeVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(DisputeVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for DisputeVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(DisputeVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "merchandise" => DisputeVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices::Merchandise,
+            "services" => DisputeVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices::Services,
+            other => DisputeVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3497,31 +3331,32 @@ impl<'de> serde::Deserialize<'de> for DisputeVisaCompellingEvidence3DisputedTran
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DisputeVisaCompellingEvidence3PriorUndisputedTransaction {
     #[doc = "Stripe charge ID for the Visa Compelling Evidence 3.0 eligible prior charge."]
-    #[serde(default)]
+    #[json(default)]
     pub charge: String,
     #[doc = "User Account ID used to log into business platform."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_account_id: Option<String>,
     #[doc = "Unique identifier of the cardholder’s device derived from a combination of at least two hardware and software attribu..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_device_fingerprint: Option<String>,
     #[doc = "Unique identifier of the cardholder’s device such as a device serial number (e.g., International Mobile Equipment Ide..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_device_id: Option<String>,
     #[doc = "The email address of the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_email_address: Option<String>,
     #[doc = "The IP address that the customer used when making the purchase."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_purchase_ip: Option<String>,
     #[doc = "A description of the product or service that was sold."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub product_description: Option<String>,
     #[doc = "The address to which a physical product was shipped."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_address: Option<crate::disputes::DisputeTransactionShippingAddress>,
 }
 
@@ -3774,19 +3609,19 @@ impl crate::params::FormEncode for UpdateDisputeParamsEvidenceEnhancedEvidenceVi
 #[derive(Debug, Clone, Default)]
 pub struct UpdateDisputeParamsEvidenceEnhancedEvidenceVisaCompellingEvidence3DisputedTransaction {
     #[doc = "User Account ID used to log into business platform."]
-    pub customer_account_id: Option<serde_json::Value>,
+    pub customer_account_id: Option<json::OwnedValue>,
     #[doc = "Unique identifier of the cardholder’s device derived from a combination of at least two hardware and software attribu..."]
-    pub customer_device_fingerprint: Option<serde_json::Value>,
+    pub customer_device_fingerprint: Option<json::OwnedValue>,
     #[doc = "Unique identifier of the cardholder’s device such as a device serial number (e.g., International Mobile Equipment Ide..."]
-    pub customer_device_id: Option<serde_json::Value>,
+    pub customer_device_id: Option<json::OwnedValue>,
     #[doc = "The email address of the customer."]
-    pub customer_email_address: Option<serde_json::Value>,
+    pub customer_email_address: Option<json::OwnedValue>,
     #[doc = "The IP address that the customer used when making the purchase."]
-    pub customer_purchase_ip: Option<serde_json::Value>,
+    pub customer_purchase_ip: Option<json::OwnedValue>,
     #[doc = "Categorization of disputed payment."]
     pub merchandise_or_services: Option<crate::disputes::UpdateDisputeParamsEvidenceEnhancedEvidenceVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices>,
     #[doc = "A description of the product or service that was sold."]
-    pub product_description: Option<serde_json::Value>,
+    pub product_description: Option<json::OwnedValue>,
     #[doc = "The address to which a physical product was shipped."]
     pub shipping_address: Option<crate::disputes::UpdateDisputeParamsEvidenceEnhancedEvidenceVisaCompellingEvidence3DisputedTransactionShippingAddress>,
 }
@@ -3823,39 +3658,21 @@ impl UpdateDisputeParamsEvidenceEnhancedEvidenceVisaCompellingEvidence3DisputedT
 }
 
 #[cfg(feature = "disputes")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for UpdateDisputeParamsEvidenceEnhancedEvidenceVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = UpdateDisputeParamsEvidenceEnhancedEvidenceVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "merchandise" => UpdateDisputeParamsEvidenceEnhancedEvidenceVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices::Merchandise,
-                    "services" => UpdateDisputeParamsEvidenceEnhancedEvidenceVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices::Services,
-                    other => UpdateDisputeParamsEvidenceEnhancedEvidenceVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(UpdateDisputeParamsEvidenceEnhancedEvidenceVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(UpdateDisputeParamsEvidenceEnhancedEvidenceVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "merchandise" => UpdateDisputeParamsEvidenceEnhancedEvidenceVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices::Merchandise,
+            "services" => UpdateDisputeParamsEvidenceEnhancedEvidenceVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices::Services,
+            other => UpdateDisputeParamsEvidenceEnhancedEvidenceVisaCompellingEvidence3DisputedTransactionMerchandiseOrServices::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3872,17 +3689,17 @@ impl crate::params::FormEncode
 #[derive(Debug, Clone, Default)]
 pub struct UpdateDisputeParamsEvidenceEnhancedEvidenceVisaCompellingEvidence3DisputedTransactionShippingAddress {
     #[doc = "City, district, suburb, town, or village."]
-    pub city: Option<serde_json::Value>,
+    pub city: Option<json::OwnedValue>,
     #[doc = "Two-letter country code ([ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2))."]
-    pub country: Option<serde_json::Value>,
+    pub country: Option<json::OwnedValue>,
     #[doc = "Address line 1, such as the street, PO Box, or company name."]
-    pub line1: Option<serde_json::Value>,
+    pub line1: Option<json::OwnedValue>,
     #[doc = "Address line 2, such as the apartment, suite, unit, or building."]
-    pub line2: Option<serde_json::Value>,
+    pub line2: Option<json::OwnedValue>,
     #[doc = "ZIP or postal code."]
-    pub postal_code: Option<serde_json::Value>,
+    pub postal_code: Option<json::OwnedValue>,
     #[doc = "State, county, province, or region ([ISO 3166-2](https://en.wikipedia.org/wiki/ISO_3166-2))."]
-    pub state: Option<serde_json::Value>,
+    pub state: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "disputes")]
@@ -3900,17 +3717,17 @@ pub struct UpdateDisputeParamsEvidenceEnhancedEvidenceVisaCompellingEvidence3Pri
     #[doc = "Stripe charge ID for the Visa Compelling Evidence 3.0 eligible prior charge."]
     pub charge: String,
     #[doc = "User Account ID used to log into business platform."]
-    pub customer_account_id: Option<serde_json::Value>,
+    pub customer_account_id: Option<json::OwnedValue>,
     #[doc = "Unique identifier of the cardholder’s device derived from a combination of at least two hardware and software attribu..."]
-    pub customer_device_fingerprint: Option<serde_json::Value>,
+    pub customer_device_fingerprint: Option<json::OwnedValue>,
     #[doc = "Unique identifier of the cardholder’s device such as a device serial number (e.g., International Mobile Equipment Ide..."]
-    pub customer_device_id: Option<serde_json::Value>,
+    pub customer_device_id: Option<json::OwnedValue>,
     #[doc = "The email address of the customer."]
-    pub customer_email_address: Option<serde_json::Value>,
+    pub customer_email_address: Option<json::OwnedValue>,
     #[doc = "The IP address that the customer used when making the purchase."]
-    pub customer_purchase_ip: Option<serde_json::Value>,
+    pub customer_purchase_ip: Option<json::OwnedValue>,
     #[doc = "A description of the product or service that was sold."]
-    pub product_description: Option<serde_json::Value>,
+    pub product_description: Option<json::OwnedValue>,
     #[doc = "The address to which a physical product was shipped."]
     pub shipping_address: Option<crate::disputes::UpdateDisputeParamsEvidenceEnhancedEvidenceVisaCompellingEvidence3PriorUndisputedTransactionsItemShippingAddress>,
 }

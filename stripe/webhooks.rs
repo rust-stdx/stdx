@@ -15,7 +15,7 @@
 //! captured deliveries cannot be replayed indefinitely.
 
 use crypto::{hmac::Hmac, sha2::Sha256};
-use serde::de::DeserializeOwned;
+use json::DecodeOwned;
 
 use crate::error::{Error, WebhookError};
 
@@ -131,7 +131,7 @@ impl Webhook {
     /// Use this with the generated `Event` type to obtain a typed event, or
     /// with your own type. Decoding happens only after verification succeeds, so
     /// unauthenticated bytes are never parsed.
-    pub fn construct_event<T: DeserializeOwned>(
+    pub fn construct_event<T: DecodeOwned>(
         payload: &[u8],
         sig_header: &str,
         secret: &str,
@@ -145,8 +145,8 @@ impl Webhook {
     ///
     /// Only call this on payloads that were verified already, or that come from
     /// a trusted source. Prefer [`Webhook::construct_event`].
-    pub fn parse_event<T: DeserializeOwned>(payload: &[u8]) -> Result<T, Error> {
-        serde_json::from_slice(payload).map_err(|source| Error::Decode {
+    pub fn parse_event<T: DecodeOwned>(payload: &[u8]) -> Result<T, Error> {
+        T::decode_owned(payload).map_err(|source| Error::Decode {
             status: 200,
             request_id: None,
             source,

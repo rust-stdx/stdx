@@ -101,54 +101,55 @@ impl crate::params::FormEncode for ListSetupAttemptsParamsCreated {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttempt {
     #[doc = "The value of [application](https://docs.stripe.com/api/setup_intents/object#setup_intent_object-application) on the S..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application: Option<crate::Expandable<crate::common::Application>>,
     #[doc = "If present, the SetupIntent's payment method will be attached to the in-context Stripe Account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub attach_to_self: Option<bool>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "The value of [customer](https://docs.stripe.com/api/setup_intents/object#setup_intent_object-customer) on the SetupIn..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<crate::Expandable<crate::setup_attempts::SetupAttemptCustomerExpanded>>,
     #[doc = "The value of [customer_account](https://docs.stripe.com/api/setup_intents/object#setup_intent_object-customer_account..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_account: Option<String>,
     #[doc = "Indicates the directions of money movement for which this payment method is intended to be used."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub flow_directions: Option<Vec<crate::setup_attempts::SetupAttemptFlowDirectionsItem>>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::setup_attempts::SetupAttemptObject,
     #[doc = "The value of [on_behalf_of](https://docs.stripe.com/api/setup_intents/object#setup_intent_object-on_behalf_of) on the..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub on_behalf_of: Option<crate::Expandable<crate::account::Account>>,
     #[doc = "ID of the payment method used with this SetupAttempt."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method: Option<crate::Expandable<crate::payment_methods::PaymentMethod>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_details: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetails>,
     #[doc = "The error encountered during this attempt to confirm the SetupIntent, if any."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_error: Option<crate::common::ApiErrors>,
     #[doc = "ID of the SetupIntent that this attempt belongs to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_intent: Option<crate::Expandable<crate::setup_intents::SetupIntent>>,
     #[doc = "Status of this SetupAttempt, one of `requires_confirmation`, `requires_action`, `processing`, `succeeded`, `failed`, ..."]
-    #[serde(default)]
+    #[json(default)]
     pub status: String,
     #[doc = "The value of [usage](https://docs.stripe.com/api/setup_intents/object#setup_intent_object-usage) on the SetupIntent a..."]
-    #[serde(default)]
+    #[json(default)]
     pub usage: String,
 }
 
@@ -253,7 +254,7 @@ pub enum SetupAttemptCustomerExpanded {
     /// Expanded `customer`.
     Customer(Box<crate::customers::Customer>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -301,17 +302,15 @@ pub enum SetupAttemptCustomerExpanded {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SetupAttemptCustomerExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for SetupAttemptCustomerExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "customer" => SetupAttemptCustomerExpanded::Customer(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "customer" => {
+                SetupAttemptCustomerExpanded::Customer(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
             _ => SetupAttemptCustomerExpanded::Other(value),
         })
     }
@@ -471,37 +470,19 @@ impl SetupAttemptFlowDirectionsItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SetupAttemptFlowDirectionsItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SetupAttemptFlowDirectionsItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "inbound" => SetupAttemptFlowDirectionsItem::Inbound,
-                    "outbound" => SetupAttemptFlowDirectionsItem::Outbound,
-                    other => SetupAttemptFlowDirectionsItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SetupAttemptFlowDirectionsItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SetupAttemptFlowDirectionsItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SetupAttemptFlowDirectionsItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "inbound" => SetupAttemptFlowDirectionsItem::Inbound,
+            "outbound" => SetupAttemptFlowDirectionsItem::Outbound,
+            other => SetupAttemptFlowDirectionsItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -708,36 +689,18 @@ impl Default for SetupAttemptObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SetupAttemptObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SetupAttemptObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "setup_attempt" => SetupAttemptObject::SetupAttempt,
-                    other => SetupAttemptObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SetupAttemptObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SetupAttemptObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SetupAttemptObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "setup_attempt" => SetupAttemptObject::SetupAttempt,
+            other => SetupAttemptObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -786,64 +749,65 @@ impl<'de> serde::Deserialize<'de> for SetupAttemptObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub acss_debit: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsAcssDebit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amazon_pay: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsAmazonPay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub au_becs_debit: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsAuBecsDebit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bacs_debit: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsBacsDebit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bancontact: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsBancontact>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub blik: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsBlik>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub boleto: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsBoleto>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsCard>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card_present: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsCardPresent>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cashapp: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsCashapp>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ideal: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsIdeal>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub kakao_pay: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsKakaoPay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub klarna: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsKlarna>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub kr_card: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsKrCard>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub link: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsLink>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub naver_pay: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsNaverPay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub nz_bank_account: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsNzBankAccount>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paypal: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsPaypal>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payto: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsPayto>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pix: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsPix>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub revolut_pay: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsRevolutPay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub satispay: Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsSatispaySetupAttemptDetails>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sepa_debit: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsSepaDebit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sofort: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsSofort>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub twint: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsTwint>,
     #[doc = "The type of the payment method used in the SetupIntent (e.g., `card`)."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub upi: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsUpi>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us_bank_account: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsUsBankAccount>,
 }
 
@@ -892,7 +856,8 @@ pub struct SetupAttemptPaymentMethodDetails {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsAcssDebit {}
 
 #[cfg(any(
@@ -940,7 +905,8 @@ pub struct SetupAttemptPaymentMethodDetailsAcssDebit {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsAmazonPay {}
 
 #[cfg(any(
@@ -988,7 +954,8 @@ pub struct SetupAttemptPaymentMethodDetailsAmazonPay {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsAuBecsDebit {}
 
 #[cfg(any(
@@ -1036,7 +1003,8 @@ pub struct SetupAttemptPaymentMethodDetailsAuBecsDebit {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsBacsDebit {}
 
 #[cfg(any(
@@ -1084,31 +1052,32 @@ pub struct SetupAttemptPaymentMethodDetailsBacsDebit {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsBancontact {
     #[doc = "Bank code of bank associated with the bank account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_code: Option<String>,
     #[doc = "Name of the bank associated with the bank account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_name: Option<String>,
     #[doc = "Bank Identifier Code of the bank associated with the bank account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bic: Option<String>,
     #[doc = "The ID of the SEPA Direct Debit PaymentMethod which was generated by this SetupAttempt."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub generated_sepa_debit: Option<crate::Expandable<crate::payment_methods::PaymentMethod>>,
     #[doc = "The mandate for the SEPA Direct Debit PaymentMethod which was generated by this SetupAttempt."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub generated_sepa_debit_mandate: Option<crate::Expandable<crate::mandates::Mandate>>,
     #[doc = "Last four characters of the IBAN."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub iban_last4: Option<String>,
     #[doc = "Preferred language of the Bancontact authorization page that the customer is redirected to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub preferred_language: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsBancontactPreferredLanguage>,
     #[doc = "Owner's verified full name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verified_name: Option<String>,
 }
 
@@ -1270,41 +1239,23 @@ impl SetupAttemptPaymentMethodDetailsBancontactPreferredLanguage {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SetupAttemptPaymentMethodDetailsBancontactPreferredLanguage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SetupAttemptPaymentMethodDetailsBancontactPreferredLanguage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "de" => SetupAttemptPaymentMethodDetailsBancontactPreferredLanguage::De,
-                    "en" => SetupAttemptPaymentMethodDetailsBancontactPreferredLanguage::En,
-                    "fr" => SetupAttemptPaymentMethodDetailsBancontactPreferredLanguage::Fr,
-                    "nl" => SetupAttemptPaymentMethodDetailsBancontactPreferredLanguage::Nl,
-                    other => SetupAttemptPaymentMethodDetailsBancontactPreferredLanguage::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SetupAttemptPaymentMethodDetailsBancontactPreferredLanguage::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for SetupAttemptPaymentMethodDetailsBancontactPreferredLanguage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SetupAttemptPaymentMethodDetailsBancontactPreferredLanguage::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "de" => SetupAttemptPaymentMethodDetailsBancontactPreferredLanguage::De,
+            "en" => SetupAttemptPaymentMethodDetailsBancontactPreferredLanguage::En,
+            "fr" => SetupAttemptPaymentMethodDetailsBancontactPreferredLanguage::Fr,
+            "nl" => SetupAttemptPaymentMethodDetailsBancontactPreferredLanguage::Nl,
+            other => SetupAttemptPaymentMethodDetailsBancontactPreferredLanguage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1353,10 +1304,11 @@ impl<'de> serde::Deserialize<'de> for SetupAttemptPaymentMethodDetailsBancontact
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsBlik {
     #[doc = "A unique and immutable identifier assigned by BLIK to every buyer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub buyer_id: Option<String>,
 }
 
@@ -1405,7 +1357,8 @@ pub struct SetupAttemptPaymentMethodDetailsBlik {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsBoleto {}
 
 #[cfg(any(
@@ -1453,52 +1406,53 @@ pub struct SetupAttemptPaymentMethodDetailsBoleto {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsCard {
     #[doc = "Card brand."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub brand: Option<String>,
     #[doc = "Check results by Card networks on Card address and CVC at the time of authorization"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub checks: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsCardChecks>,
     #[doc = "Two-letter ISO code representing the country of the card."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[doc = "A high-level description of the type of cards issued in this range."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "Two-digit number representing the card's expiration month."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub exp_month: Option<i64>,
     #[doc = "Four-digit number representing the card's expiration year."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub exp_year: Option<i64>,
     #[doc = "Uniquely identifies this particular card number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
     #[doc = "Card funding type."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub funding: Option<String>,
     #[doc = "Issuer identification number of the card."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub iin: Option<String>,
     #[doc = "The name of the card's issuing bank."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuer: Option<String>,
     #[doc = "The last four digits of the card."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last4: Option<String>,
     #[doc = "True if this payment was marked as MOTO and out of scope for SCA."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub moto: Option<bool>,
     #[doc = "Identifies which network this charge was processed on."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub network: Option<String>,
     #[doc = "Populated if this authorization used 3D Secure authentication."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub three_d_secure: Option<crate::three_d_secure::ThreeDSecureDetails>,
     #[doc = "If this Card is part of a card wallet, this contains the details of the card wallet."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub wallet: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsCardWallet>,
 }
 
@@ -1547,16 +1501,17 @@ pub struct SetupAttemptPaymentMethodDetailsCard {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsCardChecks {
     #[doc = "If a address line1 was provided, results of the check, one of `pass`, `fail`, `unavailable`, or `unchecked`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address_line1_check: Option<String>,
     #[doc = "If a address postal code was provided, results of the check, one of `pass`, `fail`, `unavailable`, or `unchecked`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address_postal_code_check: Option<String>,
     #[doc = "If a CVC was provided, results of the check, one of `pass`, `fail`, `unavailable`, or `unchecked`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cvc_check: Option<String>,
 }
 
@@ -1605,13 +1560,14 @@ pub struct SetupAttemptPaymentMethodDetailsCardChecks {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsCardPresent {
     #[doc = "The ID of the Card PaymentMethod which was generated by this SetupAttempt."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub generated_card: Option<crate::Expandable<crate::payment_methods::PaymentMethod>>,
     #[doc = "Details about payments collected offline."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub offline: Option<crate::payment_methods::PaymentMethodDetailsCardPresentOffline>,
 }
 
@@ -1660,14 +1616,15 @@ pub struct SetupAttemptPaymentMethodDetailsCardPresent {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsCardWallet {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub apple_pay: Option<crate::payment_methods::PaymentMethodDetailsCardWalletApplePay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub google_pay: Option<crate::payment_methods::PaymentMethodDetailsCardWalletGooglePay>,
     #[doc = "The type of the card wallet, one of `apple_pay`, `google_pay`, or `link`."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::setup_attempts::SetupAttemptPaymentMethodDetailsCardWalletType,
 }
 
@@ -1878,38 +1835,20 @@ impl Default for SetupAttemptPaymentMethodDetailsCardWalletType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SetupAttemptPaymentMethodDetailsCardWalletType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SetupAttemptPaymentMethodDetailsCardWalletType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "apple_pay" => SetupAttemptPaymentMethodDetailsCardWalletType::ApplePay,
-                    "google_pay" => SetupAttemptPaymentMethodDetailsCardWalletType::GooglePay,
-                    "link" => SetupAttemptPaymentMethodDetailsCardWalletType::Link,
-                    other => SetupAttemptPaymentMethodDetailsCardWalletType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SetupAttemptPaymentMethodDetailsCardWalletType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SetupAttemptPaymentMethodDetailsCardWalletType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SetupAttemptPaymentMethodDetailsCardWalletType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "apple_pay" => SetupAttemptPaymentMethodDetailsCardWalletType::ApplePay,
+            "google_pay" => SetupAttemptPaymentMethodDetailsCardWalletType::GooglePay,
+            "link" => SetupAttemptPaymentMethodDetailsCardWalletType::Link,
+            other => SetupAttemptPaymentMethodDetailsCardWalletType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1958,7 +1897,8 @@ impl<'de> serde::Deserialize<'de> for SetupAttemptPaymentMethodDetailsCardWallet
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsCashapp {}
 
 #[cfg(any(
@@ -2006,25 +1946,26 @@ pub struct SetupAttemptPaymentMethodDetailsCashapp {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsIdeal {
     #[doc = "The customer's bank."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsIdealBank>,
     #[doc = "The Bank Identifier Code of the customer's bank."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bic: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsIdealBic>,
     #[doc = "The ID of the SEPA Direct Debit PaymentMethod which was generated by this SetupAttempt."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub generated_sepa_debit: Option<crate::Expandable<crate::payment_methods::PaymentMethod>>,
     #[doc = "The mandate for the SEPA Direct Debit PaymentMethod which was generated by this SetupAttempt."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub generated_sepa_debit_mandate: Option<crate::Expandable<crate::mandates::Mandate>>,
     #[doc = "Last four characters of the IBAN."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub iban_last4: Option<String>,
     #[doc = "Owner's verified full name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verified_name: Option<String>,
 }
 
@@ -2218,55 +2159,37 @@ impl SetupAttemptPaymentMethodDetailsIdealBank {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SetupAttemptPaymentMethodDetailsIdealBank {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SetupAttemptPaymentMethodDetailsIdealBank;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "abn_amro" => SetupAttemptPaymentMethodDetailsIdealBank::AbnAmro,
-                    "adyen" => SetupAttemptPaymentMethodDetailsIdealBank::Adyen,
-                    "asn_bank" => SetupAttemptPaymentMethodDetailsIdealBank::AsnBank,
-                    "bunq" => SetupAttemptPaymentMethodDetailsIdealBank::Bunq,
-                    "buut" => SetupAttemptPaymentMethodDetailsIdealBank::Buut,
-                    "finom" => SetupAttemptPaymentMethodDetailsIdealBank::Finom,
-                    "handelsbanken" => SetupAttemptPaymentMethodDetailsIdealBank::Handelsbanken,
-                    "ing" => SetupAttemptPaymentMethodDetailsIdealBank::Ing,
-                    "knab" => SetupAttemptPaymentMethodDetailsIdealBank::Knab,
-                    "mollie" => SetupAttemptPaymentMethodDetailsIdealBank::Mollie,
-                    "moneyou" => SetupAttemptPaymentMethodDetailsIdealBank::Moneyou,
-                    "n26" => SetupAttemptPaymentMethodDetailsIdealBank::N26,
-                    "nn" => SetupAttemptPaymentMethodDetailsIdealBank::Nn,
-                    "rabobank" => SetupAttemptPaymentMethodDetailsIdealBank::Rabobank,
-                    "regiobank" => SetupAttemptPaymentMethodDetailsIdealBank::Regiobank,
-                    "revolut" => SetupAttemptPaymentMethodDetailsIdealBank::Revolut,
-                    "sns_bank" => SetupAttemptPaymentMethodDetailsIdealBank::SnsBank,
-                    "triodos_bank" => SetupAttemptPaymentMethodDetailsIdealBank::TriodosBank,
-                    "van_lanschot" => SetupAttemptPaymentMethodDetailsIdealBank::VanLanschot,
-                    "yoursafe" => SetupAttemptPaymentMethodDetailsIdealBank::Yoursafe,
-                    other => SetupAttemptPaymentMethodDetailsIdealBank::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SetupAttemptPaymentMethodDetailsIdealBank::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SetupAttemptPaymentMethodDetailsIdealBank {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SetupAttemptPaymentMethodDetailsIdealBank::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "abn_amro" => SetupAttemptPaymentMethodDetailsIdealBank::AbnAmro,
+            "adyen" => SetupAttemptPaymentMethodDetailsIdealBank::Adyen,
+            "asn_bank" => SetupAttemptPaymentMethodDetailsIdealBank::AsnBank,
+            "bunq" => SetupAttemptPaymentMethodDetailsIdealBank::Bunq,
+            "buut" => SetupAttemptPaymentMethodDetailsIdealBank::Buut,
+            "finom" => SetupAttemptPaymentMethodDetailsIdealBank::Finom,
+            "handelsbanken" => SetupAttemptPaymentMethodDetailsIdealBank::Handelsbanken,
+            "ing" => SetupAttemptPaymentMethodDetailsIdealBank::Ing,
+            "knab" => SetupAttemptPaymentMethodDetailsIdealBank::Knab,
+            "mollie" => SetupAttemptPaymentMethodDetailsIdealBank::Mollie,
+            "moneyou" => SetupAttemptPaymentMethodDetailsIdealBank::Moneyou,
+            "n26" => SetupAttemptPaymentMethodDetailsIdealBank::N26,
+            "nn" => SetupAttemptPaymentMethodDetailsIdealBank::Nn,
+            "rabobank" => SetupAttemptPaymentMethodDetailsIdealBank::Rabobank,
+            "regiobank" => SetupAttemptPaymentMethodDetailsIdealBank::Regiobank,
+            "revolut" => SetupAttemptPaymentMethodDetailsIdealBank::Revolut,
+            "sns_bank" => SetupAttemptPaymentMethodDetailsIdealBank::SnsBank,
+            "triodos_bank" => SetupAttemptPaymentMethodDetailsIdealBank::TriodosBank,
+            "van_lanschot" => SetupAttemptPaymentMethodDetailsIdealBank::VanLanschot,
+            "yoursafe" => SetupAttemptPaymentMethodDetailsIdealBank::Yoursafe,
+            other => SetupAttemptPaymentMethodDetailsIdealBank::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2462,56 +2385,38 @@ impl SetupAttemptPaymentMethodDetailsIdealBic {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SetupAttemptPaymentMethodDetailsIdealBic {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SetupAttemptPaymentMethodDetailsIdealBic;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ABNANL2A" => SetupAttemptPaymentMethodDetailsIdealBic::ABNANL2A,
-                    "ADYBNL2A" => SetupAttemptPaymentMethodDetailsIdealBic::ADYBNL2A,
-                    "ASNBNL21" => SetupAttemptPaymentMethodDetailsIdealBic::ASNBNL21,
-                    "BITSNL2A" => SetupAttemptPaymentMethodDetailsIdealBic::BITSNL2A,
-                    "BUNQNL2A" => SetupAttemptPaymentMethodDetailsIdealBic::BUNQNL2A,
-                    "BUUTNL2A" => SetupAttemptPaymentMethodDetailsIdealBic::BUUTNL2A,
-                    "FNOMNL22" => SetupAttemptPaymentMethodDetailsIdealBic::FNOMNL22,
-                    "FVLBNL22" => SetupAttemptPaymentMethodDetailsIdealBic::FVLBNL22,
-                    "HANDNL2A" => SetupAttemptPaymentMethodDetailsIdealBic::HANDNL2A,
-                    "INGBNL2A" => SetupAttemptPaymentMethodDetailsIdealBic::INGBNL2A,
-                    "KNABNL2H" => SetupAttemptPaymentMethodDetailsIdealBic::KNABNL2H,
-                    "MLLENL2A" => SetupAttemptPaymentMethodDetailsIdealBic::MLLENL2A,
-                    "MOYONL21" => SetupAttemptPaymentMethodDetailsIdealBic::MOYONL21,
-                    "NNBANL2G" => SetupAttemptPaymentMethodDetailsIdealBic::NNBANL2G,
-                    "NTSBDEB1" => SetupAttemptPaymentMethodDetailsIdealBic::NTSBDEB1,
-                    "RABONL2U" => SetupAttemptPaymentMethodDetailsIdealBic::RABONL2U,
-                    "RBRBNL21" => SetupAttemptPaymentMethodDetailsIdealBic::RBRBNL21,
-                    "REVOIE23" => SetupAttemptPaymentMethodDetailsIdealBic::REVOIE23,
-                    "REVOLT21" => SetupAttemptPaymentMethodDetailsIdealBic::REVOLT21,
-                    "SNSBNL2A" => SetupAttemptPaymentMethodDetailsIdealBic::SNSBNL2A,
-                    "TRIONL2U" => SetupAttemptPaymentMethodDetailsIdealBic::TRIONL2U,
-                    other => SetupAttemptPaymentMethodDetailsIdealBic::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SetupAttemptPaymentMethodDetailsIdealBic::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SetupAttemptPaymentMethodDetailsIdealBic {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SetupAttemptPaymentMethodDetailsIdealBic::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ABNANL2A" => SetupAttemptPaymentMethodDetailsIdealBic::ABNANL2A,
+            "ADYBNL2A" => SetupAttemptPaymentMethodDetailsIdealBic::ADYBNL2A,
+            "ASNBNL21" => SetupAttemptPaymentMethodDetailsIdealBic::ASNBNL21,
+            "BITSNL2A" => SetupAttemptPaymentMethodDetailsIdealBic::BITSNL2A,
+            "BUNQNL2A" => SetupAttemptPaymentMethodDetailsIdealBic::BUNQNL2A,
+            "BUUTNL2A" => SetupAttemptPaymentMethodDetailsIdealBic::BUUTNL2A,
+            "FNOMNL22" => SetupAttemptPaymentMethodDetailsIdealBic::FNOMNL22,
+            "FVLBNL22" => SetupAttemptPaymentMethodDetailsIdealBic::FVLBNL22,
+            "HANDNL2A" => SetupAttemptPaymentMethodDetailsIdealBic::HANDNL2A,
+            "INGBNL2A" => SetupAttemptPaymentMethodDetailsIdealBic::INGBNL2A,
+            "KNABNL2H" => SetupAttemptPaymentMethodDetailsIdealBic::KNABNL2H,
+            "MLLENL2A" => SetupAttemptPaymentMethodDetailsIdealBic::MLLENL2A,
+            "MOYONL21" => SetupAttemptPaymentMethodDetailsIdealBic::MOYONL21,
+            "NNBANL2G" => SetupAttemptPaymentMethodDetailsIdealBic::NNBANL2G,
+            "NTSBDEB1" => SetupAttemptPaymentMethodDetailsIdealBic::NTSBDEB1,
+            "RABONL2U" => SetupAttemptPaymentMethodDetailsIdealBic::RABONL2U,
+            "RBRBNL21" => SetupAttemptPaymentMethodDetailsIdealBic::RBRBNL21,
+            "REVOIE23" => SetupAttemptPaymentMethodDetailsIdealBic::REVOIE23,
+            "REVOLT21" => SetupAttemptPaymentMethodDetailsIdealBic::REVOLT21,
+            "SNSBNL2A" => SetupAttemptPaymentMethodDetailsIdealBic::SNSBNL2A,
+            "TRIONL2U" => SetupAttemptPaymentMethodDetailsIdealBic::TRIONL2U,
+            other => SetupAttemptPaymentMethodDetailsIdealBic::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2560,7 +2465,8 @@ impl<'de> serde::Deserialize<'de> for SetupAttemptPaymentMethodDetailsIdealBic {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsKakaoPay {}
 
 #[cfg(any(
@@ -2608,7 +2514,8 @@ pub struct SetupAttemptPaymentMethodDetailsKakaoPay {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsKlarna {}
 
 #[cfg(any(
@@ -2656,7 +2563,8 @@ pub struct SetupAttemptPaymentMethodDetailsKlarna {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsKrCard {}
 
 #[cfg(any(
@@ -2704,7 +2612,8 @@ pub struct SetupAttemptPaymentMethodDetailsKrCard {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsLink {}
 
 #[cfg(any(
@@ -2752,10 +2661,11 @@ pub struct SetupAttemptPaymentMethodDetailsLink {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsNaverPay {
     #[doc = "Uniquely identifies this particular Naver Pay account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub buyer_id: Option<String>,
 }
 
@@ -2804,7 +2714,8 @@ pub struct SetupAttemptPaymentMethodDetailsNaverPay {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsNzBankAccount {}
 
 #[cfg(any(
@@ -2852,7 +2763,8 @@ pub struct SetupAttemptPaymentMethodDetailsNzBankAccount {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsPaypal {}
 
 #[cfg(any(
@@ -2900,7 +2812,8 @@ pub struct SetupAttemptPaymentMethodDetailsPaypal {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsPayto {}
 
 #[cfg(any(
@@ -2948,10 +2861,11 @@ pub struct SetupAttemptPaymentMethodDetailsPayto {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsPix {
     #[doc = "Uniquely identifies this particular Pix account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
 }
 
@@ -3000,7 +2914,8 @@ pub struct SetupAttemptPaymentMethodDetailsPix {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsRevolutPay {}
 
 #[cfg(any(
@@ -3048,7 +2963,8 @@ pub struct SetupAttemptPaymentMethodDetailsRevolutPay {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsSepaDebit {}
 
 #[cfg(any(
@@ -3096,31 +3012,32 @@ pub struct SetupAttemptPaymentMethodDetailsSepaDebit {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsSofort {
     #[doc = "Bank code of bank associated with the bank account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_code: Option<String>,
     #[doc = "Name of the bank associated with the bank account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_name: Option<String>,
     #[doc = "Bank Identifier Code of the bank associated with the bank account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bic: Option<String>,
     #[doc = "The ID of the SEPA Direct Debit PaymentMethod which was generated by this SetupAttempt."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub generated_sepa_debit: Option<crate::Expandable<crate::payment_methods::PaymentMethod>>,
     #[doc = "The mandate for the SEPA Direct Debit PaymentMethod which was generated by this SetupAttempt."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub generated_sepa_debit_mandate: Option<crate::Expandable<crate::mandates::Mandate>>,
     #[doc = "Last four characters of the IBAN."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub iban_last4: Option<String>,
     #[doc = "Preferred language of the Sofort authorization page that the customer is redirected to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub preferred_language: Option<crate::setup_attempts::SetupAttemptPaymentMethodDetailsBancontactPreferredLanguage>,
     #[doc = "Owner's verified full name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verified_name: Option<String>,
 }
 
@@ -3169,7 +3086,8 @@ pub struct SetupAttemptPaymentMethodDetailsSofort {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsTwint {}
 
 #[cfg(any(
@@ -3217,7 +3135,8 @@ pub struct SetupAttemptPaymentMethodDetailsTwint {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsUpi {}
 
 #[cfg(any(
@@ -3265,7 +3184,8 @@ pub struct SetupAttemptPaymentMethodDetailsUpi {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SetupAttemptPaymentMethodDetailsUsBankAccount {}
 
 #[cfg(feature = "setup_attempts")]

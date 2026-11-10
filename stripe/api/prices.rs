@@ -113,37 +113,19 @@ impl CreatePriceParamsBillingScheme {
 }
 
 #[cfg(feature = "prices")]
-impl<'de> serde::Deserialize<'de> for CreatePriceParamsBillingScheme {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePriceParamsBillingScheme;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "per_unit" => CreatePriceParamsBillingScheme::PerUnit,
-                    "tiered" => CreatePriceParamsBillingScheme::Tiered,
-                    other => CreatePriceParamsBillingScheme::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePriceParamsBillingScheme::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePriceParamsBillingScheme {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePriceParamsBillingScheme::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "per_unit" => CreatePriceParamsBillingScheme::PerUnit,
+            "tiered" => CreatePriceParamsBillingScheme::Tiered,
+            other => CreatePriceParamsBillingScheme::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -231,38 +213,20 @@ impl CreatePriceParamsCurrencyOptionsValueTaxBehavior {
 }
 
 #[cfg(feature = "prices")]
-impl<'de> serde::Deserialize<'de> for CreatePriceParamsCurrencyOptionsValueTaxBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePriceParamsCurrencyOptionsValueTaxBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exclusive" => CreatePriceParamsCurrencyOptionsValueTaxBehavior::Exclusive,
-                    "inclusive" => CreatePriceParamsCurrencyOptionsValueTaxBehavior::Inclusive,
-                    "unspecified" => CreatePriceParamsCurrencyOptionsValueTaxBehavior::Unspecified,
-                    other => CreatePriceParamsCurrencyOptionsValueTaxBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePriceParamsCurrencyOptionsValueTaxBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePriceParamsCurrencyOptionsValueTaxBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePriceParamsCurrencyOptionsValueTaxBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exclusive" => CreatePriceParamsCurrencyOptionsValueTaxBehavior::Exclusive,
+            "inclusive" => CreatePriceParamsCurrencyOptionsValueTaxBehavior::Inclusive,
+            "unspecified" => CreatePriceParamsCurrencyOptionsValueTaxBehavior::Unspecified,
+            other => CreatePriceParamsCurrencyOptionsValueTaxBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -285,7 +249,7 @@ pub struct CreatePriceParamsCurrencyOptionsValueTiersItem {
     #[doc = "Same as `unit_amount`, but accepts a decimal value in cents (or local equivalent) with at most 12 decimal places."]
     pub unit_amount_decimal: Option<String>,
     #[doc = "Specifies the upper bound of this tier."]
-    pub up_to: serde_json::Value,
+    pub up_to: json::OwnedValue,
 }
 
 #[cfg(feature = "prices")]
@@ -346,7 +310,7 @@ pub struct CreatePriceParamsProductDataTaxDetails {
     #[doc = "A tax location ID."]
     pub performance_location: Option<String>,
     #[doc = "A [tax code](https://docs.stripe.com/tax/tax-categories) ID."]
-    pub tax_code: Option<serde_json::Value>,
+    pub tax_code: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "prices")]
@@ -416,37 +380,19 @@ impl CreatePriceParamsTiersMode {
 }
 
 #[cfg(feature = "prices")]
-impl<'de> serde::Deserialize<'de> for CreatePriceParamsTiersMode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePriceParamsTiersMode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "graduated" => CreatePriceParamsTiersMode::Graduated,
-                    "volume" => CreatePriceParamsTiersMode::Volume,
-                    other => CreatePriceParamsTiersMode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePriceParamsTiersMode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePriceParamsTiersMode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePriceParamsTiersMode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "graduated" => CreatePriceParamsTiersMode::Graduated,
+            "volume" => CreatePriceParamsTiersMode::Volume,
+            other => CreatePriceParamsTiersMode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -496,37 +442,19 @@ impl CreatePriceParamsTransformQuantityRound {
 }
 
 #[cfg(feature = "prices")]
-impl<'de> serde::Deserialize<'de> for CreatePriceParamsTransformQuantityRound {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePriceParamsTransformQuantityRound;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "down" => CreatePriceParamsTransformQuantityRound::Down,
-                    "up" => CreatePriceParamsTransformQuantityRound::Up,
-                    other => CreatePriceParamsTransformQuantityRound::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePriceParamsTransformQuantityRound::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePriceParamsTransformQuantityRound {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePriceParamsTransformQuantityRound::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "down" => CreatePriceParamsTransformQuantityRound::Down,
+            "up" => CreatePriceParamsTransformQuantityRound::Up,
+            other => CreatePriceParamsTransformQuantityRound::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -658,39 +586,21 @@ impl ListPricesParamsRecurringInterval {
 }
 
 #[cfg(feature = "prices")]
-impl<'de> serde::Deserialize<'de> for ListPricesParamsRecurringInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListPricesParamsRecurringInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "day" => ListPricesParamsRecurringInterval::Day,
-                    "month" => ListPricesParamsRecurringInterval::Month,
-                    "week" => ListPricesParamsRecurringInterval::Week,
-                    "year" => ListPricesParamsRecurringInterval::Year,
-                    other => ListPricesParamsRecurringInterval::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListPricesParamsRecurringInterval::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListPricesParamsRecurringInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListPricesParamsRecurringInterval::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "day" => ListPricesParamsRecurringInterval::Day,
+            "month" => ListPricesParamsRecurringInterval::Month,
+            "week" => ListPricesParamsRecurringInterval::Week,
+            "year" => ListPricesParamsRecurringInterval::Year,
+            other => ListPricesParamsRecurringInterval::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -723,37 +633,19 @@ impl ListPricesParamsRecurringUsageType {
 }
 
 #[cfg(feature = "prices")]
-impl<'de> serde::Deserialize<'de> for ListPricesParamsRecurringUsageType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListPricesParamsRecurringUsageType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "licensed" => ListPricesParamsRecurringUsageType::Licensed,
-                    "metered" => ListPricesParamsRecurringUsageType::Metered,
-                    other => ListPricesParamsRecurringUsageType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListPricesParamsRecurringUsageType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListPricesParamsRecurringUsageType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListPricesParamsRecurringUsageType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "licensed" => ListPricesParamsRecurringUsageType::Licensed,
+            "metered" => ListPricesParamsRecurringUsageType::Metered,
+            other => ListPricesParamsRecurringUsageType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -786,37 +678,19 @@ impl ListPricesParamsType {
 }
 
 #[cfg(feature = "prices")]
-impl<'de> serde::Deserialize<'de> for ListPricesParamsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListPricesParamsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "one_time" => ListPricesParamsType::OneTime,
-                    "recurring" => ListPricesParamsType::Recurring,
-                    other => ListPricesParamsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListPricesParamsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListPricesParamsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListPricesParamsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "one_time" => ListPricesParamsType::OneTime,
+            "recurring" => ListPricesParamsType::Recurring,
+            other => ListPricesParamsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -876,70 +750,71 @@ impl crate::params::FormEncode for ListPricesParamsType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Price {
     #[doc = "Whether the price can be used for new purchases."]
-    #[serde(default)]
+    #[json(default)]
     pub active: bool,
     #[doc = "Describes how to compute the price per period."]
-    #[serde(default)]
+    #[json(default)]
     pub billing_scheme: crate::prices::PriceBillingScheme,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "Prices defined in each available currency option."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub currency_options: Option<std::collections::HashMap<String, crate::common::CurrencyOption>>,
     #[doc = "When set, provides configuration for the amount to be adjusted by the customer during Checkout Sessions and Payment L..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub custom_unit_amount: Option<crate::common::CustomUnitAmount>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "A lookup key used to retrieve prices dynamically from a static string."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub lookup_key: Option<String>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "A brief description of the price, hidden from customers."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub nickname: Option<String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::prices::PriceObject,
     #[doc = "The ID of the product this price is associated with."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub product: Option<crate::Expandable<crate::prices::PriceProductExpanded>>,
     #[doc = "The recurring components of a price such as `interval` and `usage_type`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub recurring: Option<crate::common::Recurring>,
     #[doc = "Only required if a [default tax behavior](https://docs.stripe.com/tax/products-prices-tax-categories-tax-behavior#set..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_behavior: Option<crate::prices::PriceTaxBehavior>,
     #[doc = "Each element represents a pricing tier."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tiers: Option<Vec<crate::prices::PriceTier>>,
     #[doc = "Defines if the tiering price should be `graduated` or `volume` based."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tiers_mode: Option<crate::prices::PriceTiersMode>,
     #[doc = "Apply a transformation to the reported usage or set quantity before computing the amount billed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transform_quantity: Option<crate::prices::TransformQuantity>,
     #[doc = "One of `one_time` or `recurring` depending on whether the price is for a one-time purchase or a recurring (subscripti..."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::prices::PriceType,
     #[doc = "The unit amount in cents (or local equivalent) to be charged, represented as a whole integer if possible."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unit_amount: Option<i64>,
     #[doc = "The unit amount in cents (or local equivalent) to be charged, represented as a decimal string with at most 12 decimal..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unit_amount_decimal: Option<String>,
 }
 
@@ -1219,37 +1094,19 @@ impl Default for PriceBillingScheme {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PriceBillingScheme {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PriceBillingScheme;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "per_unit" => PriceBillingScheme::PerUnit,
-                    "tiered" => PriceBillingScheme::Tiered,
-                    other => PriceBillingScheme::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PriceBillingScheme::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PriceBillingScheme {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PriceBillingScheme::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "per_unit" => PriceBillingScheme::PerUnit,
+            "tiered" => PriceBillingScheme::Tiered,
+            other => PriceBillingScheme::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1472,36 +1329,18 @@ impl Default for PriceObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PriceObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PriceObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "price" => PriceObject::Price,
-                    other => PriceObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PriceObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PriceObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PriceObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "price" => PriceObject::Price,
+            other => PriceObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1559,7 +1398,7 @@ pub enum PriceProductExpanded {
     /// Expanded `product`.
     Product(Box<crate::products::Product>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -1611,17 +1450,13 @@ pub enum PriceProductExpanded {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PriceProductExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for PriceProductExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "product" => PriceProductExpanded::Product(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "product" => PriceProductExpanded::Product(Box::new(json::from_slice_owned(&json::to_vec(&value))?)),
             _ => PriceProductExpanded::Other(value),
         })
     }
@@ -1795,38 +1630,20 @@ impl PriceTaxBehavior {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PriceTaxBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PriceTaxBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exclusive" => PriceTaxBehavior::Exclusive,
-                    "inclusive" => PriceTaxBehavior::Inclusive,
-                    "unspecified" => PriceTaxBehavior::Unspecified,
-                    other => PriceTaxBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PriceTaxBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PriceTaxBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PriceTaxBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exclusive" => PriceTaxBehavior::Exclusive,
+            "inclusive" => PriceTaxBehavior::Inclusive,
+            "unspecified" => PriceTaxBehavior::Unspecified,
+            other => PriceTaxBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1879,22 +1696,23 @@ impl<'de> serde::Deserialize<'de> for PriceTaxBehavior {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PriceTier {
     #[doc = "Price for the entire tier."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub flat_amount: Option<i64>,
     #[doc = "Same as `flat_amount`, but contains a decimal value with at most 12 decimal places."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub flat_amount_decimal: Option<String>,
     #[doc = "Per unit price for units relevant to the tier."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unit_amount: Option<i64>,
     #[doc = "Same as `unit_amount`, but contains a decimal value with at most 12 decimal places."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unit_amount_decimal: Option<String>,
     #[doc = "Up to and including to this quantity will be contained in the tier."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub up_to: Option<i64>,
 }
 
@@ -2064,37 +1882,19 @@ impl PriceTiersMode {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PriceTiersMode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PriceTiersMode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "graduated" => PriceTiersMode::Graduated,
-                    "volume" => PriceTiersMode::Volume,
-                    other => PriceTiersMode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PriceTiersMode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PriceTiersMode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PriceTiersMode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "graduated" => PriceTiersMode::Graduated,
+            "volume" => PriceTiersMode::Volume,
+            other => PriceTiersMode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2319,37 +2119,19 @@ impl Default for PriceType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PriceType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PriceType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "one_time" => PriceType::OneTime,
-                    "recurring" => PriceType::Recurring,
-                    other => PriceType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PriceType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PriceType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PriceType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "one_time" => PriceType::OneTime,
+            "recurring" => PriceType::Recurring,
+            other => PriceType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2423,13 +2205,14 @@ impl crate::params::FormEncode for SearchPricesParams {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TransformQuantity {
     #[doc = "Divide usage by this number."]
-    #[serde(default)]
+    #[json(default)]
     pub divide_by: i64,
     #[doc = "After division, either round the result `up` or `down`."]
-    #[serde(default)]
+    #[json(default)]
     pub round: crate::prices::TransformQuantityRound,
 }
 
@@ -2654,37 +2437,19 @@ impl Default for TransformQuantityRound {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for TransformQuantityRound {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TransformQuantityRound;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "down" => TransformQuantityRound::Down,
-                    "up" => TransformQuantityRound::Up,
-                    other => TransformQuantityRound::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TransformQuantityRound::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TransformQuantityRound {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TransformQuantityRound::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "down" => TransformQuantityRound::Down,
+            "up" => TransformQuantityRound::Up,
+            other => TransformQuantityRound::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2734,13 +2499,14 @@ impl<'de> serde::Deserialize<'de> for TransformQuantityRound {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TransformUsage {
     #[doc = "Divide usage by this number."]
-    #[serde(default)]
+    #[json(default)]
     pub divide_by: i64,
     #[doc = "After division, either round the result `up` or `down`."]
-    #[serde(default)]
+    #[json(default)]
     pub round: crate::prices::TransformQuantityRound,
 }
 

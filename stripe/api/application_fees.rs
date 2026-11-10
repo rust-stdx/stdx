@@ -53,52 +53,53 @@
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ApplicationFee {
     #[doc = "ID of the Stripe account this fee was taken from."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account: Option<crate::Expandable<crate::account::Account>>,
     #[doc = "Amount earned, in cents (or local equivalent)."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Amount in cents (or local equivalent) refunded (can be less than the amount attribute on the fee if a partial refund ..."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_refunded: i64,
     #[doc = "ID of the Connect application that earned the fee."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application: Option<crate::Expandable<crate::common::Application>>,
     #[doc = "Balance transaction that describes the impact of this collected application fee on your account balance (not includin..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub balance_transaction: Option<crate::Expandable<crate::balance_transactions::BalanceTransaction>>,
     #[doc = "ID of the charge that the application fee was taken from."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub charge: Option<crate::Expandable<crate::charges::Charge>>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "Polymorphic source of the application fee."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fee_source: Option<crate::application_fees::PlatformEarningFeeSource>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::application_fees::ApplicationFeeObject,
     #[doc = "ID of the corresponding charge on the platform account, if this fee was the result of a charge using the `destination..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub originating_transaction: Option<crate::Expandable<crate::charges::Charge>>,
     #[doc = "Whether the fee has been fully refunded."]
-    #[serde(default)]
+    #[json(default)]
     pub refunded: bool,
     #[doc = "A list of refunds that have been applied to the fee."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refunds: Option<crate::List<crate::common::FeeRefund>>,
 }
 
@@ -356,36 +357,18 @@ impl Default for ApplicationFeeObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ApplicationFeeObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ApplicationFeeObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "application_fee" => ApplicationFeeObject::ApplicationFee,
-                    other => ApplicationFeeObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ApplicationFeeObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ApplicationFeeObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ApplicationFeeObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "application_fee" => ApplicationFeeObject::ApplicationFee,
+            other => ApplicationFeeObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -547,16 +530,17 @@ impl crate::params::FormEncode for ListApplicationFeesParamsCreated {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PlatformEarningFeeSource {
     #[doc = "Charge ID that created this application fee."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub charge: Option<String>,
     #[doc = "Payout ID that created this application fee."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payout: Option<String>,
     #[doc = "Type of object that created the application fee."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::application_fees::PlatformEarningFeeSourceType,
 }
 
@@ -765,37 +749,19 @@ impl Default for PlatformEarningFeeSourceType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PlatformEarningFeeSourceType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PlatformEarningFeeSourceType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "charge" => PlatformEarningFeeSourceType::Charge,
-                    "payout" => PlatformEarningFeeSourceType::Payout,
-                    other => PlatformEarningFeeSourceType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PlatformEarningFeeSourceType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PlatformEarningFeeSourceType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PlatformEarningFeeSourceType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "charge" => PlatformEarningFeeSourceType::Charge,
+            "payout" => PlatformEarningFeeSourceType::Payout,
+            other => PlatformEarningFeeSourceType::Unknown(other.to_string()),
+        })
     }
 }
 

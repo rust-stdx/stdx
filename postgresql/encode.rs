@@ -176,38 +176,79 @@ impl_pg_type!(time::DateTime, TIMESTAMPTZOID, |this, buf| {
     Ok(IsNull::NotNull)
 });
 
-/// Serializes any `serde` value as a `jsonb` payload.
+/// Serializes any `json::Encode` value as a `jsonb` payload.
 ///
 /// Returns an error if the value cannot be serialized to JSON.
-pub fn json_encode<T: serde::Serialize + ?Sized>(value: &T, buf: &mut BytesMut) -> Result<IsNull, Error> {
+pub fn json_encode<T: json::Encode + ?Sized>(value: &T, buf: &mut BytesMut) -> Result<IsNull, Error> {
     buf.put_u8(1); // jsonb format version
-    // Serialize straight into the destination buffer instead of through an
+    // Encode straight into the destination buffer instead of through an
     // intermediate `Vec` (one fewer allocation and copy per parameter).
-    serde_json::to_writer(JsonWriter(buf), value)?;
+    let mut writer = JsonWriter(buf);
+    let mut encoder = json::Encoder::new(&mut writer);
+    value.encode(&mut encoder).unwrap_or_else(|never| match never {});
     Ok(IsNull::NotNull)
 }
 
-/// Adapts a `BytesMut` to [`std::io::Write`] so `serde_json` can serialize into
-/// it directly.
-///
-/// The `bytes` crate is built here without its `std` feature, so `BytesMut` has
-/// no `io::Write` implementation of its own.
+/// Adapts a `BytesMut` to [`json::Write`] so the encoder can write into it
+/// directly. `BytesMut` growth is infallible.
 struct JsonWriter<'a>(&'a mut BytesMut);
 
-impl std::io::Write for JsonWriter<'_> {
-    fn write(&mut self, data: &[u8]) -> std::io::Result<usize> {
-        self.0.extend_from_slice(data);
-        Ok(data.len())
-    }
+impl json::Write for JsonWriter<'_> {
+    type Error = core::convert::Infallible;
 
-    fn flush(&mut self) -> std::io::Result<()> {
+    fn write_all(&mut self, data: &[u8]) -> core::result::Result<(), Self::Error> {
+        self.0.extend_from_slice(data);
         Ok(())
     }
 }
 
-impl_pg_type!(serde_json::Value, JSONBOID, |this, buf| { json_encode(this, buf) });
+impl<'a> ToSql for json::Value<'a> {
+    fn encode(&self, buf: &mut BytesMut) -> Result<IsNull, Error> {
+        json_encode(self, buf)
+    }
 
-impl<T: serde::Serialize + Send + Sync> ToSql for Json<T> {
+    fn oid(&self) -> Oid {
+        JSONBOID
+    }
+}
+
+impl<'a> StaticType for json::Value<'a> {
+    const OID: Oid = JSONBOID;
+}
+
+impl<'a> ToSql for json::RawValue<'a> {
+    fn encode(&self, buf: &mut BytesMut) -> Result<IsNull, Error> {
+        buf.put_u8(1);
+        buf.put_slice(self.get());
+        Ok(IsNull::NotNull)
+    }
+
+    fn oid(&self) -> Oid {
+        JSONBOID
+    }
+}
+
+impl<'a> StaticType for json::RawValue<'a> {
+    const OID: Oid = JSONBOID;
+}
+
+impl ToSql for json::RawValueBuf {
+    fn encode(&self, buf: &mut BytesMut) -> Result<IsNull, Error> {
+        buf.put_u8(1);
+        buf.put_slice(self.as_bytes());
+        Ok(IsNull::NotNull)
+    }
+
+    fn oid(&self) -> Oid {
+        JSONBOID
+    }
+}
+
+impl StaticType for json::RawValueBuf {
+    const OID: Oid = JSONBOID;
+}
+
+impl<T: json::Encode + Send + Sync> ToSql for Json<T> {
     fn encode(&self, buf: &mut BytesMut) -> Result<IsNull, Error> {
         json_encode(&self.0, buf)
     }

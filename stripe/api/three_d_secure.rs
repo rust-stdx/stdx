@@ -229,39 +229,21 @@ impl CreateThreeDSecureAuthenticationParamsChannelThreeRIType {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for CreateThreeDSecureAuthenticationParamsChannelThreeRIType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateThreeDSecureAuthenticationParamsChannelThreeRIType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "delayed_shipment" => CreateThreeDSecureAuthenticationParamsChannelThreeRIType::DelayedShipment,
-                    "other_payment" => CreateThreeDSecureAuthenticationParamsChannelThreeRIType::OtherPayment,
-                    "recurring" => CreateThreeDSecureAuthenticationParamsChannelThreeRIType::Recurring,
-                    "split_shipment" => CreateThreeDSecureAuthenticationParamsChannelThreeRIType::SplitShipment,
-                    other => CreateThreeDSecureAuthenticationParamsChannelThreeRIType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateThreeDSecureAuthenticationParamsChannelThreeRIType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateThreeDSecureAuthenticationParamsChannelThreeRIType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateThreeDSecureAuthenticationParamsChannelThreeRIType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "delayed_shipment" => CreateThreeDSecureAuthenticationParamsChannelThreeRIType::DelayedShipment,
+            "other_payment" => CreateThreeDSecureAuthenticationParamsChannelThreeRIType::OtherPayment,
+            "recurring" => CreateThreeDSecureAuthenticationParamsChannelThreeRIType::Recurring,
+            "split_shipment" => CreateThreeDSecureAuthenticationParamsChannelThreeRIType::SplitShipment,
+            other => CreateThreeDSecureAuthenticationParamsChannelThreeRIType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -294,37 +276,19 @@ impl CreateThreeDSecureAuthenticationParamsChannelType {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for CreateThreeDSecureAuthenticationParamsChannelType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateThreeDSecureAuthenticationParamsChannelType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "browser" => CreateThreeDSecureAuthenticationParamsChannelType::Browser,
-                    "three_r_i" => CreateThreeDSecureAuthenticationParamsChannelType::ThreeRI,
-                    other => CreateThreeDSecureAuthenticationParamsChannelType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateThreeDSecureAuthenticationParamsChannelType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateThreeDSecureAuthenticationParamsChannelType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateThreeDSecureAuthenticationParamsChannelType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "browser" => CreateThreeDSecureAuthenticationParamsChannelType::Browser,
+            "three_r_i" => CreateThreeDSecureAuthenticationParamsChannelType::ThreeRI,
+            other => CreateThreeDSecureAuthenticationParamsChannelType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -363,40 +327,22 @@ impl CreateThreeDSecureAuthenticationParamsDirectoryServer {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for CreateThreeDSecureAuthenticationParamsDirectoryServer {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateThreeDSecureAuthenticationParamsDirectoryServer;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "american_express" => CreateThreeDSecureAuthenticationParamsDirectoryServer::AmericanExpress,
-                    "cartes_bancaires" => CreateThreeDSecureAuthenticationParamsDirectoryServer::CartesBancaires,
-                    "discover" => CreateThreeDSecureAuthenticationParamsDirectoryServer::Discover,
-                    "mastercard" => CreateThreeDSecureAuthenticationParamsDirectoryServer::Mastercard,
-                    "visa" => CreateThreeDSecureAuthenticationParamsDirectoryServer::Visa,
-                    other => CreateThreeDSecureAuthenticationParamsDirectoryServer::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateThreeDSecureAuthenticationParamsDirectoryServer::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateThreeDSecureAuthenticationParamsDirectoryServer {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateThreeDSecureAuthenticationParamsDirectoryServer::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "american_express" => CreateThreeDSecureAuthenticationParamsDirectoryServer::AmericanExpress,
+            "cartes_bancaires" => CreateThreeDSecureAuthenticationParamsDirectoryServer::CartesBancaires,
+            "discover" => CreateThreeDSecureAuthenticationParamsDirectoryServer::Discover,
+            "mastercard" => CreateThreeDSecureAuthenticationParamsDirectoryServer::Mastercard,
+            "visa" => CreateThreeDSecureAuthenticationParamsDirectoryServer::Visa,
+            other => CreateThreeDSecureAuthenticationParamsDirectoryServer::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -466,41 +412,21 @@ impl CreateThreeDSecureAuthenticationParamsFlowPreferenceChallengeType {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for CreateThreeDSecureAuthenticationParamsFlowPreferenceChallengeType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateThreeDSecureAuthenticationParamsFlowPreferenceChallengeType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "mandated" => CreateThreeDSecureAuthenticationParamsFlowPreferenceChallengeType::Mandated,
-                    "preferred" => CreateThreeDSecureAuthenticationParamsFlowPreferenceChallengeType::Preferred,
-                    other => {
-                        CreateThreeDSecureAuthenticationParamsFlowPreferenceChallengeType::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateThreeDSecureAuthenticationParamsFlowPreferenceChallengeType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateThreeDSecureAuthenticationParamsFlowPreferenceChallengeType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateThreeDSecureAuthenticationParamsFlowPreferenceChallengeType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "mandated" => CreateThreeDSecureAuthenticationParamsFlowPreferenceChallengeType::Mandated,
+            "preferred" => CreateThreeDSecureAuthenticationParamsFlowPreferenceChallengeType::Preferred,
+            other => CreateThreeDSecureAuthenticationParamsFlowPreferenceChallengeType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -547,41 +473,21 @@ impl CreateThreeDSecureAuthenticationParamsFlowPreferenceDataShareType {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for CreateThreeDSecureAuthenticationParamsFlowPreferenceDataShareType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateThreeDSecureAuthenticationParamsFlowPreferenceDataShareType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ds_specific" => CreateThreeDSecureAuthenticationParamsFlowPreferenceDataShareType::DsSpecific,
-                    "emv_standard" => CreateThreeDSecureAuthenticationParamsFlowPreferenceDataShareType::EmvStandard,
-                    other => {
-                        CreateThreeDSecureAuthenticationParamsFlowPreferenceDataShareType::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateThreeDSecureAuthenticationParamsFlowPreferenceDataShareType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateThreeDSecureAuthenticationParamsFlowPreferenceDataShareType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateThreeDSecureAuthenticationParamsFlowPreferenceDataShareType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ds_specific" => CreateThreeDSecureAuthenticationParamsFlowPreferenceDataShareType::DsSpecific,
+            "emv_standard" => CreateThreeDSecureAuthenticationParamsFlowPreferenceDataShareType::EmvStandard,
+            other => CreateThreeDSecureAuthenticationParamsFlowPreferenceDataShareType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -628,41 +534,21 @@ impl CreateThreeDSecureAuthenticationParamsFlowPreferenceFrictionlessType {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for CreateThreeDSecureAuthenticationParamsFlowPreferenceFrictionlessType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateThreeDSecureAuthenticationParamsFlowPreferenceFrictionlessType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "low_risk" => CreateThreeDSecureAuthenticationParamsFlowPreferenceFrictionlessType::LowRisk,
-                    "none" => CreateThreeDSecureAuthenticationParamsFlowPreferenceFrictionlessType::None,
-                    other => {
-                        CreateThreeDSecureAuthenticationParamsFlowPreferenceFrictionlessType::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateThreeDSecureAuthenticationParamsFlowPreferenceFrictionlessType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateThreeDSecureAuthenticationParamsFlowPreferenceFrictionlessType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateThreeDSecureAuthenticationParamsFlowPreferenceFrictionlessType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "low_risk" => CreateThreeDSecureAuthenticationParamsFlowPreferenceFrictionlessType::LowRisk,
+            "none" => CreateThreeDSecureAuthenticationParamsFlowPreferenceFrictionlessType::None,
+            other => CreateThreeDSecureAuthenticationParamsFlowPreferenceFrictionlessType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -697,38 +583,20 @@ impl CreateThreeDSecureAuthenticationParamsFlowPreferenceType {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for CreateThreeDSecureAuthenticationParamsFlowPreferenceType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateThreeDSecureAuthenticationParamsFlowPreferenceType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "challenge" => CreateThreeDSecureAuthenticationParamsFlowPreferenceType::Challenge,
-                    "data_share" => CreateThreeDSecureAuthenticationParamsFlowPreferenceType::DataShare,
-                    "frictionless" => CreateThreeDSecureAuthenticationParamsFlowPreferenceType::Frictionless,
-                    other => CreateThreeDSecureAuthenticationParamsFlowPreferenceType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateThreeDSecureAuthenticationParamsFlowPreferenceType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateThreeDSecureAuthenticationParamsFlowPreferenceType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateThreeDSecureAuthenticationParamsFlowPreferenceType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "challenge" => CreateThreeDSecureAuthenticationParamsFlowPreferenceType::Challenge,
+            "data_share" => CreateThreeDSecureAuthenticationParamsFlowPreferenceType::DataShare,
+            "frictionless" => CreateThreeDSecureAuthenticationParamsFlowPreferenceType::Frictionless,
+            other => CreateThreeDSecureAuthenticationParamsFlowPreferenceType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -824,41 +692,21 @@ impl CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentExpiryType {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentExpiryType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentExpiryType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "date" => CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentExpiryType::Date,
-                    "never" => CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentExpiryType::Never,
-                    other => CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentExpiryType::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentExpiryType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentExpiryType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentExpiryType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "date" => CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentExpiryType::Date,
+            "never" => CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentExpiryType::Never,
+            other => CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentExpiryType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -889,40 +737,20 @@ impl CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentInterval {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "day" => CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentInterval::Day,
-                    other => {
-                        CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentInterval::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentInterval::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentInterval::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "day" => CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentInterval::Day,
+            other => CreateThreeDSecureAuthenticationParamsFutureUsageInstallmentInterval::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1005,38 +833,20 @@ impl CreateThreeDSecureAuthenticationParamsFutureUsageType {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for CreateThreeDSecureAuthenticationParamsFutureUsageType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateThreeDSecureAuthenticationParamsFutureUsageType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "card_on_file" => CreateThreeDSecureAuthenticationParamsFutureUsageType::CardOnFile,
-                    "installment" => CreateThreeDSecureAuthenticationParamsFutureUsageType::Installment,
-                    "recurring" => CreateThreeDSecureAuthenticationParamsFutureUsageType::Recurring,
-                    other => CreateThreeDSecureAuthenticationParamsFutureUsageType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateThreeDSecureAuthenticationParamsFutureUsageType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateThreeDSecureAuthenticationParamsFutureUsageType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateThreeDSecureAuthenticationParamsFutureUsageType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "card_on_file" => CreateThreeDSecureAuthenticationParamsFutureUsageType::CardOnFile,
+            "installment" => CreateThreeDSecureAuthenticationParamsFutureUsageType::Installment,
+            "recurring" => CreateThreeDSecureAuthenticationParamsFutureUsageType::Recurring,
+            other => CreateThreeDSecureAuthenticationParamsFutureUsageType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1071,41 +881,21 @@ impl CreateThreeDSecureAuthenticationParamsMessageCategory {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for CreateThreeDSecureAuthenticationParamsMessageCategory {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateThreeDSecureAuthenticationParamsMessageCategory;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "non_payment_authentication" => {
-                        CreateThreeDSecureAuthenticationParamsMessageCategory::NonPaymentAuthentication
-                    }
-                    "payment_authentication" => {
-                        CreateThreeDSecureAuthenticationParamsMessageCategory::PaymentAuthentication
-                    }
-                    other => CreateThreeDSecureAuthenticationParamsMessageCategory::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateThreeDSecureAuthenticationParamsMessageCategory::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateThreeDSecureAuthenticationParamsMessageCategory {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateThreeDSecureAuthenticationParamsMessageCategory::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "non_payment_authentication" => {
+                CreateThreeDSecureAuthenticationParamsMessageCategory::NonPaymentAuthentication
+            }
+            "payment_authentication" => CreateThreeDSecureAuthenticationParamsMessageCategory::PaymentAuthentication,
+            other => CreateThreeDSecureAuthenticationParamsMessageCategory::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1122,7 +912,7 @@ pub struct CreateThreeDSecureAuthenticationParamsPaymentMethodData {
     #[doc = "Billing information associated with the PaymentMethod that may be used or required by particular types of payment met..."]
     pub billing_details:
         Option<crate::three_d_secure::CreateThreeDSecureAuthenticationParamsPaymentMethodDataBillingDetails>,
-    pub card: serde_json::Value,
+    pub card: json::OwnedValue,
     #[doc = "The type of the PaymentMethod."]
     pub r#type: crate::three_d_secure::CreateThreeDSecureAuthenticationParamsPaymentMethodDataType,
 }
@@ -1208,38 +998,20 @@ impl CreateThreeDSecureAuthenticationParamsPaymentMethodDataType {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for CreateThreeDSecureAuthenticationParamsPaymentMethodDataType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateThreeDSecureAuthenticationParamsPaymentMethodDataType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "card" => CreateThreeDSecureAuthenticationParamsPaymentMethodDataType::Card,
-                    other => CreateThreeDSecureAuthenticationParamsPaymentMethodDataType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateThreeDSecureAuthenticationParamsPaymentMethodDataType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateThreeDSecureAuthenticationParamsPaymentMethodDataType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateThreeDSecureAuthenticationParamsPaymentMethodDataType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "card" => CreateThreeDSecureAuthenticationParamsPaymentMethodDataType::Card,
+            other => CreateThreeDSecureAuthenticationParamsPaymentMethodDataType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1278,42 +1050,22 @@ impl CreateThreeDSecureAuthenticationParamsReason {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for CreateThreeDSecureAuthenticationParamsReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateThreeDSecureAuthenticationParamsReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cardholder_authentication" => {
-                        CreateThreeDSecureAuthenticationParamsReason::CardholderAuthentication
-                    }
-                    "issuer_requested" => CreateThreeDSecureAuthenticationParamsReason::IssuerRequested,
-                    "liability_shift" => CreateThreeDSecureAuthenticationParamsReason::LiabilityShift,
-                    "processing_costs" => CreateThreeDSecureAuthenticationParamsReason::ProcessingCosts,
-                    "regulatory_compliance" => CreateThreeDSecureAuthenticationParamsReason::RegulatoryCompliance,
-                    other => CreateThreeDSecureAuthenticationParamsReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateThreeDSecureAuthenticationParamsReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateThreeDSecureAuthenticationParamsReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateThreeDSecureAuthenticationParamsReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cardholder_authentication" => CreateThreeDSecureAuthenticationParamsReason::CardholderAuthentication,
+            "issuer_requested" => CreateThreeDSecureAuthenticationParamsReason::IssuerRequested,
+            "liability_shift" => CreateThreeDSecureAuthenticationParamsReason::LiabilityShift,
+            "processing_costs" => CreateThreeDSecureAuthenticationParamsReason::ProcessingCosts,
+            "regulatory_compliance" => CreateThreeDSecureAuthenticationParamsReason::RegulatoryCompliance,
+            other => CreateThreeDSecureAuthenticationParamsReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1354,40 +1106,22 @@ impl CreateThreeDSecureAuthenticationParamsSubmit {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for CreateThreeDSecureAuthenticationParamsSubmit {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateThreeDSecureAuthenticationParamsSubmit;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => CreateThreeDSecureAuthenticationParamsSubmit::Always,
-                    "if_fingerprinting_not_supported" => {
-                        CreateThreeDSecureAuthenticationParamsSubmit::IfFingerprintingNotSupported
-                    }
-                    "never" => CreateThreeDSecureAuthenticationParamsSubmit::Never,
-                    other => CreateThreeDSecureAuthenticationParamsSubmit::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateThreeDSecureAuthenticationParamsSubmit::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateThreeDSecureAuthenticationParamsSubmit {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateThreeDSecureAuthenticationParamsSubmit::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => CreateThreeDSecureAuthenticationParamsSubmit::Always,
+            "if_fingerprinting_not_supported" => {
+                CreateThreeDSecureAuthenticationParamsSubmit::IfFingerprintingNotSupported
+            }
+            "never" => CreateThreeDSecureAuthenticationParamsSubmit::Never,
+            other => CreateThreeDSecureAuthenticationParamsSubmit::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1491,41 +1225,23 @@ impl ListThreeDSecureAuthenticationsParamsStatus {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for ListThreeDSecureAuthenticationsParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListThreeDSecureAuthenticationsParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "canceled" => ListThreeDSecureAuthenticationsParamsStatus::Canceled,
-                    "error" => ListThreeDSecureAuthenticationsParamsStatus::Error,
-                    "failed" => ListThreeDSecureAuthenticationsParamsStatus::Failed,
-                    "requires_challenge" => ListThreeDSecureAuthenticationsParamsStatus::RequiresChallenge,
-                    "requires_submission" => ListThreeDSecureAuthenticationsParamsStatus::RequiresSubmission,
-                    "succeeded" => ListThreeDSecureAuthenticationsParamsStatus::Succeeded,
-                    other => ListThreeDSecureAuthenticationsParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListThreeDSecureAuthenticationsParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListThreeDSecureAuthenticationsParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListThreeDSecureAuthenticationsParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "canceled" => ListThreeDSecureAuthenticationsParamsStatus::Canceled,
+            "error" => ListThreeDSecureAuthenticationsParamsStatus::Error,
+            "failed" => ListThreeDSecureAuthenticationsParamsStatus::Failed,
+            "requires_challenge" => ListThreeDSecureAuthenticationsParamsStatus::RequiresChallenge,
+            "requires_submission" => ListThreeDSecureAuthenticationsParamsStatus::RequiresSubmission,
+            "succeeded" => ListThreeDSecureAuthenticationsParamsStatus::Succeeded,
+            other => ListThreeDSecureAuthenticationsParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1563,64 +1279,65 @@ impl crate::params::FormEncode for SubmitThreeDSecureAuthenticationParams {
 }
 
 #[cfg(feature = "three_d_secure")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThreeDSecureAuthentication {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub acquirer_details: Option<crate::three_d_secure::ThreeDSecureStandaloneResourceAcquirerDetails>,
     #[doc = "The amount for this 3DS Authentication."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
     #[doc = "The URL for presenting a challenge to your cardholder, present if status is requires_challenge."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub challenge_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub channel: Option<crate::three_d_secure::ThreeDSecureStandaloneResourceChannel>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[doc = "The 3DS directory server with which this 3DS Authentication was processed."]
-    #[serde(default)]
+    #[json(default)]
     pub directory_server: crate::three_d_secure::ThreeDSecureAuthenticationDirectoryServer,
     #[doc = "The URL for performing issuer fingerprinting, present if fingerprinting is supported for the given payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fingerprinting_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub flow_preference: Option<crate::three_d_secure::ThreeDSecureStandaloneResourceFlowPreference>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub future_usage: Option<crate::three_d_secure::ThreeDSecureStandaloneResourceFutureUsage>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Indicates whether this 3DS Authentication is being performed for a payment or non-payment use case."]
-    #[serde(default)]
+    #[json(default)]
     pub message_category: crate::three_d_secure::ThreeDSecureAuthenticationMessageCategory,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::three_d_secure::ThreeDSecureAuthenticationObject,
     #[doc = "The outcome of this 3DS Authentication."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub outcome: Option<crate::three_d_secure::ThreeDSecureAuthenticationOutcome>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub outcome_details: Option<crate::three_d_secure::ThreeDSecureStandaloneResourceOutcomeDetails>,
     #[doc = "ID of the payment method (a PaymentMethod object) to attach to this 3DS Authentication."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method: Option<crate::Expandable<crate::payment_methods::PaymentMethod>>,
     #[doc = "The reason for invoking this 3DS Authentication."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<crate::three_d_secure::ThreeDSecureAuthenticationReason>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_address: Option<crate::three_d_secure::ThreeDSecureStandaloneResourceShippingAddress>,
     #[doc = "Status of this Authentication."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::three_d_secure::ThreeDSecureAuthenticationStatus,
 }
 
@@ -1666,40 +1383,22 @@ impl Default for ThreeDSecureAuthenticationDirectoryServer {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureAuthenticationDirectoryServer {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureAuthenticationDirectoryServer;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "american_express" => ThreeDSecureAuthenticationDirectoryServer::AmericanExpress,
-                    "cartes_bancaires" => ThreeDSecureAuthenticationDirectoryServer::CartesBancaires,
-                    "discover" => ThreeDSecureAuthenticationDirectoryServer::Discover,
-                    "mastercard" => ThreeDSecureAuthenticationDirectoryServer::Mastercard,
-                    "visa" => ThreeDSecureAuthenticationDirectoryServer::Visa,
-                    other => ThreeDSecureAuthenticationDirectoryServer::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureAuthenticationDirectoryServer::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureAuthenticationDirectoryServer {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureAuthenticationDirectoryServer::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "american_express" => ThreeDSecureAuthenticationDirectoryServer::AmericanExpress,
+            "cartes_bancaires" => ThreeDSecureAuthenticationDirectoryServer::CartesBancaires,
+            "discover" => ThreeDSecureAuthenticationDirectoryServer::Discover,
+            "mastercard" => ThreeDSecureAuthenticationDirectoryServer::Mastercard,
+            "visa" => ThreeDSecureAuthenticationDirectoryServer::Visa,
+            other => ThreeDSecureAuthenticationDirectoryServer::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1732,37 +1431,19 @@ impl Default for ThreeDSecureAuthenticationMessageCategory {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureAuthenticationMessageCategory {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureAuthenticationMessageCategory;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "non_payment_authentication" => ThreeDSecureAuthenticationMessageCategory::NonPaymentAuthentication,
-                    "payment_authentication" => ThreeDSecureAuthenticationMessageCategory::PaymentAuthentication,
-                    other => ThreeDSecureAuthenticationMessageCategory::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureAuthenticationMessageCategory::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureAuthenticationMessageCategory {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureAuthenticationMessageCategory::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "non_payment_authentication" => ThreeDSecureAuthenticationMessageCategory::NonPaymentAuthentication,
+            "payment_authentication" => ThreeDSecureAuthenticationMessageCategory::PaymentAuthentication,
+            other => ThreeDSecureAuthenticationMessageCategory::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1793,36 +1474,18 @@ impl Default for ThreeDSecureAuthenticationObject {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureAuthenticationObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureAuthenticationObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "three_d_secure.authentication" => ThreeDSecureAuthenticationObject::ThreeDSecureAuthentication,
-                    other => ThreeDSecureAuthenticationObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureAuthenticationObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureAuthenticationObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureAuthenticationObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "three_d_secure.authentication" => ThreeDSecureAuthenticationObject::ThreeDSecureAuthentication,
+            other => ThreeDSecureAuthenticationObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1866,46 +1529,28 @@ impl ThreeDSecureAuthenticationOutcome {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureAuthenticationOutcome {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureAuthenticationOutcome;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "abandoned" => ThreeDSecureAuthenticationOutcome::Abandoned,
-                    "attempt_acknowledged" => ThreeDSecureAuthenticationOutcome::AttemptAcknowledged,
-                    "authenticated" => ThreeDSecureAuthenticationOutcome::Authenticated,
-                    "canceled" => ThreeDSecureAuthenticationOutcome::Canceled,
-                    "denied" => ThreeDSecureAuthenticationOutcome::Denied,
-                    "informational" => ThreeDSecureAuthenticationOutcome::Informational,
-                    "internal_error" => ThreeDSecureAuthenticationOutcome::InternalError,
-                    "not_supported" => ThreeDSecureAuthenticationOutcome::NotSupported,
-                    "not_triggered" => ThreeDSecureAuthenticationOutcome::NotTriggered,
-                    "processing_error" => ThreeDSecureAuthenticationOutcome::ProcessingError,
-                    "rejected" => ThreeDSecureAuthenticationOutcome::Rejected,
-                    other => ThreeDSecureAuthenticationOutcome::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureAuthenticationOutcome::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureAuthenticationOutcome {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureAuthenticationOutcome::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "abandoned" => ThreeDSecureAuthenticationOutcome::Abandoned,
+            "attempt_acknowledged" => ThreeDSecureAuthenticationOutcome::AttemptAcknowledged,
+            "authenticated" => ThreeDSecureAuthenticationOutcome::Authenticated,
+            "canceled" => ThreeDSecureAuthenticationOutcome::Canceled,
+            "denied" => ThreeDSecureAuthenticationOutcome::Denied,
+            "informational" => ThreeDSecureAuthenticationOutcome::Informational,
+            "internal_error" => ThreeDSecureAuthenticationOutcome::InternalError,
+            "not_supported" => ThreeDSecureAuthenticationOutcome::NotSupported,
+            "not_triggered" => ThreeDSecureAuthenticationOutcome::NotTriggered,
+            "processing_error" => ThreeDSecureAuthenticationOutcome::ProcessingError,
+            "rejected" => ThreeDSecureAuthenticationOutcome::Rejected,
+            other => ThreeDSecureAuthenticationOutcome::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1937,40 +1582,22 @@ impl ThreeDSecureAuthenticationReason {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureAuthenticationReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureAuthenticationReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cardholder_authentication" => ThreeDSecureAuthenticationReason::CardholderAuthentication,
-                    "issuer_requested" => ThreeDSecureAuthenticationReason::IssuerRequested,
-                    "liability_shift" => ThreeDSecureAuthenticationReason::LiabilityShift,
-                    "processing_costs" => ThreeDSecureAuthenticationReason::ProcessingCosts,
-                    "regulatory_compliance" => ThreeDSecureAuthenticationReason::RegulatoryCompliance,
-                    other => ThreeDSecureAuthenticationReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureAuthenticationReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureAuthenticationReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureAuthenticationReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cardholder_authentication" => ThreeDSecureAuthenticationReason::CardholderAuthentication,
+            "issuer_requested" => ThreeDSecureAuthenticationReason::IssuerRequested,
+            "liability_shift" => ThreeDSecureAuthenticationReason::LiabilityShift,
+            "processing_costs" => ThreeDSecureAuthenticationReason::ProcessingCosts,
+            "regulatory_compliance" => ThreeDSecureAuthenticationReason::RegulatoryCompliance,
+            other => ThreeDSecureAuthenticationReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2011,41 +1638,23 @@ impl Default for ThreeDSecureAuthenticationStatus {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureAuthenticationStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureAuthenticationStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "canceled" => ThreeDSecureAuthenticationStatus::Canceled,
-                    "error" => ThreeDSecureAuthenticationStatus::Error,
-                    "failed" => ThreeDSecureAuthenticationStatus::Failed,
-                    "requires_challenge" => ThreeDSecureAuthenticationStatus::RequiresChallenge,
-                    "requires_submission" => ThreeDSecureAuthenticationStatus::RequiresSubmission,
-                    "succeeded" => ThreeDSecureAuthenticationStatus::Succeeded,
-                    other => ThreeDSecureAuthenticationStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureAuthenticationStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureAuthenticationStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureAuthenticationStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "canceled" => ThreeDSecureAuthenticationStatus::Canceled,
+            "error" => ThreeDSecureAuthenticationStatus::Error,
+            "failed" => ThreeDSecureAuthenticationStatus::Failed,
+            "requires_challenge" => ThreeDSecureAuthenticationStatus::RequiresChallenge,
+            "requires_submission" => ThreeDSecureAuthenticationStatus::RequiresSubmission,
+            "succeeded" => ThreeDSecureAuthenticationStatus::Succeeded,
+            other => ThreeDSecureAuthenticationStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2094,25 +1703,26 @@ impl<'de> serde::Deserialize<'de> for ThreeDSecureAuthenticationStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThreeDSecureDetails {
     #[doc = "For authenticated transactions: how the customer was authenticated by the issuing bank."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub authentication_flow: Option<crate::three_d_secure::ThreeDSecureDetailsAuthenticationFlow>,
     #[doc = "The Electronic Commerce Indicator (ECI)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub electronic_commerce_indicator: Option<crate::three_d_secure::ThreeDSecureDetailsElectronicCommerceIndicator>,
     #[doc = "Indicates the outcome of 3D Secure authentication."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub result: Option<crate::three_d_secure::ThreeDSecureDetailsResult>,
     #[doc = "Additional information about why 3D Secure succeeded or failed based on the `result`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub result_reason: Option<crate::three_d_secure::ThreeDSecureDetailsResultReason>,
     #[doc = "The 3D Secure 1 XID or 3D Secure 2 Directory Server Transaction ID (dsTransId) for this payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transaction_id: Option<String>,
     #[doc = "The version of 3D Secure that was used."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub version: Option<crate::three_d_secure::ThreeDSecureDetailsVersion>,
 }
 
@@ -2270,37 +1880,19 @@ impl ThreeDSecureDetailsAuthenticationFlow {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureDetailsAuthenticationFlow {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureDetailsAuthenticationFlow;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "challenge" => ThreeDSecureDetailsAuthenticationFlow::Challenge,
-                    "frictionless" => ThreeDSecureDetailsAuthenticationFlow::Frictionless,
-                    other => ThreeDSecureDetailsAuthenticationFlow::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureDetailsAuthenticationFlow::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureDetailsAuthenticationFlow {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureDetailsAuthenticationFlow::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "challenge" => ThreeDSecureDetailsAuthenticationFlow::Challenge,
+            "frictionless" => ThreeDSecureDetailsAuthenticationFlow::Frictionless,
+            other => ThreeDSecureDetailsAuthenticationFlow::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2349,31 +1941,32 @@ impl<'de> serde::Deserialize<'de> for ThreeDSecureDetailsAuthenticationFlow {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThreeDSecureDetailsCharge {
     #[doc = "For authenticated transactions: how the customer was authenticated by the issuing bank."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub authentication_flow: Option<crate::three_d_secure::ThreeDSecureDetailsAuthenticationFlow>,
     #[doc = "The Electronic Commerce Indicator (ECI)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub electronic_commerce_indicator: Option<crate::three_d_secure::ThreeDSecureDetailsElectronicCommerceIndicator>,
     #[doc = "The exemption requested via 3DS and accepted by the issuer at authentication time."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub exemption_indicator: Option<crate::three_d_secure::ThreeDSecureDetailsChargeExemptionIndicator>,
     #[doc = "Whether Stripe requested the value of `exemption_indicator` in the transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub exemption_indicator_applied: Option<bool>,
     #[doc = "Indicates the outcome of 3D Secure authentication."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub result: Option<crate::three_d_secure::ThreeDSecureDetailsResult>,
     #[doc = "Additional information about why 3D Secure succeeded or failed based on the `result`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub result_reason: Option<crate::three_d_secure::ThreeDSecureDetailsResultReason>,
     #[doc = "The 3D Secure 1 XID or 3D Secure 2 Directory Server Transaction ID (dsTransId) for this payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transaction_id: Option<String>,
     #[doc = "The version of 3D Secure that was used."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub version: Option<crate::three_d_secure::ThreeDSecureDetailsVersion>,
 }
 
@@ -2582,37 +2175,19 @@ impl Default for ThreeDSecureDetailsChargeExemptionIndicator {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureDetailsChargeExemptionIndicator {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureDetailsChargeExemptionIndicator;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "low_risk" => ThreeDSecureDetailsChargeExemptionIndicator::LowRisk,
-                    "none" => ThreeDSecureDetailsChargeExemptionIndicator::None,
-                    other => ThreeDSecureDetailsChargeExemptionIndicator::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureDetailsChargeExemptionIndicator::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureDetailsChargeExemptionIndicator {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureDetailsChargeExemptionIndicator::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "low_risk" => ThreeDSecureDetailsChargeExemptionIndicator::LowRisk,
+            "none" => ThreeDSecureDetailsChargeExemptionIndicator::None,
+            other => ThreeDSecureDetailsChargeExemptionIndicator::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2776,40 +2351,22 @@ impl ThreeDSecureDetailsElectronicCommerceIndicator {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureDetailsElectronicCommerceIndicator {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureDetailsElectronicCommerceIndicator;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "01" => ThreeDSecureDetailsElectronicCommerceIndicator::N01,
-                    "02" => ThreeDSecureDetailsElectronicCommerceIndicator::N02,
-                    "05" => ThreeDSecureDetailsElectronicCommerceIndicator::N05,
-                    "06" => ThreeDSecureDetailsElectronicCommerceIndicator::N06,
-                    "07" => ThreeDSecureDetailsElectronicCommerceIndicator::N07,
-                    other => ThreeDSecureDetailsElectronicCommerceIndicator::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureDetailsElectronicCommerceIndicator::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureDetailsElectronicCommerceIndicator {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureDetailsElectronicCommerceIndicator::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "01" => ThreeDSecureDetailsElectronicCommerceIndicator::N01,
+            "02" => ThreeDSecureDetailsElectronicCommerceIndicator::N02,
+            "05" => ThreeDSecureDetailsElectronicCommerceIndicator::N05,
+            "06" => ThreeDSecureDetailsElectronicCommerceIndicator::N06,
+            "07" => ThreeDSecureDetailsElectronicCommerceIndicator::N07,
+            other => ThreeDSecureDetailsElectronicCommerceIndicator::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2977,42 +2534,24 @@ impl ThreeDSecureDetailsResult {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureDetailsResult {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureDetailsResult;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "attempt_acknowledged" => ThreeDSecureDetailsResult::AttemptAcknowledged,
-                    "authenticated" => ThreeDSecureDetailsResult::Authenticated,
-                    "data_share_only" => ThreeDSecureDetailsResult::DataShareOnly,
-                    "exempted" => ThreeDSecureDetailsResult::Exempted,
-                    "failed" => ThreeDSecureDetailsResult::Failed,
-                    "not_supported" => ThreeDSecureDetailsResult::NotSupported,
-                    "processing_error" => ThreeDSecureDetailsResult::ProcessingError,
-                    other => ThreeDSecureDetailsResult::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureDetailsResult::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureDetailsResult {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureDetailsResult::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "attempt_acknowledged" => ThreeDSecureDetailsResult::AttemptAcknowledged,
+            "authenticated" => ThreeDSecureDetailsResult::Authenticated,
+            "data_share_only" => ThreeDSecureDetailsResult::DataShareOnly,
+            "exempted" => ThreeDSecureDetailsResult::Exempted,
+            "failed" => ThreeDSecureDetailsResult::Failed,
+            "not_supported" => ThreeDSecureDetailsResult::NotSupported,
+            "processing_error" => ThreeDSecureDetailsResult::ProcessingError,
+            other => ThreeDSecureDetailsResult::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3180,42 +2719,24 @@ impl ThreeDSecureDetailsResultReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureDetailsResultReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureDetailsResultReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "abandoned" => ThreeDSecureDetailsResultReason::Abandoned,
-                    "bypassed" => ThreeDSecureDetailsResultReason::Bypassed,
-                    "canceled" => ThreeDSecureDetailsResultReason::Canceled,
-                    "card_not_enrolled" => ThreeDSecureDetailsResultReason::CardNotEnrolled,
-                    "network_not_supported" => ThreeDSecureDetailsResultReason::NetworkNotSupported,
-                    "protocol_error" => ThreeDSecureDetailsResultReason::ProtocolError,
-                    "rejected" => ThreeDSecureDetailsResultReason::Rejected,
-                    other => ThreeDSecureDetailsResultReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureDetailsResultReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureDetailsResultReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureDetailsResultReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "abandoned" => ThreeDSecureDetailsResultReason::Abandoned,
+            "bypassed" => ThreeDSecureDetailsResultReason::Bypassed,
+            "canceled" => ThreeDSecureDetailsResultReason::Canceled,
+            "card_not_enrolled" => ThreeDSecureDetailsResultReason::CardNotEnrolled,
+            "network_not_supported" => ThreeDSecureDetailsResultReason::NetworkNotSupported,
+            "protocol_error" => ThreeDSecureDetailsResultReason::ProtocolError,
+            "rejected" => ThreeDSecureDetailsResultReason::Rejected,
+            other => ThreeDSecureDetailsResultReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3379,120 +2900,106 @@ impl ThreeDSecureDetailsVersion {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureDetailsVersion {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureDetailsVersion;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "1.0.2" => ThreeDSecureDetailsVersion::N102,
-                    "2.1.0" => ThreeDSecureDetailsVersion::N210,
-                    "2.2.0" => ThreeDSecureDetailsVersion::N220,
-                    "2.3.0" => ThreeDSecureDetailsVersion::N230,
-                    "2.3.1" => ThreeDSecureDetailsVersion::N231,
-                    other => ThreeDSecureDetailsVersion::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureDetailsVersion::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureDetailsVersion {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureDetailsVersion::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "1.0.2" => ThreeDSecureDetailsVersion::N102,
+            "2.1.0" => ThreeDSecureDetailsVersion::N210,
+            "2.2.0" => ThreeDSecureDetailsVersion::N220,
+            "2.3.0" => ThreeDSecureDetailsVersion::N230,
+            "2.3.1" => ThreeDSecureDetailsVersion::N231,
+            other => ThreeDSecureDetailsVersion::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "three_d_secure")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThreeDSecureStandaloneResourceAcquirerDetails {
     #[doc = "The Acquirer BIN (specific to the directory_server)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub acquirer_bin: Option<String>,
     #[doc = "The two-letter country code of the acquirer ([ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2))."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub acquirer_country: Option<String>,
     #[doc = "The Merchant ID (or Card Acceptor ID) that your acquirer assigned you (specific to the directory_server)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub acquirer_merchant_id: Option<String>,
     #[doc = "The [merchant category code](https://en.wikipedia.org/wiki/Merchant_category_code) as defined by each payment system ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mcc: Option<String>,
     #[doc = "The merchant name assigned by the acquirer or payment system."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub merchant_name: Option<String>,
     #[doc = "Requestor ID if you’re enrolled in the card network’s 3DS program."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub requestor_id: Option<String>,
 }
 
 #[cfg(feature = "three_d_secure")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThreeDSecureStandaloneResourceBrowserDetails {
     #[doc = "The HTTP accept headers from the cardholder's browser."]
-    #[serde(default)]
+    #[json(default)]
     pub accept_header: String,
     #[doc = "The color depth of the cardholder’s screen."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub color_depth: Option<i64>,
     #[doc = "The IP address of the browser."]
-    #[serde(default)]
+    #[json(default)]
     pub ip_address: String,
     #[doc = "The cardholder browser’s ability to execute Java."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub java_enabled: Option<bool>,
     #[doc = "The cardholder browser’s ability to execute JavaScript."]
-    #[serde(default)]
+    #[json(default)]
     pub javascript_enabled: bool,
     #[doc = "An IETF BCP 47 language tag representing the browser language."]
-    #[serde(default)]
+    #[json(default)]
     pub language: String,
     #[doc = "The total height of the cardholder’s screen in pixels."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub screen_height: Option<i64>,
     #[doc = "The total width of the cardholder’s screen in pixels."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub screen_width: Option<i64>,
     #[doc = "The time difference between UTC time and the local time of the cardholder’s browser, in minutes."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub timezone_offset: Option<i64>,
     #[doc = "The browser user agent."]
-    #[serde(default)]
+    #[json(default)]
     pub user_agent: String,
 }
 
 #[cfg(feature = "three_d_secure")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThreeDSecureStandaloneResourceCartesBancaires {
     #[doc = "The cryptogram calculation algorithm used by the card Issuer's ACS to calculate the Authentication cryptogram."]
-    #[serde(default)]
+    #[json(default)]
     pub avalgo: String,
     #[doc = "The exemption indicator returned from Cartes Bancaires in the ARes."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cb_exemption: Option<String>,
     #[doc = "The risk score returned from Cartes Bancaires in the ARes."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cb_score: Option<String>,
 }
 
 #[cfg(feature = "three_d_secure")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThreeDSecureStandaloneResourceChallengeDetails {
     #[doc = "Type of challenge flow you requested for this 3DS Authentication."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::three_d_secure::ThreeDSecureStandaloneResourceChallengeDetailsType,
 }
 
@@ -3525,49 +3032,32 @@ impl Default for ThreeDSecureStandaloneResourceChallengeDetailsType {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureStandaloneResourceChallengeDetailsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureStandaloneResourceChallengeDetailsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "mandated" => ThreeDSecureStandaloneResourceChallengeDetailsType::Mandated,
-                    "preferred" => ThreeDSecureStandaloneResourceChallengeDetailsType::Preferred,
-                    other => ThreeDSecureStandaloneResourceChallengeDetailsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureStandaloneResourceChallengeDetailsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureStandaloneResourceChallengeDetailsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureStandaloneResourceChallengeDetailsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "mandated" => ThreeDSecureStandaloneResourceChallengeDetailsType::Mandated,
+            "preferred" => ThreeDSecureStandaloneResourceChallengeDetailsType::Preferred,
+            other => ThreeDSecureStandaloneResourceChallengeDetailsType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "three_d_secure")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThreeDSecureStandaloneResourceChannel {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub browser: Option<crate::three_d_secure::ThreeDSecureStandaloneResourceBrowserDetails>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub three_r_i: Option<crate::three_d_secure::ThreeDSecureStandaloneResourceThreeRiDetails>,
     #[doc = "Type of channel you would prefer to use for this 3DS Authentication."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::three_d_secure::ThreeDSecureStandaloneResourceChannelType,
 }
 
@@ -3600,45 +3090,28 @@ impl Default for ThreeDSecureStandaloneResourceChannelType {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureStandaloneResourceChannelType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureStandaloneResourceChannelType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "browser" => ThreeDSecureStandaloneResourceChannelType::Browser,
-                    "three_r_i" => ThreeDSecureStandaloneResourceChannelType::ThreeRI,
-                    other => ThreeDSecureStandaloneResourceChannelType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureStandaloneResourceChannelType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureStandaloneResourceChannelType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureStandaloneResourceChannelType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "browser" => ThreeDSecureStandaloneResourceChannelType::Browser,
+            "three_r_i" => ThreeDSecureStandaloneResourceChannelType::ThreeRI,
+            other => ThreeDSecureStandaloneResourceChannelType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "three_d_secure")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThreeDSecureStandaloneResourceDataShareDetails {
     #[doc = "Type of data share flow you requested for this 3DS Authentication."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::three_d_secure::ThreeDSecureStandaloneResourceDataShareDetailsType,
 }
 
@@ -3671,46 +3144,29 @@ impl Default for ThreeDSecureStandaloneResourceDataShareDetailsType {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureStandaloneResourceDataShareDetailsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureStandaloneResourceDataShareDetailsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ds_specific" => ThreeDSecureStandaloneResourceDataShareDetailsType::DsSpecific,
-                    "emv_standard" => ThreeDSecureStandaloneResourceDataShareDetailsType::EmvStandard,
-                    other => ThreeDSecureStandaloneResourceDataShareDetailsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureStandaloneResourceDataShareDetailsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureStandaloneResourceDataShareDetailsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureStandaloneResourceDataShareDetailsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ds_specific" => ThreeDSecureStandaloneResourceDataShareDetailsType::DsSpecific,
+            "emv_standard" => ThreeDSecureStandaloneResourceDataShareDetailsType::EmvStandard,
+            other => ThreeDSecureStandaloneResourceDataShareDetailsType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "three_d_secure")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThreeDSecureStandaloneResourceExpiry {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub date: Option<String>,
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::three_d_secure::ThreeDSecureStandaloneResourceExpiryType,
 }
 
@@ -3743,51 +3199,34 @@ impl Default for ThreeDSecureStandaloneResourceExpiryType {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureStandaloneResourceExpiryType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureStandaloneResourceExpiryType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "date" => ThreeDSecureStandaloneResourceExpiryType::Date,
-                    "never" => ThreeDSecureStandaloneResourceExpiryType::Never,
-                    other => ThreeDSecureStandaloneResourceExpiryType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureStandaloneResourceExpiryType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureStandaloneResourceExpiryType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureStandaloneResourceExpiryType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "date" => ThreeDSecureStandaloneResourceExpiryType::Date,
+            "never" => ThreeDSecureStandaloneResourceExpiryType::Never,
+            other => ThreeDSecureStandaloneResourceExpiryType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "three_d_secure")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThreeDSecureStandaloneResourceFlowPreference {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub challenge: Option<crate::three_d_secure::ThreeDSecureStandaloneResourceChallengeDetails>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub data_share: Option<crate::three_d_secure::ThreeDSecureStandaloneResourceDataShareDetails>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub frictionless: Option<crate::three_d_secure::ThreeDSecureStandaloneResourceFrictionlessDetails>,
     #[doc = "Type of flow you requested for this 3DS Authentication."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::three_d_secure::ThreeDSecureStandaloneResourceFlowPreferenceType,
 }
 
@@ -3822,58 +3261,42 @@ impl Default for ThreeDSecureStandaloneResourceFlowPreferenceType {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureStandaloneResourceFlowPreferenceType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureStandaloneResourceFlowPreferenceType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "challenge" => ThreeDSecureStandaloneResourceFlowPreferenceType::Challenge,
-                    "data_share" => ThreeDSecureStandaloneResourceFlowPreferenceType::DataShare,
-                    "frictionless" => ThreeDSecureStandaloneResourceFlowPreferenceType::Frictionless,
-                    other => ThreeDSecureStandaloneResourceFlowPreferenceType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureStandaloneResourceFlowPreferenceType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureStandaloneResourceFlowPreferenceType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureStandaloneResourceFlowPreferenceType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "challenge" => ThreeDSecureStandaloneResourceFlowPreferenceType::Challenge,
+            "data_share" => ThreeDSecureStandaloneResourceFlowPreferenceType::DataShare,
+            "frictionless" => ThreeDSecureStandaloneResourceFlowPreferenceType::Frictionless,
+            other => ThreeDSecureStandaloneResourceFlowPreferenceType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "three_d_secure")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThreeDSecureStandaloneResourceFrictionlessDetails {
     #[doc = "Type of frictionless flow you requested for this 3DS Authentication."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::three_d_secure::ThreeDSecureDetailsChargeExemptionIndicator,
 }
 
 #[cfg(feature = "three_d_secure")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThreeDSecureStandaloneResourceFutureUsage {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub installment: Option<crate::three_d_secure::ThreeDSecureStandaloneResourceInstallment>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub recurring: Option<crate::three_d_secure::ThreeDSecureStandaloneResourceRecurring>,
     #[doc = "The type of future usage declared for this 3DS Authentication."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::three_d_secure::ThreeDSecureStandaloneResourceFutureUsageType,
 }
 
@@ -3908,57 +3331,40 @@ impl Default for ThreeDSecureStandaloneResourceFutureUsageType {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureStandaloneResourceFutureUsageType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureStandaloneResourceFutureUsageType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "card_on_file" => ThreeDSecureStandaloneResourceFutureUsageType::CardOnFile,
-                    "installment" => ThreeDSecureStandaloneResourceFutureUsageType::Installment,
-                    "recurring" => ThreeDSecureStandaloneResourceFutureUsageType::Recurring,
-                    other => ThreeDSecureStandaloneResourceFutureUsageType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureStandaloneResourceFutureUsageType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureStandaloneResourceFutureUsageType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureStandaloneResourceFutureUsageType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "card_on_file" => ThreeDSecureStandaloneResourceFutureUsageType::CardOnFile,
+            "installment" => ThreeDSecureStandaloneResourceFutureUsageType::Installment,
+            "recurring" => ThreeDSecureStandaloneResourceFutureUsageType::Recurring,
+            other => ThreeDSecureStandaloneResourceFutureUsageType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "three_d_secure")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThreeDSecureStandaloneResourceInstallment {
     #[doc = "A non-negative integer representing the amount in the [smallest currency unit](/currencies#zero-decimal)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expiry: Option<crate::three_d_secure::ThreeDSecureStandaloneResourceExpiry>,
     #[doc = "The unit of time for `interval_count`."]
-    #[serde(default)]
+    #[json(default)]
     pub interval: crate::three_d_secure::ThreeDSecureStandaloneResourceInstallmentInterval,
     #[doc = "The minimum number of time intervals between authorizations."]
-    #[serde(default)]
+    #[json(default)]
     pub interval_count: i64,
     #[doc = "The maximum number of installments."]
-    #[serde(default)]
+    #[json(default)]
     pub number: i64,
 }
 
@@ -3989,84 +3395,68 @@ impl Default for ThreeDSecureStandaloneResourceInstallmentInterval {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureStandaloneResourceInstallmentInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureStandaloneResourceInstallmentInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "day" => ThreeDSecureStandaloneResourceInstallmentInterval::Day,
-                    other => ThreeDSecureStandaloneResourceInstallmentInterval::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureStandaloneResourceInstallmentInterval::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureStandaloneResourceInstallmentInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureStandaloneResourceInstallmentInterval::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "day" => ThreeDSecureStandaloneResourceInstallmentInterval::Day,
+            other => ThreeDSecureStandaloneResourceInstallmentInterval::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "three_d_secure")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThreeDSecureStandaloneResourceNetworkDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cartes_bancaires: Option<crate::three_d_secure::ThreeDSecureStandaloneResourceCartesBancaires>,
 }
 
 #[cfg(feature = "three_d_secure")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThreeDSecureStandaloneResourceOutcomeDetails {
     #[doc = "Universally unique transaction identifier assigned by the issuer to identify the transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub acs_transaction_id: Option<String>,
     #[doc = "The Authentication Response Message (ARes) is the issuer's response to the AReq message."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ares: Option<String>,
     #[doc = "TransStatus field on the ARes"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ares_trans_status: Option<crate::three_d_secure::ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus>,
     #[doc = "A 28-character Base64 string proving that 3DS was completed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cryptogram: Option<String>,
     #[doc = "The 3DS2 Directory Server Transaction ID."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ds_transaction_id: Option<String>,
     #[doc = "Electronic Commerce Indicator provided by the issuer to indicate the result of this 3DS Authentication."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub eci: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub network_details: Option<crate::three_d_secure::ThreeDSecureStandaloneResourceNetworkDetails>,
     #[doc = "The 3DS protocol version used for this 3DS Authentication."]
-    #[serde(default)]
+    #[json(default)]
     pub protocol_version: crate::three_d_secure::ThreeDSecureStandaloneResourceOutcomeDetailsProtocolVersion,
     #[doc = "The indicator provided to the issuer by Stripe in the AReq that indicates whether a challenge is requested for this A..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub requestor_challenge_indicator:
         Option<crate::three_d_secure::ThreeDSecureStandaloneResourceOutcomeDetailsRequestorChallengeIndicator>,
     #[doc = "The Results Request Message (RReq) communicates the results of the authentication or verification."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub rreq: Option<String>,
     #[doc = "TransStatus field on the RReq"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub rreq_trans_status: Option<crate::three_d_secure::ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus>,
     #[doc = "Universally unique transaction identifier assigned by Stripe to identify the transaction."]
-    #[serde(default)]
+    #[json(default)]
     pub three_ds_server_transaction_id: String,
 }
 
@@ -4106,46 +3496,28 @@ impl ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "A" => ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::A,
-                    "C" => ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::C,
-                    "D" => ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::D,
-                    "I" => ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::I,
-                    "N" => ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::N,
-                    "R" => ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::R,
-                    "S" => ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::S,
-                    "U" => ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::U,
-                    "Y" => ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::Y,
-                    other => ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "A" => ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::A,
+            "C" => ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::C,
+            "D" => ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::D,
+            "I" => ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::I,
+            "N" => ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::N,
+            "R" => ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::R,
+            "S" => ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::S,
+            "U" => ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::U,
+            "Y" => ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::Y,
+            other => ThreeDSecureStandaloneResourceOutcomeDetailsAresTransStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4180,40 +3552,22 @@ impl Default for ThreeDSecureStandaloneResourceOutcomeDetailsProtocolVersion {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureStandaloneResourceOutcomeDetailsProtocolVersion {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureStandaloneResourceOutcomeDetailsProtocolVersion;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "2.1.0" => ThreeDSecureStandaloneResourceOutcomeDetailsProtocolVersion::N210,
-                    "2.2.0" => ThreeDSecureStandaloneResourceOutcomeDetailsProtocolVersion::N220,
-                    "2.3.1" => ThreeDSecureStandaloneResourceOutcomeDetailsProtocolVersion::N231,
-                    other => ThreeDSecureStandaloneResourceOutcomeDetailsProtocolVersion::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureStandaloneResourceOutcomeDetailsProtocolVersion::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureStandaloneResourceOutcomeDetailsProtocolVersion {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureStandaloneResourceOutcomeDetailsProtocolVersion::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "2.1.0" => ThreeDSecureStandaloneResourceOutcomeDetailsProtocolVersion::N210,
+            "2.2.0" => ThreeDSecureStandaloneResourceOutcomeDetailsProtocolVersion::N220,
+            "2.3.1" => ThreeDSecureStandaloneResourceOutcomeDetailsProtocolVersion::N231,
+            other => ThreeDSecureStandaloneResourceOutcomeDetailsProtocolVersion::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4247,93 +3601,78 @@ impl ThreeDSecureStandaloneResourceOutcomeDetailsRequestorChallengeIndicator {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureStandaloneResourceOutcomeDetailsRequestorChallengeIndicator {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureStandaloneResourceOutcomeDetailsRequestorChallengeIndicator;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "01" => ThreeDSecureStandaloneResourceOutcomeDetailsRequestorChallengeIndicator::N01,
-                    "02" => ThreeDSecureStandaloneResourceOutcomeDetailsRequestorChallengeIndicator::N02,
-                    "03" => ThreeDSecureStandaloneResourceOutcomeDetailsRequestorChallengeIndicator::N03,
-                    "04" => ThreeDSecureStandaloneResourceOutcomeDetailsRequestorChallengeIndicator::N04,
-                    "05" => ThreeDSecureStandaloneResourceOutcomeDetailsRequestorChallengeIndicator::N05,
-                    "06" => ThreeDSecureStandaloneResourceOutcomeDetailsRequestorChallengeIndicator::N06,
-                    other => ThreeDSecureStandaloneResourceOutcomeDetailsRequestorChallengeIndicator::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureStandaloneResourceOutcomeDetailsRequestorChallengeIndicator::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureStandaloneResourceOutcomeDetailsRequestorChallengeIndicator {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureStandaloneResourceOutcomeDetailsRequestorChallengeIndicator::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "01" => ThreeDSecureStandaloneResourceOutcomeDetailsRequestorChallengeIndicator::N01,
+            "02" => ThreeDSecureStandaloneResourceOutcomeDetailsRequestorChallengeIndicator::N02,
+            "03" => ThreeDSecureStandaloneResourceOutcomeDetailsRequestorChallengeIndicator::N03,
+            "04" => ThreeDSecureStandaloneResourceOutcomeDetailsRequestorChallengeIndicator::N04,
+            "05" => ThreeDSecureStandaloneResourceOutcomeDetailsRequestorChallengeIndicator::N05,
+            "06" => ThreeDSecureStandaloneResourceOutcomeDetailsRequestorChallengeIndicator::N06,
+            other => {
+                ThreeDSecureStandaloneResourceOutcomeDetailsRequestorChallengeIndicator::Unknown(other.to_string())
+            }
+        })
     }
 }
 
 #[cfg(feature = "three_d_secure")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThreeDSecureStandaloneResourceRecurring {
     #[doc = "A non-negative integer representing the amount in the [smallest currency unit](/currencies#zero-decimal)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expiry: Option<crate::three_d_secure::ThreeDSecureStandaloneResourceExpiry>,
     #[doc = "The unit of time for `interval_count`."]
-    #[serde(default)]
+    #[json(default)]
     pub interval: crate::three_d_secure::ThreeDSecureStandaloneResourceInstallmentInterval,
     #[doc = "The minimum number of time intervals between authorizations."]
-    #[serde(default)]
+    #[json(default)]
     pub interval_count: i64,
 }
 
 #[cfg(feature = "three_d_secure")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThreeDSecureStandaloneResourceShippingAddress {
     #[doc = "City, district, suburb, town, or village."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
     #[doc = "Two-letter country code ([ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2))."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[doc = "Address line 1, such as the street, PO Box, or company name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line1: Option<String>,
     #[doc = "Address line 2, such as the apartment, suite, unit, or building."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line2: Option<String>,
     #[doc = "ZIP or postal code."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub postal_code: Option<String>,
     #[doc = "State, county, province, or region ([ISO 3166-2](https://en.wikipedia.org/wiki/ISO_3166-2))."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
 }
 
 #[cfg(feature = "three_d_secure")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThreeDSecureStandaloneResourceThreeRiDetails {
     #[doc = "ID of the previous initial authenticated 3DS Authentication object."]
-    #[serde(default)]
+    #[json(default)]
     pub previous_authentication: String,
     #[doc = "Type of the 3RI Authentication."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::three_d_secure::ThreeDSecureStandaloneResourceThreeRiDetailsType,
 }
 
@@ -4370,39 +3709,21 @@ impl Default for ThreeDSecureStandaloneResourceThreeRiDetailsType {
 }
 
 #[cfg(feature = "three_d_secure")]
-impl<'de> serde::Deserialize<'de> for ThreeDSecureStandaloneResourceThreeRiDetailsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThreeDSecureStandaloneResourceThreeRiDetailsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "delayed_shipment" => ThreeDSecureStandaloneResourceThreeRiDetailsType::DelayedShipment,
-                    "other_payment" => ThreeDSecureStandaloneResourceThreeRiDetailsType::OtherPayment,
-                    "recurring" => ThreeDSecureStandaloneResourceThreeRiDetailsType::Recurring,
-                    "split_shipment" => ThreeDSecureStandaloneResourceThreeRiDetailsType::SplitShipment,
-                    other => ThreeDSecureStandaloneResourceThreeRiDetailsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThreeDSecureStandaloneResourceThreeRiDetailsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThreeDSecureStandaloneResourceThreeRiDetailsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThreeDSecureStandaloneResourceThreeRiDetailsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "delayed_shipment" => ThreeDSecureStandaloneResourceThreeRiDetailsType::DelayedShipment,
+            "other_payment" => ThreeDSecureStandaloneResourceThreeRiDetailsType::OtherPayment,
+            "recurring" => ThreeDSecureStandaloneResourceThreeRiDetailsType::Recurring,
+            "split_shipment" => ThreeDSecureStandaloneResourceThreeRiDetailsType::SplitShipment,
+            other => ThreeDSecureStandaloneResourceThreeRiDetailsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4451,10 +3772,11 @@ impl<'de> serde::Deserialize<'de> for ThreeDSecureStandaloneResourceThreeRiDetai
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThreeDSecureUsage {
     #[doc = "Whether 3D Secure is supported on this card."]
-    #[serde(default)]
+    #[json(default)]
     pub supported: bool,
 }
 

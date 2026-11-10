@@ -12,8 +12,7 @@ workspace = true
 path = "src/json_rpc.rs"
 
 [dependencies]
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true, features = ["raw_value"] }
+json = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 tokio = { workspace = true }

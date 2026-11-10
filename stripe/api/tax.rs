@@ -140,37 +140,19 @@ impl CreateReversalParamsMode {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for CreateReversalParamsMode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateReversalParamsMode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "full" => CreateReversalParamsMode::Full,
-                    "partial" => CreateReversalParamsMode::Partial,
-                    other => CreateReversalParamsMode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateReversalParamsMode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateReversalParamsMode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateReversalParamsMode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "full" => CreateReversalParamsMode::Full,
+            "partial" => CreateReversalParamsMode::Partial,
+            other => CreateReversalParamsMode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -271,17 +253,17 @@ impl crate::params::FormEncode for CreateTaxCalculationParamsCustomerDetails {
 #[derive(Debug, Clone, Default)]
 pub struct CreateTaxCalculationParamsCustomerDetailsAddress {
     #[doc = "City, district, suburb, town, or village."]
-    pub city: Option<serde_json::Value>,
+    pub city: Option<json::OwnedValue>,
     #[doc = "Two-letter country code ([ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2))."]
     pub country: String,
     #[doc = "Address line 1, such as the street, PO Box, or company name."]
-    pub line1: Option<serde_json::Value>,
+    pub line1: Option<json::OwnedValue>,
     #[doc = "Address line 2, such as the apartment, suite, unit, or building."]
-    pub line2: Option<serde_json::Value>,
+    pub line2: Option<json::OwnedValue>,
     #[doc = "ZIP or postal code."]
-    pub postal_code: Option<serde_json::Value>,
+    pub postal_code: Option<json::OwnedValue>,
     #[doc = "State, county, province, or region."]
-    pub state: Option<serde_json::Value>,
+    pub state: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "tax")]
@@ -313,37 +295,19 @@ impl CreateTaxCalculationParamsCustomerDetailsAddressSource {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for CreateTaxCalculationParamsCustomerDetailsAddressSource {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTaxCalculationParamsCustomerDetailsAddressSource;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "billing" => CreateTaxCalculationParamsCustomerDetailsAddressSource::Billing,
-                    "shipping" => CreateTaxCalculationParamsCustomerDetailsAddressSource::Shipping,
-                    other => CreateTaxCalculationParamsCustomerDetailsAddressSource::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTaxCalculationParamsCustomerDetailsAddressSource::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTaxCalculationParamsCustomerDetailsAddressSource {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTaxCalculationParamsCustomerDetailsAddressSource::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "billing" => CreateTaxCalculationParamsCustomerDetailsAddressSource::Billing,
+            "shipping" => CreateTaxCalculationParamsCustomerDetailsAddressSource::Shipping,
+            other => CreateTaxCalculationParamsCustomerDetailsAddressSource::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -623,152 +587,134 @@ impl CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ad_nrt" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::AdNrt,
-                    "ae_trn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::AeTrn,
-                    "al_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::AlTin,
-                    "am_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::AmTin,
-                    "ao_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::AoTin,
-                    "ar_cuit" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::ArCuit,
-                    "au_abn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::AuAbn,
-                    "au_arn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::AuArn,
-                    "aw_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::AwTin,
-                    "az_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::AzTin,
-                    "ba_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BaTin,
-                    "bb_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BbTin,
-                    "bd_bin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BdBin,
-                    "bf_ifu" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BfIfu,
-                    "bg_uic" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BgUic,
-                    "bh_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BhVat,
-                    "bj_ifu" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BjIfu,
-                    "bo_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BoTin,
-                    "br_cnpj" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BrCnpj,
-                    "br_cpf" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BrCpf,
-                    "bs_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BsTin,
-                    "by_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::ByTin,
-                    "ca_bn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CaBn,
-                    "ca_gst_hst" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CaGstHst,
-                    "ca_pst_bc" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CaPstBc,
-                    "ca_pst_mb" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CaPstMb,
-                    "ca_pst_sk" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CaPstSk,
-                    "ca_qst" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CaQst,
-                    "cd_nif" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CdNif,
-                    "ch_uid" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::ChUid,
-                    "ch_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::ChVat,
-                    "cl_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::ClTin,
-                    "cm_niu" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CmNiu,
-                    "cn_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CnTin,
-                    "co_nit" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CoNit,
-                    "cr_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CrTin,
-                    "cv_nif" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CvNif,
-                    "de_stn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::DeStn,
-                    "do_rcn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::DoRcn,
-                    "ec_ruc" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::EcRuc,
-                    "eg_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::EgTin,
-                    "es_cif" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::EsCif,
-                    "et_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::EtTin,
-                    "eu_oss_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::EuOssVat,
-                    "eu_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::EuVat,
-                    "fo_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::FoVat,
-                    "gb_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::GbVat,
-                    "ge_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::GeVat,
-                    "gi_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::GiTin,
-                    "gn_nif" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::GnNif,
-                    "hk_br" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::HkBr,
-                    "hr_oib" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::HrOib,
-                    "hu_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::HuTin,
-                    "ic_nif" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::IcNif,
-                    "id_npwp" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::IdNpwp,
-                    "il_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::IlVat,
-                    "in_gst" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::InGst,
-                    "is_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::IsVat,
-                    "it_cf" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::ItCf,
-                    "jp_cn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::JpCn,
-                    "jp_rn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::JpRn,
-                    "jp_trn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::JpTrn,
-                    "ke_pin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::KePin,
-                    "kg_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::KgTin,
-                    "kh_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::KhTin,
-                    "kr_brn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::KrBrn,
-                    "kz_bin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::KzBin,
-                    "la_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::LaTin,
-                    "li_uid" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::LiUid,
-                    "li_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::LiVat,
-                    "lk_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::LkVat,
-                    "ma_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::MaVat,
-                    "md_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::MdVat,
-                    "me_pib" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::MePib,
-                    "mk_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::MkVat,
-                    "mr_nif" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::MrNif,
-                    "mx_rfc" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::MxRfc,
-                    "my_frp" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::MyFrp,
-                    "my_itn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::MyItn,
-                    "my_sst" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::MySst,
-                    "ng_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::NgTin,
-                    "no_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::NoVat,
-                    "no_voec" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::NoVoec,
-                    "np_pan" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::NpPan,
-                    "nz_gst" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::NzGst,
-                    "om_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::OmVat,
-                    "pe_ruc" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::PeRuc,
-                    "ph_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::PhTin,
-                    "pl_nip" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::PlNip,
-                    "py_ruc" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::PyRuc,
-                    "ro_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::RoTin,
-                    "rs_pib" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::RsPib,
-                    "ru_inn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::RuInn,
-                    "ru_kpp" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::RuKpp,
-                    "sa_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::SaVat,
-                    "sg_gst" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::SgGst,
-                    "sg_uen" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::SgUen,
-                    "si_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::SiTin,
-                    "sn_ninea" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::SnNinea,
-                    "sr_fin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::SrFin,
-                    "sv_nit" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::SvNit,
-                    "th_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::ThVat,
-                    "tj_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::TjTin,
-                    "tr_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::TrTin,
-                    "tw_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::TwVat,
-                    "tz_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::TzVat,
-                    "ua_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::UaVat,
-                    "ug_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::UgTin,
-                    "us_ein" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::UsEin,
-                    "uy_ruc" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::UyRuc,
-                    "uz_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::UzTin,
-                    "uz_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::UzVat,
-                    "ve_rif" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::VeRif,
-                    "vn_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::VnTin,
-                    "za_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::ZaVat,
-                    "zm_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::ZmTin,
-                    "zw_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::ZwTin,
-                    other => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ad_nrt" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::AdNrt,
+            "ae_trn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::AeTrn,
+            "al_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::AlTin,
+            "am_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::AmTin,
+            "ao_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::AoTin,
+            "ar_cuit" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::ArCuit,
+            "au_abn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::AuAbn,
+            "au_arn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::AuArn,
+            "aw_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::AwTin,
+            "az_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::AzTin,
+            "ba_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BaTin,
+            "bb_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BbTin,
+            "bd_bin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BdBin,
+            "bf_ifu" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BfIfu,
+            "bg_uic" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BgUic,
+            "bh_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BhVat,
+            "bj_ifu" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BjIfu,
+            "bo_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BoTin,
+            "br_cnpj" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BrCnpj,
+            "br_cpf" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BrCpf,
+            "bs_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::BsTin,
+            "by_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::ByTin,
+            "ca_bn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CaBn,
+            "ca_gst_hst" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CaGstHst,
+            "ca_pst_bc" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CaPstBc,
+            "ca_pst_mb" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CaPstMb,
+            "ca_pst_sk" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CaPstSk,
+            "ca_qst" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CaQst,
+            "cd_nif" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CdNif,
+            "ch_uid" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::ChUid,
+            "ch_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::ChVat,
+            "cl_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::ClTin,
+            "cm_niu" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CmNiu,
+            "cn_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CnTin,
+            "co_nit" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CoNit,
+            "cr_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CrTin,
+            "cv_nif" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::CvNif,
+            "de_stn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::DeStn,
+            "do_rcn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::DoRcn,
+            "ec_ruc" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::EcRuc,
+            "eg_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::EgTin,
+            "es_cif" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::EsCif,
+            "et_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::EtTin,
+            "eu_oss_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::EuOssVat,
+            "eu_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::EuVat,
+            "fo_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::FoVat,
+            "gb_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::GbVat,
+            "ge_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::GeVat,
+            "gi_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::GiTin,
+            "gn_nif" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::GnNif,
+            "hk_br" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::HkBr,
+            "hr_oib" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::HrOib,
+            "hu_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::HuTin,
+            "ic_nif" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::IcNif,
+            "id_npwp" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::IdNpwp,
+            "il_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::IlVat,
+            "in_gst" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::InGst,
+            "is_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::IsVat,
+            "it_cf" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::ItCf,
+            "jp_cn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::JpCn,
+            "jp_rn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::JpRn,
+            "jp_trn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::JpTrn,
+            "ke_pin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::KePin,
+            "kg_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::KgTin,
+            "kh_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::KhTin,
+            "kr_brn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::KrBrn,
+            "kz_bin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::KzBin,
+            "la_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::LaTin,
+            "li_uid" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::LiUid,
+            "li_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::LiVat,
+            "lk_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::LkVat,
+            "ma_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::MaVat,
+            "md_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::MdVat,
+            "me_pib" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::MePib,
+            "mk_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::MkVat,
+            "mr_nif" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::MrNif,
+            "mx_rfc" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::MxRfc,
+            "my_frp" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::MyFrp,
+            "my_itn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::MyItn,
+            "my_sst" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::MySst,
+            "ng_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::NgTin,
+            "no_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::NoVat,
+            "no_voec" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::NoVoec,
+            "np_pan" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::NpPan,
+            "nz_gst" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::NzGst,
+            "om_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::OmVat,
+            "pe_ruc" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::PeRuc,
+            "ph_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::PhTin,
+            "pl_nip" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::PlNip,
+            "py_ruc" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::PyRuc,
+            "ro_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::RoTin,
+            "rs_pib" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::RsPib,
+            "ru_inn" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::RuInn,
+            "ru_kpp" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::RuKpp,
+            "sa_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::SaVat,
+            "sg_gst" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::SgGst,
+            "sg_uen" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::SgUen,
+            "si_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::SiTin,
+            "sn_ninea" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::SnNinea,
+            "sr_fin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::SrFin,
+            "sv_nit" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::SvNit,
+            "th_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::ThVat,
+            "tj_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::TjTin,
+            "tr_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::TrTin,
+            "tw_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::TwVat,
+            "tz_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::TzVat,
+            "ua_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::UaVat,
+            "ug_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::UgTin,
+            "us_ein" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::UsEin,
+            "uy_ruc" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::UyRuc,
+            "uz_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::UzTin,
+            "uz_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::UzVat,
+            "ve_rif" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::VeRif,
+            "vn_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::VnTin,
+            "za_vat" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::ZaVat,
+            "zm_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::ZmTin,
+            "zw_tin" => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::ZwTin,
+            other => CreateTaxCalculationParamsCustomerDetailsTaxIdsItemType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -803,40 +749,22 @@ impl CreateTaxCalculationParamsCustomerDetailsTaxabilityOverride {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for CreateTaxCalculationParamsCustomerDetailsTaxabilityOverride {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTaxCalculationParamsCustomerDetailsTaxabilityOverride;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "customer_exempt" => CreateTaxCalculationParamsCustomerDetailsTaxabilityOverride::CustomerExempt,
-                    "none" => CreateTaxCalculationParamsCustomerDetailsTaxabilityOverride::None,
-                    "reverse_charge" => CreateTaxCalculationParamsCustomerDetailsTaxabilityOverride::ReverseCharge,
-                    other => CreateTaxCalculationParamsCustomerDetailsTaxabilityOverride::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTaxCalculationParamsCustomerDetailsTaxabilityOverride::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateTaxCalculationParamsCustomerDetailsTaxabilityOverride {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTaxCalculationParamsCustomerDetailsTaxabilityOverride::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "customer_exempt" => CreateTaxCalculationParamsCustomerDetailsTaxabilityOverride::CustomerExempt,
+            "none" => CreateTaxCalculationParamsCustomerDetailsTaxabilityOverride::None,
+            "reverse_charge" => CreateTaxCalculationParamsCustomerDetailsTaxabilityOverride::ReverseCharge,
+            other => CreateTaxCalculationParamsCustomerDetailsTaxabilityOverride::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -908,37 +836,19 @@ impl CreateTaxCalculationParamsLineItemsItemTaxBehavior {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for CreateTaxCalculationParamsLineItemsItemTaxBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTaxCalculationParamsLineItemsItemTaxBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exclusive" => CreateTaxCalculationParamsLineItemsItemTaxBehavior::Exclusive,
-                    "inclusive" => CreateTaxCalculationParamsLineItemsItemTaxBehavior::Inclusive,
-                    other => CreateTaxCalculationParamsLineItemsItemTaxBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTaxCalculationParamsLineItemsItemTaxBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTaxCalculationParamsLineItemsItemTaxBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTaxCalculationParamsLineItemsItemTaxBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exclusive" => CreateTaxCalculationParamsLineItemsItemTaxBehavior::Exclusive,
+            "inclusive" => CreateTaxCalculationParamsLineItemsItemTaxBehavior::Inclusive,
+            other => CreateTaxCalculationParamsLineItemsItemTaxBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1029,7 +939,7 @@ pub type CreateTaxLocationParamsType = crate::tax::ListTaxLocationsParamsType;
 #[derive(Debug, Clone)]
 pub struct CreateTaxRegistrationParams {
     #[doc = "Time at which the Tax Registration becomes active."]
-    pub active_from: serde_json::Value,
+    pub active_from: json::OwnedValue,
     #[doc = "Two-letter country code ([ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2))."]
     pub country: String,
     #[doc = "Specific options for a registration in the specified `country`."]
@@ -1420,43 +1330,21 @@ impl CreateTaxRegistrationParamsCountryOptionsAeStandardPlaceOfSupplyScheme {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for CreateTaxRegistrationParamsCountryOptionsAeStandardPlaceOfSupplyScheme {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTaxRegistrationParamsCountryOptionsAeStandardPlaceOfSupplyScheme;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "inbound_goods" => {
-                        CreateTaxRegistrationParamsCountryOptionsAeStandardPlaceOfSupplyScheme::InboundGoods
-                    }
-                    "standard" => CreateTaxRegistrationParamsCountryOptionsAeStandardPlaceOfSupplyScheme::Standard,
-                    other => CreateTaxRegistrationParamsCountryOptionsAeStandardPlaceOfSupplyScheme::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTaxRegistrationParamsCountryOptionsAeStandardPlaceOfSupplyScheme::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateTaxRegistrationParamsCountryOptionsAeStandardPlaceOfSupplyScheme {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTaxRegistrationParamsCountryOptionsAeStandardPlaceOfSupplyScheme::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "inbound_goods" => CreateTaxRegistrationParamsCountryOptionsAeStandardPlaceOfSupplyScheme::InboundGoods,
+            "standard" => CreateTaxRegistrationParamsCountryOptionsAeStandardPlaceOfSupplyScheme::Standard,
+            other => CreateTaxRegistrationParamsCountryOptionsAeStandardPlaceOfSupplyScheme::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1487,36 +1375,18 @@ impl CreateTaxRegistrationParamsCountryOptionsAeType {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for CreateTaxRegistrationParamsCountryOptionsAeType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTaxRegistrationParamsCountryOptionsAeType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "standard" => CreateTaxRegistrationParamsCountryOptionsAeType::Standard,
-                    other => CreateTaxRegistrationParamsCountryOptionsAeType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTaxRegistrationParamsCountryOptionsAeType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTaxRegistrationParamsCountryOptionsAeType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTaxRegistrationParamsCountryOptionsAeType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "standard" => CreateTaxRegistrationParamsCountryOptionsAeType::Standard,
+            other => CreateTaxRegistrationParamsCountryOptionsAeType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1600,36 +1470,18 @@ impl CreateTaxRegistrationParamsCountryOptionsAmType {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for CreateTaxRegistrationParamsCountryOptionsAmType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTaxRegistrationParamsCountryOptionsAmType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "simplified" => CreateTaxRegistrationParamsCountryOptionsAmType::Simplified,
-                    other => CreateTaxRegistrationParamsCountryOptionsAmType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTaxRegistrationParamsCountryOptionsAmType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTaxRegistrationParamsCountryOptionsAmType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTaxRegistrationParamsCountryOptionsAmType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "simplified" => CreateTaxRegistrationParamsCountryOptionsAmType::Simplified,
+            other => CreateTaxRegistrationParamsCountryOptionsAmType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1734,46 +1586,22 @@ impl CreateTaxRegistrationParamsCountryOptionsAtStandardPlaceOfSupplyScheme {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for CreateTaxRegistrationParamsCountryOptionsAtStandardPlaceOfSupplyScheme {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTaxRegistrationParamsCountryOptionsAtStandardPlaceOfSupplyScheme;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "inbound_goods" => {
-                        CreateTaxRegistrationParamsCountryOptionsAtStandardPlaceOfSupplyScheme::InboundGoods
-                    }
-                    "small_seller" => {
-                        CreateTaxRegistrationParamsCountryOptionsAtStandardPlaceOfSupplyScheme::SmallSeller
-                    }
-                    "standard" => CreateTaxRegistrationParamsCountryOptionsAtStandardPlaceOfSupplyScheme::Standard,
-                    other => CreateTaxRegistrationParamsCountryOptionsAtStandardPlaceOfSupplyScheme::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTaxRegistrationParamsCountryOptionsAtStandardPlaceOfSupplyScheme::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateTaxRegistrationParamsCountryOptionsAtStandardPlaceOfSupplyScheme {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTaxRegistrationParamsCountryOptionsAtStandardPlaceOfSupplyScheme::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "inbound_goods" => CreateTaxRegistrationParamsCountryOptionsAtStandardPlaceOfSupplyScheme::InboundGoods,
+            "small_seller" => CreateTaxRegistrationParamsCountryOptionsAtStandardPlaceOfSupplyScheme::SmallSeller,
+            "standard" => CreateTaxRegistrationParamsCountryOptionsAtStandardPlaceOfSupplyScheme::Standard,
+            other => CreateTaxRegistrationParamsCountryOptionsAtStandardPlaceOfSupplyScheme::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1810,39 +1638,21 @@ impl CreateTaxRegistrationParamsCountryOptionsAtType {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for CreateTaxRegistrationParamsCountryOptionsAtType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTaxRegistrationParamsCountryOptionsAtType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ioss" => CreateTaxRegistrationParamsCountryOptionsAtType::Ioss,
-                    "oss_non_union" => CreateTaxRegistrationParamsCountryOptionsAtType::OssNonUnion,
-                    "oss_union" => CreateTaxRegistrationParamsCountryOptionsAtType::OssUnion,
-                    "standard" => CreateTaxRegistrationParamsCountryOptionsAtType::Standard,
-                    other => CreateTaxRegistrationParamsCountryOptionsAtType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTaxRegistrationParamsCountryOptionsAtType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTaxRegistrationParamsCountryOptionsAtType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTaxRegistrationParamsCountryOptionsAtType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ioss" => CreateTaxRegistrationParamsCountryOptionsAtType::Ioss,
+            "oss_non_union" => CreateTaxRegistrationParamsCountryOptionsAtType::OssNonUnion,
+            "oss_union" => CreateTaxRegistrationParamsCountryOptionsAtType::OssUnion,
+            "standard" => CreateTaxRegistrationParamsCountryOptionsAtType::Standard,
+            other => CreateTaxRegistrationParamsCountryOptionsAtType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2347,38 +2157,20 @@ impl CreateTaxRegistrationParamsCountryOptionsCaType {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for CreateTaxRegistrationParamsCountryOptionsCaType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTaxRegistrationParamsCountryOptionsCaType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "province_standard" => CreateTaxRegistrationParamsCountryOptionsCaType::ProvinceStandard,
-                    "simplified" => CreateTaxRegistrationParamsCountryOptionsCaType::Simplified,
-                    "standard" => CreateTaxRegistrationParamsCountryOptionsCaType::Standard,
-                    other => CreateTaxRegistrationParamsCountryOptionsCaType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTaxRegistrationParamsCountryOptionsCaType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTaxRegistrationParamsCountryOptionsCaType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTaxRegistrationParamsCountryOptionsCaType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "province_standard" => CreateTaxRegistrationParamsCountryOptionsCaType::ProvinceStandard,
+            "simplified" => CreateTaxRegistrationParamsCountryOptionsCaType::Simplified,
+            "standard" => CreateTaxRegistrationParamsCountryOptionsCaType::Standard,
+            other => CreateTaxRegistrationParamsCountryOptionsCaType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4691,38 +4483,28 @@ impl CreateTaxRegistrationParamsCountryOptionsUsStateSalesTaxElectionsItemType {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for CreateTaxRegistrationParamsCountryOptionsUsStateSalesTaxElectionsItemType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTaxRegistrationParamsCountryOptionsUsStateSalesTaxElectionsItemType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "local_use_tax" => CreateTaxRegistrationParamsCountryOptionsUsStateSalesTaxElectionsItemType::LocalUseTax,
-                    "simplified_sellers_use_tax" => CreateTaxRegistrationParamsCountryOptionsUsStateSalesTaxElectionsItemType::SimplifiedSellersUseTax,
-                    "single_local_use_tax" => CreateTaxRegistrationParamsCountryOptionsUsStateSalesTaxElectionsItemType::SingleLocalUseTax,
-                    other => CreateTaxRegistrationParamsCountryOptionsUsStateSalesTaxElectionsItemType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTaxRegistrationParamsCountryOptionsUsStateSalesTaxElectionsItemType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTaxRegistrationParamsCountryOptionsUsStateSalesTaxElectionsItemType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateTaxRegistrationParamsCountryOptionsUsStateSalesTaxElectionsItemType::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "local_use_tax" => CreateTaxRegistrationParamsCountryOptionsUsStateSalesTaxElectionsItemType::LocalUseTax,
+            "simplified_sellers_use_tax" => {
+                CreateTaxRegistrationParamsCountryOptionsUsStateSalesTaxElectionsItemType::SimplifiedSellersUseTax
+            }
+            "single_local_use_tax" => {
+                CreateTaxRegistrationParamsCountryOptionsUsStateSalesTaxElectionsItemType::SingleLocalUseTax
+            }
+            other => {
+                CreateTaxRegistrationParamsCountryOptionsUsStateSalesTaxElectionsItemType::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -4785,56 +4567,32 @@ impl CreateTaxRegistrationParamsCountryOptionsUsType {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for CreateTaxRegistrationParamsCountryOptionsUsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTaxRegistrationParamsCountryOptionsUsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "admissions_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::AdmissionsTax,
-                    "attendance_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::AttendanceTax,
-                    "entertainment_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::EntertainmentTax,
-                    "gross_receipts_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::GrossReceiptsTax,
-                    "hospitality_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::HospitalityTax,
-                    "local_amusement_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::LocalAmusementTax,
-                    "local_lease_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::LocalLeaseTax,
-                    "luxury_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::LuxuryTax,
-                    "mass_transit_parking_tax" => {
-                        CreateTaxRegistrationParamsCountryOptionsUsType::MassTransitParkingTax
-                    }
-                    "parking_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::ParkingTax,
-                    "resort_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::ResortTax,
-                    "state_communications_tax" => {
-                        CreateTaxRegistrationParamsCountryOptionsUsType::StateCommunicationsTax
-                    }
-                    "state_retail_delivery_fee" => {
-                        CreateTaxRegistrationParamsCountryOptionsUsType::StateRetailDeliveryFee
-                    }
-                    "state_sales_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::StateSalesTax,
-                    "tourism_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::TourismTax,
-                    other => CreateTaxRegistrationParamsCountryOptionsUsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTaxRegistrationParamsCountryOptionsUsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTaxRegistrationParamsCountryOptionsUsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTaxRegistrationParamsCountryOptionsUsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "admissions_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::AdmissionsTax,
+            "attendance_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::AttendanceTax,
+            "entertainment_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::EntertainmentTax,
+            "gross_receipts_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::GrossReceiptsTax,
+            "hospitality_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::HospitalityTax,
+            "local_amusement_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::LocalAmusementTax,
+            "local_lease_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::LocalLeaseTax,
+            "luxury_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::LuxuryTax,
+            "mass_transit_parking_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::MassTransitParkingTax,
+            "parking_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::ParkingTax,
+            "resort_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::ResortTax,
+            "state_communications_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::StateCommunicationsTax,
+            "state_retail_delivery_fee" => CreateTaxRegistrationParamsCountryOptionsUsType::StateRetailDeliveryFee,
+            "state_sales_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::StateSalesTax,
+            "tourism_tax" => CreateTaxRegistrationParamsCountryOptionsUsType::TourismTax,
+            other => CreateTaxRegistrationParamsCountryOptionsUsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5076,38 +4834,20 @@ impl CreateTaxSettingParamsDefaultsTaxBehavior {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for CreateTaxSettingParamsDefaultsTaxBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTaxSettingParamsDefaultsTaxBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exclusive" => CreateTaxSettingParamsDefaultsTaxBehavior::Exclusive,
-                    "inclusive" => CreateTaxSettingParamsDefaultsTaxBehavior::Inclusive,
-                    "inferred_by_currency" => CreateTaxSettingParamsDefaultsTaxBehavior::InferredByCurrency,
-                    other => CreateTaxSettingParamsDefaultsTaxBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTaxSettingParamsDefaultsTaxBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTaxSettingParamsDefaultsTaxBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTaxSettingParamsDefaultsTaxBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exclusive" => CreateTaxSettingParamsDefaultsTaxBehavior::Exclusive,
+            "inclusive" => CreateTaxSettingParamsDefaultsTaxBehavior::Inclusive,
+            "inferred_by_currency" => CreateTaxSettingParamsDefaultsTaxBehavior::InferredByCurrency,
+            other => CreateTaxSettingParamsDefaultsTaxBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5269,36 +5009,18 @@ impl ListTaxLocationsParamsType {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for ListTaxLocationsParamsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListTaxLocationsParamsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "performance" => ListTaxLocationsParamsType::Performance,
-                    other => ListTaxLocationsParamsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListTaxLocationsParamsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListTaxLocationsParamsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListTaxLocationsParamsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "performance" => ListTaxLocationsParamsType::Performance,
+            other => ListTaxLocationsParamsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5358,39 +5080,21 @@ impl ListTaxRegistrationsParamsStatus {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for ListTaxRegistrationsParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListTaxRegistrationsParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => ListTaxRegistrationsParamsStatus::Active,
-                    "all" => ListTaxRegistrationsParamsStatus::All,
-                    "expired" => ListTaxRegistrationsParamsStatus::Expired,
-                    "scheduled" => ListTaxRegistrationsParamsStatus::Scheduled,
-                    other => ListTaxRegistrationsParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListTaxRegistrationsParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListTaxRegistrationsParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListTaxRegistrationsParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => ListTaxRegistrationsParamsStatus::Active,
+            "all" => ListTaxRegistrationsParamsStatus::All,
+            "expired" => ListTaxRegistrationsParamsStatus::Expired,
+            "scheduled" => ListTaxRegistrationsParamsStatus::Scheduled,
+            other => ListTaxRegistrationsParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5405,22 +5109,23 @@ impl crate::params::FormEncode for ListTaxRegistrationsParamsStatus {
 pub type ListTaxTransactionLineItemsParams = crate::tax::ListTaxCalculationLineItemsParams;
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxAssociation {
     #[doc = "The [Tax Calculation](https://docs.stripe.com/api/tax/calculations/object) that was included in PaymentIntent."]
-    #[serde(default)]
+    #[json(default)]
     pub calculation: String,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::tax::TaxAssociationObject,
     #[doc = "The [PaymentIntent](https://docs.stripe.com/api/payment_intents/object) that this Tax Association is tracking."]
-    #[serde(default)]
+    #[json(default)]
     pub payment_intent: String,
     #[doc = "Information about the tax transactions linked to this payment intent"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_transaction_attempts: Option<Vec<crate::tax::TaxProductResourceTaxAssociationTransactionAttempts>>,
 }
 
@@ -5458,129 +5163,113 @@ impl Default for TaxAssociationObject {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxAssociationObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxAssociationObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "tax.association" => TaxAssociationObject::TaxAssociation,
-                    other => TaxAssociationObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxAssociationObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxAssociationObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxAssociationObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "tax.association" => TaxAssociationObject::TaxAssociation,
+            other => TaxAssociationObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxCalculation {
     #[doc = "Total amount after taxes in the [smallest currency unit](https://docs.stripe.com/currencies#minor-units)."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_total: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "The ID of an existing [Customer](https://docs.stripe.com/api/customers/object) used for the resource."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_details: Option<crate::tax::TaxProductResourceCustomerDetails>,
     #[doc = "Timestamp of date at which the tax calculation will expire."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<i64>,
     #[doc = "Unique identifier for the calculation."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     #[doc = "The list of items the customer is purchasing."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line_items: Option<crate::List<crate::tax::TaxCalculationLineItem>>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::tax::TaxCalculationObject,
     #[doc = "The details of the ship from location, such as the address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ship_from_details: Option<crate::tax::TaxProductResourceShipFromDetails>,
     #[doc = "The shipping cost details for the calculation."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_cost: Option<crate::tax::TaxProductResourceTaxCalculationShippingCost>,
     #[doc = "The amount of tax to be collected on top of the line item prices."]
-    #[serde(default)]
+    #[json(default)]
     pub tax_amount_exclusive: i64,
     #[doc = "The amount of tax already included in the line item prices."]
-    #[serde(default)]
+    #[json(default)]
     pub tax_amount_inclusive: i64,
     #[doc = "Breakdown of individual tax amounts that add up to the total."]
-    #[serde(default)]
+    #[json(default)]
     pub tax_breakdown: Vec<crate::tax::TaxProductResourceTaxBreakdown>,
     #[doc = "The calculation uses the tax rules and rates that are in effect at this timestamp."]
-    #[serde(default)]
+    #[json(default)]
     pub tax_date: i64,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxCalculationLineItem {
     #[doc = "The line item amount in the [smallest currency unit](https://docs.stripe.com/currencies#minor-units)."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "The amount of tax calculated for this line item, in the [smallest currency unit](https://docs.stripe.com/currencies#m..."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_tax: i64,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::tax::TaxCalculationLineItemObject,
     #[doc = "Indicates the line item represents a performance where the venue location might determine the tax, not the customer a..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub performance_location: Option<String>,
     #[doc = "The ID of an existing [Product](https://docs.stripe.com/api/products/object)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub product: Option<String>,
     #[doc = "The number of units of the item being purchased."]
-    #[serde(default)]
+    #[json(default)]
     pub quantity: i64,
     #[doc = "A custom identifier for this line item."]
-    #[serde(default)]
+    #[json(default)]
     pub reference: String,
     #[doc = "Specifies whether the `amount` includes taxes."]
-    #[serde(default)]
+    #[json(default)]
     pub tax_behavior: crate::tax::TaxCalculationLineItemTaxBehavior,
     #[doc = "Detailed account of taxes relevant to this line item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_breakdown: Option<Vec<crate::tax::TaxProductResourceLineItemTaxBreakdown>>,
     #[doc = "The [tax code](https://docs.stripe.com/tax/tax-categories) ID used for this resource."]
-    #[serde(default)]
+    #[json(default)]
     pub tax_code: String,
 }
 
@@ -5618,36 +5307,18 @@ impl Default for TaxCalculationLineItemObject {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxCalculationLineItemObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxCalculationLineItemObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "tax.calculation_line_item" => TaxCalculationLineItemObject::TaxCalculationLineItem,
-                    other => TaxCalculationLineItemObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxCalculationLineItemObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxCalculationLineItemObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxCalculationLineItemObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "tax.calculation_line_item" => TaxCalculationLineItemObject::TaxCalculationLineItem,
+            other => TaxCalculationLineItemObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5680,37 +5351,19 @@ impl Default for TaxCalculationLineItemTaxBehavior {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxCalculationLineItemTaxBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxCalculationLineItemTaxBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exclusive" => TaxCalculationLineItemTaxBehavior::Exclusive,
-                    "inclusive" => TaxCalculationLineItemTaxBehavior::Inclusive,
-                    other => TaxCalculationLineItemTaxBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxCalculationLineItemTaxBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxCalculationLineItemTaxBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxCalculationLineItemTaxBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exclusive" => TaxCalculationLineItemTaxBehavior::Exclusive,
+            "inclusive" => TaxCalculationLineItemTaxBehavior::Inclusive,
+            other => TaxCalculationLineItemTaxBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5741,36 +5394,18 @@ impl Default for TaxCalculationObject {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxCalculationObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxCalculationObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "tax.calculation" => TaxCalculationObject::TaxCalculation,
-                    other => TaxCalculationObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxCalculationObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxCalculationObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxCalculationObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "tax.calculation" => TaxCalculationObject::TaxCalculation,
+            other => TaxCalculationObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5819,22 +5454,23 @@ impl<'de> serde::Deserialize<'de> for TaxCalculationObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxDeductedAtSource {
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::tax::TaxDeductedAtSourceObject,
     #[doc = "The end of the invoicing period."]
-    #[serde(default)]
+    #[json(default)]
     pub period_end: i64,
     #[doc = "The start of the invoicing period."]
-    #[serde(default)]
+    #[json(default)]
     pub period_start: i64,
     #[doc = "The TAN that was supplied to Stripe when TDS was assessed"]
-    #[serde(default)]
+    #[json(default)]
     pub tax_deduction_account_number: String,
 }
 
@@ -6092,36 +5728,18 @@ impl Default for TaxDeductedAtSourceObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for TaxDeductedAtSourceObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxDeductedAtSourceObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "tax_deducted_at_source" => TaxDeductedAtSourceObject::TaxDeductedAtSource,
-                    other => TaxDeductedAtSourceObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxDeductedAtSourceObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxDeductedAtSourceObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxDeductedAtSourceObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "tax_deducted_at_source" => TaxDeductedAtSourceObject::TaxDeductedAtSource,
+            other => TaxDeductedAtSourceObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6170,22 +5788,23 @@ impl<'de> serde::Deserialize<'de> for TaxDeductedAtSourceObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxIDsOwner {
     #[doc = "The account being referenced when `type` is `account`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account: Option<crate::Expandable<crate::account::Account>>,
     #[doc = "The Connect Application being referenced when `type` is `application`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application: Option<crate::Expandable<crate::common::Application>>,
     #[doc = "The customer being referenced when `type` is `customer`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<crate::Expandable<crate::customers::Customer>>,
     #[doc = "The Account representing the customer being referenced when `type` is `customer`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_account: Option<String>,
     #[doc = "Type of owner referenced."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::tax::TaxIDsOwnerType,
 }
 
@@ -6398,61 +6017,44 @@ impl Default for TaxIDsOwnerType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for TaxIDsOwnerType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxIDsOwnerType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account" => TaxIDsOwnerType::Account,
-                    "application" => TaxIDsOwnerType::Application,
-                    "customer" => TaxIDsOwnerType::Customer,
-                    "self" => TaxIDsOwnerType::SelfValue,
-                    other => TaxIDsOwnerType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxIDsOwnerType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxIDsOwnerType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxIDsOwnerType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account" => TaxIDsOwnerType::Account,
+            "application" => TaxIDsOwnerType::Application,
+            "customer" => TaxIDsOwnerType::Customer,
+            "self" => TaxIDsOwnerType::SelfValue,
+            other => TaxIDsOwnerType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxLocation {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<crate::common::Address>,
     #[doc = "A descriptive text providing additional context about the tax location."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::tax::TaxLocationObject,
     #[doc = "The type of tax location to be defined."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::tax::TaxLocationType,
 }
 
@@ -6490,36 +6092,18 @@ impl Default for TaxLocationObject {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxLocationObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxLocationObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "tax.location" => TaxLocationObject::TaxLocation,
-                    other => TaxLocationObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxLocationObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxLocationObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxLocationObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "tax.location" => TaxLocationObject::TaxLocation,
+            other => TaxLocationObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6550,261 +6134,246 @@ impl Default for TaxLocationType {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxLocationType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxLocationType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "performance" => TaxLocationType::Performance,
-                    other => TaxLocationType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxLocationType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxLocationType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxLocationType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "performance" => TaxLocationType::Performance,
+            other => TaxLocationType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptions {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ae: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefaultInboundGoods>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub al: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub am: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ao: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub at: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub au: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefaultInboundGoods>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub aw: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub az: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ba: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bb: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bd: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub be: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bf: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bg: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bh: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bj: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bs: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub by: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ca: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsCanada>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cd: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ch: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefaultInboundGoods>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cl: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cm: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub co: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cr: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cv: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cy: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cz: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub de: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub dk: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ec: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ee: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub eg: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub es: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSpain>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub et: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fi: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fr: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub gb: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefaultInboundGoods>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ge: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub gn: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub gr: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hr: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hu: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ie: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(rename = "in", default, skip_serializing_if = "Option::is_none")]
+    #[json(rename = "in", default, skip_serializing_if = "Option::is_none")]
     pub r#in: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub is: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub it: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub jp: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefaultInboundGoods>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ke: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub kg: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub kh: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub kr: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub kz: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub la: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub lk: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub lt: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub lu: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub lv: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ma: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub md: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub me: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mk: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mr: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mt: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mx: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub my: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ng: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub nl: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub no: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefaultInboundGoods>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub np: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub nz: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefaultInboundGoods>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub om: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pe: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ph: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pl: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pt: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ro: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub rs: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ru: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sa: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub se: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sg: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefaultInboundGoods>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub si: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sk: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEurope>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sn: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sr: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub th: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsThailand>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tj: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tr: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tw: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tz: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ua: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ug: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsUnitedStates>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub uy: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub uz: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub vn: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub za: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub zm: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplified>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub zw: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefault>,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsCaProvinceStandard {
     #[doc = "Two-letter CA province code ([ISO 3166-2](https://en.wikipedia.org/wiki/ISO_3166-2))."]
-    #[serde(default)]
+    #[json(default)]
     pub province: String,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsCanada {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub province_standard: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsCaProvinceStandard>,
     #[doc = "Type of registration in Canada."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::tax::TaxProductRegistrationsResourceCountryOptionsCanadaType,
 }
 
@@ -6839,64 +6408,49 @@ impl Default for TaxProductRegistrationsResourceCountryOptionsCanadaType {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxProductRegistrationsResourceCountryOptionsCanadaType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxProductRegistrationsResourceCountryOptionsCanadaType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "province_standard" => TaxProductRegistrationsResourceCountryOptionsCanadaType::ProvinceStandard,
-                    "simplified" => TaxProductRegistrationsResourceCountryOptionsCanadaType::Simplified,
-                    "standard" => TaxProductRegistrationsResourceCountryOptionsCanadaType::Standard,
-                    other => TaxProductRegistrationsResourceCountryOptionsCanadaType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxProductRegistrationsResourceCountryOptionsCanadaType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxProductRegistrationsResourceCountryOptionsCanadaType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxProductRegistrationsResourceCountryOptionsCanadaType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "province_standard" => TaxProductRegistrationsResourceCountryOptionsCanadaType::ProvinceStandard,
+            "simplified" => TaxProductRegistrationsResourceCountryOptionsCanadaType::Simplified,
+            "standard" => TaxProductRegistrationsResourceCountryOptionsCanadaType::Standard,
+            other => TaxProductRegistrationsResourceCountryOptionsCanadaType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsDefault {
     #[doc = "Type of registration in `country`."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::tax::TaxProductRegistrationsResourceCountryOptionsDefaultType,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsDefaultInboundGoods {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub standard: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsDefaultStandard>,
     #[doc = "Type of registration in `country`."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::tax::TaxProductRegistrationsResourceCountryOptionsDefaultType,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsDefaultStandard {
     #[doc = "Place of supply scheme used in an Default standard registration."]
-    #[serde(default)]
+    #[json(default)]
     pub place_of_supply_scheme:
         crate::tax::TaxProductRegistrationsResourceCountryOptionsDefaultStandardPlaceOfSupplyScheme,
 }
@@ -6932,47 +6486,25 @@ impl Default for TaxProductRegistrationsResourceCountryOptionsDefaultStandardPla
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxProductRegistrationsResourceCountryOptionsDefaultStandardPlaceOfSupplyScheme {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxProductRegistrationsResourceCountryOptionsDefaultStandardPlaceOfSupplyScheme;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "inbound_goods" => {
-                        TaxProductRegistrationsResourceCountryOptionsDefaultStandardPlaceOfSupplyScheme::InboundGoods
-                    }
-                    "standard" => {
-                        TaxProductRegistrationsResourceCountryOptionsDefaultStandardPlaceOfSupplyScheme::Standard
-                    }
-                    other => TaxProductRegistrationsResourceCountryOptionsDefaultStandardPlaceOfSupplyScheme::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    TaxProductRegistrationsResourceCountryOptionsDefaultStandardPlaceOfSupplyScheme::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for TaxProductRegistrationsResourceCountryOptionsDefaultStandardPlaceOfSupplyScheme {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                TaxProductRegistrationsResourceCountryOptionsDefaultStandardPlaceOfSupplyScheme::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "inbound_goods" => {
+                TaxProductRegistrationsResourceCountryOptionsDefaultStandardPlaceOfSupplyScheme::InboundGoods
+            }
+            "standard" => TaxProductRegistrationsResourceCountryOptionsDefaultStandardPlaceOfSupplyScheme::Standard,
+            other => TaxProductRegistrationsResourceCountryOptionsDefaultStandardPlaceOfSupplyScheme::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -7003,44 +6535,27 @@ impl Default for TaxProductRegistrationsResourceCountryOptionsDefaultType {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxProductRegistrationsResourceCountryOptionsDefaultType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxProductRegistrationsResourceCountryOptionsDefaultType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "standard" => TaxProductRegistrationsResourceCountryOptionsDefaultType::Standard,
-                    other => TaxProductRegistrationsResourceCountryOptionsDefaultType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxProductRegistrationsResourceCountryOptionsDefaultType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxProductRegistrationsResourceCountryOptionsDefaultType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxProductRegistrationsResourceCountryOptionsDefaultType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "standard" => TaxProductRegistrationsResourceCountryOptionsDefaultType::Standard,
+            other => TaxProductRegistrationsResourceCountryOptionsDefaultType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsEuStandard {
     #[doc = "Place of supply scheme used in an EU standard registration."]
-    #[serde(default)]
+    #[json(default)]
     pub place_of_supply_scheme: crate::tax::TaxProductRegistrationsResourceCountryOptionsEuStandardPlaceOfSupplyScheme,
 }
 
@@ -7075,54 +6590,35 @@ impl Default for TaxProductRegistrationsResourceCountryOptionsEuStandardPlaceOfS
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxProductRegistrationsResourceCountryOptionsEuStandardPlaceOfSupplyScheme {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxProductRegistrationsResourceCountryOptionsEuStandardPlaceOfSupplyScheme;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "inbound_goods" => {
-                        TaxProductRegistrationsResourceCountryOptionsEuStandardPlaceOfSupplyScheme::InboundGoods
-                    }
-                    "small_seller" => {
-                        TaxProductRegistrationsResourceCountryOptionsEuStandardPlaceOfSupplyScheme::SmallSeller
-                    }
-                    "standard" => TaxProductRegistrationsResourceCountryOptionsEuStandardPlaceOfSupplyScheme::Standard,
-                    other => TaxProductRegistrationsResourceCountryOptionsEuStandardPlaceOfSupplyScheme::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxProductRegistrationsResourceCountryOptionsEuStandardPlaceOfSupplyScheme::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxProductRegistrationsResourceCountryOptionsEuStandardPlaceOfSupplyScheme {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                TaxProductRegistrationsResourceCountryOptionsEuStandardPlaceOfSupplyScheme::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "inbound_goods" => TaxProductRegistrationsResourceCountryOptionsEuStandardPlaceOfSupplyScheme::InboundGoods,
+            "small_seller" => TaxProductRegistrationsResourceCountryOptionsEuStandardPlaceOfSupplyScheme::SmallSeller,
+            "standard" => TaxProductRegistrationsResourceCountryOptionsEuStandardPlaceOfSupplyScheme::Standard,
+            other => {
+                TaxProductRegistrationsResourceCountryOptionsEuStandardPlaceOfSupplyScheme::Unknown(other.to_string())
+            }
+        })
     }
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsEurope {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub standard: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEuStandard>,
     #[doc = "Type of registration in an EU country."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::tax::TaxProductRegistrationsResourceCountryOptionsEuropeType,
 }
 
@@ -7159,47 +6655,30 @@ impl Default for TaxProductRegistrationsResourceCountryOptionsEuropeType {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxProductRegistrationsResourceCountryOptionsEuropeType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxProductRegistrationsResourceCountryOptionsEuropeType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ioss" => TaxProductRegistrationsResourceCountryOptionsEuropeType::Ioss,
-                    "oss_non_union" => TaxProductRegistrationsResourceCountryOptionsEuropeType::OssNonUnion,
-                    "oss_union" => TaxProductRegistrationsResourceCountryOptionsEuropeType::OssUnion,
-                    "standard" => TaxProductRegistrationsResourceCountryOptionsEuropeType::Standard,
-                    other => TaxProductRegistrationsResourceCountryOptionsEuropeType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxProductRegistrationsResourceCountryOptionsEuropeType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxProductRegistrationsResourceCountryOptionsEuropeType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxProductRegistrationsResourceCountryOptionsEuropeType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ioss" => TaxProductRegistrationsResourceCountryOptionsEuropeType::Ioss,
+            "oss_non_union" => TaxProductRegistrationsResourceCountryOptionsEuropeType::OssNonUnion,
+            "oss_union" => TaxProductRegistrationsResourceCountryOptionsEuropeType::OssUnion,
+            "standard" => TaxProductRegistrationsResourceCountryOptionsEuropeType::Standard,
+            other => TaxProductRegistrationsResourceCountryOptionsEuropeType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsSimplified {
     #[doc = "Type of registration in `country`."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplifiedType,
 }
 
@@ -7230,94 +6709,79 @@ impl Default for TaxProductRegistrationsResourceCountryOptionsSimplifiedType {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxProductRegistrationsResourceCountryOptionsSimplifiedType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxProductRegistrationsResourceCountryOptionsSimplifiedType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "simplified" => TaxProductRegistrationsResourceCountryOptionsSimplifiedType::Simplified,
-                    other => TaxProductRegistrationsResourceCountryOptionsSimplifiedType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxProductRegistrationsResourceCountryOptionsSimplifiedType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for TaxProductRegistrationsResourceCountryOptionsSimplifiedType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxProductRegistrationsResourceCountryOptionsSimplifiedType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "simplified" => TaxProductRegistrationsResourceCountryOptionsSimplifiedType::Simplified,
+            other => TaxProductRegistrationsResourceCountryOptionsSimplifiedType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsSpain {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub standard: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsEuStandard>,
     #[doc = "Type of registration in ES."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::tax::TaxProductRegistrationsResourceCountryOptionsEuropeType,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsThailand {
     #[doc = "Type of registration in `country`."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::tax::TaxProductRegistrationsResourceCountryOptionsSimplifiedType,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsUnitedStates {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub admissions_tax: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsUsAdmissionsTax>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub attendance_tax: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsUsAttendanceTax>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub entertainment_tax: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsUsEntertainmentTax>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub gross_receipts_tax: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsUsGrossReceiptsTax>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hospitality_tax: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsUsHospitalityTax>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub local_amusement_tax: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsUsLocalAmusementTax>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub local_lease_tax: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsUsLocalLeaseTax>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub luxury_tax: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsUsLuxuryTax>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mass_transit_parking_tax:
         Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsUsMassTransitParkingTax>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub parking_tax: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsUsParkingTax>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub resort_tax: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsUsResortTax>,
     #[doc = "Two-letter US state code ([ISO 3166-2](https://en.wikipedia.org/wiki/ISO_3166-2))."]
-    #[serde(default)]
+    #[json(default)]
     pub state: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub state_sales_tax: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsUsStateSalesTax>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tourism_tax: Option<crate::tax::TaxProductRegistrationsResourceCountryOptionsUsTourismTax>,
     #[doc = "Type of registration in the US."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::tax::TaxProductRegistrationsResourceCountryOptionsUnitedStatesType,
 }
 
@@ -7382,171 +6846,160 @@ impl Default for TaxProductRegistrationsResourceCountryOptionsUnitedStatesType {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxProductRegistrationsResourceCountryOptionsUnitedStatesType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxProductRegistrationsResourceCountryOptionsUnitedStatesType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "admissions_tax" => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::AdmissionsTax,
-                    "attendance_tax" => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::AttendanceTax,
-                    "entertainment_tax" => {
-                        TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::EntertainmentTax
-                    }
-                    "gross_receipts_tax" => {
-                        TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::GrossReceiptsTax
-                    }
-                    "hospitality_tax" => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::HospitalityTax,
-                    "local_amusement_tax" => {
-                        TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::LocalAmusementTax
-                    }
-                    "local_lease_tax" => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::LocalLeaseTax,
-                    "luxury_tax" => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::LuxuryTax,
-                    "mass_transit_parking_tax" => {
-                        TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::MassTransitParkingTax
-                    }
-                    "parking_tax" => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::ParkingTax,
-                    "resort_tax" => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::ResortTax,
-                    "state_communications_tax" => {
-                        TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::StateCommunicationsTax
-                    }
-                    "state_retail_delivery_fee" => {
-                        TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::StateRetailDeliveryFee
-                    }
-                    "state_sales_tax" => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::StateSalesTax,
-                    "tourism_tax" => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::TourismTax,
-                    other => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for TaxProductRegistrationsResourceCountryOptionsUnitedStatesType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "admissions_tax" => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::AdmissionsTax,
+            "attendance_tax" => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::AttendanceTax,
+            "entertainment_tax" => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::EntertainmentTax,
+            "gross_receipts_tax" => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::GrossReceiptsTax,
+            "hospitality_tax" => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::HospitalityTax,
+            "local_amusement_tax" => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::LocalAmusementTax,
+            "local_lease_tax" => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::LocalLeaseTax,
+            "luxury_tax" => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::LuxuryTax,
+            "mass_transit_parking_tax" => {
+                TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::MassTransitParkingTax
+            }
+            "parking_tax" => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::ParkingTax,
+            "resort_tax" => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::ResortTax,
+            "state_communications_tax" => {
+                TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::StateCommunicationsTax
+            }
+            "state_retail_delivery_fee" => {
+                TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::StateRetailDeliveryFee
+            }
+            "state_sales_tax" => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::StateSalesTax,
+            "tourism_tax" => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::TourismTax,
+            other => TaxProductRegistrationsResourceCountryOptionsUnitedStatesType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsUsAdmissionsTax {
     #[doc = "A [jurisdiction code](https://docs.stripe.com/tax/registering?type=admissions_tax#registration-types) representing th..."]
-    #[serde(default)]
+    #[json(default)]
     pub jurisdiction: String,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsUsAttendanceTax {
     #[doc = "A [jurisdiction code](https://docs.stripe.com/tax/registering?type=attendance_tax#registration-types) representing th..."]
-    #[serde(default)]
+    #[json(default)]
     pub jurisdiction: String,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsUsEntertainmentTax {
     #[doc = "A [jurisdiction code](https://docs.stripe.com/tax/registering?type=entertainment_tax#registration-types) representing..."]
-    #[serde(default)]
+    #[json(default)]
     pub jurisdiction: String,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsUsGrossReceiptsTax {
     #[doc = "A [jurisdiction code](https://docs.stripe.com/tax/registering?type=gross_receipts_tax#registration-types) representin..."]
-    #[serde(default)]
+    #[json(default)]
     pub jurisdiction: String,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsUsHospitalityTax {
     #[doc = "A [jurisdiction code](https://docs.stripe.com/tax/registering?type=hospitality_tax#registration-types) representing t..."]
-    #[serde(default)]
+    #[json(default)]
     pub jurisdiction: String,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsUsLocalAmusementTax {
     #[doc = "A [FIPS code](https://www.census.gov/library/reference/code-lists/ansi.html) representing the local jurisdiction."]
-    #[serde(default)]
+    #[json(default)]
     pub jurisdiction: String,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsUsLocalLeaseTax {
     #[doc = "A [FIPS code](https://www.census.gov/library/reference/code-lists/ansi.html) representing the local jurisdiction."]
-    #[serde(default)]
+    #[json(default)]
     pub jurisdiction: String,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsUsLuxuryTax {
     #[doc = "A [jurisdiction code](https://docs.stripe.com/tax/registering?type=luxury_tax#registration-types) representing the lo..."]
-    #[serde(default)]
+    #[json(default)]
     pub jurisdiction: String,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsUsMassTransitParkingTax {
     #[doc = "A [jurisdiction code](https://docs.stripe.com/tax/registering?type=mass_transit_parking_tax#registration-types) repre..."]
-    #[serde(default)]
+    #[json(default)]
     pub jurisdiction: String,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsUsParkingTax {
     #[doc = "A [jurisdiction code](https://docs.stripe.com/tax/registering?type=parking_tax#registration-types) representing the l..."]
-    #[serde(default)]
+    #[json(default)]
     pub jurisdiction: String,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsUsResortTax {
     #[doc = "A [jurisdiction code](https://docs.stripe.com/tax/registering?type=resort_tax#registration-types) representing the lo..."]
-    #[serde(default)]
+    #[json(default)]
     pub jurisdiction: String,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsUsStateSalesTax {
     #[doc = "Elections for the state sales tax registration."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub elections: Option<Vec<crate::tax::TaxProductRegistrationsResourceCountryOptionsUsStateSalesTaxElection>>,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsUsStateSalesTaxElection {
     #[doc = "A [FIPS code](https://www.census.gov/library/reference/code-lists/ansi.html) representing the local jurisdiction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub jurisdiction: Option<String>,
     #[doc = "The type of the election for the state sales tax registration."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::tax::TaxProductRegistrationsResourceCountryOptionsUsStateSalesTaxElectionType,
 }
 
@@ -7585,66 +7038,58 @@ impl Default for TaxProductRegistrationsResourceCountryOptionsUsStateSalesTaxEle
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxProductRegistrationsResourceCountryOptionsUsStateSalesTaxElectionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxProductRegistrationsResourceCountryOptionsUsStateSalesTaxElectionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "local_use_tax" => TaxProductRegistrationsResourceCountryOptionsUsStateSalesTaxElectionType::LocalUseTax,
-                    "simplified_sellers_use_tax" => TaxProductRegistrationsResourceCountryOptionsUsStateSalesTaxElectionType::SimplifiedSellersUseTax,
-                    "single_local_use_tax" => TaxProductRegistrationsResourceCountryOptionsUsStateSalesTaxElectionType::SingleLocalUseTax,
-                    other => TaxProductRegistrationsResourceCountryOptionsUsStateSalesTaxElectionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxProductRegistrationsResourceCountryOptionsUsStateSalesTaxElectionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxProductRegistrationsResourceCountryOptionsUsStateSalesTaxElectionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                TaxProductRegistrationsResourceCountryOptionsUsStateSalesTaxElectionType::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "local_use_tax" => TaxProductRegistrationsResourceCountryOptionsUsStateSalesTaxElectionType::LocalUseTax,
+            "simplified_sellers_use_tax" => {
+                TaxProductRegistrationsResourceCountryOptionsUsStateSalesTaxElectionType::SimplifiedSellersUseTax
+            }
+            "single_local_use_tax" => {
+                TaxProductRegistrationsResourceCountryOptionsUsStateSalesTaxElectionType::SingleLocalUseTax
+            }
+            other => {
+                TaxProductRegistrationsResourceCountryOptionsUsStateSalesTaxElectionType::Unknown(other.to_string())
+            }
+        })
     }
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductRegistrationsResourceCountryOptionsUsTourismTax {
     #[doc = "A [jurisdiction code](https://docs.stripe.com/tax/registering?type=tourism_tax#registration-types) representing the l..."]
-    #[serde(default)]
+    #[json(default)]
     pub jurisdiction: String,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductResourceCustomerDetails {
     #[doc = "The customer's postal address (for example, home or business location)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<crate::tax::TaxProductResourcePostalAddress>,
     #[doc = "The type of customer address provided."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address_source: Option<crate::tax::TaxProductResourceCustomerDetailsAddressSource>,
     #[doc = "The customer's IP address (IPv4 or IPv6)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ip_address: Option<String>,
     #[doc = "The customer's tax IDs (for example, EU VAT numbers)."]
-    #[serde(default)]
+    #[json(default)]
     pub tax_ids: Vec<crate::tax::TaxProductResourceCustomerDetailsResourceTaxId>,
     #[doc = "The taxability override used for taxation."]
-    #[serde(default)]
+    #[json(default)]
     pub taxability_override: crate::tax::TaxProductResourceCustomerDetailsTaxabilityOverride,
 }
 
@@ -7670,48 +7115,31 @@ impl TaxProductResourceCustomerDetailsAddressSource {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxProductResourceCustomerDetailsAddressSource {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxProductResourceCustomerDetailsAddressSource;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "billing" => TaxProductResourceCustomerDetailsAddressSource::Billing,
-                    "shipping" => TaxProductResourceCustomerDetailsAddressSource::Shipping,
-                    other => TaxProductResourceCustomerDetailsAddressSource::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxProductResourceCustomerDetailsAddressSource::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxProductResourceCustomerDetailsAddressSource {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxProductResourceCustomerDetailsAddressSource::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "billing" => TaxProductResourceCustomerDetailsAddressSource::Billing,
+            "shipping" => TaxProductResourceCustomerDetailsAddressSource::Shipping,
+            other => TaxProductResourceCustomerDetailsAddressSource::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductResourceCustomerDetailsResourceTaxId {
     #[doc = "The type of the tax ID, one of `ad_nrt`, `ar_cuit`, `eu_vat`, `bo_tin`, `br_cnpj`, `br_cpf`, `cn_tin`, `co_nit`, `cr_..."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::tax::TaxProductResourceCustomerDetailsResourceTaxIdType,
     #[doc = "The value of the tax ID."]
-    #[serde(default)]
+    #[json(default)]
     pub value: String,
 }
 
@@ -7976,153 +7404,135 @@ impl Default for TaxProductResourceCustomerDetailsResourceTaxIdType {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxProductResourceCustomerDetailsResourceTaxIdType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxProductResourceCustomerDetailsResourceTaxIdType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ad_nrt" => TaxProductResourceCustomerDetailsResourceTaxIdType::AdNrt,
-                    "ae_trn" => TaxProductResourceCustomerDetailsResourceTaxIdType::AeTrn,
-                    "al_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::AlTin,
-                    "am_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::AmTin,
-                    "ao_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::AoTin,
-                    "ar_cuit" => TaxProductResourceCustomerDetailsResourceTaxIdType::ArCuit,
-                    "au_abn" => TaxProductResourceCustomerDetailsResourceTaxIdType::AuAbn,
-                    "au_arn" => TaxProductResourceCustomerDetailsResourceTaxIdType::AuArn,
-                    "aw_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::AwTin,
-                    "az_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::AzTin,
-                    "ba_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::BaTin,
-                    "bb_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::BbTin,
-                    "bd_bin" => TaxProductResourceCustomerDetailsResourceTaxIdType::BdBin,
-                    "bf_ifu" => TaxProductResourceCustomerDetailsResourceTaxIdType::BfIfu,
-                    "bg_uic" => TaxProductResourceCustomerDetailsResourceTaxIdType::BgUic,
-                    "bh_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::BhVat,
-                    "bj_ifu" => TaxProductResourceCustomerDetailsResourceTaxIdType::BjIfu,
-                    "bo_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::BoTin,
-                    "br_cnpj" => TaxProductResourceCustomerDetailsResourceTaxIdType::BrCnpj,
-                    "br_cpf" => TaxProductResourceCustomerDetailsResourceTaxIdType::BrCpf,
-                    "bs_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::BsTin,
-                    "by_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::ByTin,
-                    "ca_bn" => TaxProductResourceCustomerDetailsResourceTaxIdType::CaBn,
-                    "ca_gst_hst" => TaxProductResourceCustomerDetailsResourceTaxIdType::CaGstHst,
-                    "ca_pst_bc" => TaxProductResourceCustomerDetailsResourceTaxIdType::CaPstBc,
-                    "ca_pst_mb" => TaxProductResourceCustomerDetailsResourceTaxIdType::CaPstMb,
-                    "ca_pst_sk" => TaxProductResourceCustomerDetailsResourceTaxIdType::CaPstSk,
-                    "ca_qst" => TaxProductResourceCustomerDetailsResourceTaxIdType::CaQst,
-                    "cd_nif" => TaxProductResourceCustomerDetailsResourceTaxIdType::CdNif,
-                    "ch_uid" => TaxProductResourceCustomerDetailsResourceTaxIdType::ChUid,
-                    "ch_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::ChVat,
-                    "cl_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::ClTin,
-                    "cm_niu" => TaxProductResourceCustomerDetailsResourceTaxIdType::CmNiu,
-                    "cn_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::CnTin,
-                    "co_nit" => TaxProductResourceCustomerDetailsResourceTaxIdType::CoNit,
-                    "cr_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::CrTin,
-                    "cv_nif" => TaxProductResourceCustomerDetailsResourceTaxIdType::CvNif,
-                    "de_stn" => TaxProductResourceCustomerDetailsResourceTaxIdType::DeStn,
-                    "do_rcn" => TaxProductResourceCustomerDetailsResourceTaxIdType::DoRcn,
-                    "ec_ruc" => TaxProductResourceCustomerDetailsResourceTaxIdType::EcRuc,
-                    "eg_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::EgTin,
-                    "es_cif" => TaxProductResourceCustomerDetailsResourceTaxIdType::EsCif,
-                    "et_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::EtTin,
-                    "eu_oss_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::EuOssVat,
-                    "eu_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::EuVat,
-                    "fo_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::FoVat,
-                    "gb_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::GbVat,
-                    "ge_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::GeVat,
-                    "gi_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::GiTin,
-                    "gn_nif" => TaxProductResourceCustomerDetailsResourceTaxIdType::GnNif,
-                    "hk_br" => TaxProductResourceCustomerDetailsResourceTaxIdType::HkBr,
-                    "hr_oib" => TaxProductResourceCustomerDetailsResourceTaxIdType::HrOib,
-                    "hu_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::HuTin,
-                    "ic_nif" => TaxProductResourceCustomerDetailsResourceTaxIdType::IcNif,
-                    "id_npwp" => TaxProductResourceCustomerDetailsResourceTaxIdType::IdNpwp,
-                    "il_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::IlVat,
-                    "in_gst" => TaxProductResourceCustomerDetailsResourceTaxIdType::InGst,
-                    "is_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::IsVat,
-                    "it_cf" => TaxProductResourceCustomerDetailsResourceTaxIdType::ItCf,
-                    "jp_cn" => TaxProductResourceCustomerDetailsResourceTaxIdType::JpCn,
-                    "jp_rn" => TaxProductResourceCustomerDetailsResourceTaxIdType::JpRn,
-                    "jp_trn" => TaxProductResourceCustomerDetailsResourceTaxIdType::JpTrn,
-                    "ke_pin" => TaxProductResourceCustomerDetailsResourceTaxIdType::KePin,
-                    "kg_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::KgTin,
-                    "kh_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::KhTin,
-                    "kr_brn" => TaxProductResourceCustomerDetailsResourceTaxIdType::KrBrn,
-                    "kz_bin" => TaxProductResourceCustomerDetailsResourceTaxIdType::KzBin,
-                    "la_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::LaTin,
-                    "li_uid" => TaxProductResourceCustomerDetailsResourceTaxIdType::LiUid,
-                    "li_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::LiVat,
-                    "lk_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::LkVat,
-                    "ma_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::MaVat,
-                    "md_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::MdVat,
-                    "me_pib" => TaxProductResourceCustomerDetailsResourceTaxIdType::MePib,
-                    "mk_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::MkVat,
-                    "mr_nif" => TaxProductResourceCustomerDetailsResourceTaxIdType::MrNif,
-                    "mx_rfc" => TaxProductResourceCustomerDetailsResourceTaxIdType::MxRfc,
-                    "my_frp" => TaxProductResourceCustomerDetailsResourceTaxIdType::MyFrp,
-                    "my_itn" => TaxProductResourceCustomerDetailsResourceTaxIdType::MyItn,
-                    "my_sst" => TaxProductResourceCustomerDetailsResourceTaxIdType::MySst,
-                    "ng_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::NgTin,
-                    "no_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::NoVat,
-                    "no_voec" => TaxProductResourceCustomerDetailsResourceTaxIdType::NoVoec,
-                    "np_pan" => TaxProductResourceCustomerDetailsResourceTaxIdType::NpPan,
-                    "nz_gst" => TaxProductResourceCustomerDetailsResourceTaxIdType::NzGst,
-                    "om_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::OmVat,
-                    "pe_ruc" => TaxProductResourceCustomerDetailsResourceTaxIdType::PeRuc,
-                    "ph_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::PhTin,
-                    "pl_nip" => TaxProductResourceCustomerDetailsResourceTaxIdType::PlNip,
-                    "py_ruc" => TaxProductResourceCustomerDetailsResourceTaxIdType::PyRuc,
-                    "ro_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::RoTin,
-                    "rs_pib" => TaxProductResourceCustomerDetailsResourceTaxIdType::RsPib,
-                    "ru_inn" => TaxProductResourceCustomerDetailsResourceTaxIdType::RuInn,
-                    "ru_kpp" => TaxProductResourceCustomerDetailsResourceTaxIdType::RuKpp,
-                    "sa_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::SaVat,
-                    "sg_gst" => TaxProductResourceCustomerDetailsResourceTaxIdType::SgGst,
-                    "sg_uen" => TaxProductResourceCustomerDetailsResourceTaxIdType::SgUen,
-                    "si_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::SiTin,
-                    "sn_ninea" => TaxProductResourceCustomerDetailsResourceTaxIdType::SnNinea,
-                    "sr_fin" => TaxProductResourceCustomerDetailsResourceTaxIdType::SrFin,
-                    "sv_nit" => TaxProductResourceCustomerDetailsResourceTaxIdType::SvNit,
-                    "th_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::ThVat,
-                    "tj_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::TjTin,
-                    "tr_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::TrTin,
-                    "tw_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::TwVat,
-                    "tz_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::TzVat,
-                    "ua_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::UaVat,
-                    "ug_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::UgTin,
-                    "unknown" => TaxProductResourceCustomerDetailsResourceTaxIdType::UnknownValue,
-                    "us_ein" => TaxProductResourceCustomerDetailsResourceTaxIdType::UsEin,
-                    "uy_ruc" => TaxProductResourceCustomerDetailsResourceTaxIdType::UyRuc,
-                    "uz_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::UzTin,
-                    "uz_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::UzVat,
-                    "ve_rif" => TaxProductResourceCustomerDetailsResourceTaxIdType::VeRif,
-                    "vn_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::VnTin,
-                    "za_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::ZaVat,
-                    "zm_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::ZmTin,
-                    "zw_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::ZwTin,
-                    other => TaxProductResourceCustomerDetailsResourceTaxIdType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxProductResourceCustomerDetailsResourceTaxIdType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxProductResourceCustomerDetailsResourceTaxIdType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxProductResourceCustomerDetailsResourceTaxIdType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ad_nrt" => TaxProductResourceCustomerDetailsResourceTaxIdType::AdNrt,
+            "ae_trn" => TaxProductResourceCustomerDetailsResourceTaxIdType::AeTrn,
+            "al_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::AlTin,
+            "am_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::AmTin,
+            "ao_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::AoTin,
+            "ar_cuit" => TaxProductResourceCustomerDetailsResourceTaxIdType::ArCuit,
+            "au_abn" => TaxProductResourceCustomerDetailsResourceTaxIdType::AuAbn,
+            "au_arn" => TaxProductResourceCustomerDetailsResourceTaxIdType::AuArn,
+            "aw_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::AwTin,
+            "az_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::AzTin,
+            "ba_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::BaTin,
+            "bb_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::BbTin,
+            "bd_bin" => TaxProductResourceCustomerDetailsResourceTaxIdType::BdBin,
+            "bf_ifu" => TaxProductResourceCustomerDetailsResourceTaxIdType::BfIfu,
+            "bg_uic" => TaxProductResourceCustomerDetailsResourceTaxIdType::BgUic,
+            "bh_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::BhVat,
+            "bj_ifu" => TaxProductResourceCustomerDetailsResourceTaxIdType::BjIfu,
+            "bo_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::BoTin,
+            "br_cnpj" => TaxProductResourceCustomerDetailsResourceTaxIdType::BrCnpj,
+            "br_cpf" => TaxProductResourceCustomerDetailsResourceTaxIdType::BrCpf,
+            "bs_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::BsTin,
+            "by_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::ByTin,
+            "ca_bn" => TaxProductResourceCustomerDetailsResourceTaxIdType::CaBn,
+            "ca_gst_hst" => TaxProductResourceCustomerDetailsResourceTaxIdType::CaGstHst,
+            "ca_pst_bc" => TaxProductResourceCustomerDetailsResourceTaxIdType::CaPstBc,
+            "ca_pst_mb" => TaxProductResourceCustomerDetailsResourceTaxIdType::CaPstMb,
+            "ca_pst_sk" => TaxProductResourceCustomerDetailsResourceTaxIdType::CaPstSk,
+            "ca_qst" => TaxProductResourceCustomerDetailsResourceTaxIdType::CaQst,
+            "cd_nif" => TaxProductResourceCustomerDetailsResourceTaxIdType::CdNif,
+            "ch_uid" => TaxProductResourceCustomerDetailsResourceTaxIdType::ChUid,
+            "ch_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::ChVat,
+            "cl_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::ClTin,
+            "cm_niu" => TaxProductResourceCustomerDetailsResourceTaxIdType::CmNiu,
+            "cn_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::CnTin,
+            "co_nit" => TaxProductResourceCustomerDetailsResourceTaxIdType::CoNit,
+            "cr_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::CrTin,
+            "cv_nif" => TaxProductResourceCustomerDetailsResourceTaxIdType::CvNif,
+            "de_stn" => TaxProductResourceCustomerDetailsResourceTaxIdType::DeStn,
+            "do_rcn" => TaxProductResourceCustomerDetailsResourceTaxIdType::DoRcn,
+            "ec_ruc" => TaxProductResourceCustomerDetailsResourceTaxIdType::EcRuc,
+            "eg_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::EgTin,
+            "es_cif" => TaxProductResourceCustomerDetailsResourceTaxIdType::EsCif,
+            "et_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::EtTin,
+            "eu_oss_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::EuOssVat,
+            "eu_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::EuVat,
+            "fo_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::FoVat,
+            "gb_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::GbVat,
+            "ge_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::GeVat,
+            "gi_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::GiTin,
+            "gn_nif" => TaxProductResourceCustomerDetailsResourceTaxIdType::GnNif,
+            "hk_br" => TaxProductResourceCustomerDetailsResourceTaxIdType::HkBr,
+            "hr_oib" => TaxProductResourceCustomerDetailsResourceTaxIdType::HrOib,
+            "hu_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::HuTin,
+            "ic_nif" => TaxProductResourceCustomerDetailsResourceTaxIdType::IcNif,
+            "id_npwp" => TaxProductResourceCustomerDetailsResourceTaxIdType::IdNpwp,
+            "il_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::IlVat,
+            "in_gst" => TaxProductResourceCustomerDetailsResourceTaxIdType::InGst,
+            "is_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::IsVat,
+            "it_cf" => TaxProductResourceCustomerDetailsResourceTaxIdType::ItCf,
+            "jp_cn" => TaxProductResourceCustomerDetailsResourceTaxIdType::JpCn,
+            "jp_rn" => TaxProductResourceCustomerDetailsResourceTaxIdType::JpRn,
+            "jp_trn" => TaxProductResourceCustomerDetailsResourceTaxIdType::JpTrn,
+            "ke_pin" => TaxProductResourceCustomerDetailsResourceTaxIdType::KePin,
+            "kg_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::KgTin,
+            "kh_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::KhTin,
+            "kr_brn" => TaxProductResourceCustomerDetailsResourceTaxIdType::KrBrn,
+            "kz_bin" => TaxProductResourceCustomerDetailsResourceTaxIdType::KzBin,
+            "la_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::LaTin,
+            "li_uid" => TaxProductResourceCustomerDetailsResourceTaxIdType::LiUid,
+            "li_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::LiVat,
+            "lk_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::LkVat,
+            "ma_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::MaVat,
+            "md_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::MdVat,
+            "me_pib" => TaxProductResourceCustomerDetailsResourceTaxIdType::MePib,
+            "mk_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::MkVat,
+            "mr_nif" => TaxProductResourceCustomerDetailsResourceTaxIdType::MrNif,
+            "mx_rfc" => TaxProductResourceCustomerDetailsResourceTaxIdType::MxRfc,
+            "my_frp" => TaxProductResourceCustomerDetailsResourceTaxIdType::MyFrp,
+            "my_itn" => TaxProductResourceCustomerDetailsResourceTaxIdType::MyItn,
+            "my_sst" => TaxProductResourceCustomerDetailsResourceTaxIdType::MySst,
+            "ng_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::NgTin,
+            "no_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::NoVat,
+            "no_voec" => TaxProductResourceCustomerDetailsResourceTaxIdType::NoVoec,
+            "np_pan" => TaxProductResourceCustomerDetailsResourceTaxIdType::NpPan,
+            "nz_gst" => TaxProductResourceCustomerDetailsResourceTaxIdType::NzGst,
+            "om_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::OmVat,
+            "pe_ruc" => TaxProductResourceCustomerDetailsResourceTaxIdType::PeRuc,
+            "ph_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::PhTin,
+            "pl_nip" => TaxProductResourceCustomerDetailsResourceTaxIdType::PlNip,
+            "py_ruc" => TaxProductResourceCustomerDetailsResourceTaxIdType::PyRuc,
+            "ro_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::RoTin,
+            "rs_pib" => TaxProductResourceCustomerDetailsResourceTaxIdType::RsPib,
+            "ru_inn" => TaxProductResourceCustomerDetailsResourceTaxIdType::RuInn,
+            "ru_kpp" => TaxProductResourceCustomerDetailsResourceTaxIdType::RuKpp,
+            "sa_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::SaVat,
+            "sg_gst" => TaxProductResourceCustomerDetailsResourceTaxIdType::SgGst,
+            "sg_uen" => TaxProductResourceCustomerDetailsResourceTaxIdType::SgUen,
+            "si_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::SiTin,
+            "sn_ninea" => TaxProductResourceCustomerDetailsResourceTaxIdType::SnNinea,
+            "sr_fin" => TaxProductResourceCustomerDetailsResourceTaxIdType::SrFin,
+            "sv_nit" => TaxProductResourceCustomerDetailsResourceTaxIdType::SvNit,
+            "th_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::ThVat,
+            "tj_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::TjTin,
+            "tr_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::TrTin,
+            "tw_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::TwVat,
+            "tz_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::TzVat,
+            "ua_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::UaVat,
+            "ug_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::UgTin,
+            "unknown" => TaxProductResourceCustomerDetailsResourceTaxIdType::UnknownValue,
+            "us_ein" => TaxProductResourceCustomerDetailsResourceTaxIdType::UsEin,
+            "uy_ruc" => TaxProductResourceCustomerDetailsResourceTaxIdType::UyRuc,
+            "uz_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::UzTin,
+            "uz_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::UzVat,
+            "ve_rif" => TaxProductResourceCustomerDetailsResourceTaxIdType::VeRif,
+            "vn_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::VnTin,
+            "za_vat" => TaxProductResourceCustomerDetailsResourceTaxIdType::ZaVat,
+            "zm_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::ZmTin,
+            "zw_tin" => TaxProductResourceCustomerDetailsResourceTaxIdType::ZwTin,
+            other => TaxProductResourceCustomerDetailsResourceTaxIdType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8157,55 +7567,38 @@ impl Default for TaxProductResourceCustomerDetailsTaxabilityOverride {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxProductResourceCustomerDetailsTaxabilityOverride {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxProductResourceCustomerDetailsTaxabilityOverride;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "customer_exempt" => TaxProductResourceCustomerDetailsTaxabilityOverride::CustomerExempt,
-                    "none" => TaxProductResourceCustomerDetailsTaxabilityOverride::None,
-                    "reverse_charge" => TaxProductResourceCustomerDetailsTaxabilityOverride::ReverseCharge,
-                    other => TaxProductResourceCustomerDetailsTaxabilityOverride::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxProductResourceCustomerDetailsTaxabilityOverride::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxProductResourceCustomerDetailsTaxabilityOverride {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxProductResourceCustomerDetailsTaxabilityOverride::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "customer_exempt" => TaxProductResourceCustomerDetailsTaxabilityOverride::CustomerExempt,
+            "none" => TaxProductResourceCustomerDetailsTaxabilityOverride::None,
+            "reverse_charge" => TaxProductResourceCustomerDetailsTaxabilityOverride::ReverseCharge,
+            other => TaxProductResourceCustomerDetailsTaxabilityOverride::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductResourceJurisdiction {
     #[doc = "Two-letter country code ([ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2))."]
-    #[serde(default)]
+    #[json(default)]
     pub country: String,
     #[doc = "A human-readable name for the jurisdiction imposing the tax."]
-    #[serde(default)]
+    #[json(default)]
     pub display_name: String,
     #[doc = "Indicates the level of the jurisdiction imposing the tax."]
-    #[serde(default)]
+    #[json(default)]
     pub level: crate::tax::TaxProductResourceJurisdictionLevel,
     #[doc = "[ISO 3166-2 subdivision code](https://en.wikipedia.org/wiki/ISO_3166-2), without country prefix."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
 }
 
@@ -8244,62 +7637,45 @@ impl Default for TaxProductResourceJurisdictionLevel {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxProductResourceJurisdictionLevel {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxProductResourceJurisdictionLevel;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "city" => TaxProductResourceJurisdictionLevel::City,
-                    "country" => TaxProductResourceJurisdictionLevel::Country,
-                    "county" => TaxProductResourceJurisdictionLevel::County,
-                    "district" => TaxProductResourceJurisdictionLevel::District,
-                    "state" => TaxProductResourceJurisdictionLevel::State,
-                    other => TaxProductResourceJurisdictionLevel::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxProductResourceJurisdictionLevel::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxProductResourceJurisdictionLevel {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxProductResourceJurisdictionLevel::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "city" => TaxProductResourceJurisdictionLevel::City,
+            "country" => TaxProductResourceJurisdictionLevel::Country,
+            "county" => TaxProductResourceJurisdictionLevel::County,
+            "district" => TaxProductResourceJurisdictionLevel::District,
+            "state" => TaxProductResourceJurisdictionLevel::State,
+            other => TaxProductResourceJurisdictionLevel::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductResourceLineItemTaxBreakdown {
     #[doc = "The amount of tax, in the [smallest currency unit](https://docs.stripe.com/currencies#minor-units)."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub jurisdiction: Option<crate::tax::TaxProductResourceJurisdiction>,
     #[doc = "Indicates whether the jurisdiction was determined by the origin (merchant's address) or destination (customer's addre..."]
-    #[serde(default)]
+    #[json(default)]
     pub sourcing: crate::tax::TaxProductResourceLineItemTaxBreakdownSourcing,
     #[doc = "Details regarding the rate for this tax."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_rate_details: Option<crate::tax::TaxProductResourceLineItemTaxRateDetails>,
     #[doc = "The reasoning behind this tax, for example, if the product is tax exempt."]
-    #[serde(default)]
+    #[json(default)]
     pub taxability_reason: crate::tax::TaxProductResourceLineItemTaxBreakdownTaxabilityReason,
     #[doc = "The amount on which tax is calculated, in the [smallest currency unit](https://docs.stripe.com/currencies#minor-units)."]
-    #[serde(default)]
+    #[json(default)]
     pub taxable_amount: i64,
 }
 
@@ -8334,38 +7710,20 @@ impl Default for TaxProductResourceLineItemTaxBreakdownSourcing {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxProductResourceLineItemTaxBreakdownSourcing {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxProductResourceLineItemTaxBreakdownSourcing;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "destination" => TaxProductResourceLineItemTaxBreakdownSourcing::Destination,
-                    "origin" => TaxProductResourceLineItemTaxBreakdownSourcing::Origin,
-                    "performance" => TaxProductResourceLineItemTaxBreakdownSourcing::Performance,
-                    other => TaxProductResourceLineItemTaxBreakdownSourcing::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxProductResourceLineItemTaxBreakdownSourcing::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxProductResourceLineItemTaxBreakdownSourcing {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxProductResourceLineItemTaxBreakdownSourcing::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "destination" => TaxProductResourceLineItemTaxBreakdownSourcing::Destination,
+            "origin" => TaxProductResourceLineItemTaxBreakdownSourcing::Origin,
+            "performance" => TaxProductResourceLineItemTaxBreakdownSourcing::Performance,
+            other => TaxProductResourceLineItemTaxBreakdownSourcing::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8424,76 +7782,47 @@ impl Default for TaxProductResourceLineItemTaxBreakdownTaxabilityReason {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxProductResourceLineItemTaxBreakdownTaxabilityReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxProductResourceLineItemTaxBreakdownTaxabilityReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "customer_exempt" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::CustomerExempt,
-                    "not_collecting" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::NotCollecting,
-                    "not_subject_to_tax" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::NotSubjectToTax,
-                    "not_supported" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::NotSupported,
-                    "portion_product_exempt" => {
-                        TaxProductResourceLineItemTaxBreakdownTaxabilityReason::PortionProductExempt
-                    }
-                    "portion_reduced_rated" => {
-                        TaxProductResourceLineItemTaxBreakdownTaxabilityReason::PortionReducedRated
-                    }
-                    "portion_standard_rated" => {
-                        TaxProductResourceLineItemTaxBreakdownTaxabilityReason::PortionStandardRated
-                    }
-                    "product_exempt" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::ProductExempt,
-                    "product_exempt_holiday" => {
-                        TaxProductResourceLineItemTaxBreakdownTaxabilityReason::ProductExemptHoliday
-                    }
-                    "proportionally_rated" => {
-                        TaxProductResourceLineItemTaxBreakdownTaxabilityReason::ProportionallyRated
-                    }
-                    "reduced_rated" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::ReducedRated,
-                    "reverse_charge" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::ReverseCharge,
-                    "standard_rated" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::StandardRated,
-                    "taxable_basis_reduced" => {
-                        TaxProductResourceLineItemTaxBreakdownTaxabilityReason::TaxableBasisReduced
-                    }
-                    "zero_rated" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::ZeroRated,
-                    other => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxProductResourceLineItemTaxBreakdownTaxabilityReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxProductResourceLineItemTaxBreakdownTaxabilityReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxProductResourceLineItemTaxBreakdownTaxabilityReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "customer_exempt" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::CustomerExempt,
+            "not_collecting" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::NotCollecting,
+            "not_subject_to_tax" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::NotSubjectToTax,
+            "not_supported" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::NotSupported,
+            "portion_product_exempt" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::PortionProductExempt,
+            "portion_reduced_rated" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::PortionReducedRated,
+            "portion_standard_rated" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::PortionStandardRated,
+            "product_exempt" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::ProductExempt,
+            "product_exempt_holiday" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::ProductExemptHoliday,
+            "proportionally_rated" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::ProportionallyRated,
+            "reduced_rated" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::ReducedRated,
+            "reverse_charge" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::ReverseCharge,
+            "standard_rated" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::StandardRated,
+            "taxable_basis_reduced" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::TaxableBasisReduced,
+            "zero_rated" => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::ZeroRated,
+            other => TaxProductResourceLineItemTaxBreakdownTaxabilityReason::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductResourceLineItemTaxRateDetails {
     #[doc = "A localized display name for tax type, intended to be human-readable."]
-    #[serde(default)]
+    #[json(default)]
     pub display_name: String,
     #[doc = "The tax rate percentage as a string."]
-    #[serde(default)]
+    #[json(default)]
     pub percentage_decimal: String,
     #[doc = "The tax type, such as `vat` or `sales_tax`."]
-    #[serde(default)]
+    #[json(default)]
     pub tax_type: crate::tax::TaxProductResourceLineItemTaxRateDetailsTaxType,
 }
 
@@ -8576,125 +7905,110 @@ impl Default for TaxProductResourceLineItemTaxRateDetailsTaxType {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxProductResourceLineItemTaxRateDetailsTaxType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxProductResourceLineItemTaxRateDetailsTaxType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "admissions_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::AdmissionsTax,
-                    "amusement_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::AmusementTax,
-                    "attendance_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::AttendanceTax,
-                    "communications_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::CommunicationsTax,
-                    "digital_excise_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::DigitalExciseTax,
-                    "entertainment_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::EntertainmentTax,
-                    "gross_receipts_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::GrossReceiptsTax,
-                    "gst" => TaxProductResourceLineItemTaxRateDetailsTaxType::Gst,
-                    "hospitality_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::HospitalityTax,
-                    "hst" => TaxProductResourceLineItemTaxRateDetailsTaxType::Hst,
-                    "igst" => TaxProductResourceLineItemTaxRateDetailsTaxType::Igst,
-                    "jct" => TaxProductResourceLineItemTaxRateDetailsTaxType::Jct,
-                    "lease_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::LeaseTax,
-                    "luxury_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::LuxuryTax,
-                    "mass_transit_parking_tax" => {
-                        TaxProductResourceLineItemTaxRateDetailsTaxType::MassTransitParkingTax
-                    }
-                    "parking_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::ParkingTax,
-                    "pst" => TaxProductResourceLineItemTaxRateDetailsTaxType::Pst,
-                    "qst" => TaxProductResourceLineItemTaxRateDetailsTaxType::Qst,
-                    "recycling_fee" => TaxProductResourceLineItemTaxRateDetailsTaxType::RecyclingFee,
-                    "resort_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::ResortTax,
-                    "retail_delivery_fee" => TaxProductResourceLineItemTaxRateDetailsTaxType::RetailDeliveryFee,
-                    "rst" => TaxProductResourceLineItemTaxRateDetailsTaxType::Rst,
-                    "sales_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::SalesTax,
-                    "service_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::ServiceTax,
-                    "tourism_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::TourismTax,
-                    "utility_users_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::UtilityUsersTax,
-                    "vat" => TaxProductResourceLineItemTaxRateDetailsTaxType::Vat,
-                    other => TaxProductResourceLineItemTaxRateDetailsTaxType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxProductResourceLineItemTaxRateDetailsTaxType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxProductResourceLineItemTaxRateDetailsTaxType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxProductResourceLineItemTaxRateDetailsTaxType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "admissions_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::AdmissionsTax,
+            "amusement_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::AmusementTax,
+            "attendance_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::AttendanceTax,
+            "communications_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::CommunicationsTax,
+            "digital_excise_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::DigitalExciseTax,
+            "entertainment_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::EntertainmentTax,
+            "gross_receipts_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::GrossReceiptsTax,
+            "gst" => TaxProductResourceLineItemTaxRateDetailsTaxType::Gst,
+            "hospitality_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::HospitalityTax,
+            "hst" => TaxProductResourceLineItemTaxRateDetailsTaxType::Hst,
+            "igst" => TaxProductResourceLineItemTaxRateDetailsTaxType::Igst,
+            "jct" => TaxProductResourceLineItemTaxRateDetailsTaxType::Jct,
+            "lease_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::LeaseTax,
+            "luxury_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::LuxuryTax,
+            "mass_transit_parking_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::MassTransitParkingTax,
+            "parking_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::ParkingTax,
+            "pst" => TaxProductResourceLineItemTaxRateDetailsTaxType::Pst,
+            "qst" => TaxProductResourceLineItemTaxRateDetailsTaxType::Qst,
+            "recycling_fee" => TaxProductResourceLineItemTaxRateDetailsTaxType::RecyclingFee,
+            "resort_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::ResortTax,
+            "retail_delivery_fee" => TaxProductResourceLineItemTaxRateDetailsTaxType::RetailDeliveryFee,
+            "rst" => TaxProductResourceLineItemTaxRateDetailsTaxType::Rst,
+            "sales_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::SalesTax,
+            "service_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::ServiceTax,
+            "tourism_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::TourismTax,
+            "utility_users_tax" => TaxProductResourceLineItemTaxRateDetailsTaxType::UtilityUsersTax,
+            "vat" => TaxProductResourceLineItemTaxRateDetailsTaxType::Vat,
+            other => TaxProductResourceLineItemTaxRateDetailsTaxType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductResourcePostalAddress {
     #[doc = "City, district, suburb, town, or village."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
     #[doc = "Two-letter country code ([ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2))."]
-    #[serde(default)]
+    #[json(default)]
     pub country: String,
     #[doc = "Address line 1, such as the street, PO Box, or company name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line1: Option<String>,
     #[doc = "Address line 2, such as the apartment, suite, unit, or building."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line2: Option<String>,
     #[doc = "ZIP or postal code."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub postal_code: Option<String>,
     #[doc = "State/province as an [ISO 3166-2](https://en.wikipedia.org/wiki/ISO_3166-2) subdivision code, without country prefix,..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductResourceShipFromDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<crate::tax::TaxProductResourcePostalAddress>,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductResourceTaxAssociationTransactionAttempts {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub committed: Option<crate::tax::TaxProductResourceTaxAssociationTransactionAttemptsResourceCommitted>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub errored: Option<crate::tax::TaxProductResourceTaxAssociationTransactionAttemptsResourceErrored>,
     #[doc = "The source of the tax transaction attempt."]
-    #[serde(default)]
+    #[json(default)]
     pub source: String,
     #[doc = "The status of the transaction attempt."]
-    #[serde(default)]
+    #[json(default)]
     pub status: String,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductResourceTaxAssociationTransactionAttemptsResourceCommitted {
     #[doc = "The [Tax Transaction](https://docs.stripe.com/api/tax/transaction/object)"]
-    #[serde(default)]
+    #[json(default)]
     pub transaction: String,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductResourceTaxAssociationTransactionAttemptsResourceErrored {
     #[doc = "Details on why we couldn't commit the tax transaction."]
-    #[serde(default)]
+    #[json(default)]
     pub reason: crate::tax::TaxProductResourceTaxAssociationTransactionAttemptsResourceErroredReason,
 }
 
@@ -8733,105 +8047,92 @@ impl Default for TaxProductResourceTaxAssociationTransactionAttemptsResourceErro
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxProductResourceTaxAssociationTransactionAttemptsResourceErroredReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxProductResourceTaxAssociationTransactionAttemptsResourceErroredReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "another_payment_associated_with_calculation" => TaxProductResourceTaxAssociationTransactionAttemptsResourceErroredReason::AnotherPaymentAssociatedWithCalculation,
-                    "calculation_expired" => TaxProductResourceTaxAssociationTransactionAttemptsResourceErroredReason::CalculationExpired,
-                    "currency_mismatch" => TaxProductResourceTaxAssociationTransactionAttemptsResourceErroredReason::CurrencyMismatch,
-                    "original_transaction_voided" => TaxProductResourceTaxAssociationTransactionAttemptsResourceErroredReason::OriginalTransactionVoided,
-                    "unique_reference_violation" => TaxProductResourceTaxAssociationTransactionAttemptsResourceErroredReason::UniqueReferenceViolation,
-                    other => TaxProductResourceTaxAssociationTransactionAttemptsResourceErroredReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxProductResourceTaxAssociationTransactionAttemptsResourceErroredReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxProductResourceTaxAssociationTransactionAttemptsResourceErroredReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                TaxProductResourceTaxAssociationTransactionAttemptsResourceErroredReason::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "another_payment_associated_with_calculation" => TaxProductResourceTaxAssociationTransactionAttemptsResourceErroredReason::AnotherPaymentAssociatedWithCalculation,
+            "calculation_expired" => TaxProductResourceTaxAssociationTransactionAttemptsResourceErroredReason::CalculationExpired,
+            "currency_mismatch" => TaxProductResourceTaxAssociationTransactionAttemptsResourceErroredReason::CurrencyMismatch,
+            "original_transaction_voided" => TaxProductResourceTaxAssociationTransactionAttemptsResourceErroredReason::OriginalTransactionVoided,
+            "unique_reference_violation" => TaxProductResourceTaxAssociationTransactionAttemptsResourceErroredReason::UniqueReferenceViolation,
+            other => TaxProductResourceTaxAssociationTransactionAttemptsResourceErroredReason::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductResourceTaxBreakdown {
     #[doc = "The amount of tax, in the [smallest currency unit](https://docs.stripe.com/currencies#minor-units)."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Specifies whether the tax amount is included in the line item amount."]
-    #[serde(default)]
+    #[json(default)]
     pub inclusive: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_rate_details: Option<crate::tax::TaxProductResourceTaxRateDetails>,
     #[doc = "The reasoning behind this tax, for example, if the product is tax exempt."]
-    #[serde(default)]
+    #[json(default)]
     pub taxability_reason: crate::tax::TaxProductResourceLineItemTaxBreakdownTaxabilityReason,
     #[doc = "The amount on which tax is calculated, in the [smallest currency unit](https://docs.stripe.com/currencies#minor-units)."]
-    #[serde(default)]
+    #[json(default)]
     pub taxable_amount: i64,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductResourceTaxCalculationShippingCost {
     #[doc = "The shipping amount in the [smallest currency unit](https://docs.stripe.com/currencies#minor-units)."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "The amount of tax calculated for shipping, in the [smallest currency unit](https://docs.stripe.com/currencies#minor-u..."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_tax: i64,
     #[doc = "The ID of an existing [ShippingRate](https://docs.stripe.com/api/shipping_rates/object)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_rate: Option<String>,
     #[doc = "Specifies whether the `amount` includes taxes."]
-    #[serde(default)]
+    #[json(default)]
     pub tax_behavior: crate::tax::TaxCalculationLineItemTaxBehavior,
     #[doc = "Detailed account of taxes relevant to shipping cost."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_breakdown: Option<Vec<crate::tax::TaxProductResourceLineItemTaxBreakdown>>,
     #[doc = "The [tax code](https://docs.stripe.com/tax/tax-categories) ID used for shipping."]
-    #[serde(default)]
+    #[json(default)]
     pub tax_code: String,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductResourceTaxRateDetails {
     #[doc = "Two-letter country code ([ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2))."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[doc = "The amount of the tax rate when the `rate_type` is `flat_amount`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub flat_amount: Option<crate::tax_rates::TaxRateFlatAmount>,
     #[doc = "The tax rate percentage as a string."]
-    #[serde(default)]
+    #[json(default)]
     pub percentage_decimal: String,
     #[doc = "Indicates the type of tax rate applied to the taxable amount."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub rate_type: Option<crate::tax::TaxProductResourceTaxRateDetailsRateType>,
     #[doc = "State, county, province, or region ([ISO 3166-2](https://en.wikipedia.org/wiki/ISO_3166-2))."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
     #[doc = "The tax type, such as `vat` or `sales_tax`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_type: Option<crate::tax::TaxProductResourceLineItemTaxRateDetailsTaxType>,
 }
 
@@ -8857,51 +8158,34 @@ impl TaxProductResourceTaxRateDetailsRateType {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxProductResourceTaxRateDetailsRateType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxProductResourceTaxRateDetailsRateType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "flat_amount" => TaxProductResourceTaxRateDetailsRateType::FlatAmount,
-                    "percentage" => TaxProductResourceTaxRateDetailsRateType::Percentage,
-                    other => TaxProductResourceTaxRateDetailsRateType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxProductResourceTaxRateDetailsRateType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxProductResourceTaxRateDetailsRateType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxProductResourceTaxRateDetailsRateType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "flat_amount" => TaxProductResourceTaxRateDetailsRateType::FlatAmount,
+            "percentage" => TaxProductResourceTaxRateDetailsRateType::Percentage,
+            other => TaxProductResourceTaxRateDetailsRateType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "tax"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductResourceTaxSettingsDefaults {
     #[doc = "The tax calculation provider this account uses."]
-    #[serde(default)]
+    #[json(default)]
     pub provider: crate::tax::TaxProductResourceTaxSettingsDefaultsProvider,
     #[doc = "Default [tax behavior](https://stripe.com/docs/tax/products-prices-tax-categories-tax-behavior#tax-behavior) used to ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_behavior: Option<crate::tax::TaxProductResourceTaxSettingsDefaultsTaxBehavior>,
     #[doc = "Default [tax code](https://stripe.com/docs/tax/tax-categories) used to classify your products and prices."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_code: Option<String>,
 }
 
@@ -8938,39 +8222,21 @@ impl Default for TaxProductResourceTaxSettingsDefaultsProvider {
 }
 
 #[cfg(any(feature = "events", feature = "tax"))]
-impl<'de> serde::Deserialize<'de> for TaxProductResourceTaxSettingsDefaultsProvider {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxProductResourceTaxSettingsDefaultsProvider;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "anrok" => TaxProductResourceTaxSettingsDefaultsProvider::Anrok,
-                    "avalara" => TaxProductResourceTaxSettingsDefaultsProvider::Avalara,
-                    "sphere" => TaxProductResourceTaxSettingsDefaultsProvider::Sphere,
-                    "stripe" => TaxProductResourceTaxSettingsDefaultsProvider::Stripe,
-                    other => TaxProductResourceTaxSettingsDefaultsProvider::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxProductResourceTaxSettingsDefaultsProvider::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxProductResourceTaxSettingsDefaultsProvider {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxProductResourceTaxSettingsDefaultsProvider::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "anrok" => TaxProductResourceTaxSettingsDefaultsProvider::Anrok,
+            "avalara" => TaxProductResourceTaxSettingsDefaultsProvider::Avalara,
+            "sphere" => TaxProductResourceTaxSettingsDefaultsProvider::Sphere,
+            "stripe" => TaxProductResourceTaxSettingsDefaultsProvider::Stripe,
+            other => TaxProductResourceTaxSettingsDefaultsProvider::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8998,105 +8264,94 @@ impl TaxProductResourceTaxSettingsDefaultsTaxBehavior {
 }
 
 #[cfg(any(feature = "events", feature = "tax"))]
-impl<'de> serde::Deserialize<'de> for TaxProductResourceTaxSettingsDefaultsTaxBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxProductResourceTaxSettingsDefaultsTaxBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exclusive" => TaxProductResourceTaxSettingsDefaultsTaxBehavior::Exclusive,
-                    "inclusive" => TaxProductResourceTaxSettingsDefaultsTaxBehavior::Inclusive,
-                    "inferred_by_currency" => TaxProductResourceTaxSettingsDefaultsTaxBehavior::InferredByCurrency,
-                    other => TaxProductResourceTaxSettingsDefaultsTaxBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxProductResourceTaxSettingsDefaultsTaxBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxProductResourceTaxSettingsDefaultsTaxBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxProductResourceTaxSettingsDefaultsTaxBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exclusive" => TaxProductResourceTaxSettingsDefaultsTaxBehavior::Exclusive,
+            "inclusive" => TaxProductResourceTaxSettingsDefaultsTaxBehavior::Inclusive,
+            "inferred_by_currency" => TaxProductResourceTaxSettingsDefaultsTaxBehavior::InferredByCurrency,
+            other => TaxProductResourceTaxSettingsDefaultsTaxBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "tax"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductResourceTaxSettingsHeadOffice {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<crate::common::Address>,
 }
 
 #[cfg(any(feature = "events", feature = "tax"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductResourceTaxSettingsStatusDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub active: Option<crate::tax::TaxProductResourceTaxSettingsStatusDetailsResourceActive>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pending: Option<crate::tax::TaxProductResourceTaxSettingsStatusDetailsResourcePending>,
 }
 
 #[cfg(any(feature = "events", feature = "tax"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductResourceTaxSettingsStatusDetailsResourceActive {}
 
 #[cfg(any(feature = "events", feature = "tax"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductResourceTaxSettingsStatusDetailsResourcePending {
     #[doc = "The list of missing fields that are required to perform calculations."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub missing_fields: Option<Vec<String>>,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductResourceTaxTransactionLineItemResourceReversal {
     #[doc = "The `id` of the line item to reverse in the original transaction."]
-    #[serde(default)]
+    #[json(default)]
     pub original_line_item: String,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductResourceTaxTransactionResourceReversal {
     #[doc = "The `id` of the reversed `Transaction` object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub original_transaction: Option<String>,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductResourceTaxTransactionShippingCost {
     #[doc = "The shipping amount in the [smallest currency unit](https://docs.stripe.com/currencies#minor-units)."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "The amount of tax calculated for shipping, in the [smallest currency unit](https://docs.stripe.com/currencies#minor-u..."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_tax: i64,
     #[doc = "The ID of an existing [ShippingRate](https://docs.stripe.com/api/shipping_rates/object)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_rate: Option<String>,
     #[doc = "Specifies whether the `amount` includes taxes."]
-    #[serde(default)]
+    #[json(default)]
     pub tax_behavior: crate::tax::TaxCalculationLineItemTaxBehavior,
     #[doc = "Detailed account of taxes relevant to shipping cost."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_breakdown: Option<Vec<crate::tax::TaxProductResourceLineItemTaxBreakdown>>,
     #[doc = "The [tax code](https://docs.stripe.com/tax/tax-categories) ID used for shipping."]
-    #[serde(default)]
+    #[json(default)]
     pub tax_code: String,
 }
 
@@ -9149,44 +8404,46 @@ pub struct TaxProductResourceTaxTransactionShippingCost {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxProductTaxDetailsResourceTaxDetails {
     #[doc = "The ID of a tax location with type `performance`, representing where the performance takes place."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub performance_location: Option<String>,
     #[doc = "A [tax code](https://docs.stripe.com/tax/tax-categories) ID."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_code: Option<String>,
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxRegistration {
     #[doc = "Time at which the registration becomes active."]
-    #[serde(default)]
+    #[json(default)]
     pub active_from: i64,
     #[doc = "Two-letter country code ([ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2))."]
-    #[serde(default)]
+    #[json(default)]
     pub country: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country_options: Option<crate::tax::TaxProductRegistrationsResourceCountryOptions>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "If set, the registration stops being active at this time."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<i64>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::tax::TaxRegistrationObject,
     #[doc = "The status of the registration."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::tax::TaxRegistrationStatus,
 }
 
@@ -9224,36 +8481,18 @@ impl Default for TaxRegistrationObject {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxRegistrationObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxRegistrationObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "tax.registration" => TaxRegistrationObject::TaxRegistration,
-                    other => TaxRegistrationObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxRegistrationObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxRegistrationObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxRegistrationObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "tax.registration" => TaxRegistrationObject::TaxRegistration,
+            other => TaxRegistrationObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -9288,59 +8527,42 @@ impl Default for TaxRegistrationStatus {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxRegistrationStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxRegistrationStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => TaxRegistrationStatus::Active,
-                    "expired" => TaxRegistrationStatus::Expired,
-                    "scheduled" => TaxRegistrationStatus::Scheduled,
-                    other => TaxRegistrationStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxRegistrationStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxRegistrationStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxRegistrationStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => TaxRegistrationStatus::Active,
+            "expired" => TaxRegistrationStatus::Expired,
+            "scheduled" => TaxRegistrationStatus::Scheduled,
+            other => TaxRegistrationStatus::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "tax"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxSettings {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub defaults: Option<crate::tax::TaxProductResourceTaxSettingsDefaults>,
     #[doc = "The place where your business is located."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub head_office: Option<crate::tax::TaxProductResourceTaxSettingsHeadOffice>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::tax::TaxSettingsObject,
     #[doc = "Whether these settings have the information Stripe Tax needs to calculate tax."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::tax::TaxSettingsStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status_details: Option<crate::tax::TaxProductResourceTaxSettingsStatusDetails>,
 }
 
@@ -9371,36 +8593,18 @@ impl Default for TaxSettingsObject {
 }
 
 #[cfg(any(feature = "events", feature = "tax"))]
-impl<'de> serde::Deserialize<'de> for TaxSettingsObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxSettingsObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "tax.settings" => TaxSettingsObject::TaxSettings,
-                    other => TaxSettingsObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxSettingsObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxSettingsObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxSettingsObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "tax.settings" => TaxSettingsObject::TaxSettings,
+            other => TaxSettingsObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -9433,89 +8637,72 @@ impl Default for TaxSettingsStatus {
 }
 
 #[cfg(any(feature = "events", feature = "tax"))]
-impl<'de> serde::Deserialize<'de> for TaxSettingsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxSettingsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => TaxSettingsStatus::Active,
-                    "pending" => TaxSettingsStatus::Pending,
-                    other => TaxSettingsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxSettingsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxSettingsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxSettingsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => TaxSettingsStatus::Active,
+            "pending" => TaxSettingsStatus::Pending,
+            other => TaxSettingsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxTransaction {
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "The ID of an existing [Customer](https://docs.stripe.com/api/customers/object) used for the resource."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_details: Option<crate::tax::TaxProductResourceCustomerDetails>,
     #[doc = "Unique identifier for the transaction."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The tax collected or refunded, by line item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line_items: Option<crate::List<crate::tax::TaxTransactionLineItem>>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::tax::TaxTransactionObject,
     #[doc = "The Unix timestamp representing when the tax liability is assumed or reduced."]
-    #[serde(default)]
+    #[json(default)]
     pub posted_at: i64,
     #[doc = "A custom unique identifier, such as 'myOrder_123'."]
-    #[serde(default)]
+    #[json(default)]
     pub reference: String,
     #[doc = "If `type=reversal`, contains information about what was reversed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reversal: Option<crate::tax::TaxProductResourceTaxTransactionResourceReversal>,
     #[doc = "The details of the ship from location, such as the address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ship_from_details: Option<crate::tax::TaxProductResourceShipFromDetails>,
     #[doc = "The shipping cost details for the transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_cost: Option<crate::tax::TaxProductResourceTaxTransactionShippingCost>,
     #[doc = "The calculation uses the tax rules and rates that are in effect at this timestamp."]
-    #[serde(default)]
+    #[json(default)]
     pub tax_date: i64,
     #[doc = "If `reversal`, this transaction reverses an earlier transaction."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::tax::TaxTransactionType,
 }
 
@@ -9527,46 +8714,47 @@ impl crate::PagedItem for TaxTransaction {
 }
 
 #[cfg(feature = "tax")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxTransactionLineItem {
     #[doc = "The line item amount in the [smallest currency unit](https://docs.stripe.com/currencies#minor-units)."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "The amount of tax calculated for this line item, in the [smallest currency unit](https://docs.stripe.com/currencies#m..."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_tax: i64,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::tax::TaxTransactionLineItemObject,
     #[doc = "The ID of an existing [Product](https://docs.stripe.com/api/products/object)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub product: Option<String>,
     #[doc = "The number of units of the item being purchased."]
-    #[serde(default)]
+    #[json(default)]
     pub quantity: i64,
     #[doc = "A custom identifier for this line item in the transaction."]
-    #[serde(default)]
+    #[json(default)]
     pub reference: String,
     #[doc = "If `type=reversal`, contains information about what was reversed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reversal: Option<crate::tax::TaxProductResourceTaxTransactionLineItemResourceReversal>,
     #[doc = "Specifies whether the `amount` includes taxes."]
-    #[serde(default)]
+    #[json(default)]
     pub tax_behavior: crate::tax::TaxCalculationLineItemTaxBehavior,
     #[doc = "The [tax code](https://docs.stripe.com/tax/tax-categories) ID used for this resource."]
-    #[serde(default)]
+    #[json(default)]
     pub tax_code: String,
     #[doc = "If `reversal`, this line item reverses an earlier transaction."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::tax::TaxTransactionType,
 }
 
@@ -9604,36 +8792,18 @@ impl Default for TaxTransactionLineItemObject {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxTransactionLineItemObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxTransactionLineItemObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "tax.transaction_line_item" => TaxTransactionLineItemObject::TaxTransactionLineItem,
-                    other => TaxTransactionLineItemObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxTransactionLineItemObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxTransactionLineItemObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxTransactionLineItemObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "tax.transaction_line_item" => TaxTransactionLineItemObject::TaxTransactionLineItem,
+            other => TaxTransactionLineItemObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -9664,36 +8834,18 @@ impl Default for TaxTransactionObject {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxTransactionObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxTransactionObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "tax.transaction" => TaxTransactionObject::TaxTransaction,
-                    other => TaxTransactionObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxTransactionObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxTransactionObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxTransactionObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "tax.transaction" => TaxTransactionObject::TaxTransaction,
+            other => TaxTransactionObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -9726,37 +8878,19 @@ impl Default for TaxTransactionType {
 }
 
 #[cfg(feature = "tax")]
-impl<'de> serde::Deserialize<'de> for TaxTransactionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxTransactionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "reversal" => TaxTransactionType::Reversal,
-                    "transaction" => TaxTransactionType::Transaction,
-                    other => TaxTransactionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxTransactionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxTransactionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxTransactionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "reversal" => TaxTransactionType::Reversal,
+            "transaction" => TaxTransactionType::Transaction,
+            other => TaxTransactionType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -9764,11 +8898,11 @@ impl<'de> serde::Deserialize<'de> for TaxTransactionType {
 #[derive(Debug, Clone, Default)]
 pub struct UpdateTaxRegistrationParams {
     #[doc = "Time at which the registration becomes active."]
-    pub active_from: Option<serde_json::Value>,
+    pub active_from: Option<json::OwnedValue>,
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "If set, the registration stops being active at this time."]
-    pub expires_at: Option<serde_json::Value>,
+    pub expires_at: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "tax")]

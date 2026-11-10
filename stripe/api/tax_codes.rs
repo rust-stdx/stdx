@@ -95,22 +95,23 @@ impl crate::params::FormEncode for ListTaxCodesParams {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxCode {
     #[doc = "A detailed description of which types of products the tax code represents."]
-    #[serde(default)]
+    #[json(default)]
     pub description: String,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "A short name for the tax code."]
-    #[serde(default)]
+    #[json(default)]
     pub name: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::tax_codes::TaxCodeObject,
     #[doc = "An object that describes more information about the tax location required for this tax code."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub requirements: Option<crate::tax_codes::TaxCodeRequirements>,
 }
 
@@ -398,36 +399,18 @@ impl Default for TaxCodeObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for TaxCodeObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxCodeObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "tax_code" => TaxCodeObject::TaxCode,
-                    other => TaxCodeObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxCodeObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxCodeObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxCodeObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "tax_code" => TaxCodeObject::TaxCode,
+            other => TaxCodeObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -482,10 +465,11 @@ impl<'de> serde::Deserialize<'de> for TaxCodeObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxCodeRequirements {
     #[doc = "Describes whether a performance location is required for a successful tax calculation with a tax code."]
-    #[serde(default)]
+    #[json(default)]
     pub performance_location: crate::tax_codes::TaxCodeRequirementsPerformanceLocation,
 }
 
@@ -718,37 +702,19 @@ impl Default for TaxCodeRequirementsPerformanceLocation {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for TaxCodeRequirementsPerformanceLocation {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxCodeRequirementsPerformanceLocation;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "optional" => TaxCodeRequirementsPerformanceLocation::Optional,
-                    "required" => TaxCodeRequirementsPerformanceLocation::Required,
-                    other => TaxCodeRequirementsPerformanceLocation::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxCodeRequirementsPerformanceLocation::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxCodeRequirementsPerformanceLocation {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxCodeRequirementsPerformanceLocation::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "optional" => TaxCodeRequirementsPerformanceLocation::Optional,
+            "required" => TaxCodeRequirementsPerformanceLocation::Required,
+            other => TaxCodeRequirementsPerformanceLocation::Unknown(other.to_string()),
+        })
     }
 }
 

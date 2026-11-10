@@ -14,7 +14,7 @@ pub struct CreateSubscriptionParams {
     #[doc = "A list of prices and quantities that will generate invoice items appended to the next invoice for this subscription."]
     pub add_invoice_items: Option<Vec<crate::subscriptions::CreateSubscriptionParamsAddInvoiceItemsItem>>,
     #[doc = "A non-negative decimal between 0 and 100, with at most two decimal places."]
-    pub application_fee_percent: Option<serde_json::Value>,
+    pub application_fee_percent: Option<json::OwnedValue>,
     #[doc = "Automatic tax settings for this subscription."]
     pub automatic_tax: Option<crate::subscriptions::CreateSubscriptionParamsAutomaticTax>,
     #[doc = "A past timestamp to backdate the subscription's start date to."]
@@ -30,7 +30,7 @@ pub struct CreateSubscriptionParams {
     #[doc = "Define thresholds at which an invoice will be sent, and the subscription advanced to a new billing period."]
     pub billing_thresholds: Option<crate::subscriptions::CreateSubscriptionParamsBillingThresholds>,
     #[doc = "A timestamp at which the subscription should cancel."]
-    pub cancel_at: Option<serde_json::Value>,
+    pub cancel_at: Option<json::OwnedValue>,
     #[doc = "Indicate whether this subscription should cancel at the end of the current period (`current_period_end`)."]
     pub cancel_at_period_end: Option<bool>,
     #[doc = "Either `charge_automatically`, or `send_invoice`."]
@@ -48,11 +48,11 @@ pub struct CreateSubscriptionParams {
     #[doc = "ID of the default payment source for the subscription."]
     pub default_source: Option<String>,
     #[doc = "The tax rates that will apply to any subscription item that does not have `tax_rates` set."]
-    pub default_tax_rates: Option<serde_json::Value>,
+    pub default_tax_rates: Option<json::OwnedValue>,
     #[doc = "The subscription's description, meant to be displayable to the customer."]
     pub description: Option<String>,
     #[doc = "The coupons to redeem into discounts for the subscription."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "All invoices will be billed using the specified settings."]
@@ -64,7 +64,7 @@ pub struct CreateSubscriptionParams {
     #[doc = "Indicates if a customer is on or off-session while an invoice payment is attempted."]
     pub off_session: Option<bool>,
     #[doc = "The account on behalf of which to charge, for each of the subscription's invoices."]
-    pub on_behalf_of: Option<serde_json::Value>,
+    pub on_behalf_of: Option<json::OwnedValue>,
     #[doc = "Controls how Stripe handles the first invoice when payment is required and `collection_method=charge_automatically`."]
     pub payment_behavior: Option<crate::subscriptions::CreateSubscriptionParamsPaymentBehavior>,
     #[doc = "Payment settings to pass to invoices created by the subscription."]
@@ -76,7 +76,7 @@ pub struct CreateSubscriptionParams {
     #[doc = "If specified, the funds from the subscription's invoices will be transferred to the destination and the ID of the res..."]
     pub transfer_data: Option<crate::subscriptions::CreateSubscriptionParamsTransferData>,
     #[doc = "Unix timestamp representing the end of the trial period the customer will get before being charged for the first time."]
-    pub trial_end: Option<serde_json::Value>,
+    pub trial_end: Option<json::OwnedValue>,
     #[doc = "Indicates if a plan's `trial_period_days` should be applied to the subscription."]
     pub trial_from_plan: Option<bool>,
     #[doc = "Integer representing the number of trial period days before the customer is charged for the first time."]
@@ -157,7 +157,7 @@ pub struct CreateSubscriptionParamsAddInvoiceItemsItem {
     #[doc = "Quantity for this item."]
     pub quantity: Option<i64>,
     #[doc = "The tax rates which apply to the item."]
-    pub tax_rates: Option<serde_json::Value>,
+    pub tax_rates: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "subscriptions")]
@@ -257,37 +257,19 @@ impl CreateSubscriptionParamsAddInvoiceItemsItemPeriodEndType {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for CreateSubscriptionParamsAddInvoiceItemsItemPeriodEndType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsAddInvoiceItemsItemPeriodEndType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "min_item_period_end" => CreateSubscriptionParamsAddInvoiceItemsItemPeriodEndType::MinItemPeriodEnd,
-                    "timestamp" => CreateSubscriptionParamsAddInvoiceItemsItemPeriodEndType::Timestamp,
-                    other => CreateSubscriptionParamsAddInvoiceItemsItemPeriodEndType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsAddInvoiceItemsItemPeriodEndType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateSubscriptionParamsAddInvoiceItemsItemPeriodEndType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionParamsAddInvoiceItemsItemPeriodEndType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "min_item_period_end" => CreateSubscriptionParamsAddInvoiceItemsItemPeriodEndType::MinItemPeriodEnd,
+            "timestamp" => CreateSubscriptionParamsAddInvoiceItemsItemPeriodEndType::Timestamp,
+            other => CreateSubscriptionParamsAddInvoiceItemsItemPeriodEndType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -339,42 +321,22 @@ impl CreateSubscriptionParamsAddInvoiceItemsItemPeriodStartType {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for CreateSubscriptionParamsAddInvoiceItemsItemPeriodStartType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsAddInvoiceItemsItemPeriodStartType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "max_item_period_start" => {
-                        CreateSubscriptionParamsAddInvoiceItemsItemPeriodStartType::MaxItemPeriodStart
-                    }
-                    "now" => CreateSubscriptionParamsAddInvoiceItemsItemPeriodStartType::Now,
-                    "timestamp" => CreateSubscriptionParamsAddInvoiceItemsItemPeriodStartType::Timestamp,
-                    other => CreateSubscriptionParamsAddInvoiceItemsItemPeriodStartType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsAddInvoiceItemsItemPeriodStartType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateSubscriptionParamsAddInvoiceItemsItemPeriodStartType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionParamsAddInvoiceItemsItemPeriodStartType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "max_item_period_start" => CreateSubscriptionParamsAddInvoiceItemsItemPeriodStartType::MaxItemPeriodStart,
+            "now" => CreateSubscriptionParamsAddInvoiceItemsItemPeriodStartType::Now,
+            "timestamp" => CreateSubscriptionParamsAddInvoiceItemsItemPeriodStartType::Timestamp,
+            other => CreateSubscriptionParamsAddInvoiceItemsItemPeriodStartType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -435,42 +397,22 @@ impl CreateSubscriptionParamsAddInvoiceItemsItemPriceDataTaxBehavior {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for CreateSubscriptionParamsAddInvoiceItemsItemPriceDataTaxBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsAddInvoiceItemsItemPriceDataTaxBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exclusive" => CreateSubscriptionParamsAddInvoiceItemsItemPriceDataTaxBehavior::Exclusive,
-                    "inclusive" => CreateSubscriptionParamsAddInvoiceItemsItemPriceDataTaxBehavior::Inclusive,
-                    "unspecified" => CreateSubscriptionParamsAddInvoiceItemsItemPriceDataTaxBehavior::Unspecified,
-                    other => {
-                        CreateSubscriptionParamsAddInvoiceItemsItemPriceDataTaxBehavior::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsAddInvoiceItemsItemPriceDataTaxBehavior::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateSubscriptionParamsAddInvoiceItemsItemPriceDataTaxBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionParamsAddInvoiceItemsItemPriceDataTaxBehavior::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exclusive" => CreateSubscriptionParamsAddInvoiceItemsItemPriceDataTaxBehavior::Exclusive,
+            "inclusive" => CreateSubscriptionParamsAddInvoiceItemsItemPriceDataTaxBehavior::Inclusive,
+            "unspecified" => CreateSubscriptionParamsAddInvoiceItemsItemPriceDataTaxBehavior::Unspecified,
+            other => CreateSubscriptionParamsAddInvoiceItemsItemPriceDataTaxBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -537,37 +479,19 @@ impl CreateSubscriptionParamsAutomaticTaxLiabilityType {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for CreateSubscriptionParamsAutomaticTaxLiabilityType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsAutomaticTaxLiabilityType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account" => CreateSubscriptionParamsAutomaticTaxLiabilityType::Account,
-                    "self" => CreateSubscriptionParamsAutomaticTaxLiabilityType::SelfValue,
-                    other => CreateSubscriptionParamsAutomaticTaxLiabilityType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsAutomaticTaxLiabilityType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateSubscriptionParamsAutomaticTaxLiabilityType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionParamsAutomaticTaxLiabilityType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account" => CreateSubscriptionParamsAutomaticTaxLiabilityType::Account,
+            "self" => CreateSubscriptionParamsAutomaticTaxLiabilityType::SelfValue,
+            other => CreateSubscriptionParamsAutomaticTaxLiabilityType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -658,39 +582,21 @@ impl CreateSubscriptionParamsBillingModeFlexibleProrationDiscounts {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for CreateSubscriptionParamsBillingModeFlexibleProrationDiscounts {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsBillingModeFlexibleProrationDiscounts;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "included" => CreateSubscriptionParamsBillingModeFlexibleProrationDiscounts::Included,
-                    "itemized" => CreateSubscriptionParamsBillingModeFlexibleProrationDiscounts::Itemized,
-                    other => CreateSubscriptionParamsBillingModeFlexibleProrationDiscounts::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsBillingModeFlexibleProrationDiscounts::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateSubscriptionParamsBillingModeFlexibleProrationDiscounts {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionParamsBillingModeFlexibleProrationDiscounts::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "included" => CreateSubscriptionParamsBillingModeFlexibleProrationDiscounts::Included,
+            "itemized" => CreateSubscriptionParamsBillingModeFlexibleProrationDiscounts::Itemized,
+            other => CreateSubscriptionParamsBillingModeFlexibleProrationDiscounts::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -723,37 +629,19 @@ impl CreateSubscriptionParamsBillingModeType {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for CreateSubscriptionParamsBillingModeType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsBillingModeType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "classic" => CreateSubscriptionParamsBillingModeType::Classic,
-                    "flexible" => CreateSubscriptionParamsBillingModeType::Flexible,
-                    other => CreateSubscriptionParamsBillingModeType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsBillingModeType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateSubscriptionParamsBillingModeType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionParamsBillingModeType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "classic" => CreateSubscriptionParamsBillingModeType::Classic,
+            "flexible" => CreateSubscriptionParamsBillingModeType::Flexible,
+            other => CreateSubscriptionParamsBillingModeType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -825,38 +713,20 @@ impl CreateSubscriptionParamsBillingSchedulesItemAppliesToItemType {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for CreateSubscriptionParamsBillingSchedulesItemAppliesToItemType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsBillingSchedulesItemAppliesToItemType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "price" => CreateSubscriptionParamsBillingSchedulesItemAppliesToItemType::Price,
-                    other => CreateSubscriptionParamsBillingSchedulesItemAppliesToItemType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsBillingSchedulesItemAppliesToItemType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateSubscriptionParamsBillingSchedulesItemAppliesToItemType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionParamsBillingSchedulesItemAppliesToItemType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "price" => CreateSubscriptionParamsBillingSchedulesItemAppliesToItemType::Price,
+            other => CreateSubscriptionParamsBillingSchedulesItemAppliesToItemType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -930,43 +800,23 @@ impl CreateSubscriptionParamsBillingSchedulesItemBillUntilDurationInterval {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for CreateSubscriptionParamsBillingSchedulesItemBillUntilDurationInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsBillingSchedulesItemBillUntilDurationInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "day" => CreateSubscriptionParamsBillingSchedulesItemBillUntilDurationInterval::Day,
-                    "month" => CreateSubscriptionParamsBillingSchedulesItemBillUntilDurationInterval::Month,
-                    "week" => CreateSubscriptionParamsBillingSchedulesItemBillUntilDurationInterval::Week,
-                    "year" => CreateSubscriptionParamsBillingSchedulesItemBillUntilDurationInterval::Year,
-                    other => CreateSubscriptionParamsBillingSchedulesItemBillUntilDurationInterval::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsBillingSchedulesItemBillUntilDurationInterval::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateSubscriptionParamsBillingSchedulesItemBillUntilDurationInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionParamsBillingSchedulesItemBillUntilDurationInterval::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "day" => CreateSubscriptionParamsBillingSchedulesItemBillUntilDurationInterval::Day,
+            "month" => CreateSubscriptionParamsBillingSchedulesItemBillUntilDurationInterval::Month,
+            "week" => CreateSubscriptionParamsBillingSchedulesItemBillUntilDurationInterval::Week,
+            "year" => CreateSubscriptionParamsBillingSchedulesItemBillUntilDurationInterval::Year,
+            other => CreateSubscriptionParamsBillingSchedulesItemBillUntilDurationInterval::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -999,37 +849,19 @@ impl CreateSubscriptionParamsBillingSchedulesItemBillUntilType {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for CreateSubscriptionParamsBillingSchedulesItemBillUntilType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsBillingSchedulesItemBillUntilType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "duration" => CreateSubscriptionParamsBillingSchedulesItemBillUntilType::Duration,
-                    "timestamp" => CreateSubscriptionParamsBillingSchedulesItemBillUntilType::Timestamp,
-                    other => CreateSubscriptionParamsBillingSchedulesItemBillUntilType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsBillingSchedulesItemBillUntilType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateSubscriptionParamsBillingSchedulesItemBillUntilType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionParamsBillingSchedulesItemBillUntilType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "duration" => CreateSubscriptionParamsBillingSchedulesItemBillUntilType::Duration,
+            "timestamp" => CreateSubscriptionParamsBillingSchedulesItemBillUntilType::Timestamp,
+            other => CreateSubscriptionParamsBillingSchedulesItemBillUntilType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1064,9 +896,9 @@ pub type CreateSubscriptionParamsCollectionMethod = crate::subscriptions::ListSu
 #[derive(Debug, Clone, Default)]
 pub struct CreateSubscriptionParamsInvoiceSettings {
     #[doc = "The account tax IDs associated with the subscription."]
-    pub account_tax_ids: Option<serde_json::Value>,
+    pub account_tax_ids: Option<json::OwnedValue>,
     #[doc = "A list of up to 4 custom fields to be displayed on the invoice."]
-    pub custom_fields: Option<serde_json::Value>,
+    pub custom_fields: Option<json::OwnedValue>,
     #[doc = "An arbitrary string attached to the object."]
     pub description: Option<String>,
     #[doc = "Footer to be displayed on the invoice."]
@@ -1113,7 +945,7 @@ pub struct CreateSubscriptionParamsItemsItem {
     #[doc = "The trial offer to apply to this subscription item."]
     pub current_trial: Option<crate::subscriptions::CreateSubscriptionParamsItemsItemCurrentTrial>,
     #[doc = "The coupons to redeem into discounts for the subscription item."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "Plan ID for this item, as a string."]
@@ -1125,7 +957,7 @@ pub struct CreateSubscriptionParamsItemsItem {
     #[doc = "Quantity for this item."]
     pub quantity: Option<i64>,
     #[doc = "A list of [Tax Rate](https://docs.stripe.com/api/tax_rates) ids."]
-    pub tax_rates: Option<serde_json::Value>,
+    pub tax_rates: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "subscriptions")]
@@ -1253,39 +1085,21 @@ impl CreateSubscriptionParamsPaymentBehavior {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for CreateSubscriptionParamsPaymentBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsPaymentBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "allow_incomplete" => CreateSubscriptionParamsPaymentBehavior::AllowIncomplete,
-                    "default_incomplete" => CreateSubscriptionParamsPaymentBehavior::DefaultIncomplete,
-                    "error_if_incomplete" => CreateSubscriptionParamsPaymentBehavior::ErrorIfIncomplete,
-                    "pending_if_incomplete" => CreateSubscriptionParamsPaymentBehavior::PendingIfIncomplete,
-                    other => CreateSubscriptionParamsPaymentBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsPaymentBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateSubscriptionParamsPaymentBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionParamsPaymentBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "allow_incomplete" => CreateSubscriptionParamsPaymentBehavior::AllowIncomplete,
+            "default_incomplete" => CreateSubscriptionParamsPaymentBehavior::DefaultIncomplete,
+            "error_if_incomplete" => CreateSubscriptionParamsPaymentBehavior::ErrorIfIncomplete,
+            "pending_if_incomplete" => CreateSubscriptionParamsPaymentBehavior::PendingIfIncomplete,
+            other => CreateSubscriptionParamsPaymentBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1303,7 +1117,7 @@ pub struct CreateSubscriptionParamsPaymentSettings {
     pub payment_method_options:
         Option<crate::subscriptions::CreateSubscriptionParamsPaymentSettingsPaymentMethodOptions>,
     #[doc = "The list of payment method types (e.g."]
-    pub payment_method_types: Option<serde_json::Value>,
+    pub payment_method_types: Option<json::OwnedValue>,
     #[doc = "Configure whether Stripe updates `subscription.default_payment_method` when payment succeeds."]
     pub save_default_payment_method:
         Option<crate::subscriptions::CreateSubscriptionParamsPaymentSettingsSaveDefaultPaymentMethod>,
@@ -1423,40 +1237,21 @@ impl CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandate
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value =
-                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "business" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Business,
-                    "personal" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Personal,
-                    other => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "business" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Business,
+            "personal" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Personal,
+            other => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1501,44 +1296,34 @@ impl CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerific
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "automatic" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod::Automatic,
-                    "instant" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod::Instant,
-                    "microdeposits" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod::Microdeposits,
-                    other => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "automatic" => {
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod::Automatic
+            }
+            "instant" => {
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod::Instant
+            }
+            "microdeposits" => {
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod::Microdeposits
+            }
+            other => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsAcssDebitVerificationMethod::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -1595,49 +1380,29 @@ impl CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBancontactPrefer
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "de" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::De,
-                    "en" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::En,
-                    "fr" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::Fr,
-                    "nl" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::Nl,
-                    other => {
-                        CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "de" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::De,
+            "en" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::En,
+            "fr" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::Fr,
+            "nl" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::Nl,
+            other => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBancontactPreferredLanguage::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -1770,53 +1535,34 @@ impl CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDet
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value =
-                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unnamed,
-                    "ch_ein" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::ChEin,
-                    "de_hrb" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::DeHrb,
-                    "dk_cvr" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::DkCvr,
-                    "es_cif" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::EsCif,
-                    "fi_tunnus" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FiTunnus,
-                    "fr_siren" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FrSiren,
-                    "fr_siret" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FrSiret,
-                    "it_rea" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::ItRea,
-                    "nl_kvk" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NlKvk,
-                    "no_org_number" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NoOrgNumber,
-                    "no_pno" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NoPno,
-                    "se_org_number" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::SeOrgNumber,
-                    "se_pno" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::SePno,
-                    "uk_crn" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::UkCrn,
-                    other => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unnamed,
+            "ch_ein" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::ChEin,
+            "de_hrb" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::DeHrb,
+            "dk_cvr" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::DkCvr,
+            "es_cif" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::EsCif,
+            "fi_tunnus" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FiTunnus,
+            "fr_siren" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FrSiren,
+            "fr_siret" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FrSiret,
+            "it_rea" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::ItRea,
+            "nl_kvk" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NlKvk,
+            "no_org_number" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NoOrgNumber,
+            "no_pno" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NoPno,
+            "se_org_number" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::SeOrgNumber,
+            "se_pno" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::SePno,
+            "uk_crn" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::UkCrn,
+            other => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1929,51 +1675,29 @@ impl CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardMandateOptio
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardMandateOptionsAmountType
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardMandateOptionsAmountType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "fixed" => {
-                        CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardMandateOptionsAmountType::Fixed
-                    }
-                    "maximum" => {
-                        CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardMandateOptionsAmountType::Maximum
-                    }
-                    other => {
-                        CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardMandateOptionsAmountType::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardMandateOptionsAmountType::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardMandateOptionsAmountType::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "fixed" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardMandateOptionsAmountType::Fixed,
+            "maximum" => {
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardMandateOptionsAmountType::Maximum
+            }
+            other => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardMandateOptionsAmountType::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -2032,54 +1756,34 @@ impl CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "amex" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Amex,
-                    "cartes_bancaires" => {
-                        CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::CartesBancaires
-                    }
-                    "diners" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Diners,
-                    "discover" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Discover,
-                    "eftpos_au" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::EftposAu,
-                    "girocard" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Girocard,
-                    "interac" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Interac,
-                    "jcb" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Jcb,
-                    "link" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Link,
-                    "mastercard" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Mastercard,
-                    "unionpay" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Unionpay,
-                    "unknown" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::UnknownValue,
-                    "visa" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Visa,
-                    other => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "amex" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Amex,
+            "cartes_bancaires" => {
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::CartesBancaires
+            }
+            "diners" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Diners,
+            "discover" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Discover,
+            "eftpos_au" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::EftposAu,
+            "girocard" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Girocard,
+            "interac" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Interac,
+            "jcb" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Jcb,
+            "link" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Link,
+            "mastercard" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Mastercard,
+            "unionpay" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Unionpay,
+            "unknown" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::UnknownValue,
+            "visa" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Visa,
+            other => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardNetwork::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2118,52 +1822,30 @@ impl CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardRequestThree
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de>
-    for CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "any" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure::Any,
-                    "automatic" => {
-                        CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure::Automatic
-                    }
-                    "challenge" => {
-                        CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure::Challenge
-                    }
-                    other => {
-                        CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "any" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure::Any,
+            "automatic" => {
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure::Automatic
+            }
+            "challenge" => {
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure::Challenge
+            }
+            other => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsCardRequestThreeDSecure::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -2323,52 +2005,44 @@ impl CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOpti
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "dependant_support" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::DependantSupport,
-                    "government" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Government,
-                    "loan" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Loan,
-                    "mortgage" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Mortgage,
-                    "other" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Other,
-                    "pension" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Pension,
-                    "personal" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Personal,
-                    "retail" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Retail,
-                    "salary" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Salary,
-                    "tax" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Tax,
-                    "utility" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Utility,
-                    other => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "dependant_support" => {
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::DependantSupport
+            }
+            "government" => {
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Government
+            }
+            "loan" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Loan,
+            "mortgage" => {
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Mortgage
+            }
+            "other" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Other,
+            "pension" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Pension,
+            "personal" => {
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Personal
+            }
+            "retail" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Retail,
+            "salary" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Salary,
+            "tax" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Tax,
+            "utility" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Utility,
+            other => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPaytoMandateOptionsPurpose::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -2450,39 +2124,33 @@ impl CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOption
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsAmountIncludesIof
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsAmountIncludesIof;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsAmountIncludesIof::Always,
-                    "never" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsAmountIncludesIof::Never,
-                    other => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsAmountIncludesIof::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsAmountIncludesIof::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsAmountIncludesIof::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => {
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsAmountIncludesIof::Always
+            }
+            "never" => {
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsAmountIncludesIof::Never
+            }
+            other => {
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsAmountIncludesIof::Unknown(
+                    other.to_string(),
+                )
+            }
+        })
     }
 }
 
@@ -2535,42 +2203,42 @@ impl CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOption
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsPaymentSchedule
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsPaymentSchedule;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "halfyearly" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Halfyearly,
-                    "monthly" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Monthly,
-                    "quarterly" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Quarterly,
-                    "weekly" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Weekly,
-                    "yearly" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Yearly,
-                    other => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "halfyearly" => {
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Halfyearly
+            }
+            "monthly" => {
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Monthly
+            }
+            "quarterly" => {
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Quarterly
+            }
+            "weekly" => {
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Weekly
+            }
+            "yearly" => {
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Yearly
+            }
+            other => {
+                CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Unknown(
+                    other.to_string(),
+                )
+            }
+        })
     }
 }
 
@@ -2715,37 +2383,19 @@ impl CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFin
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "checking" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem::Checking,
-                    "savings" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem::Savings,
-                    other => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "checking" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem::Checking,
+            "savings" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem::Savings,
+            other => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsFiltersAccountSubcategoriesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2782,41 +2432,23 @@ impl CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFin
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "balances" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Balances,
-                    "ownership" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Ownership,
-                    "payment_method" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::PaymentMethod,
-                    "transactions" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Transactions,
-                    other => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "balances" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Balances,
+            "ownership" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Ownership,
+            "payment_method" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::PaymentMethod,
+            "transactions" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Transactions,
+            other => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2853,40 +2485,22 @@ impl CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFin
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "balances" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Balances,
-                    "ownership" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Ownership,
-                    "transactions" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Transactions,
-                    other => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "balances" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Balances,
+            "ownership" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Ownership,
+            "transactions" => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Transactions,
+            other => CreateSubscriptionParamsPaymentSettingsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2925,43 +2539,21 @@ impl CreateSubscriptionParamsPaymentSettingsSaveDefaultPaymentMethod {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for CreateSubscriptionParamsPaymentSettingsSaveDefaultPaymentMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsPaymentSettingsSaveDefaultPaymentMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "off" => CreateSubscriptionParamsPaymentSettingsSaveDefaultPaymentMethod::Off,
-                    "on_subscription" => {
-                        CreateSubscriptionParamsPaymentSettingsSaveDefaultPaymentMethod::OnSubscription
-                    }
-                    other => {
-                        CreateSubscriptionParamsPaymentSettingsSaveDefaultPaymentMethod::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsPaymentSettingsSaveDefaultPaymentMethod::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateSubscriptionParamsPaymentSettingsSaveDefaultPaymentMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionParamsPaymentSettingsSaveDefaultPaymentMethod::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "off" => CreateSubscriptionParamsPaymentSettingsSaveDefaultPaymentMethod::Off,
+            "on_subscription" => CreateSubscriptionParamsPaymentSettingsSaveDefaultPaymentMethod::OnSubscription,
+            other => CreateSubscriptionParamsPaymentSettingsSaveDefaultPaymentMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3017,38 +2609,20 @@ impl CreateSubscriptionParamsProrationBehavior {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for CreateSubscriptionParamsProrationBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsProrationBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always_invoice" => CreateSubscriptionParamsProrationBehavior::AlwaysInvoice,
-                    "create_prorations" => CreateSubscriptionParamsProrationBehavior::CreateProrations,
-                    "none" => CreateSubscriptionParamsProrationBehavior::None,
-                    other => CreateSubscriptionParamsProrationBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsProrationBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateSubscriptionParamsProrationBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionParamsProrationBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always_invoice" => CreateSubscriptionParamsProrationBehavior::AlwaysInvoice,
+            "create_prorations" => CreateSubscriptionParamsProrationBehavior::CreateProrations,
+            "none" => CreateSubscriptionParamsProrationBehavior::None,
+            other => CreateSubscriptionParamsProrationBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3131,41 +2705,21 @@ impl CreateSubscriptionParamsTrialSettingsEndBehaviorBillingCycleAnchor {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for CreateSubscriptionParamsTrialSettingsEndBehaviorBillingCycleAnchor {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsTrialSettingsEndBehaviorBillingCycleAnchor;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "now" => CreateSubscriptionParamsTrialSettingsEndBehaviorBillingCycleAnchor::Now,
-                    "unchanged" => CreateSubscriptionParamsTrialSettingsEndBehaviorBillingCycleAnchor::Unchanged,
-                    other => {
-                        CreateSubscriptionParamsTrialSettingsEndBehaviorBillingCycleAnchor::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsTrialSettingsEndBehaviorBillingCycleAnchor::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateSubscriptionParamsTrialSettingsEndBehaviorBillingCycleAnchor {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionParamsTrialSettingsEndBehaviorBillingCycleAnchor::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "now" => CreateSubscriptionParamsTrialSettingsEndBehaviorBillingCycleAnchor::Now,
+            "unchanged" => CreateSubscriptionParamsTrialSettingsEndBehaviorBillingCycleAnchor::Unchanged,
+            other => CreateSubscriptionParamsTrialSettingsEndBehaviorBillingCycleAnchor::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3200,44 +2754,22 @@ impl CreateSubscriptionParamsTrialSettingsEndBehaviorMissingPaymentMethod {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for CreateSubscriptionParamsTrialSettingsEndBehaviorMissingPaymentMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSubscriptionParamsTrialSettingsEndBehaviorMissingPaymentMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cancel" => CreateSubscriptionParamsTrialSettingsEndBehaviorMissingPaymentMethod::Cancel,
-                    "create_invoice" => {
-                        CreateSubscriptionParamsTrialSettingsEndBehaviorMissingPaymentMethod::CreateInvoice
-                    }
-                    "pause" => CreateSubscriptionParamsTrialSettingsEndBehaviorMissingPaymentMethod::Pause,
-                    other => {
-                        CreateSubscriptionParamsTrialSettingsEndBehaviorMissingPaymentMethod::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSubscriptionParamsTrialSettingsEndBehaviorMissingPaymentMethod::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateSubscriptionParamsTrialSettingsEndBehaviorMissingPaymentMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSubscriptionParamsTrialSettingsEndBehaviorMissingPaymentMethod::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cancel" => CreateSubscriptionParamsTrialSettingsEndBehaviorMissingPaymentMethod::Cancel,
+            "create_invoice" => CreateSubscriptionParamsTrialSettingsEndBehaviorMissingPaymentMethod::CreateInvoice,
+            "pause" => CreateSubscriptionParamsTrialSettingsEndBehaviorMissingPaymentMethod::Pause,
+            other => CreateSubscriptionParamsTrialSettingsEndBehaviorMissingPaymentMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3277,7 +2809,7 @@ impl crate::params::FormEncode for DeleteSubscriptionParams {
 #[derive(Debug, Clone, Default)]
 pub struct DeleteSubscriptionParamsCancellationDetails {
     #[doc = "Additional comments about why the user canceled the subscription, if the subscription was canceled explicitly by the ..."]
-    pub comment: Option<serde_json::Value>,
+    pub comment: Option<json::OwnedValue>,
     #[doc = "The customer submitted reason for why they canceled, if the subscription was canceled explicitly by the user."]
     pub feedback: Option<crate::subscriptions::DeleteSubscriptionParamsCancellationDetailsFeedback>,
     #[doc = "Customized feedback options that provide deeper insight into why the subscription was canceled, if the subscription w..."]
@@ -3390,37 +2922,19 @@ impl ListSubscriptionsParamsCollectionMethod {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for ListSubscriptionsParamsCollectionMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListSubscriptionsParamsCollectionMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "charge_automatically" => ListSubscriptionsParamsCollectionMethod::ChargeAutomatically,
-                    "send_invoice" => ListSubscriptionsParamsCollectionMethod::SendInvoice,
-                    other => ListSubscriptionsParamsCollectionMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListSubscriptionsParamsCollectionMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListSubscriptionsParamsCollectionMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListSubscriptionsParamsCollectionMethod::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "charge_automatically" => ListSubscriptionsParamsCollectionMethod::ChargeAutomatically,
+            "send_invoice" => ListSubscriptionsParamsCollectionMethod::SendInvoice,
+            other => ListSubscriptionsParamsCollectionMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3498,45 +3012,27 @@ impl ListSubscriptionsParamsStatus {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for ListSubscriptionsParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListSubscriptionsParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => ListSubscriptionsParamsStatus::Active,
-                    "all" => ListSubscriptionsParamsStatus::All,
-                    "canceled" => ListSubscriptionsParamsStatus::Canceled,
-                    "ended" => ListSubscriptionsParamsStatus::Ended,
-                    "incomplete" => ListSubscriptionsParamsStatus::Incomplete,
-                    "incomplete_expired" => ListSubscriptionsParamsStatus::IncompleteExpired,
-                    "past_due" => ListSubscriptionsParamsStatus::PastDue,
-                    "paused" => ListSubscriptionsParamsStatus::Paused,
-                    "trialing" => ListSubscriptionsParamsStatus::Trialing,
-                    "unpaid" => ListSubscriptionsParamsStatus::Unpaid,
-                    other => ListSubscriptionsParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListSubscriptionsParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListSubscriptionsParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListSubscriptionsParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => ListSubscriptionsParamsStatus::Active,
+            "all" => ListSubscriptionsParamsStatus::All,
+            "canceled" => ListSubscriptionsParamsStatus::Canceled,
+            "ended" => ListSubscriptionsParamsStatus::Ended,
+            "incomplete" => ListSubscriptionsParamsStatus::Incomplete,
+            "incomplete_expired" => ListSubscriptionsParamsStatus::IncompleteExpired,
+            "past_due" => ListSubscriptionsParamsStatus::PastDue,
+            "paused" => ListSubscriptionsParamsStatus::Paused,
+            "trialing" => ListSubscriptionsParamsStatus::Trialing,
+            "unpaid" => ListSubscriptionsParamsStatus::Unpaid,
+            other => ListSubscriptionsParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3622,36 +3118,18 @@ impl MigrateSubscriptionParamsBillingModeType {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for MigrateSubscriptionParamsBillingModeType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = MigrateSubscriptionParamsBillingModeType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "flexible" => MigrateSubscriptionParamsBillingModeType::Flexible,
-                    other => MigrateSubscriptionParamsBillingModeType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(MigrateSubscriptionParamsBillingModeType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for MigrateSubscriptionParamsBillingModeType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(MigrateSubscriptionParamsBillingModeType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "flexible" => MigrateSubscriptionParamsBillingModeType::Flexible,
+            other => MigrateSubscriptionParamsBillingModeType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3740,37 +3218,19 @@ impl PauseSubscriptionParamsBillForOutstandingUsageThroughType {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for PauseSubscriptionParamsBillForOutstandingUsageThroughType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PauseSubscriptionParamsBillForOutstandingUsageThroughType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "none" => PauseSubscriptionParamsBillForOutstandingUsageThroughType::None,
-                    "now" => PauseSubscriptionParamsBillForOutstandingUsageThroughType::Now,
-                    other => PauseSubscriptionParamsBillForOutstandingUsageThroughType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PauseSubscriptionParamsBillForOutstandingUsageThroughType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PauseSubscriptionParamsBillForOutstandingUsageThroughType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PauseSubscriptionParamsBillForOutstandingUsageThroughType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "none" => PauseSubscriptionParamsBillForOutstandingUsageThroughType::None,
+            "now" => PauseSubscriptionParamsBillForOutstandingUsageThroughType::Now,
+            other => PauseSubscriptionParamsBillForOutstandingUsageThroughType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3819,40 +3279,20 @@ impl PauseSubscriptionParamsBillForUnusedTimeFromType {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for PauseSubscriptionParamsBillForUnusedTimeFromType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PauseSubscriptionParamsBillForUnusedTimeFromType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "item_current_period_start" => {
-                        PauseSubscriptionParamsBillForUnusedTimeFromType::ItemCurrentPeriodStart
-                    }
-                    "none" => PauseSubscriptionParamsBillForUnusedTimeFromType::None,
-                    "now" => PauseSubscriptionParamsBillForUnusedTimeFromType::Now,
-                    other => PauseSubscriptionParamsBillForUnusedTimeFromType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PauseSubscriptionParamsBillForUnusedTimeFromType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PauseSubscriptionParamsBillForUnusedTimeFromType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PauseSubscriptionParamsBillForUnusedTimeFromType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "item_current_period_start" => PauseSubscriptionParamsBillForUnusedTimeFromType::ItemCurrentPeriodStart,
+            "none" => PauseSubscriptionParamsBillForUnusedTimeFromType::None,
+            "now" => PauseSubscriptionParamsBillForUnusedTimeFromType::Now,
+            other => PauseSubscriptionParamsBillForUnusedTimeFromType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3885,37 +3325,19 @@ impl PauseSubscriptionParamsInvoicingBehavior {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for PauseSubscriptionParamsInvoicingBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PauseSubscriptionParamsInvoicingBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "invoice" => PauseSubscriptionParamsInvoicingBehavior::Invoice,
-                    "pending_invoice_item" => PauseSubscriptionParamsInvoicingBehavior::PendingInvoiceItem,
-                    other => PauseSubscriptionParamsInvoicingBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PauseSubscriptionParamsInvoicingBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PauseSubscriptionParamsInvoicingBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PauseSubscriptionParamsInvoicingBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "invoice" => PauseSubscriptionParamsInvoicingBehavior::Invoice,
+            "pending_invoice_item" => PauseSubscriptionParamsInvoicingBehavior::PendingInvoiceItem,
+            other => PauseSubscriptionParamsInvoicingBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3946,36 +3368,18 @@ impl PauseSubscriptionParamsType {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for PauseSubscriptionParamsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PauseSubscriptionParamsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "subscription" => PauseSubscriptionParamsType::Subscription,
-                    other => PauseSubscriptionParamsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PauseSubscriptionParamsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PauseSubscriptionParamsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PauseSubscriptionParamsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "subscription" => PauseSubscriptionParamsType::Subscription,
+            other => PauseSubscriptionParamsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4054,37 +3458,19 @@ impl ResumeSubscriptionParamsPaymentBehavior {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for ResumeSubscriptionParamsPaymentBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ResumeSubscriptionParamsPaymentBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "resume_on_payment_attempt" => ResumeSubscriptionParamsPaymentBehavior::ResumeOnPaymentAttempt,
-                    "resume_on_payment_success" => ResumeSubscriptionParamsPaymentBehavior::ResumeOnPaymentSuccess,
-                    other => ResumeSubscriptionParamsPaymentBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ResumeSubscriptionParamsPaymentBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ResumeSubscriptionParamsPaymentBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ResumeSubscriptionParamsPaymentBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "resume_on_payment_attempt" => ResumeSubscriptionParamsPaymentBehavior::ResumeOnPaymentAttempt,
+            "resume_on_payment_success" => ResumeSubscriptionParamsPaymentBehavior::ResumeOnPaymentSuccess,
+            other => ResumeSubscriptionParamsPaymentBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4164,149 +3550,150 @@ impl crate::params::FormEncode for SearchSubscriptionsParams {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Subscription {
     #[doc = "ID of the Connect Application that created the subscription."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application: Option<crate::Expandable<crate::subscriptions::SubscriptionApplicationExpanded>>,
     #[doc = "A non-negative decimal between 0 and 100, with at most two decimal places."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application_fee_percent: Option<f64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub automatic_tax: Option<crate::subscriptions::SubscriptionAutomaticTax>,
     #[doc = "The reference point that aligns future [billing cycle](https://docs.stripe.com/subscriptions/billing-cycle) dates."]
-    #[serde(default)]
+    #[json(default)]
     pub billing_cycle_anchor: i64,
     #[doc = "The fixed values used to calculate the `billing_cycle_anchor`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billing_cycle_anchor_config: Option<crate::subscriptions::SubscriptionsResourceBillingCycleAnchorConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billing_mode: Option<crate::subscriptions::SubscriptionsResourceBillingMode>,
     #[doc = "Billing schedules for this subscription."]
-    #[serde(default)]
+    #[json(default)]
     pub billing_schedules: Vec<crate::subscriptions::SubscriptionsResourceBillingSchedules>,
     #[doc = "Define thresholds at which an invoice will be sent, and the subscription advanced to a new billing period"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billing_thresholds: Option<crate::subscriptions::SubscriptionBillingThresholds>,
     #[doc = "A date in the future at which the subscription will automatically get canceled"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cancel_at: Option<i64>,
     #[doc = "Whether this subscription will (if `status=active`) or did (if `status=canceled`) cancel at the end of the current bi..."]
-    #[serde(default)]
+    #[json(default)]
     pub cancel_at_period_end: bool,
     #[doc = "If the subscription has been canceled, the date of that cancellation."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub canceled_at: Option<i64>,
     #[doc = "Details about why this subscription was cancelled"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cancellation_details: Option<crate::common::CancellationDetails>,
     #[doc = "Either `charge_automatically`, or `send_invoice`."]
-    #[serde(default)]
+    #[json(default)]
     pub collection_method: crate::subscriptions::SubscriptionCollectionMethod,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "ID of the customer who owns the subscription."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<crate::Expandable<crate::subscriptions::SubscriptionCustomerExpanded>>,
     #[doc = "ID of the account representing the customer who owns the subscription."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_account: Option<String>,
     #[doc = "Number of days a customer has to pay invoices generated by this subscription."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub days_until_due: Option<i64>,
     #[doc = "ID of the default payment method for the subscription."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_payment_method: Option<crate::Expandable<crate::payment_methods::PaymentMethod>>,
     #[doc = "ID of the default payment source for the subscription."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_source: Option<crate::Expandable<crate::common::PaymentSource>>,
     #[doc = "The tax rates that will apply to any subscription item that does not have `tax_rates` set."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_tax_rates: Option<Vec<crate::tax_rates::TaxRate>>,
     #[doc = "The subscription's description, meant to be displayable to the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "The discounts applied to the subscription."]
-    #[serde(default)]
+    #[json(default)]
     pub discounts: Vec<crate::Expandable<crate::coupons::Discount>>,
     #[doc = "If the subscription has ended, the date the subscription ended."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ended_at: Option<i64>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice_settings: Option<crate::subscriptions::SubscriptionsResourceSubscriptionInvoiceSettings>,
     #[doc = "List of subscription items, each with an attached price."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub items: Option<crate::List<crate::subscription_items::SubscriptionItem>>,
     #[doc = "The most recent invoice this subscription has generated over its lifecycle (for example, when it cycles or is updated)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub latest_invoice: Option<crate::Expandable<crate::invoices::Invoice>>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Settings for Managed Payments for this Subscription and resulting [Invoices](/api/invoices/object) and [PaymentIntent..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub managed_payments: Option<crate::common::SmorResourceManagedPayments>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "Specifies the approximate timestamp on which any pending invoice items will be billed according to the schedule provi..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub next_pending_invoice_item_invoice: Option<i64>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::subscriptions::SubscriptionObject,
     #[doc = "The account (if any) the charge was made on behalf of for charges associated with this subscription."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub on_behalf_of: Option<crate::Expandable<crate::account::Account>>,
     #[doc = "If specified, payment collection for this subscription will be paused."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pause_collection: Option<crate::subscriptions::SubscriptionsResourcePauseCollection>,
     #[doc = "Payment settings passed on to invoices created by the subscription."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_settings: Option<crate::subscriptions::SubscriptionsResourcePaymentSettings>,
     #[doc = "Specifies an interval for how often to bill for any pending invoice items."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pending_invoice_item_interval: Option<crate::subscriptions::SubscriptionPendingInvoiceItemInterval>,
     #[doc = "You can use this [SetupIntent](https://docs.stripe.com/api/setup_intents) to collect user authentication when creatin..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pending_setup_intent: Option<crate::Expandable<crate::setup_intents::SetupIntent>>,
     #[doc = "If specified, [pending updates](https://docs.stripe.com/billing/subscriptions/pending-updates) that will be applied t..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pending_update: Option<crate::subscriptions::SubscriptionsResourcePendingUpdate>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub presentment_details: Option<crate::subscriptions::SubscriptionsResourceSubscriptionPresentmentDetails>,
     #[doc = "The schedule attached to the subscription"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub schedule: Option<crate::Expandable<crate::subscription_schedules::SubscriptionSchedule>>,
     #[doc = "Date when the subscription was first created."]
-    #[serde(default)]
+    #[json(default)]
     pub start_date: i64,
     #[doc = "Possible values are `incomplete`, `incomplete_expired`, `trialing`, `active`, `past_due`, `canceled`, `unpaid`, or `p..."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::subscriptions::SubscriptionStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status_details: Option<crate::subscriptions::SubscriptionsResourceStatusDetailsPublic>,
     #[doc = "ID of the test clock this subscription belongs to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub test_clock: Option<crate::Expandable<crate::test_helpers::TestHelpersTestClock>>,
     #[doc = "The account (if any) the subscription's payments will be attributed to for tax reporting, and where funds from each p..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transfer_data: Option<crate::subscriptions::SubscriptionTransferData>,
     #[doc = "If the subscription has a trial, the end of that trial."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub trial_end: Option<i64>,
     #[doc = "Settings related to subscription trials."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub trial_settings: Option<crate::subscriptions::SubscriptionsResourceTrialSettingsTrialSettings>,
     #[doc = "If the subscription has a trial, the beginning of that trial."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub trial_start: Option<i64>,
 }
 
@@ -4411,7 +3798,7 @@ pub enum SubscriptionApplicationExpanded {
     /// Expanded `application`.
     Application(Box<crate::common::Application>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -4459,17 +3846,15 @@ pub enum SubscriptionApplicationExpanded {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionApplicationExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for SubscriptionApplicationExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "application" => SubscriptionApplicationExpanded::Application(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "application" => {
+                SubscriptionApplicationExpanded::Application(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
             _ => SubscriptionApplicationExpanded::Other(value),
         })
     }
@@ -4520,16 +3905,17 @@ impl<'de> serde::Deserialize<'de> for SubscriptionApplicationExpanded {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionAutomaticTax {
     #[doc = "If Stripe disabled automatic tax, this enum describes why."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub disabled_reason: Option<crate::subscriptions::SubscriptionAutomaticTaxDisabledReason>,
     #[doc = "Whether Stripe automatically computes tax on this subscription."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "The account that's liable for tax."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub liability: Option<crate::accounts::ConnectAccountReference>,
 }
 
@@ -4685,36 +4071,18 @@ impl SubscriptionAutomaticTaxDisabledReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionAutomaticTaxDisabledReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscriptionAutomaticTaxDisabledReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "requires_location_inputs" => SubscriptionAutomaticTaxDisabledReason::RequiresLocationInputs,
-                    other => SubscriptionAutomaticTaxDisabledReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscriptionAutomaticTaxDisabledReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SubscriptionAutomaticTaxDisabledReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscriptionAutomaticTaxDisabledReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "requires_location_inputs" => SubscriptionAutomaticTaxDisabledReason::RequiresLocationInputs,
+            other => SubscriptionAutomaticTaxDisabledReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4763,13 +4131,14 @@ impl<'de> serde::Deserialize<'de> for SubscriptionAutomaticTaxDisabledReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionBillingThresholds {
     #[doc = "Monetary threshold that triggers the subscription to create an invoice"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_gte: Option<i64>,
     #[doc = "Indicates if the `billing_cycle_anchor` should be reset when a threshold is reached."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reset_billing_cycle_anchor: Option<bool>,
 }
 
@@ -4978,37 +4347,19 @@ impl Default for SubscriptionCollectionMethod {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionCollectionMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscriptionCollectionMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "charge_automatically" => SubscriptionCollectionMethod::ChargeAutomatically,
-                    "send_invoice" => SubscriptionCollectionMethod::SendInvoice,
-                    other => SubscriptionCollectionMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscriptionCollectionMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SubscriptionCollectionMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscriptionCollectionMethod::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "charge_automatically" => SubscriptionCollectionMethod::ChargeAutomatically,
+            "send_invoice" => SubscriptionCollectionMethod::SendInvoice,
+            other => SubscriptionCollectionMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5062,7 +4413,7 @@ pub enum SubscriptionCustomerExpanded {
     /// Expanded `customer`.
     Customer(Box<crate::customers::Customer>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -5110,17 +4461,15 @@ pub enum SubscriptionCustomerExpanded {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionCustomerExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for SubscriptionCustomerExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "customer" => SubscriptionCustomerExpanded::Customer(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "customer" => {
+                SubscriptionCustomerExpanded::Customer(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
             _ => SubscriptionCustomerExpanded::Other(value),
         })
     }
@@ -5329,36 +4678,18 @@ impl Default for SubscriptionObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscriptionObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "subscription" => SubscriptionObject::Subscription,
-                    other => SubscriptionObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscriptionObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SubscriptionObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscriptionObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "subscription" => SubscriptionObject::Subscription,
+            other => SubscriptionObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5407,9 +4738,10 @@ impl<'de> serde::Deserialize<'de> for SubscriptionObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionPaymentMethodOptionsBillie {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub company_details: Option<crate::subscriptions::SubscriptionPaymentMethodOptionsBillieCompanyDetails>,
 }
 
@@ -5458,23 +4790,24 @@ pub struct SubscriptionPaymentMethodOptionsBillie {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionPaymentMethodOptionsBillieCompanyDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub registered_address:
         Option<crate::subscriptions::SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegisteredAddress>,
     #[doc = "Company or entity name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub registered_name: Option<String>,
     #[doc = "The official registration number for the given registration type."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub registration_number: Option<String>,
     #[doc = "Type of registration the company or entity holds in their registered country."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub registration_type:
         Option<crate::subscriptions::SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType>,
     #[doc = "VAT ID number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub vat: Option<String>,
 }
 
@@ -5523,25 +4856,26 @@ pub struct SubscriptionPaymentMethodOptionsBillieCompanyDetails {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegisteredAddress {
     #[doc = "City, district, suburb, town, or village."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
     #[doc = "Two-letter country code."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[doc = "Address line 1 (for example, street, PO Box, or company name)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line1: Option<String>,
     #[doc = "Address line 2 (for example, apartment, suite, unit, or building)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line2: Option<String>,
     #[doc = "ZIP or postal code."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub postal_code: Option<String>,
     #[doc = "State, county, province, or region."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
 }
 
@@ -5723,57 +5057,33 @@ impl SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ch_ein" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::ChEin,
-                    "de_hrb" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::DeHrb,
-                    "dk_cvr" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::DkCvr,
-                    "es_cif" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::EsCif,
-                    "fi_tunnus" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FiTunnus,
-                    "fr_siren" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FrSiren,
-                    "fr_siret" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FrSiret,
-                    "it_rea" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::ItRea,
-                    "nl_kvk" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NlKvk,
-                    "no_org_number" => {
-                        SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NoOrgNumber
-                    }
-                    "no_pno" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NoPno,
-                    "se_org_number" => {
-                        SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::SeOrgNumber
-                    }
-                    "se_pno" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::SePno,
-                    "uk_crn" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::UkCrn,
-                    other => {
-                        SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ch_ein" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::ChEin,
+            "de_hrb" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::DeHrb,
+            "dk_cvr" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::DkCvr,
+            "es_cif" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::EsCif,
+            "fi_tunnus" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FiTunnus,
+            "fr_siren" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FrSiren,
+            "fr_siret" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FrSiret,
+            "it_rea" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::ItRea,
+            "nl_kvk" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NlKvk,
+            "no_org_number" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NoOrgNumber,
+            "no_pno" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NoPno,
+            "se_org_number" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::SeOrgNumber,
+            "se_pno" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::SePno,
+            "uk_crn" => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::UkCrn,
+            other => SubscriptionPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5822,9 +5132,10 @@ impl<'de> serde::Deserialize<'de> for SubscriptionPaymentMethodOptionsBillieComp
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionPaymentMethodOptionsBlik {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate_options: Option<crate::subscriptions::SubscriptionPaymentMethodOptionsMandateOptionsBlik>,
 }
 
@@ -5873,15 +5184,16 @@ pub struct SubscriptionPaymentMethodOptionsBlik {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionPaymentMethodOptionsCard {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate_options: Option<crate::invoices::InvoiceMandateOptionsCard>,
     #[doc = "Selected network to process this Subscription on."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub network: Option<crate::subscriptions::SubscriptionPaymentMethodOptionsCardNetwork>,
     #[doc = "We strongly recommend that you rely on our SCA Engine to automatically prompt your customers for authentication based..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub request_three_d_secure: Option<crate::subscriptions::SubscriptionPaymentMethodOptionsCardRequestThreeDSecure>,
 }
 
@@ -6061,48 +5373,30 @@ impl SubscriptionPaymentMethodOptionsCardNetwork {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionPaymentMethodOptionsCardNetwork {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscriptionPaymentMethodOptionsCardNetwork;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "amex" => SubscriptionPaymentMethodOptionsCardNetwork::Amex,
-                    "cartes_bancaires" => SubscriptionPaymentMethodOptionsCardNetwork::CartesBancaires,
-                    "diners" => SubscriptionPaymentMethodOptionsCardNetwork::Diners,
-                    "discover" => SubscriptionPaymentMethodOptionsCardNetwork::Discover,
-                    "eftpos_au" => SubscriptionPaymentMethodOptionsCardNetwork::EftposAu,
-                    "girocard" => SubscriptionPaymentMethodOptionsCardNetwork::Girocard,
-                    "interac" => SubscriptionPaymentMethodOptionsCardNetwork::Interac,
-                    "jcb" => SubscriptionPaymentMethodOptionsCardNetwork::Jcb,
-                    "link" => SubscriptionPaymentMethodOptionsCardNetwork::Link,
-                    "mastercard" => SubscriptionPaymentMethodOptionsCardNetwork::Mastercard,
-                    "unionpay" => SubscriptionPaymentMethodOptionsCardNetwork::Unionpay,
-                    "unknown" => SubscriptionPaymentMethodOptionsCardNetwork::UnknownValue,
-                    "visa" => SubscriptionPaymentMethodOptionsCardNetwork::Visa,
-                    other => SubscriptionPaymentMethodOptionsCardNetwork::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscriptionPaymentMethodOptionsCardNetwork::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SubscriptionPaymentMethodOptionsCardNetwork {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscriptionPaymentMethodOptionsCardNetwork::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "amex" => SubscriptionPaymentMethodOptionsCardNetwork::Amex,
+            "cartes_bancaires" => SubscriptionPaymentMethodOptionsCardNetwork::CartesBancaires,
+            "diners" => SubscriptionPaymentMethodOptionsCardNetwork::Diners,
+            "discover" => SubscriptionPaymentMethodOptionsCardNetwork::Discover,
+            "eftpos_au" => SubscriptionPaymentMethodOptionsCardNetwork::EftposAu,
+            "girocard" => SubscriptionPaymentMethodOptionsCardNetwork::Girocard,
+            "interac" => SubscriptionPaymentMethodOptionsCardNetwork::Interac,
+            "jcb" => SubscriptionPaymentMethodOptionsCardNetwork::Jcb,
+            "link" => SubscriptionPaymentMethodOptionsCardNetwork::Link,
+            "mastercard" => SubscriptionPaymentMethodOptionsCardNetwork::Mastercard,
+            "unionpay" => SubscriptionPaymentMethodOptionsCardNetwork::Unionpay,
+            "unknown" => SubscriptionPaymentMethodOptionsCardNetwork::UnknownValue,
+            "visa" => SubscriptionPaymentMethodOptionsCardNetwork::Visa,
+            other => SubscriptionPaymentMethodOptionsCardNetwork::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6262,38 +5556,20 @@ impl SubscriptionPaymentMethodOptionsCardRequestThreeDSecure {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionPaymentMethodOptionsCardRequestThreeDSecure {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscriptionPaymentMethodOptionsCardRequestThreeDSecure;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "any" => SubscriptionPaymentMethodOptionsCardRequestThreeDSecure::Any,
-                    "automatic" => SubscriptionPaymentMethodOptionsCardRequestThreeDSecure::Automatic,
-                    "challenge" => SubscriptionPaymentMethodOptionsCardRequestThreeDSecure::Challenge,
-                    other => SubscriptionPaymentMethodOptionsCardRequestThreeDSecure::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscriptionPaymentMethodOptionsCardRequestThreeDSecure::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SubscriptionPaymentMethodOptionsCardRequestThreeDSecure {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscriptionPaymentMethodOptionsCardRequestThreeDSecure::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "any" => SubscriptionPaymentMethodOptionsCardRequestThreeDSecure::Any,
+            "automatic" => SubscriptionPaymentMethodOptionsCardRequestThreeDSecure::Automatic,
+            "challenge" => SubscriptionPaymentMethodOptionsCardRequestThreeDSecure::Challenge,
+            other => SubscriptionPaymentMethodOptionsCardRequestThreeDSecure::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6342,10 +5618,11 @@ impl<'de> serde::Deserialize<'de> for SubscriptionPaymentMethodOptionsCardReques
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionPaymentMethodOptionsMandateOptionsBlik {
     #[doc = "Date when the mandate expires and no further payments will be charged."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<i64>,
 }
 
@@ -6394,20 +5671,21 @@ pub struct SubscriptionPaymentMethodOptionsMandateOptionsBlik {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionPaymentMethodOptionsMandateOptionsPix {
     #[doc = "Amount to be charged for future payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
     #[doc = "Determines if the amount includes the IOF tax."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_includes_iof:
         Option<crate::subscriptions::SubscriptionPaymentMethodOptionsMandateOptionsPixAmountIncludesIof>,
     #[doc = "Date when the mandate expires and no further payments will be charged, in `YYYY-MM-DD`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub end_date: Option<String>,
     #[doc = "Schedule at which the future payments will be charged."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_schedule:
         Option<crate::subscriptions::SubscriptionPaymentMethodOptionsMandateOptionsPixPaymentSchedule>,
 }
@@ -6566,41 +5844,21 @@ impl SubscriptionPaymentMethodOptionsMandateOptionsPixAmountIncludesIof {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionPaymentMethodOptionsMandateOptionsPixAmountIncludesIof {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscriptionPaymentMethodOptionsMandateOptionsPixAmountIncludesIof;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => SubscriptionPaymentMethodOptionsMandateOptionsPixAmountIncludesIof::Always,
-                    "never" => SubscriptionPaymentMethodOptionsMandateOptionsPixAmountIncludesIof::Never,
-                    other => {
-                        SubscriptionPaymentMethodOptionsMandateOptionsPixAmountIncludesIof::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscriptionPaymentMethodOptionsMandateOptionsPixAmountIncludesIof::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for SubscriptionPaymentMethodOptionsMandateOptionsPixAmountIncludesIof {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscriptionPaymentMethodOptionsMandateOptionsPixAmountIncludesIof::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => SubscriptionPaymentMethodOptionsMandateOptionsPixAmountIncludesIof::Always,
+            "never" => SubscriptionPaymentMethodOptionsMandateOptionsPixAmountIncludesIof::Never,
+            other => SubscriptionPaymentMethodOptionsMandateOptionsPixAmountIncludesIof::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6764,44 +6022,24 @@ impl SubscriptionPaymentMethodOptionsMandateOptionsPixPaymentSchedule {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionPaymentMethodOptionsMandateOptionsPixPaymentSchedule {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscriptionPaymentMethodOptionsMandateOptionsPixPaymentSchedule;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "halfyearly" => SubscriptionPaymentMethodOptionsMandateOptionsPixPaymentSchedule::Halfyearly,
-                    "monthly" => SubscriptionPaymentMethodOptionsMandateOptionsPixPaymentSchedule::Monthly,
-                    "quarterly" => SubscriptionPaymentMethodOptionsMandateOptionsPixPaymentSchedule::Quarterly,
-                    "weekly" => SubscriptionPaymentMethodOptionsMandateOptionsPixPaymentSchedule::Weekly,
-                    "yearly" => SubscriptionPaymentMethodOptionsMandateOptionsPixPaymentSchedule::Yearly,
-                    other => {
-                        SubscriptionPaymentMethodOptionsMandateOptionsPixPaymentSchedule::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscriptionPaymentMethodOptionsMandateOptionsPixPaymentSchedule::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for SubscriptionPaymentMethodOptionsMandateOptionsPixPaymentSchedule {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscriptionPaymentMethodOptionsMandateOptionsPixPaymentSchedule::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "halfyearly" => SubscriptionPaymentMethodOptionsMandateOptionsPixPaymentSchedule::Halfyearly,
+            "monthly" => SubscriptionPaymentMethodOptionsMandateOptionsPixPaymentSchedule::Monthly,
+            "quarterly" => SubscriptionPaymentMethodOptionsMandateOptionsPixPaymentSchedule::Quarterly,
+            "weekly" => SubscriptionPaymentMethodOptionsMandateOptionsPixPaymentSchedule::Weekly,
+            "yearly" => SubscriptionPaymentMethodOptionsMandateOptionsPixPaymentSchedule::Yearly,
+            other => SubscriptionPaymentMethodOptionsMandateOptionsPixPaymentSchedule::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6850,12 +6088,13 @@ impl<'de> serde::Deserialize<'de> for SubscriptionPaymentMethodOptionsMandateOpt
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionPaymentMethodOptionsPix {
     #[doc = "The number of seconds (between 10 and 1209600) after which Pix payment will expire."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expires_after_seconds: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate_options: Option<crate::subscriptions::SubscriptionPaymentMethodOptionsMandateOptionsPix>,
 }
 
@@ -6904,13 +6143,14 @@ pub struct SubscriptionPaymentMethodOptionsPix {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionPendingInvoiceItemInterval {
     #[doc = "Specifies invoicing frequency."]
-    #[serde(default)]
+    #[json(default)]
     pub interval: crate::subscriptions::SubscriptionPendingInvoiceItemIntervalInterval,
     #[doc = "The number of intervals between invoices."]
-    #[serde(default)]
+    #[json(default)]
     pub interval_count: i64,
 }
 
@@ -7123,39 +6363,21 @@ impl Default for SubscriptionPendingInvoiceItemIntervalInterval {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionPendingInvoiceItemIntervalInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscriptionPendingInvoiceItemIntervalInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "day" => SubscriptionPendingInvoiceItemIntervalInterval::Day,
-                    "month" => SubscriptionPendingInvoiceItemIntervalInterval::Month,
-                    "week" => SubscriptionPendingInvoiceItemIntervalInterval::Week,
-                    "year" => SubscriptionPendingInvoiceItemIntervalInterval::Year,
-                    other => SubscriptionPendingInvoiceItemIntervalInterval::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscriptionPendingInvoiceItemIntervalInterval::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SubscriptionPendingInvoiceItemIntervalInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscriptionPendingInvoiceItemIntervalInterval::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "day" => SubscriptionPendingInvoiceItemIntervalInterval::Day,
+            "month" => SubscriptionPendingInvoiceItemIntervalInterval::Month,
+            "week" => SubscriptionPendingInvoiceItemIntervalInterval::Week,
+            "year" => SubscriptionPendingInvoiceItemIntervalInterval::Year,
+            other => SubscriptionPendingInvoiceItemIntervalInterval::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7376,43 +6598,25 @@ impl Default for SubscriptionStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscriptionStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => SubscriptionStatus::Active,
-                    "canceled" => SubscriptionStatus::Canceled,
-                    "incomplete" => SubscriptionStatus::Incomplete,
-                    "incomplete_expired" => SubscriptionStatus::IncompleteExpired,
-                    "past_due" => SubscriptionStatus::PastDue,
-                    "paused" => SubscriptionStatus::Paused,
-                    "trialing" => SubscriptionStatus::Trialing,
-                    "unpaid" => SubscriptionStatus::Unpaid,
-                    other => SubscriptionStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscriptionStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SubscriptionStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscriptionStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => SubscriptionStatus::Active,
+            "canceled" => SubscriptionStatus::Canceled,
+            "incomplete" => SubscriptionStatus::Incomplete,
+            "incomplete_expired" => SubscriptionStatus::IncompleteExpired,
+            "past_due" => SubscriptionStatus::PastDue,
+            "paused" => SubscriptionStatus::Paused,
+            "trialing" => SubscriptionStatus::Trialing,
+            "unpaid" => SubscriptionStatus::Unpaid,
+            other => SubscriptionStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7461,13 +6665,14 @@ impl<'de> serde::Deserialize<'de> for SubscriptionStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionTransferData {
     #[doc = "A non-negative decimal between 0 and 100, with at most two decimal places."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_percent: Option<f64>,
     #[doc = "The account where funds from the payment will be transferred to upon payment success."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub destination: Option<crate::Expandable<crate::account::Account>>,
 }
 
@@ -7516,22 +6721,23 @@ pub struct SubscriptionTransferData {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionsResourceBillingCycleAnchorConfig {
     #[doc = "The day of the month of the billing_cycle_anchor."]
-    #[serde(default)]
+    #[json(default)]
     pub day_of_month: i64,
     #[doc = "The hour of the day of the billing_cycle_anchor."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hour: Option<i64>,
     #[doc = "The minute of the hour of the billing_cycle_anchor."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub minute: Option<i64>,
     #[doc = "The month to start full cycle billing periods."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub month: Option<i64>,
     #[doc = "The second of the minute of the billing_cycle_anchor."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub second: Option<i64>,
 }
 
@@ -7580,16 +6786,17 @@ pub struct SubscriptionsResourceBillingCycleAnchorConfig {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionsResourceBillingMode {
     #[doc = "Configure behavior for flexible billing mode"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub flexible: Option<crate::subscriptions::SubscriptionsResourceBillingModeFlexible>,
     #[doc = "Controls how prorations and invoices for subscriptions are calculated and orchestrated."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::subscriptions::SubscriptionsResourceBillingModeType,
     #[doc = "Details on when the current billing_mode was adopted."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub updated_at: Option<i64>,
 }
 
@@ -7638,10 +6845,11 @@ pub struct SubscriptionsResourceBillingMode {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionsResourceBillingModeFlexible {
     #[doc = "Controls how invoices and invoice items display proration amounts and discount amounts."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub proration_discounts: Option<crate::subscriptions::SubscriptionsResourceBillingModeFlexibleProrationDiscounts>,
 }
 
@@ -7799,39 +7007,21 @@ impl SubscriptionsResourceBillingModeFlexibleProrationDiscounts {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionsResourceBillingModeFlexibleProrationDiscounts {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscriptionsResourceBillingModeFlexibleProrationDiscounts;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "included" => SubscriptionsResourceBillingModeFlexibleProrationDiscounts::Included,
-                    "itemized" => SubscriptionsResourceBillingModeFlexibleProrationDiscounts::Itemized,
-                    other => SubscriptionsResourceBillingModeFlexibleProrationDiscounts::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscriptionsResourceBillingModeFlexibleProrationDiscounts::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for SubscriptionsResourceBillingModeFlexibleProrationDiscounts {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscriptionsResourceBillingModeFlexibleProrationDiscounts::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "included" => SubscriptionsResourceBillingModeFlexibleProrationDiscounts::Included,
+            "itemized" => SubscriptionsResourceBillingModeFlexibleProrationDiscounts::Itemized,
+            other => SubscriptionsResourceBillingModeFlexibleProrationDiscounts::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8040,37 +7230,19 @@ impl Default for SubscriptionsResourceBillingModeType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionsResourceBillingModeType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscriptionsResourceBillingModeType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "classic" => SubscriptionsResourceBillingModeType::Classic,
-                    "flexible" => SubscriptionsResourceBillingModeType::Flexible,
-                    other => SubscriptionsResourceBillingModeType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscriptionsResourceBillingModeType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SubscriptionsResourceBillingModeType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscriptionsResourceBillingModeType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "classic" => SubscriptionsResourceBillingModeType::Classic,
+            "flexible" => SubscriptionsResourceBillingModeType::Flexible,
+            other => SubscriptionsResourceBillingModeType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8119,15 +7291,16 @@ impl<'de> serde::Deserialize<'de> for SubscriptionsResourceBillingModeType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionsResourceBillingSchedules {
     #[doc = "Specifies which subscription items the billing schedule applies to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub applies_to: Option<Vec<crate::subscriptions::SubscriptionsResourceBillingSchedulesAppliesTo>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bill_until: Option<crate::subscriptions::SubscriptionsResourceBillingSchedulesBillUntil>,
     #[doc = "Unique identifier for the billing schedule."]
-    #[serde(default)]
+    #[json(default)]
     pub key: String,
 }
 
@@ -8176,13 +7349,14 @@ pub struct SubscriptionsResourceBillingSchedules {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionsResourceBillingSchedulesAppliesTo {
     #[doc = "The billing schedule will apply to the subscription item with the given price ID."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub price: Option<crate::Expandable<crate::prices::Price>>,
     #[doc = "Controls which subscription items the billing schedule applies to."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::subscriptions::SubscriptionsResourceBillingSchedulesAppliesToType,
 }
 
@@ -8389,36 +7563,18 @@ impl Default for SubscriptionsResourceBillingSchedulesAppliesToType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionsResourceBillingSchedulesAppliesToType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscriptionsResourceBillingSchedulesAppliesToType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "price" => SubscriptionsResourceBillingSchedulesAppliesToType::Price,
-                    other => SubscriptionsResourceBillingSchedulesAppliesToType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscriptionsResourceBillingSchedulesAppliesToType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SubscriptionsResourceBillingSchedulesAppliesToType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscriptionsResourceBillingSchedulesAppliesToType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "price" => SubscriptionsResourceBillingSchedulesAppliesToType::Price,
+            other => SubscriptionsResourceBillingSchedulesAppliesToType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8467,19 +7623,20 @@ impl<'de> serde::Deserialize<'de> for SubscriptionsResourceBillingSchedulesAppli
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionsResourceBillingSchedulesBillUntil {
     #[doc = "The timestamp the billing schedule will apply until."]
-    #[serde(default)]
+    #[json(default)]
     pub computed_timestamp: i64,
     #[doc = "Specifies the billing period."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub duration: Option<crate::subscriptions::SubscriptionsResourceBillingSchedulesBillUntilDuration>,
     #[doc = "If specified, the billing schedule will apply until the specified timestamp."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub timestamp: Option<i64>,
     #[doc = "Describes how the billing schedule will determine the end date."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::subscriptions::SubscriptionsResourceBillingSchedulesBillUntilType,
 }
 
@@ -8528,13 +7685,14 @@ pub struct SubscriptionsResourceBillingSchedulesBillUntil {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionsResourceBillingSchedulesBillUntilDuration {
     #[doc = "Specifies billing duration."]
-    #[serde(default)]
+    #[json(default)]
     pub interval: crate::subscriptions::SubscriptionPendingInvoiceItemIntervalInterval,
     #[doc = "The multiplier applied to the interval."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub interval_count: Option<i64>,
 }
 
@@ -8743,37 +7901,19 @@ impl Default for SubscriptionsResourceBillingSchedulesBillUntilType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionsResourceBillingSchedulesBillUntilType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscriptionsResourceBillingSchedulesBillUntilType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "duration" => SubscriptionsResourceBillingSchedulesBillUntilType::Duration,
-                    "timestamp" => SubscriptionsResourceBillingSchedulesBillUntilType::Timestamp,
-                    other => SubscriptionsResourceBillingSchedulesBillUntilType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscriptionsResourceBillingSchedulesBillUntilType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SubscriptionsResourceBillingSchedulesBillUntilType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscriptionsResourceBillingSchedulesBillUntilType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "duration" => SubscriptionsResourceBillingSchedulesBillUntilType::Duration,
+            "timestamp" => SubscriptionsResourceBillingSchedulesBillUntilType::Timestamp,
+            other => SubscriptionsResourceBillingSchedulesBillUntilType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8822,13 +7962,14 @@ impl<'de> serde::Deserialize<'de> for SubscriptionsResourceBillingSchedulesBillU
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionsResourcePauseCollection {
     #[doc = "The payment collection behavior for this subscription while paused."]
-    #[serde(default)]
+    #[json(default)]
     pub behavior: crate::subscriptions::SubscriptionsResourcePauseCollectionBehavior,
     #[doc = "The time after which the subscription will resume collecting payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub resumes_at: Option<i64>,
 }
 
@@ -9039,38 +8180,20 @@ impl Default for SubscriptionsResourcePauseCollectionBehavior {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionsResourcePauseCollectionBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscriptionsResourcePauseCollectionBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "keep_as_draft" => SubscriptionsResourcePauseCollectionBehavior::KeepAsDraft,
-                    "mark_uncollectible" => SubscriptionsResourcePauseCollectionBehavior::MarkUncollectible,
-                    "void" => SubscriptionsResourcePauseCollectionBehavior::Void,
-                    other => SubscriptionsResourcePauseCollectionBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscriptionsResourcePauseCollectionBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SubscriptionsResourcePauseCollectionBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscriptionsResourcePauseCollectionBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "keep_as_draft" => SubscriptionsResourcePauseCollectionBehavior::KeepAsDraft,
+            "mark_uncollectible" => SubscriptionsResourcePauseCollectionBehavior::MarkUncollectible,
+            "void" => SubscriptionsResourcePauseCollectionBehavior::Void,
+            other => SubscriptionsResourcePauseCollectionBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -9119,15 +8242,16 @@ impl<'de> serde::Deserialize<'de> for SubscriptionsResourcePauseCollectionBehavi
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionsResourcePausedStatusDetailsPublic {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription: Option<crate::subscriptions::SubscriptionsResourcePausedStatusDetailsSubscription>,
     #[doc = "Unix timestamp in seconds of when the subscription status transitioned to `paused`."]
-    #[serde(default)]
+    #[json(default)]
     pub transitioned_at: i64,
     #[doc = "The type of pause."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::subscriptions::SubscriptionObject,
 }
 
@@ -9176,10 +8300,11 @@ pub struct SubscriptionsResourcePausedStatusDetailsPublic {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionsResourcePausedStatusDetailsSubscription {
     #[doc = "The reason that the subscription was paused."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::subscriptions::SubscriptionsResourcePausedStatusDetailsSubscriptionType,
 }
 
@@ -9396,46 +8521,24 @@ impl Default for SubscriptionsResourcePausedStatusDetailsSubscriptionType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionsResourcePausedStatusDetailsSubscriptionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscriptionsResourcePausedStatusDetailsSubscriptionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "final_payment_failure" => {
-                        SubscriptionsResourcePausedStatusDetailsSubscriptionType::FinalPaymentFailure
-                    }
-                    "first_payment_failure" => {
-                        SubscriptionsResourcePausedStatusDetailsSubscriptionType::FirstPaymentFailure
-                    }
-                    "pause_requested" => SubscriptionsResourcePausedStatusDetailsSubscriptionType::PauseRequested,
-                    "system" => SubscriptionsResourcePausedStatusDetailsSubscriptionType::System,
-                    "trial_end_without_payment_method" => {
-                        SubscriptionsResourcePausedStatusDetailsSubscriptionType::TrialEndWithoutPaymentMethod
-                    }
-                    other => SubscriptionsResourcePausedStatusDetailsSubscriptionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscriptionsResourcePausedStatusDetailsSubscriptionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SubscriptionsResourcePausedStatusDetailsSubscriptionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscriptionsResourcePausedStatusDetailsSubscriptionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "final_payment_failure" => SubscriptionsResourcePausedStatusDetailsSubscriptionType::FinalPaymentFailure,
+            "first_payment_failure" => SubscriptionsResourcePausedStatusDetailsSubscriptionType::FirstPaymentFailure,
+            "pause_requested" => SubscriptionsResourcePausedStatusDetailsSubscriptionType::PauseRequested,
+            "system" => SubscriptionsResourcePausedStatusDetailsSubscriptionType::System,
+            "trial_end_without_payment_method" => {
+                SubscriptionsResourcePausedStatusDetailsSubscriptionType::TrialEndWithoutPaymentMethod
+            }
+            other => SubscriptionsResourcePausedStatusDetailsSubscriptionType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -9484,43 +8587,44 @@ impl<'de> serde::Deserialize<'de> for SubscriptionsResourcePausedStatusDetailsSu
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionsResourcePaymentMethodOptions {
     #[doc = "This sub-hash contains details about the Canadian pre-authorized debit payment method options to pass to invoices cre..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub acss_debit: Option<crate::invoice_payments::InvoicePaymentMethodOptionsAcssDebit>,
     #[doc = "This sub-hash contains details about the Bancontact payment method options to pass to invoices created by the subscri..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bancontact: Option<crate::invoice_payments::InvoicePaymentMethodOptionsBancontact>,
     #[doc = "This sub-hash contains details about the Billie payment method options to pass to invoices created by the subscription."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billie: Option<crate::subscriptions::SubscriptionPaymentMethodOptionsBillie>,
     #[doc = "This sub-hash contains details about the Blik payment method options to pass to invoices created by the subscription."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub blik: Option<crate::subscriptions::SubscriptionPaymentMethodOptionsBlik>,
     #[doc = "This sub-hash contains details about the Card payment method options to pass to invoices created by the subscription."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::subscriptions::SubscriptionPaymentMethodOptionsCard>,
     #[doc = "This sub-hash contains details about the Bank transfer payment method options to pass to invoices created by the subs..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_balance: Option<crate::invoice_payments::InvoicePaymentMethodOptionsCustomerBalance>,
     #[doc = "This sub-hash contains details about the Konbini payment method options to pass to invoices created by the subscription."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub konbini: Option<crate::invoice_payments::InvoicePaymentMethodOptionsKonbini>,
     #[doc = "This sub-hash contains details about the PayTo payment method options to pass to invoices created by the subscription."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payto: Option<crate::invoice_payments::InvoicePaymentMethodOptionsPayto>,
     #[doc = "This sub-hash contains details about the Pix payment method options to pass to invoices created by the subscription."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pix: Option<crate::subscriptions::SubscriptionPaymentMethodOptionsPix>,
     #[doc = "This sub-hash contains details about the SEPA Direct Debit payment method options to pass to invoices created by the ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sepa_debit: Option<crate::invoice_payments::InvoicePaymentMethodOptionsSepaDebit>,
     #[doc = "This sub-hash contains details about the UPI payment method options to pass to invoices created by the subscription."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub upi: Option<crate::invoice_payments::InvoicePaymentMethodOptionsUpi>,
     #[doc = "This sub-hash contains details about the ACH direct debit payment method options to pass to invoices created by the s..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us_bank_account: Option<crate::invoice_payments::InvoicePaymentMethodOptionsUsBankAccount>,
 }
 
@@ -9569,17 +8673,18 @@ pub struct SubscriptionsResourcePaymentMethodOptions {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionsResourcePaymentSettings {
     #[doc = "Payment-method-specific configuration to provide to invoices created by the subscription."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_options: Option<crate::subscriptions::SubscriptionsResourcePaymentMethodOptions>,
     #[doc = "The list of payment method types to provide to every invoice created by the subscription."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_types:
         Option<Vec<crate::subscriptions::SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem>>,
     #[doc = "Configure whether Stripe updates `subscription.default_payment_method` when payment succeeds."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub save_default_payment_method:
         Option<crate::subscriptions::SubscriptionsResourcePaymentSettingsSaveDefaultPaymentMethod>,
 }
@@ -9834,93 +8939,69 @@ impl SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ach_credit_transfer" => {
-                        SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::AchCreditTransfer
-                    }
-                    "ach_debit" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::AchDebit,
-                    "acss_debit" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::AcssDebit,
-                    "affirm" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Affirm,
-                    "alipay" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Alipay,
-                    "amazon_pay" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::AmazonPay,
-                    "au_becs_debit" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::AuBecsDebit,
-                    "bacs_debit" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::BacsDebit,
-                    "bancontact" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Bancontact,
-                    "billie" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Billie,
-                    "blik" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Blik,
-                    "boleto" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Boleto,
-                    "card" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Card,
-                    "cashapp" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Cashapp,
-                    "crypto" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Crypto,
-                    "custom" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Custom,
-                    "customer_balance" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::CustomerBalance,
-                    "eps" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Eps,
-                    "fpx" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Fpx,
-                    "giropay" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Giropay,
-                    "grabpay" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Grabpay,
-                    "ideal" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Ideal,
-                    "jp_credit_transfer" => {
-                        SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::JpCreditTransfer
-                    }
-                    "kakao_pay" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::KakaoPay,
-                    "klarna" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Klarna,
-                    "konbini" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Konbini,
-                    "kr_card" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::KrCard,
-                    "link" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Link,
-                    "mb_way" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::MbWay,
-                    "multibanco" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Multibanco,
-                    "naver_pay" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::NaverPay,
-                    "nz_bank_account" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::NzBankAccount,
-                    "p24" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::P24,
-                    "pay_by_bank" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::PayByBank,
-                    "payco" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Payco,
-                    "paynow" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Paynow,
-                    "paypal" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Paypal,
-                    "payto" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Payto,
-                    "pix" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Pix,
-                    "promptpay" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Promptpay,
-                    "revolut_pay" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::RevolutPay,
-                    "satispay" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Satispay,
-                    "sepa_credit_transfer" => {
-                        SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::SepaCreditTransfer
-                    }
-                    "sepa_debit" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::SepaDebit,
-                    "sofort" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Sofort,
-                    "swish" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Swish,
-                    "twint" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Twint,
-                    "upi" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Upi,
-                    "us_bank_account" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::UsBankAccount,
-                    "wechat_pay" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::WechatPay,
-                    other => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ach_credit_transfer" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::AchCreditTransfer,
+            "ach_debit" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::AchDebit,
+            "acss_debit" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::AcssDebit,
+            "affirm" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Affirm,
+            "alipay" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Alipay,
+            "amazon_pay" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::AmazonPay,
+            "au_becs_debit" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::AuBecsDebit,
+            "bacs_debit" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::BacsDebit,
+            "bancontact" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Bancontact,
+            "billie" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Billie,
+            "blik" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Blik,
+            "boleto" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Boleto,
+            "card" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Card,
+            "cashapp" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Cashapp,
+            "crypto" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Crypto,
+            "custom" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Custom,
+            "customer_balance" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::CustomerBalance,
+            "eps" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Eps,
+            "fpx" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Fpx,
+            "giropay" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Giropay,
+            "grabpay" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Grabpay,
+            "ideal" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Ideal,
+            "jp_credit_transfer" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::JpCreditTransfer,
+            "kakao_pay" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::KakaoPay,
+            "klarna" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Klarna,
+            "konbini" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Konbini,
+            "kr_card" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::KrCard,
+            "link" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Link,
+            "mb_way" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::MbWay,
+            "multibanco" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Multibanco,
+            "naver_pay" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::NaverPay,
+            "nz_bank_account" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::NzBankAccount,
+            "p24" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::P24,
+            "pay_by_bank" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::PayByBank,
+            "payco" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Payco,
+            "paynow" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Paynow,
+            "paypal" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Paypal,
+            "payto" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Payto,
+            "pix" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Pix,
+            "promptpay" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Promptpay,
+            "revolut_pay" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::RevolutPay,
+            "satispay" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Satispay,
+            "sepa_credit_transfer" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::SepaCreditTransfer,
+            "sepa_debit" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::SepaDebit,
+            "sofort" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Sofort,
+            "swish" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Swish,
+            "twint" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Twint,
+            "upi" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Upi,
+            "us_bank_account" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::UsBankAccount,
+            "wechat_pay" => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::WechatPay,
+            other => SubscriptionsResourcePaymentSettingsPaymentMethodTypesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -10078,39 +9159,21 @@ impl SubscriptionsResourcePaymentSettingsSaveDefaultPaymentMethod {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionsResourcePaymentSettingsSaveDefaultPaymentMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscriptionsResourcePaymentSettingsSaveDefaultPaymentMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "off" => SubscriptionsResourcePaymentSettingsSaveDefaultPaymentMethod::Off,
-                    "on_subscription" => SubscriptionsResourcePaymentSettingsSaveDefaultPaymentMethod::OnSubscription,
-                    other => SubscriptionsResourcePaymentSettingsSaveDefaultPaymentMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscriptionsResourcePaymentSettingsSaveDefaultPaymentMethod::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for SubscriptionsResourcePaymentSettingsSaveDefaultPaymentMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscriptionsResourcePaymentSettingsSaveDefaultPaymentMethod::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "off" => SubscriptionsResourcePaymentSettingsSaveDefaultPaymentMethod::Off,
+            "on_subscription" => SubscriptionsResourcePaymentSettingsSaveDefaultPaymentMethod::OnSubscription,
+            other => SubscriptionsResourcePaymentSettingsSaveDefaultPaymentMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -10159,34 +9222,35 @@ impl<'de> serde::Deserialize<'de> for SubscriptionsResourcePaymentSettingsSaveDe
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionsResourcePendingUpdate {
     #[doc = "If the update is applied, determines the date of the first full invoice, and, for plans with `month` or `year` interv..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billing_cycle_anchor: Option<i64>,
     #[doc = "Indicates whether this subscription should cancel at the end of the current period if the update is applied."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cancel_at_period_end: Option<bool>,
     #[doc = "The pending subscription-level discount that will be applied when the pending update is applied."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub discount: Option<crate::coupons::Discount>,
     #[doc = "The discounts that will be applied to the subscription when the pending update is applied."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub discounts: Option<Vec<crate::Expandable<crate::coupons::Discount>>>,
     #[doc = "The point after which the changes reflected by this update will be discarded and no longer applied."]
-    #[serde(default)]
+    #[json(default)]
     pub expires_at: i64,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "List of subscription items, each with an attached plan, that will be set if the update is applied."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription_items: Option<Vec<crate::subscription_items::SubscriptionItem>>,
     #[doc = "Unix timestamp representing the end of the trial period the customer will get before being charged for the first time..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub trial_end: Option<i64>,
     #[doc = "Indicates if a plan's `trial_period_days` should be applied to the subscription."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub trial_from_plan: Option<bool>,
 }
 
@@ -10235,9 +9299,10 @@ pub struct SubscriptionsResourcePendingUpdate {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionsResourceStatusDetailsPublic {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paused: Option<crate::subscriptions::SubscriptionsResourcePausedStatusDetailsPublic>,
 }
 
@@ -10286,10 +9351,11 @@ pub struct SubscriptionsResourceStatusDetailsPublic {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionsResourceSubscriptionInvoiceSettings {
     #[doc = "The account tax IDs associated with the subscription."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_tax_ids: Option<
         Vec<
             crate::Expandable<
@@ -10298,15 +9364,15 @@ pub struct SubscriptionsResourceSubscriptionInvoiceSettings {
         >,
     >,
     #[doc = "A list of up to 4 custom fields to be displayed on the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub custom_fields: Option<Vec<crate::invoices::InvoiceSettingCustomField>>,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "Footer to be displayed on the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub footer: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuer: Option<crate::accounts::ConnectAccountReference>,
 }
 
@@ -10360,7 +9426,7 @@ pub enum SubscriptionsResourceSubscriptionInvoiceSettingsAccountTaxIdsItemExpand
     /// Expanded `tax_id`.
     TaxId(Box<crate::tax_ids::TaxId>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -10408,16 +9474,14 @@ pub enum SubscriptionsResourceSubscriptionInvoiceSettingsAccountTaxIdsItemExpand
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionsResourceSubscriptionInvoiceSettingsAccountTaxIdsItemExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for SubscriptionsResourceSubscriptionInvoiceSettingsAccountTaxIdsItemExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
             "tax_id" => SubscriptionsResourceSubscriptionInvoiceSettingsAccountTaxIdsItemExpanded::TaxId(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
+                json::from_slice_owned(&json::to_vec(&value))?,
             )),
             _ => SubscriptionsResourceSubscriptionInvoiceSettingsAccountTaxIdsItemExpanded::Other(value),
         })
@@ -10469,10 +9533,11 @@ impl<'de> serde::Deserialize<'de> for SubscriptionsResourceSubscriptionInvoiceSe
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionsResourceSubscriptionPresentmentDetails {
     #[doc = "Currency used for customer payments."]
-    #[serde(default)]
+    #[json(default)]
     pub presentment_currency: String,
 }
 
@@ -10521,14 +9586,15 @@ pub struct SubscriptionsResourceSubscriptionPresentmentDetails {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionsResourceTrialSettingsEndBehavior {
     #[doc = "Indicates how the subscription's billing cycle anchor is reset when a trial ends."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billing_cycle_anchor:
         Option<crate::subscriptions::SubscriptionsResourceTrialSettingsEndBehaviorBillingCycleAnchor>,
     #[doc = "Indicates how the subscription should change when the trial ends if the user did not provide a payment method."]
-    #[serde(default)]
+    #[json(default)]
     pub missing_payment_method: crate::subscriptions::SubscriptionsResourceTrialSettingsEndBehaviorMissingPaymentMethod,
 }
 
@@ -10686,41 +9752,21 @@ impl SubscriptionsResourceTrialSettingsEndBehaviorBillingCycleAnchor {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionsResourceTrialSettingsEndBehaviorBillingCycleAnchor {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscriptionsResourceTrialSettingsEndBehaviorBillingCycleAnchor;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "now" => SubscriptionsResourceTrialSettingsEndBehaviorBillingCycleAnchor::Now,
-                    "unchanged" => SubscriptionsResourceTrialSettingsEndBehaviorBillingCycleAnchor::Unchanged,
-                    other => {
-                        SubscriptionsResourceTrialSettingsEndBehaviorBillingCycleAnchor::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscriptionsResourceTrialSettingsEndBehaviorBillingCycleAnchor::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for SubscriptionsResourceTrialSettingsEndBehaviorBillingCycleAnchor {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscriptionsResourceTrialSettingsEndBehaviorBillingCycleAnchor::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "now" => SubscriptionsResourceTrialSettingsEndBehaviorBillingCycleAnchor::Now,
+            "unchanged" => SubscriptionsResourceTrialSettingsEndBehaviorBillingCycleAnchor::Unchanged,
+            other => SubscriptionsResourceTrialSettingsEndBehaviorBillingCycleAnchor::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -10931,44 +9977,22 @@ impl Default for SubscriptionsResourceTrialSettingsEndBehaviorMissingPaymentMeth
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SubscriptionsResourceTrialSettingsEndBehaviorMissingPaymentMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscriptionsResourceTrialSettingsEndBehaviorMissingPaymentMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cancel" => SubscriptionsResourceTrialSettingsEndBehaviorMissingPaymentMethod::Cancel,
-                    "create_invoice" => {
-                        SubscriptionsResourceTrialSettingsEndBehaviorMissingPaymentMethod::CreateInvoice
-                    }
-                    "pause" => SubscriptionsResourceTrialSettingsEndBehaviorMissingPaymentMethod::Pause,
-                    other => {
-                        SubscriptionsResourceTrialSettingsEndBehaviorMissingPaymentMethod::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscriptionsResourceTrialSettingsEndBehaviorMissingPaymentMethod::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for SubscriptionsResourceTrialSettingsEndBehaviorMissingPaymentMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscriptionsResourceTrialSettingsEndBehaviorMissingPaymentMethod::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cancel" => SubscriptionsResourceTrialSettingsEndBehaviorMissingPaymentMethod::Cancel,
+            "create_invoice" => SubscriptionsResourceTrialSettingsEndBehaviorMissingPaymentMethod::CreateInvoice,
+            "pause" => SubscriptionsResourceTrialSettingsEndBehaviorMissingPaymentMethod::Pause,
+            other => SubscriptionsResourceTrialSettingsEndBehaviorMissingPaymentMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -11017,9 +10041,10 @@ impl<'de> serde::Deserialize<'de> for SubscriptionsResourceTrialSettingsEndBehav
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionsResourceTrialSettingsTrialSettings {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub end_behavior: Option<crate::subscriptions::SubscriptionsResourceTrialSettingsEndBehavior>,
 }
 
@@ -11068,13 +10093,14 @@ pub struct SubscriptionsResourceTrialSettingsTrialSettings {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionsTrialsResourceCurrentTrial {
-    #[serde(default)]
+    #[json(default)]
     pub end_date: i64,
-    #[serde(default)]
+    #[json(default)]
     pub start_date: i64,
-    #[serde(default)]
+    #[json(default)]
     pub trial_offer: String,
 }
 
@@ -11085,10 +10111,11 @@ pub struct SubscriptionsTrialsResourceCurrentTrial {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionsTrialsResourceEndBehavior {
     #[doc = "Indicates how the subscription should change when the trial ends if the user did not provide a payment method."]
-    #[serde(default)]
+    #[json(default)]
     pub missing_payment_method: crate::subscriptions::SubscriptionsResourceTrialSettingsEndBehaviorMissingPaymentMethod,
 }
 
@@ -11099,9 +10126,10 @@ pub struct SubscriptionsTrialsResourceEndBehavior {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SubscriptionsTrialsResourceTrialSettings {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub end_behavior: Option<crate::subscriptions::SubscriptionsTrialsResourceEndBehavior>,
 }
 
@@ -11111,17 +10139,17 @@ pub struct UpdateSubscriptionParams {
     #[doc = "A list of prices and quantities that will generate invoice items appended to the next invoice for this subscription."]
     pub add_invoice_items: Option<Vec<crate::subscriptions::UpdateSubscriptionParamsAddInvoiceItemsItem>>,
     #[doc = "A non-negative decimal between 0 and 100, with at most two decimal places."]
-    pub application_fee_percent: Option<serde_json::Value>,
+    pub application_fee_percent: Option<json::OwnedValue>,
     #[doc = "Automatic tax settings for this subscription."]
     pub automatic_tax: Option<crate::subscriptions::UpdateSubscriptionParamsAutomaticTax>,
     #[doc = "Controls how the subscription's billing cycle anchor changes."]
     pub billing_cycle_anchor: Option<crate::subscriptions::UpdateSubscriptionParamsBillingCycleAnchor>,
     #[doc = "An array of billing schedules, which allow you to bill customers in advance for multiple service periods."]
-    pub billing_schedules: Option<serde_json::Value>,
+    pub billing_schedules: Option<json::OwnedValue>,
     #[doc = "Define thresholds at which an invoice will be sent, and the subscription advanced to a new billing period."]
     pub billing_thresholds: Option<crate::subscriptions::UpdateSubscriptionParamsBillingThresholds>,
     #[doc = "A timestamp at which the subscription should cancel."]
-    pub cancel_at: Option<serde_json::Value>,
+    pub cancel_at: Option<json::OwnedValue>,
     #[doc = "Indicate whether this subscription should cancel at the end of the current period (`current_period_end`)."]
     pub cancel_at_period_end: Option<bool>,
     #[doc = "Details about why this subscription was cancelled"]
@@ -11133,13 +10161,13 @@ pub struct UpdateSubscriptionParams {
     #[doc = "ID of the default payment method for the subscription."]
     pub default_payment_method: Option<String>,
     #[doc = "ID of the default payment source for the subscription."]
-    pub default_source: Option<serde_json::Value>,
+    pub default_source: Option<json::OwnedValue>,
     #[doc = "The tax rates that will apply to any subscription item that does not have `tax_rates` set."]
-    pub default_tax_rates: Option<serde_json::Value>,
+    pub default_tax_rates: Option<json::OwnedValue>,
     #[doc = "The subscription's description, meant to be displayable to the customer."]
-    pub description: Option<serde_json::Value>,
+    pub description: Option<json::OwnedValue>,
     #[doc = "The coupons to redeem into discounts for the subscription."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "All invoices will be billed using the specified settings."]
@@ -11151,7 +10179,7 @@ pub struct UpdateSubscriptionParams {
     #[doc = "Indicates if a customer is on or off-session while an invoice payment is attempted."]
     pub off_session: Option<bool>,
     #[doc = "The account on behalf of which to charge, for each of the subscription's invoices."]
-    pub on_behalf_of: Option<serde_json::Value>,
+    pub on_behalf_of: Option<json::OwnedValue>,
     #[doc = "If specified, payment collection for this subscription will be paused."]
     pub pause_collection: Option<crate::subscriptions::UpdateSubscriptionParamsPauseCollection>,
     #[doc = "Controls how Stripe handles payment when a subscription update requires payment and `collection_method=charge_automat..."]
@@ -11167,7 +10195,7 @@ pub struct UpdateSubscriptionParams {
     #[doc = "If specified, the funds from the subscription's invoices will be transferred to the destination and the ID of the res..."]
     pub transfer_data: Option<crate::subscriptions::UpdateSubscriptionParamsTransferData>,
     #[doc = "Unix timestamp representing the end of the trial period the customer will get before being charged for the first time."]
-    pub trial_end: Option<serde_json::Value>,
+    pub trial_end: Option<json::OwnedValue>,
     #[doc = "Indicates if a plan's `trial_period_days` should be applied to the subscription."]
     pub trial_from_plan: Option<bool>,
     #[doc = "Settings related to subscription trials."]
@@ -11235,7 +10263,7 @@ pub struct UpdateSubscriptionParamsAddInvoiceItemsItem {
     #[doc = "Quantity for this item."]
     pub quantity: Option<i64>,
     #[doc = "The tax rates which apply to the item."]
-    pub tax_rates: Option<serde_json::Value>,
+    pub tax_rates: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "subscriptions")]
@@ -11415,7 +10443,7 @@ pub type UpdateSubscriptionParamsBillingThresholds = crate::subscriptions::Creat
 #[derive(Debug, Clone, Default)]
 pub struct UpdateSubscriptionParamsCancellationDetails {
     #[doc = "Additional comments about why the user canceled the subscription, if the subscription was canceled explicitly by the ..."]
-    pub comment: Option<serde_json::Value>,
+    pub comment: Option<json::OwnedValue>,
     #[doc = "The customer submitted reason for why they canceled, if the subscription was canceled explicitly by the user."]
     pub feedback: Option<crate::subscriptions::UpdateSubscriptionParamsCancellationDetailsFeedback>,
     #[doc = "Customized feedback options that provide deeper insight into why the subscription was canceled, if the subscription w..."]
@@ -11466,44 +10494,26 @@ impl UpdateSubscriptionParamsCancellationDetailsFeedback {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for UpdateSubscriptionParamsCancellationDetailsFeedback {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = UpdateSubscriptionParamsCancellationDetailsFeedback;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => UpdateSubscriptionParamsCancellationDetailsFeedback::Unnamed,
-                    "customer_service" => UpdateSubscriptionParamsCancellationDetailsFeedback::CustomerService,
-                    "low_quality" => UpdateSubscriptionParamsCancellationDetailsFeedback::LowQuality,
-                    "missing_features" => UpdateSubscriptionParamsCancellationDetailsFeedback::MissingFeatures,
-                    "other" => UpdateSubscriptionParamsCancellationDetailsFeedback::Other,
-                    "switched_service" => UpdateSubscriptionParamsCancellationDetailsFeedback::SwitchedService,
-                    "too_complex" => UpdateSubscriptionParamsCancellationDetailsFeedback::TooComplex,
-                    "too_expensive" => UpdateSubscriptionParamsCancellationDetailsFeedback::TooExpensive,
-                    "unused" => UpdateSubscriptionParamsCancellationDetailsFeedback::Unused,
-                    other => UpdateSubscriptionParamsCancellationDetailsFeedback::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(UpdateSubscriptionParamsCancellationDetailsFeedback::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for UpdateSubscriptionParamsCancellationDetailsFeedback {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(UpdateSubscriptionParamsCancellationDetailsFeedback::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => UpdateSubscriptionParamsCancellationDetailsFeedback::Unnamed,
+            "customer_service" => UpdateSubscriptionParamsCancellationDetailsFeedback::CustomerService,
+            "low_quality" => UpdateSubscriptionParamsCancellationDetailsFeedback::LowQuality,
+            "missing_features" => UpdateSubscriptionParamsCancellationDetailsFeedback::MissingFeatures,
+            "other" => UpdateSubscriptionParamsCancellationDetailsFeedback::Other,
+            "switched_service" => UpdateSubscriptionParamsCancellationDetailsFeedback::SwitchedService,
+            "too_complex" => UpdateSubscriptionParamsCancellationDetailsFeedback::TooComplex,
+            "too_expensive" => UpdateSubscriptionParamsCancellationDetailsFeedback::TooExpensive,
+            "unused" => UpdateSubscriptionParamsCancellationDetailsFeedback::Unused,
+            other => UpdateSubscriptionParamsCancellationDetailsFeedback::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -11521,13 +10531,13 @@ pub type UpdateSubscriptionParamsCollectionMethod = crate::subscriptions::ListSu
 #[derive(Debug, Clone, Default)]
 pub struct UpdateSubscriptionParamsInvoiceSettings {
     #[doc = "The account tax IDs associated with the subscription."]
-    pub account_tax_ids: Option<serde_json::Value>,
+    pub account_tax_ids: Option<json::OwnedValue>,
     #[doc = "A list of up to 4 custom fields to be displayed on the invoice."]
-    pub custom_fields: Option<serde_json::Value>,
+    pub custom_fields: Option<json::OwnedValue>,
     #[doc = "An arbitrary string attached to the object."]
-    pub description: Option<serde_json::Value>,
+    pub description: Option<json::OwnedValue>,
     #[doc = "Footer to be displayed on the invoice."]
-    pub footer: Option<serde_json::Value>,
+    pub footer: Option<json::OwnedValue>,
     #[doc = "The connected account that issues the invoice."]
     pub issuer: Option<crate::subscriptions::UpdateSubscriptionParamsInvoiceSettingsIssuer>,
 }
@@ -11572,7 +10582,7 @@ pub struct UpdateSubscriptionParamsItemsItem {
     #[doc = "A flag that, if set to `true`, will delete the specified item."]
     pub deleted: Option<bool>,
     #[doc = "The coupons to redeem into discounts for the subscription item."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "Subscription item to update."]
     pub id: Option<String>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
@@ -11586,7 +10596,7 @@ pub struct UpdateSubscriptionParamsItemsItem {
     #[doc = "Quantity for this item."]
     pub quantity: Option<i64>,
     #[doc = "A list of [Tax Rate](https://docs.stripe.com/api/tax_rates) ids."]
-    pub tax_rates: Option<serde_json::Value>,
+    pub tax_rates: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "subscriptions")]
@@ -11712,38 +10722,20 @@ impl UpdateSubscriptionParamsPauseCollectionBehavior {
 }
 
 #[cfg(feature = "subscriptions")]
-impl<'de> serde::Deserialize<'de> for UpdateSubscriptionParamsPauseCollectionBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = UpdateSubscriptionParamsPauseCollectionBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "keep_as_draft" => UpdateSubscriptionParamsPauseCollectionBehavior::KeepAsDraft,
-                    "mark_uncollectible" => UpdateSubscriptionParamsPauseCollectionBehavior::MarkUncollectible,
-                    "void" => UpdateSubscriptionParamsPauseCollectionBehavior::Void,
-                    other => UpdateSubscriptionParamsPauseCollectionBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(UpdateSubscriptionParamsPauseCollectionBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for UpdateSubscriptionParamsPauseCollectionBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(UpdateSubscriptionParamsPauseCollectionBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "keep_as_draft" => UpdateSubscriptionParamsPauseCollectionBehavior::KeepAsDraft,
+            "mark_uncollectible" => UpdateSubscriptionParamsPauseCollectionBehavior::MarkUncollectible,
+            "void" => UpdateSubscriptionParamsPauseCollectionBehavior::Void,
+            other => UpdateSubscriptionParamsPauseCollectionBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -11764,7 +10756,7 @@ pub struct UpdateSubscriptionParamsPaymentSettings {
     pub payment_method_options:
         Option<crate::subscriptions::UpdateSubscriptionParamsPaymentSettingsPaymentMethodOptions>,
     #[doc = "The list of payment method types (e.g."]
-    pub payment_method_types: Option<serde_json::Value>,
+    pub payment_method_types: Option<json::OwnedValue>,
     #[doc = "Configure whether Stripe updates `subscription.default_payment_method` when payment succeeds."]
     pub save_default_payment_method:
         Option<crate::subscriptions::UpdateSubscriptionParamsPaymentSettingsSaveDefaultPaymentMethod>,

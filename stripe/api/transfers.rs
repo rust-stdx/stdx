@@ -76,38 +76,20 @@ impl CreateTransferParamsSourceType {
 }
 
 #[cfg(feature = "transfers")]
-impl<'de> serde::Deserialize<'de> for CreateTransferParamsSourceType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTransferParamsSourceType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "bank_account" => CreateTransferParamsSourceType::BankAccount,
-                    "card" => CreateTransferParamsSourceType::Card,
-                    "fpx" => CreateTransferParamsSourceType::Fpx,
-                    other => CreateTransferParamsSourceType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTransferParamsSourceType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTransferParamsSourceType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTransferParamsSourceType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "bank_account" => CreateTransferParamsSourceType::BankAccount,
+            "card" => CreateTransferParamsSourceType::Card,
+            "fpx" => CreateTransferParamsSourceType::Fpx,
+            other => CreateTransferParamsSourceType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -284,58 +266,59 @@ impl crate::params::FormEncode for ListTransfersParamsCreated {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Transfer {
     #[doc = "Amount in cents (or local equivalent) to be transferred."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Amount in cents (or local equivalent) reversed (can be less than the amount attribute on the transfer if a partial re..."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_reversed: i64,
     #[doc = "Balance transaction that describes the impact of this transfer on your account balance."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub balance_transaction: Option<crate::Expandable<crate::balance_transactions::BalanceTransaction>>,
     #[doc = "Time that this record of the transfer was first created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "ID of the Stripe account the transfer was sent to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub destination: Option<crate::Expandable<crate::account::Account>>,
     #[doc = "If the destination is a Stripe account, this will be the ID of the payment that the destination account received for ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub destination_payment: Option<crate::Expandable<crate::charges::Charge>>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::transfers::TransferObject,
     #[doc = "A list of reversals that have been applied to the transfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reversals: Option<crate::List<crate::transfers::TransferReversal>>,
     #[doc = "Whether the transfer has been fully reversed."]
-    #[serde(default)]
+    #[json(default)]
     pub reversed: bool,
     #[doc = "ID of the charge that was used to fund the transfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub source_transaction: Option<crate::Expandable<crate::charges::Charge>>,
     #[doc = "The source balance this transfer came from."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub source_type: Option<String>,
     #[doc = "A string that identifies this transaction as part of a group."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transfer_group: Option<String>,
 }
 
@@ -435,21 +418,22 @@ impl crate::PagedItem for Transfer {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TransferData {
     #[doc = "The amount transferred to the destination account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
     #[doc = "An arbitrary string attached to the transfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "The account (if any) that the payment is attributed to for tax reporting, and where funds from the payment are transf..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub destination: Option<crate::Expandable<crate::account::Account>>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_data: Option<crate::common::PaymentData>,
 }
 
@@ -656,36 +640,18 @@ impl Default for TransferObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for TransferObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TransferObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "transfer" => TransferObject::Transfer,
-                    other => TransferObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TransferObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TransferObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TransferObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "transfer" => TransferObject::Transfer,
+            other => TransferObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -734,37 +700,38 @@ impl<'de> serde::Deserialize<'de> for TransferObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TransferReversal {
     #[doc = "Amount, in cents (or local equivalent)."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Balance transaction that describes the impact on your account balance."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub balance_transaction: Option<crate::Expandable<crate::balance_transactions::BalanceTransaction>>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "Linked payment refund for the transfer reversal."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub destination_payment_refund: Option<crate::Expandable<crate::refunds::Refund>>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::transfers::TransferReversalObject,
     #[doc = "ID of the refund responsible for the transfer reversal."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub source_refund: Option<crate::Expandable<crate::refunds::Refund>>,
     #[doc = "ID of the transfer that was reversed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transfer: Option<crate::Expandable<crate::transfers::Transfer>>,
 }
 
@@ -1022,36 +989,18 @@ impl Default for TransferReversalObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for TransferReversalObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TransferReversalObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "transfer_reversal" => TransferReversalObject::TransferReversal,
-                    other => TransferReversalObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TransferReversalObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TransferReversalObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TransferReversalObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "transfer_reversal" => TransferReversalObject::TransferReversal,
+            other => TransferReversalObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1100,25 +1049,26 @@ impl<'de> serde::Deserialize<'de> for TransferReversalObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TransferSchedule {
     #[doc = "The number of days charges for the account will be held before being paid out."]
-    #[serde(default)]
+    #[json(default)]
     pub delay_days: i64,
     #[doc = "How frequently funds will be paid out."]
-    #[serde(default)]
+    #[json(default)]
     pub interval: String,
     #[doc = "The day of the month funds will be paid out."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub monthly_anchor: Option<i64>,
     #[doc = "The days of the month funds will be paid out."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub monthly_payout_days: Option<Vec<i64>>,
     #[doc = "The day of the week funds will be paid out, of the style 'monday', 'tuesday', etc."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub weekly_anchor: Option<String>,
     #[doc = "The days of the week when available funds are paid out, specified as an array, for example, [`monday`, `tuesday`]."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub weekly_payout_days: Option<Vec<crate::transfers::TransferScheduleWeeklyPayoutDaysItem>>,
 }
 
@@ -1282,40 +1232,22 @@ impl TransferScheduleWeeklyPayoutDaysItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for TransferScheduleWeeklyPayoutDaysItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TransferScheduleWeeklyPayoutDaysItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "friday" => TransferScheduleWeeklyPayoutDaysItem::Friday,
-                    "monday" => TransferScheduleWeeklyPayoutDaysItem::Monday,
-                    "thursday" => TransferScheduleWeeklyPayoutDaysItem::Thursday,
-                    "tuesday" => TransferScheduleWeeklyPayoutDaysItem::Tuesday,
-                    "wednesday" => TransferScheduleWeeklyPayoutDaysItem::Wednesday,
-                    other => TransferScheduleWeeklyPayoutDaysItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TransferScheduleWeeklyPayoutDaysItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TransferScheduleWeeklyPayoutDaysItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TransferScheduleWeeklyPayoutDaysItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "friday" => TransferScheduleWeeklyPayoutDaysItem::Friday,
+            "monday" => TransferScheduleWeeklyPayoutDaysItem::Monday,
+            "thursday" => TransferScheduleWeeklyPayoutDaysItem::Thursday,
+            "tuesday" => TransferScheduleWeeklyPayoutDaysItem::Tuesday,
+            "wednesday" => TransferScheduleWeeklyPayoutDaysItem::Wednesday,
+            other => TransferScheduleWeeklyPayoutDaysItem::Unknown(other.to_string()),
+        })
     }
 }
 

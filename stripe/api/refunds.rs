@@ -83,36 +83,18 @@ impl CreateRefundParamsOrigin {
 }
 
 #[cfg(feature = "refunds")]
-impl<'de> serde::Deserialize<'de> for CreateRefundParamsOrigin {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateRefundParamsOrigin;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "customer_balance" => CreateRefundParamsOrigin::CustomerBalance,
-                    other => CreateRefundParamsOrigin::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateRefundParamsOrigin::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateRefundParamsOrigin {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateRefundParamsOrigin::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "customer_balance" => CreateRefundParamsOrigin::CustomerBalance,
+            other => CreateRefundParamsOrigin::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -147,38 +129,20 @@ impl CreateRefundParamsReason {
 }
 
 #[cfg(feature = "refunds")]
-impl<'de> serde::Deserialize<'de> for CreateRefundParamsReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateRefundParamsReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "duplicate" => CreateRefundParamsReason::Duplicate,
-                    "fraudulent" => CreateRefundParamsReason::Fraudulent,
-                    "requested_by_customer" => CreateRefundParamsReason::RequestedByCustomer,
-                    other => CreateRefundParamsReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateRefundParamsReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateRefundParamsReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateRefundParamsReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "duplicate" => CreateRefundParamsReason::Duplicate,
+            "fraudulent" => CreateRefundParamsReason::Fraudulent,
+            "requested_by_customer" => CreateRefundParamsReason::RequestedByCustomer,
+            other => CreateRefundParamsReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -299,79 +263,80 @@ impl crate::params::FormEncode for ListRefundsParamsCreated {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Refund {
     #[doc = "Amount, in cents (or local equivalent)."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Balance transaction that describes the impact on your account balance."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub balance_transaction: Option<crate::Expandable<crate::balance_transactions::BalanceTransaction>>,
     #[doc = "ID of the charge that's refunded."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub charge: Option<crate::Expandable<crate::charges::Charge>>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "ID of the customer of this refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<crate::Expandable<crate::refunds::RefundCustomerExpanded>>,
     #[doc = "ID of the account of this refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_account: Option<String>,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub destination_details: Option<crate::refunds::RefundDestinationDetails>,
     #[doc = "After the refund fails, this balance transaction describes the adjustment made on your account balance that reverses ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub failure_balance_transaction: Option<crate::Expandable<crate::balance_transactions::BalanceTransaction>>,
     #[doc = "Provides the reason for the refund failure."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub failure_reason: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "For payment methods without native refund support (for example, Konbini, PromptPay), provide an email address for the..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub instructions_email: Option<String>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub next_action: Option<crate::refunds::RefundNextAction>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::refunds::RefundObject,
     #[doc = "ID of the PaymentIntent that's refunded."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_intent: Option<crate::Expandable<crate::payment_intents::PaymentIntent>>,
     #[doc = "ID of the payment method associated with this refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method: Option<crate::Expandable<crate::payment_methods::PaymentMethod>>,
     #[doc = "Provides the reason for why the refund is pending."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pending_reason: Option<crate::refunds::RefundPendingReason>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub presentment_details: Option<crate::payment_intents::PaymentFlowsPaymentIntentPresentmentDetails>,
     #[doc = "Reason for the refund, which is either user-provided (`duplicate`, `fraudulent`, or `requested_by_customer`) or gener..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<crate::refunds::RefundReason>,
     #[doc = "This is the transaction number that appears on email receipts sent for this refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub receipt_number: Option<String>,
     #[doc = "The transfer reversal that's associated with the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub source_transfer_reversal: Option<crate::Expandable<crate::transfers::TransferReversal>>,
     #[doc = "Status of the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
     #[doc = "This refers to the transfer reversal object if the accompanying transfer reverses."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transfer_reversal: Option<crate::Expandable<crate::transfers::TransferReversal>>,
 }
 
@@ -476,7 +441,7 @@ pub enum RefundCustomerExpanded {
     /// Expanded `customer`.
     Customer(Box<crate::customers::Customer>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -524,17 +489,13 @@ pub enum RefundCustomerExpanded {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for RefundCustomerExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for RefundCustomerExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "customer" => RefundCustomerExpanded::Customer(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "customer" => RefundCustomerExpanded::Customer(Box::new(json::from_slice_owned(&json::to_vec(&value))?)),
             _ => RefundCustomerExpanded::Other(value),
         })
     }
@@ -585,82 +546,83 @@ impl<'de> serde::Deserialize<'de> for RefundCustomerExpanded {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RefundDestinationDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub affirm: Option<crate::common::DestinationDetailsUnimplemented>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub afterpay_clearpay: Option<crate::common::DestinationDetailsUnimplemented>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub alipay: Option<crate::common::DestinationDetailsUnimplemented>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub alma: Option<crate::common::DestinationDetailsUnimplemented>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amazon_pay: Option<crate::common::DestinationDetailsUnimplemented>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub au_bank_transfer: Option<crate::common::DestinationDetailsUnimplemented>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub blik: Option<crate::refunds::RefundDestinationDetailsBlik>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub br_bank_transfer: Option<crate::refunds::RefundDestinationDetailsBrBankTransfer>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::refunds::RefundDestinationDetailsCard>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cashapp: Option<crate::common::DestinationDetailsUnimplemented>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub crypto: Option<crate::refunds::RefundDestinationDetailsCrypto>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_cash_balance: Option<crate::common::DestinationDetailsUnimplemented>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub eps: Option<crate::common::DestinationDetailsUnimplemented>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub eu_bank_transfer: Option<crate::refunds::RefundDestinationDetailsEuBankTransfer>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub gb_bank_transfer: Option<crate::refunds::RefundDestinationDetailsGbBankTransfer>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub giropay: Option<crate::common::DestinationDetailsUnimplemented>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub grabpay: Option<crate::common::DestinationDetailsUnimplemented>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub jp_bank_transfer: Option<crate::refunds::RefundDestinationDetailsJpBankTransfer>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub klarna: Option<crate::common::DestinationDetailsUnimplemented>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mb_way: Option<crate::refunds::RefundDestinationDetailsMbWay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub multibanco: Option<crate::refunds::RefundDestinationDetailsMultibanco>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mx_bank_transfer: Option<crate::refunds::RefundDestinationDetailsMxBankTransfer>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub nz_bank_transfer: Option<crate::common::DestinationDetailsUnimplemented>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub p24: Option<crate::refunds::RefundDestinationDetailsP24>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paynow: Option<crate::common::DestinationDetailsUnimplemented>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paypal: Option<crate::refunds::RefundDestinationDetailsPaypal>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pix: Option<crate::common::DestinationDetailsUnimplemented>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub revolut: Option<crate::common::DestinationDetailsUnimplemented>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub scalapay: Option<crate::common::DestinationDetailsUnimplemented>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sofort: Option<crate::common::DestinationDetailsUnimplemented>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub swish: Option<crate::refunds::RefundDestinationDetailsSwish>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub th_bank_transfer: Option<crate::refunds::RefundDestinationDetailsThBankTransfer>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub twint: Option<crate::common::DestinationDetailsUnimplemented>,
     #[doc = "The type of transaction-specific details of the payment method used in the refund (e.g., `card`)."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us_bank_transfer: Option<crate::refunds::RefundDestinationDetailsUsBankTransfer>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub wechat_pay: Option<crate::common::DestinationDetailsUnimplemented>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub zip: Option<crate::common::DestinationDetailsUnimplemented>,
 }
 
@@ -709,16 +671,17 @@ pub struct RefundDestinationDetails {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RefundDestinationDetailsBlik {
     #[doc = "For refunds declined by the network, a decline code provided by the network which indicates the reason the refund fai..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub network_decline_code: Option<String>,
     #[doc = "The reference assigned to the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     #[doc = "Status of the reference on the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference_status: Option<String>,
 }
 
@@ -767,13 +730,14 @@ pub struct RefundDestinationDetailsBlik {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RefundDestinationDetailsBrBankTransfer {
     #[doc = "The reference assigned to the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     #[doc = "Status of the reference on the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference_status: Option<String>,
 }
 
@@ -822,19 +786,20 @@ pub struct RefundDestinationDetailsBrBankTransfer {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RefundDestinationDetailsCard {
     #[doc = "Value of the reference number assigned to the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     #[doc = "Status of the reference number on the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference_status: Option<String>,
     #[doc = "Type of the reference number assigned to the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference_type: Option<String>,
     #[doc = "The type of refund."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::refunds::RefundDestinationDetailsCardType,
 }
 
@@ -1045,38 +1010,20 @@ impl Default for RefundDestinationDetailsCardType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for RefundDestinationDetailsCardType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = RefundDestinationDetailsCardType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "pending" => RefundDestinationDetailsCardType::Pending,
-                    "refund" => RefundDestinationDetailsCardType::Refund,
-                    "reversal" => RefundDestinationDetailsCardType::Reversal,
-                    other => RefundDestinationDetailsCardType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(RefundDestinationDetailsCardType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for RefundDestinationDetailsCardType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(RefundDestinationDetailsCardType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "pending" => RefundDestinationDetailsCardType::Pending,
+            "refund" => RefundDestinationDetailsCardType::Refund,
+            "reversal" => RefundDestinationDetailsCardType::Reversal,
+            other => RefundDestinationDetailsCardType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1125,10 +1072,11 @@ impl<'de> serde::Deserialize<'de> for RefundDestinationDetailsCardType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RefundDestinationDetailsCrypto {
     #[doc = "The transaction hash of the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
 }
 
@@ -1177,13 +1125,14 @@ pub struct RefundDestinationDetailsCrypto {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RefundDestinationDetailsEuBankTransfer {
     #[doc = "The reference assigned to the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     #[doc = "Status of the reference on the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference_status: Option<String>,
 }
 
@@ -1232,13 +1181,14 @@ pub struct RefundDestinationDetailsEuBankTransfer {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RefundDestinationDetailsGbBankTransfer {
     #[doc = "The reference assigned to the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     #[doc = "Status of the reference on the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference_status: Option<String>,
 }
 
@@ -1287,13 +1237,14 @@ pub struct RefundDestinationDetailsGbBankTransfer {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RefundDestinationDetailsJpBankTransfer {
     #[doc = "The reference assigned to the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     #[doc = "Status of the reference on the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference_status: Option<String>,
 }
 
@@ -1342,13 +1293,14 @@ pub struct RefundDestinationDetailsJpBankTransfer {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RefundDestinationDetailsMbWay {
     #[doc = "The reference assigned to the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     #[doc = "Status of the reference on the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference_status: Option<String>,
 }
 
@@ -1397,13 +1349,14 @@ pub struct RefundDestinationDetailsMbWay {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RefundDestinationDetailsMultibanco {
     #[doc = "The reference assigned to the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     #[doc = "Status of the reference on the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference_status: Option<String>,
 }
 
@@ -1452,13 +1405,14 @@ pub struct RefundDestinationDetailsMultibanco {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RefundDestinationDetailsMxBankTransfer {
     #[doc = "The reference assigned to the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     #[doc = "Status of the reference on the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference_status: Option<String>,
 }
 
@@ -1507,13 +1461,14 @@ pub struct RefundDestinationDetailsMxBankTransfer {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RefundDestinationDetailsP24 {
     #[doc = "The reference assigned to the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     #[doc = "Status of the reference on the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference_status: Option<String>,
 }
 
@@ -1562,10 +1517,11 @@ pub struct RefundDestinationDetailsP24 {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RefundDestinationDetailsPaypal {
     #[doc = "For refunds declined by the network, a decline code provided by the network which indicates the reason the refund fai..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub network_decline_code: Option<String>,
 }
 
@@ -1614,16 +1570,17 @@ pub struct RefundDestinationDetailsPaypal {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RefundDestinationDetailsSwish {
     #[doc = "For refunds declined by the network, a decline code provided by the network which indicates the reason the refund fai..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub network_decline_code: Option<String>,
     #[doc = "The reference assigned to the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     #[doc = "Status of the reference on the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference_status: Option<String>,
 }
 
@@ -1672,13 +1629,14 @@ pub struct RefundDestinationDetailsSwish {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RefundDestinationDetailsThBankTransfer {
     #[doc = "The reference assigned to the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     #[doc = "Status of the reference on the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference_status: Option<String>,
 }
 
@@ -1727,13 +1685,14 @@ pub struct RefundDestinationDetailsThBankTransfer {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RefundDestinationDetailsUsBankTransfer {
     #[doc = "The reference assigned to the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     #[doc = "Status of the reference on the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference_status: Option<String>,
 }
 
@@ -1782,12 +1741,13 @@ pub struct RefundDestinationDetailsUsBankTransfer {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RefundNextAction {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub display_details: Option<crate::refunds::RefundNextActionDisplayDetails>,
     #[doc = "Type of the next action to perform."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: String,
 }
 
@@ -1836,12 +1796,13 @@ pub struct RefundNextAction {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct RefundNextActionDisplayDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub email_sent: Option<crate::common::EmailSent>,
     #[doc = "The expiry timestamp."]
-    #[serde(default)]
+    #[json(default)]
     pub expires_at: i64,
 }
 
@@ -2048,36 +2009,18 @@ impl Default for RefundObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for RefundObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = RefundObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "refund" => RefundObject::Refund,
-                    other => RefundObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(RefundObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for RefundObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(RefundObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "refund" => RefundObject::Refund,
+            other => RefundObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2237,38 +2180,20 @@ impl RefundPendingReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for RefundPendingReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = RefundPendingReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "charge_pending" => RefundPendingReason::ChargePending,
-                    "insufficient_funds" => RefundPendingReason::InsufficientFunds,
-                    "processing" => RefundPendingReason::Processing,
-                    other => RefundPendingReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(RefundPendingReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for RefundPendingReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(RefundPendingReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "charge_pending" => RefundPendingReason::ChargePending,
+            "insufficient_funds" => RefundPendingReason::InsufficientFunds,
+            "processing" => RefundPendingReason::Processing,
+            other => RefundPendingReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2430,39 +2355,21 @@ impl RefundReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for RefundReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = RefundReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "duplicate" => RefundReason::Duplicate,
-                    "expired_uncaptured_charge" => RefundReason::ExpiredUncapturedCharge,
-                    "fraudulent" => RefundReason::Fraudulent,
-                    "requested_by_customer" => RefundReason::RequestedByCustomer,
-                    other => RefundReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(RefundReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for RefundReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(RefundReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "duplicate" => RefundReason::Duplicate,
+            "expired_uncaptured_charge" => RefundReason::ExpiredUncapturedCharge,
+            "fraudulent" => RefundReason::Fraudulent,
+            "requested_by_customer" => RefundReason::RequestedByCustomer,
+            other => RefundReason::Unknown(other.to_string()),
+        })
     }
 }
 

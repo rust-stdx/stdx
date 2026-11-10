@@ -5,10 +5,10 @@
 //! a per-field key allocation, ...) fails CI.
 
 use alloc_counter::measure;
-use serde::Deserialize;
+use json::Decode;
 use stripe::params::{FormBuilder, FormEncode, encode, percent_encode_into};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Decode)]
 #[allow(dead_code)]
 struct Charge {
     id: String,
@@ -102,12 +102,12 @@ fn reused_builder_amortizes_allocations() {
 #[test]
 fn json_decoding_budget() {
     // Warm up.
-    let _ = serde_json::from_slice::<Charge>(CHARGE_JSON).unwrap();
+    let _ = json::from_slice_owned::<Charge>(CHARGE_JSON).unwrap();
 
-    let (charge, counters) = measure(|| serde_json::from_slice::<Charge>(CHARGE_JSON).unwrap());
+    let (charge, counters) = measure(|| json::from_slice_owned::<Charge>(CHARGE_JSON).unwrap());
     assert_eq!(charge.amount, 2000);
     assert_eq!(charge.id, "ch_3P0m4k2eZvKYlo2C1");
-    // Measured: five allocations, one per owned string field. serde_json does
+    // Measured: five allocations, one per owned string field. json does
     // not copy the raw body.
     assert!(
         counters.calls <= 5,

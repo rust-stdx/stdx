@@ -9,29 +9,30 @@
 #![allow(non_camel_case_types)]
 
 #[cfg(any(feature = "accounts", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Capability {
     #[doc = "The account for which the capability enables functionality."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account: Option<crate::Expandable<crate::account::Account>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub future_requirements: Option<crate::account::AccountCapabilityFutureRequirements>,
     #[doc = "The identifier for the capability."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::accounts::CapabilityObject,
     #[doc = "Whether the capability has been requested."]
-    #[serde(default)]
+    #[json(default)]
     pub requested: bool,
     #[doc = "Time at which the capability was requested."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub requested_at: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub requirements: Option<crate::account::AccountCapabilityRequirements>,
     #[doc = "The status of the capability."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::accounts::CapabilityStatus,
 }
 
@@ -69,36 +70,18 @@ impl Default for CapabilityObject {
 }
 
 #[cfg(any(feature = "accounts", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for CapabilityObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CapabilityObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "capability" => CapabilityObject::Capability,
-                    other => CapabilityObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CapabilityObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CapabilityObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CapabilityObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "capability" => CapabilityObject::Capability,
+            other => CapabilityObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -135,39 +118,21 @@ impl Default for CapabilityStatus {
 }
 
 #[cfg(any(feature = "accounts", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for CapabilityStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CapabilityStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => CapabilityStatus::Active,
-                    "inactive" => CapabilityStatus::Inactive,
-                    "pending" => CapabilityStatus::Pending,
-                    "unrequested" => CapabilityStatus::Unrequested,
-                    other => CapabilityStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CapabilityStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CapabilityStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CapabilityStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => CapabilityStatus::Active,
+            "inactive" => CapabilityStatus::Inactive,
+            "pending" => CapabilityStatus::Pending,
+            "unrequested" => CapabilityStatus::Unrequested,
+            other => CapabilityStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -216,13 +181,14 @@ impl<'de> serde::Deserialize<'de> for CapabilityStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectAccountReference {
     #[doc = "The connected account being referenced when `type` is `account`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account: Option<crate::Expandable<crate::account::Account>>,
     #[doc = "Type of the account referenced."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::accounts::ConnectAccountReferenceType,
 }
 
@@ -431,37 +397,19 @@ impl Default for ConnectAccountReferenceType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ConnectAccountReferenceType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ConnectAccountReferenceType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account" => ConnectAccountReferenceType::Account,
-                    "self" => ConnectAccountReferenceType::SelfValue,
-                    other => ConnectAccountReferenceType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ConnectAccountReferenceType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ConnectAccountReferenceType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ConnectAccountReferenceType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account" => ConnectAccountReferenceType::Account,
+            "self" => ConnectAccountReferenceType::SelfValue,
+            other => ConnectAccountReferenceType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -510,25 +458,26 @@ impl<'de> serde::Deserialize<'de> for ConnectAccountReferenceType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectCollectionTransfer {
     #[doc = "Amount transferred, in cents (or local equivalent)."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "ID of the account that funds are being collected for."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub destination: Option<crate::Expandable<crate::account::Account>>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::accounts::ConnectCollectionTransferObject,
 }
 
@@ -786,381 +735,388 @@ impl Default for ConnectCollectionTransferObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ConnectCollectionTransferObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ConnectCollectionTransferObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "connect_collection_transfer" => ConnectCollectionTransferObject::ConnectCollectionTransfer,
-                    other => ConnectCollectionTransferObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ConnectCollectionTransferObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ConnectCollectionTransferObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ConnectCollectionTransferObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "connect_collection_transfer" => ConnectCollectionTransferObject::ConnectCollectionTransfer,
+            other => ConnectCollectionTransferObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedAccountConfigClaim {
     #[doc = "Whether the embedded component is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub features: Option<crate::accounts::ConnectEmbeddedAccountFeaturesClaim>,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedAccountFeaturesClaim {
     #[doc = "Whether Stripe user authentication is disabled."]
-    #[serde(default)]
+    #[json(default)]
     pub disable_stripe_user_authentication: bool,
     #[doc = "Whether external account collection is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub external_account_collection: bool,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedAccountSessionCreateComponents {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_management: Option<crate::accounts::ConnectEmbeddedAccountConfigClaim>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_onboarding: Option<crate::accounts::ConnectEmbeddedAccountConfigClaim>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub balance_report: Option<crate::accounts::ConnectEmbeddedBaseConfigClaim>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub balances: Option<crate::accounts::ConnectEmbeddedPayoutsConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub disputes_list: Option<crate::accounts::ConnectEmbeddedDisputesListConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub documents: Option<crate::accounts::ConnectEmbeddedBaseConfigClaim>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub financial_account: Option<crate::accounts::ConnectEmbeddedFinancialAccountConfigClaim>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub financial_account_transactions: Option<crate::accounts::ConnectEmbeddedFinancialAccountTransactionsConfigClaim>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub instant_payouts_promotion: Option<crate::accounts::ConnectEmbeddedInstantPayoutsPromotionConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuing_card: Option<crate::accounts::ConnectEmbeddedIssuingCardConfigClaim>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuing_cards_list: Option<crate::accounts::ConnectEmbeddedIssuingCardsListConfigClaim>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub notification_banner: Option<crate::accounts::ConnectEmbeddedAccountConfigClaim>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_details: Option<crate::accounts::ConnectEmbeddedPaymentsConfigClaim>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_disputes: Option<crate::accounts::ConnectEmbeddedPaymentDisputesConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_settings: Option<crate::accounts::ConnectEmbeddedPaymentMethodSettingsConfigClaim>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payments: Option<crate::accounts::ConnectEmbeddedPaymentsConfigClaim>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payout_details: Option<crate::accounts::ConnectEmbeddedBaseConfigClaim>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payout_reconciliation_report: Option<crate::accounts::ConnectEmbeddedBaseConfigClaim>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payouts: Option<crate::accounts::ConnectEmbeddedPayoutsConfig>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payouts_list: Option<crate::accounts::ConnectEmbeddedBaseConfigClaim>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_registrations: Option<crate::accounts::ConnectEmbeddedBaseConfigClaim>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_settings: Option<crate::accounts::ConnectEmbeddedBaseConfigClaim>,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedBaseConfigClaim {
     #[doc = "Whether the embedded component is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub features: Option<crate::accounts::ConnectEmbeddedBaseFeatures>,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedBaseFeatures {}
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedDisputesListConfig {
     #[doc = "Whether the embedded component is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub features: Option<crate::accounts::ConnectEmbeddedDisputesListFeatures>,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedDisputesListFeatures {
     #[doc = "Whether to allow capturing and cancelling payment intents."]
-    #[serde(default)]
+    #[json(default)]
     pub capture_payments: bool,
     #[doc = "Whether connected accounts can manage destination charges that are created on behalf of them."]
-    #[serde(default)]
+    #[json(default)]
     pub destination_on_behalf_of_charge_management: bool,
     #[doc = "Whether responding to disputes is enabled, including submitting evidence and accepting disputes."]
-    #[serde(default)]
+    #[json(default)]
     pub dispute_management: bool,
     #[doc = "Whether sending refunds is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub refund_management: bool,
     #[doc = "Whether to allow connected accounts to submit disputes using Smart Disputes."]
-    #[serde(default)]
+    #[json(default)]
     pub smart_disputes_management: bool,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedFinancialAccountConfigClaim {
     #[doc = "Whether the embedded component is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub features: Option<crate::accounts::ConnectEmbeddedFinancialAccountFeatures>,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedFinancialAccountFeatures {
     #[doc = "Whether Stripe user authentication is disabled."]
-    #[serde(default)]
+    #[json(default)]
     pub disable_stripe_user_authentication: bool,
     #[doc = "Whether external account collection is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub external_account_collection: bool,
     #[doc = "Whether to allow sending money."]
-    #[serde(default)]
+    #[json(default)]
     pub send_money: bool,
     #[doc = "Whether to allow transferring balance."]
-    #[serde(default)]
+    #[json(default)]
     pub transfer_balance: bool,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedFinancialAccountTransactionsConfigClaim {
     #[doc = "Whether the embedded component is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub features: Option<crate::accounts::ConnectEmbeddedFinancialAccountTransactionsFeatures>,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedFinancialAccountTransactionsFeatures {
     #[doc = "Whether to allow card spend dispute management features."]
-    #[serde(default)]
+    #[json(default)]
     pub card_spend_dispute_management: bool,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedInstantPayoutsPromotionConfig {
     #[doc = "Whether the embedded component is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub features: Option<crate::accounts::ConnectEmbeddedInstantPayoutsPromotionFeatures>,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedInstantPayoutsPromotionFeatures {
     #[doc = "Whether Stripe user authentication is disabled."]
-    #[serde(default)]
+    #[json(default)]
     pub disable_stripe_user_authentication: bool,
     #[doc = "Whether external account collection is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub external_account_collection: bool,
     #[doc = "Whether to allow creation of instant payouts."]
-    #[serde(default)]
+    #[json(default)]
     pub instant_payouts: bool,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedIssuingCardConfigClaim {
     #[doc = "Whether the embedded component is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub features: Option<crate::accounts::ConnectEmbeddedIssuingCardFeatures>,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedIssuingCardFeatures {
     #[doc = "Whether to allow card management features."]
-    #[serde(default)]
+    #[json(default)]
     pub card_management: bool,
     #[doc = "Whether to allow card spend dispute management features."]
-    #[serde(default)]
+    #[json(default)]
     pub card_spend_dispute_management: bool,
     #[doc = "Whether to allow cardholder management features."]
-    #[serde(default)]
+    #[json(default)]
     pub cardholder_management: bool,
     #[doc = "Whether to allow spend control management features."]
-    #[serde(default)]
+    #[json(default)]
     pub spend_control_management: bool,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedIssuingCardsListConfigClaim {
     #[doc = "Whether the embedded component is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub features: Option<crate::accounts::ConnectEmbeddedIssuingCardsListFeatures>,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedIssuingCardsListFeatures {
     #[doc = "Whether to allow card management features."]
-    #[serde(default)]
+    #[json(default)]
     pub card_management: bool,
     #[doc = "Whether to allow card spend dispute management features."]
-    #[serde(default)]
+    #[json(default)]
     pub card_spend_dispute_management: bool,
     #[doc = "Whether to allow cardholder management features."]
-    #[serde(default)]
+    #[json(default)]
     pub cardholder_management: bool,
     #[doc = "Whether Stripe user authentication is disabled."]
-    #[serde(default)]
+    #[json(default)]
     pub disable_stripe_user_authentication: bool,
     #[doc = "Whether to allow spend control management features."]
-    #[serde(default)]
+    #[json(default)]
     pub spend_control_management: bool,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedPaymentDisputesConfig {
     #[doc = "Whether the embedded component is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub features: Option<crate::accounts::ConnectEmbeddedPaymentDisputesFeatures>,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedPaymentDisputesFeatures {
     #[doc = "Whether connected accounts can manage destination charges that are created on behalf of them."]
-    #[serde(default)]
+    #[json(default)]
     pub destination_on_behalf_of_charge_management: bool,
     #[doc = "Whether responding to disputes is enabled, including submitting evidence and accepting disputes."]
-    #[serde(default)]
+    #[json(default)]
     pub dispute_management: bool,
     #[doc = "Whether sending refunds is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub refund_management: bool,
     #[doc = "Whether to allow connected accounts to submit disputes using Smart Disputes."]
-    #[serde(default)]
+    #[json(default)]
     pub smart_disputes_management: bool,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedPaymentMethodSettingsConfigClaim {
     #[doc = "Whether the embedded component is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub features: Option<crate::accounts::ConnectEmbeddedPaymentMethodSettingsFeatures>,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedPaymentMethodSettingsFeatures {
     #[doc = "Whether Stripe user authentication is disabled."]
-    #[serde(default)]
+    #[json(default)]
     pub disable_stripe_user_authentication: bool,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedPaymentsConfigClaim {
     #[doc = "Whether the embedded component is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub features: Option<crate::accounts::ConnectEmbeddedPaymentsFeatures>,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedPaymentsFeatures {
     #[doc = "Whether to allow capturing and cancelling payment intents."]
-    #[serde(default)]
+    #[json(default)]
     pub capture_payments: bool,
     #[doc = "Whether connected accounts can manage destination charges that are created on behalf of them."]
-    #[serde(default)]
+    #[json(default)]
     pub destination_on_behalf_of_charge_management: bool,
     #[doc = "Whether responding to disputes is enabled, including submitting evidence and accepting disputes."]
-    #[serde(default)]
+    #[json(default)]
     pub dispute_management: bool,
     #[doc = "Whether sending refunds is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub refund_management: bool,
     #[doc = "Whether to allow connected accounts to submit disputes using Smart Disputes."]
-    #[serde(default)]
+    #[json(default)]
     pub smart_disputes_management: bool,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedPayoutsConfig {
     #[doc = "Whether the embedded component is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub features: Option<crate::accounts::ConnectEmbeddedPayoutsFeatures>,
 }
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConnectEmbeddedPayoutsFeatures {
     #[doc = "Whether Stripe user authentication is disabled."]
-    #[serde(default)]
+    #[json(default)]
     pub disable_stripe_user_authentication: bool,
     #[doc = "Whether to allow payout schedule to be changed."]
-    #[serde(default)]
+    #[json(default)]
     pub edit_payout_schedule: bool,
     #[doc = "Whether external account collection is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub external_account_collection: bool,
     #[doc = "Whether to allow creation of instant payouts."]
-    #[serde(default)]
+    #[json(default)]
     pub instant_payouts: bool,
     #[doc = "Whether to allow creation of standard payouts."]
-    #[serde(default)]
+    #[json(default)]
     pub standard_payouts: bool,
 }
 
@@ -1286,7 +1242,7 @@ pub struct CreateAccountParamsBusinessProfile {
     #[doc = "Internal-only description of the product sold by, or service provided by, the business."]
     pub product_description: Option<String>,
     #[doc = "A link to the business's publicly available terms related to the Specified Commercial Transaction Act."]
-    pub specified_commercial_transactions_act_url: Option<serde_json::Value>,
+    pub specified_commercial_transactions_act_url: Option<json::OwnedValue>,
     #[doc = "A publicly available mailing address for sending support issues to."]
     pub support_address: Option<crate::accounts::CreateAccountParamsBusinessProfileSupportAddress>,
     #[doc = "A publicly available email address for sending support issues to."]
@@ -1294,7 +1250,7 @@ pub struct CreateAccountParamsBusinessProfile {
     #[doc = "A publicly available phone number to call with support issues."]
     pub support_phone: Option<String>,
     #[doc = "A publicly available website for handling support issues."]
-    pub support_url: Option<serde_json::Value>,
+    pub support_url: Option<json::OwnedValue>,
     #[doc = "The business's publicly available website."]
     pub url: Option<String>,
 }
@@ -1376,54 +1332,34 @@ impl CreateAccountParamsBusinessProfileMinorityOwnedBusinessDesignationItem {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for CreateAccountParamsBusinessProfileMinorityOwnedBusinessDesignationItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateAccountParamsBusinessProfileMinorityOwnedBusinessDesignationItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "lgbtqi_owned_business" => {
-                        CreateAccountParamsBusinessProfileMinorityOwnedBusinessDesignationItem::LgbtqiOwnedBusiness
-                    }
-                    "minority_owned_business" => {
-                        CreateAccountParamsBusinessProfileMinorityOwnedBusinessDesignationItem::MinorityOwnedBusiness
-                    }
-                    "none_of_these_apply" => {
-                        CreateAccountParamsBusinessProfileMinorityOwnedBusinessDesignationItem::NoneOfTheseApply
-                    }
-                    "prefer_not_to_answer" => {
-                        CreateAccountParamsBusinessProfileMinorityOwnedBusinessDesignationItem::PreferNotToAnswer
-                    }
-                    "women_owned_business" => {
-                        CreateAccountParamsBusinessProfileMinorityOwnedBusinessDesignationItem::WomenOwnedBusiness
-                    }
-                    other => CreateAccountParamsBusinessProfileMinorityOwnedBusinessDesignationItem::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateAccountParamsBusinessProfileMinorityOwnedBusinessDesignationItem::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateAccountParamsBusinessProfileMinorityOwnedBusinessDesignationItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateAccountParamsBusinessProfileMinorityOwnedBusinessDesignationItem::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "lgbtqi_owned_business" => {
+                CreateAccountParamsBusinessProfileMinorityOwnedBusinessDesignationItem::LgbtqiOwnedBusiness
+            }
+            "minority_owned_business" => {
+                CreateAccountParamsBusinessProfileMinorityOwnedBusinessDesignationItem::MinorityOwnedBusiness
+            }
+            "none_of_these_apply" => {
+                CreateAccountParamsBusinessProfileMinorityOwnedBusinessDesignationItem::NoneOfTheseApply
+            }
+            "prefer_not_to_answer" => {
+                CreateAccountParamsBusinessProfileMinorityOwnedBusinessDesignationItem::PreferNotToAnswer
+            }
+            "women_owned_business" => {
+                CreateAccountParamsBusinessProfileMinorityOwnedBusinessDesignationItem::WomenOwnedBusiness
+            }
+            other => CreateAccountParamsBusinessProfileMinorityOwnedBusinessDesignationItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1506,39 +1442,21 @@ impl CreateAccountParamsBusinessType {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for CreateAccountParamsBusinessType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateAccountParamsBusinessType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "company" => CreateAccountParamsBusinessType::Company,
-                    "government_entity" => CreateAccountParamsBusinessType::GovernmentEntity,
-                    "individual" => CreateAccountParamsBusinessType::Individual,
-                    "non_profit" => CreateAccountParamsBusinessType::NonProfit,
-                    other => CreateAccountParamsBusinessType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateAccountParamsBusinessType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateAccountParamsBusinessType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateAccountParamsBusinessType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "company" => CreateAccountParamsBusinessType::Company,
+            "government_entity" => CreateAccountParamsBusinessType::GovernmentEntity,
+            "individual" => CreateAccountParamsBusinessType::Individual,
+            "non_profit" => CreateAccountParamsBusinessType::NonProfit,
+            other => CreateAccountParamsBusinessType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2228,42 +2146,24 @@ impl CreateAccountParamsCompanyOwnershipExemptionReason {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for CreateAccountParamsCompanyOwnershipExemptionReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateAccountParamsCompanyOwnershipExemptionReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreateAccountParamsCompanyOwnershipExemptionReason::Unnamed,
-                    "qualified_entity_exceeds_ownership_threshold" => {
-                        CreateAccountParamsCompanyOwnershipExemptionReason::QualifiedEntityExceedsOwnershipThreshold
-                    }
-                    "qualifies_as_financial_institution" => {
-                        CreateAccountParamsCompanyOwnershipExemptionReason::QualifiesAsFinancialInstitution
-                    }
-                    other => CreateAccountParamsCompanyOwnershipExemptionReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateAccountParamsCompanyOwnershipExemptionReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateAccountParamsCompanyOwnershipExemptionReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateAccountParamsCompanyOwnershipExemptionReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreateAccountParamsCompanyOwnershipExemptionReason::Unnamed,
+            "qualified_entity_exceeds_ownership_threshold" => {
+                CreateAccountParamsCompanyOwnershipExemptionReason::QualifiedEntityExceedsOwnershipThreshold
+            }
+            "qualifies_as_financial_institution" => {
+                CreateAccountParamsCompanyOwnershipExemptionReason::QualifiesAsFinancialInstitution
+            }
+            other => CreateAccountParamsCompanyOwnershipExemptionReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2370,61 +2270,43 @@ impl CreateAccountParamsCompanyStructure {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for CreateAccountParamsCompanyStructure {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateAccountParamsCompanyStructure;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreateAccountParamsCompanyStructure::Unnamed,
-                    "free_zone_establishment" => CreateAccountParamsCompanyStructure::FreeZoneEstablishment,
-                    "free_zone_llc" => CreateAccountParamsCompanyStructure::FreeZoneLlc,
-                    "government_instrumentality" => CreateAccountParamsCompanyStructure::GovernmentInstrumentality,
-                    "governmental_unit" => CreateAccountParamsCompanyStructure::GovernmentalUnit,
-                    "incorporated_non_profit" => CreateAccountParamsCompanyStructure::IncorporatedNonProfit,
-                    "incorporated_partnership" => CreateAccountParamsCompanyStructure::IncorporatedPartnership,
-                    "limited_liability_partnership" => CreateAccountParamsCompanyStructure::LimitedLiabilityPartnership,
-                    "llc" => CreateAccountParamsCompanyStructure::Llc,
-                    "multi_member_llc" => CreateAccountParamsCompanyStructure::MultiMemberLlc,
-                    "private_company" => CreateAccountParamsCompanyStructure::PrivateCompany,
-                    "private_corporation" => CreateAccountParamsCompanyStructure::PrivateCorporation,
-                    "private_partnership" => CreateAccountParamsCompanyStructure::PrivatePartnership,
-                    "public_company" => CreateAccountParamsCompanyStructure::PublicCompany,
-                    "public_corporation" => CreateAccountParamsCompanyStructure::PublicCorporation,
-                    "public_partnership" => CreateAccountParamsCompanyStructure::PublicPartnership,
-                    "registered_charity" => CreateAccountParamsCompanyStructure::RegisteredCharity,
-                    "single_member_llc" => CreateAccountParamsCompanyStructure::SingleMemberLlc,
-                    "sole_establishment" => CreateAccountParamsCompanyStructure::SoleEstablishment,
-                    "sole_proprietorship" => CreateAccountParamsCompanyStructure::SoleProprietorship,
-                    "tax_exempt_government_instrumentality" => {
-                        CreateAccountParamsCompanyStructure::TaxExemptGovernmentInstrumentality
-                    }
-                    "unincorporated_association" => CreateAccountParamsCompanyStructure::UnincorporatedAssociation,
-                    "unincorporated_non_profit" => CreateAccountParamsCompanyStructure::UnincorporatedNonProfit,
-                    "unincorporated_partnership" => CreateAccountParamsCompanyStructure::UnincorporatedPartnership,
-                    other => CreateAccountParamsCompanyStructure::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateAccountParamsCompanyStructure::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateAccountParamsCompanyStructure {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateAccountParamsCompanyStructure::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreateAccountParamsCompanyStructure::Unnamed,
+            "free_zone_establishment" => CreateAccountParamsCompanyStructure::FreeZoneEstablishment,
+            "free_zone_llc" => CreateAccountParamsCompanyStructure::FreeZoneLlc,
+            "government_instrumentality" => CreateAccountParamsCompanyStructure::GovernmentInstrumentality,
+            "governmental_unit" => CreateAccountParamsCompanyStructure::GovernmentalUnit,
+            "incorporated_non_profit" => CreateAccountParamsCompanyStructure::IncorporatedNonProfit,
+            "incorporated_partnership" => CreateAccountParamsCompanyStructure::IncorporatedPartnership,
+            "limited_liability_partnership" => CreateAccountParamsCompanyStructure::LimitedLiabilityPartnership,
+            "llc" => CreateAccountParamsCompanyStructure::Llc,
+            "multi_member_llc" => CreateAccountParamsCompanyStructure::MultiMemberLlc,
+            "private_company" => CreateAccountParamsCompanyStructure::PrivateCompany,
+            "private_corporation" => CreateAccountParamsCompanyStructure::PrivateCorporation,
+            "private_partnership" => CreateAccountParamsCompanyStructure::PrivatePartnership,
+            "public_company" => CreateAccountParamsCompanyStructure::PublicCompany,
+            "public_corporation" => CreateAccountParamsCompanyStructure::PublicCorporation,
+            "public_partnership" => CreateAccountParamsCompanyStructure::PublicPartnership,
+            "registered_charity" => CreateAccountParamsCompanyStructure::RegisteredCharity,
+            "single_member_llc" => CreateAccountParamsCompanyStructure::SingleMemberLlc,
+            "sole_establishment" => CreateAccountParamsCompanyStructure::SoleEstablishment,
+            "sole_proprietorship" => CreateAccountParamsCompanyStructure::SoleProprietorship,
+            "tax_exempt_government_instrumentality" => {
+                CreateAccountParamsCompanyStructure::TaxExemptGovernmentInstrumentality
+            }
+            "unincorporated_association" => CreateAccountParamsCompanyStructure::UnincorporatedAssociation,
+            "unincorporated_non_profit" => CreateAccountParamsCompanyStructure::UnincorporatedNonProfit,
+            "unincorporated_partnership" => CreateAccountParamsCompanyStructure::UnincorporatedPartnership,
+            other => CreateAccountParamsCompanyStructure::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2525,37 +2407,19 @@ impl CreateAccountParamsControllerFeesPayer {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for CreateAccountParamsControllerFeesPayer {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateAccountParamsControllerFeesPayer;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account" => CreateAccountParamsControllerFeesPayer::Account,
-                    "application" => CreateAccountParamsControllerFeesPayer::Application,
-                    other => CreateAccountParamsControllerFeesPayer::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateAccountParamsControllerFeesPayer::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateAccountParamsControllerFeesPayer {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateAccountParamsControllerFeesPayer::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account" => CreateAccountParamsControllerFeesPayer::Account,
+            "application" => CreateAccountParamsControllerFeesPayer::Application,
+            other => CreateAccountParamsControllerFeesPayer::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2602,37 +2466,19 @@ impl CreateAccountParamsControllerLossesPayments {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for CreateAccountParamsControllerLossesPayments {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateAccountParamsControllerLossesPayments;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "application" => CreateAccountParamsControllerLossesPayments::Application,
-                    "stripe" => CreateAccountParamsControllerLossesPayments::Stripe,
-                    other => CreateAccountParamsControllerLossesPayments::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateAccountParamsControllerLossesPayments::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateAccountParamsControllerLossesPayments {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateAccountParamsControllerLossesPayments::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "application" => CreateAccountParamsControllerLossesPayments::Application,
+            "stripe" => CreateAccountParamsControllerLossesPayments::Stripe,
+            other => CreateAccountParamsControllerLossesPayments::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2685,38 +2531,20 @@ impl CreateAccountParamsControllerStripeDashboardType {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for CreateAccountParamsControllerStripeDashboardType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateAccountParamsControllerStripeDashboardType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "express" => CreateAccountParamsControllerStripeDashboardType::Express,
-                    "full" => CreateAccountParamsControllerStripeDashboardType::Full,
-                    "none" => CreateAccountParamsControllerStripeDashboardType::None,
-                    other => CreateAccountParamsControllerStripeDashboardType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateAccountParamsControllerStripeDashboardType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateAccountParamsControllerStripeDashboardType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateAccountParamsControllerStripeDashboardType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "express" => CreateAccountParamsControllerStripeDashboardType::Express,
+            "full" => CreateAccountParamsControllerStripeDashboardType::Full,
+            "none" => CreateAccountParamsControllerStripeDashboardType::None,
+            other => CreateAccountParamsControllerStripeDashboardType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2855,7 +2683,7 @@ impl crate::params::FormEncode for CreateAccountParamsDocumentsProofOfUltimateBe
 #[derive(Debug, Clone, Default)]
 pub struct CreateAccountParamsGroups {
     #[doc = "The group the account is in to determine their payments pricing, and null if the account is on customized pricing."]
-    pub payments_pricing: Option<serde_json::Value>,
+    pub payments_pricing: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "accounts")]
@@ -2885,7 +2713,7 @@ pub struct CreateAccountParamsIndividual {
     #[doc = "The Kanji variation of the individual's first name (Japan only)."]
     pub first_name_kanji: Option<String>,
     #[doc = "A list of alternate names or aliases that the individual is known by."]
-    pub full_name_aliases: Option<serde_json::Value>,
+    pub full_name_aliases: Option<json::OwnedValue>,
     #[doc = "The individual's gender"]
     pub gender: Option<String>,
     #[doc = "The government-issued ID number of the individual, as appropriate for the representative's country."]
@@ -2982,37 +2810,19 @@ impl CreateAccountParamsIndividualPoliticalExposure {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for CreateAccountParamsIndividualPoliticalExposure {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateAccountParamsIndividualPoliticalExposure;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "existing" => CreateAccountParamsIndividualPoliticalExposure::Existing,
-                    "none" => CreateAccountParamsIndividualPoliticalExposure::None,
-                    other => CreateAccountParamsIndividualPoliticalExposure::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateAccountParamsIndividualPoliticalExposure::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateAccountParamsIndividualPoliticalExposure {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateAccountParamsIndividualPoliticalExposure::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "existing" => CreateAccountParamsIndividualPoliticalExposure::Existing,
+            "none" => CreateAccountParamsIndividualPoliticalExposure::None,
+            other => CreateAccountParamsIndividualPoliticalExposure::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3037,7 +2847,7 @@ pub struct CreateAccountParamsIndividualRelationship {
     #[doc = "Whether the person is an owner of the account’s legal entity."]
     pub owner: Option<bool>,
     #[doc = "The percent owned by the person of the account's legal entity."]
-    pub percent_ownership: Option<serde_json::Value>,
+    pub percent_ownership: Option<json::OwnedValue>,
     #[doc = "The person's title (e.g., CEO, Support Engineer)."]
     pub title: Option<String>,
 }
@@ -3177,7 +2987,7 @@ pub struct CreateAccountParamsSettingsCardIssuingTosAcceptance {
     #[doc = "The IP address from which the account representative accepted the service agreement."]
     pub ip: Option<String>,
     #[doc = "The user agent of the browser from which the account representative accepted the service agreement."]
-    pub user_agent: Option<serde_json::Value>,
+    pub user_agent: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "accounts")]
@@ -3196,9 +3006,9 @@ pub struct CreateAccountParamsSettingsCardPayments {
     #[doc = "The default text that appears on credit card statements when a charge is made."]
     pub statement_descriptor_prefix: Option<String>,
     #[doc = "The Kana variation of the default text that appears on credit card statements when a charge is made (Japan only)."]
-    pub statement_descriptor_prefix_kana: Option<serde_json::Value>,
+    pub statement_descriptor_prefix_kana: Option<json::OwnedValue>,
     #[doc = "The Kanji variation of the default text that appears on credit card statements when a charge is made (Japan only)."]
-    pub statement_descriptor_prefix_kanji: Option<serde_json::Value>,
+    pub statement_descriptor_prefix_kanji: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "accounts")]
@@ -3264,40 +3074,22 @@ impl CreateAccountParamsSettingsInvoicesHostedPaymentMethodSave {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for CreateAccountParamsSettingsInvoicesHostedPaymentMethodSave {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateAccountParamsSettingsInvoicesHostedPaymentMethodSave;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => CreateAccountParamsSettingsInvoicesHostedPaymentMethodSave::Always,
-                    "never" => CreateAccountParamsSettingsInvoicesHostedPaymentMethodSave::Never,
-                    "offer" => CreateAccountParamsSettingsInvoicesHostedPaymentMethodSave::Offer,
-                    other => CreateAccountParamsSettingsInvoicesHostedPaymentMethodSave::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateAccountParamsSettingsInvoicesHostedPaymentMethodSave::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateAccountParamsSettingsInvoicesHostedPaymentMethodSave {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateAccountParamsSettingsInvoicesHostedPaymentMethodSave::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => CreateAccountParamsSettingsInvoicesHostedPaymentMethodSave::Always,
+            "never" => CreateAccountParamsSettingsInvoicesHostedPaymentMethodSave::Never,
+            "offer" => CreateAccountParamsSettingsInvoicesHostedPaymentMethodSave::Offer,
+            other => CreateAccountParamsSettingsInvoicesHostedPaymentMethodSave::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3352,7 +3144,7 @@ impl crate::params::FormEncode for CreateAccountParamsSettingsPayouts {
 #[derive(Debug, Clone, Default)]
 pub struct CreateAccountParamsSettingsPayoutsSchedule {
     #[doc = "The number of days charge funds are held before being paid out."]
-    pub delay_days: Option<serde_json::Value>,
+    pub delay_days: Option<json::OwnedValue>,
     #[doc = "How frequently available funds are paid out."]
     pub interval: Option<crate::accounts::CreateAccountParamsSettingsPayoutsScheduleInterval>,
     #[doc = "The day of the month when available funds are paid out, specified as a number between 1--31."]
@@ -3407,39 +3199,21 @@ impl CreateAccountParamsSettingsPayoutsScheduleInterval {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for CreateAccountParamsSettingsPayoutsScheduleInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateAccountParamsSettingsPayoutsScheduleInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "daily" => CreateAccountParamsSettingsPayoutsScheduleInterval::Daily,
-                    "manual" => CreateAccountParamsSettingsPayoutsScheduleInterval::Manual,
-                    "monthly" => CreateAccountParamsSettingsPayoutsScheduleInterval::Monthly,
-                    "weekly" => CreateAccountParamsSettingsPayoutsScheduleInterval::Weekly,
-                    other => CreateAccountParamsSettingsPayoutsScheduleInterval::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateAccountParamsSettingsPayoutsScheduleInterval::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateAccountParamsSettingsPayoutsScheduleInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateAccountParamsSettingsPayoutsScheduleInterval::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "daily" => CreateAccountParamsSettingsPayoutsScheduleInterval::Daily,
+            "manual" => CreateAccountParamsSettingsPayoutsScheduleInterval::Manual,
+            "monthly" => CreateAccountParamsSettingsPayoutsScheduleInterval::Monthly,
+            "weekly" => CreateAccountParamsSettingsPayoutsScheduleInterval::Weekly,
+            other => CreateAccountParamsSettingsPayoutsScheduleInterval::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3482,42 +3256,24 @@ impl CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "friday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor::Friday,
-                    "monday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor::Monday,
-                    "saturday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor::Saturday,
-                    "sunday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor::Sunday,
-                    "thursday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor::Thursday,
-                    "tuesday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor::Tuesday,
-                    "wednesday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor::Wednesday,
-                    other => CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "friday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor::Friday,
+            "monday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor::Monday,
+            "saturday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor::Saturday,
+            "sunday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor::Sunday,
+            "thursday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor::Thursday,
+            "tuesday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor::Tuesday,
+            "wednesday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor::Wednesday,
+            other => CreateAccountParamsSettingsPayoutsScheduleWeeklyAnchor::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3556,42 +3312,24 @@ impl CreateAccountParamsSettingsPayoutsScheduleWeeklyPayoutDaysItem {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for CreateAccountParamsSettingsPayoutsScheduleWeeklyPayoutDaysItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateAccountParamsSettingsPayoutsScheduleWeeklyPayoutDaysItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "friday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyPayoutDaysItem::Friday,
-                    "monday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyPayoutDaysItem::Monday,
-                    "thursday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyPayoutDaysItem::Thursday,
-                    "tuesday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyPayoutDaysItem::Tuesday,
-                    "wednesday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyPayoutDaysItem::Wednesday,
-                    other => CreateAccountParamsSettingsPayoutsScheduleWeeklyPayoutDaysItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateAccountParamsSettingsPayoutsScheduleWeeklyPayoutDaysItem::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateAccountParamsSettingsPayoutsScheduleWeeklyPayoutDaysItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateAccountParamsSettingsPayoutsScheduleWeeklyPayoutDaysItem::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "friday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyPayoutDaysItem::Friday,
+            "monday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyPayoutDaysItem::Monday,
+            "thursday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyPayoutDaysItem::Thursday,
+            "tuesday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyPayoutDaysItem::Tuesday,
+            "wednesday" => CreateAccountParamsSettingsPayoutsScheduleWeeklyPayoutDaysItem::Wednesday,
+            other => CreateAccountParamsSettingsPayoutsScheduleWeeklyPayoutDaysItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3646,37 +3384,19 @@ impl CreateAccountParamsSettingsPaypayPaymentsGoodsType {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for CreateAccountParamsSettingsPaypayPaymentsGoodsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateAccountParamsSettingsPaypayPaymentsGoodsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "digital_content" => CreateAccountParamsSettingsPaypayPaymentsGoodsType::DigitalContent,
-                    "other" => CreateAccountParamsSettingsPaypayPaymentsGoodsType::Other,
-                    other => CreateAccountParamsSettingsPaypayPaymentsGoodsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateAccountParamsSettingsPaypayPaymentsGoodsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateAccountParamsSettingsPaypayPaymentsGoodsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateAccountParamsSettingsPaypayPaymentsGoodsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "digital_content" => CreateAccountParamsSettingsPaypayPaymentsGoodsType::DigitalContent,
+            "other" => CreateAccountParamsSettingsPaypayPaymentsGoodsType::Other,
+            other => CreateAccountParamsSettingsPaypayPaymentsGoodsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3776,38 +3496,20 @@ impl CreateAccountParamsSettingsPaypayPaymentsSiteType {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for CreateAccountParamsSettingsPaypayPaymentsSiteType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateAccountParamsSettingsPaypayPaymentsSiteType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "accessible" => CreateAccountParamsSettingsPaypayPaymentsSiteType::Accessible,
-                    "in_development" => CreateAccountParamsSettingsPaypayPaymentsSiteType::InDevelopment,
-                    "restricted" => CreateAccountParamsSettingsPaypayPaymentsSiteType::Restricted,
-                    other => CreateAccountParamsSettingsPaypayPaymentsSiteType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateAccountParamsSettingsPaypayPaymentsSiteType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateAccountParamsSettingsPaypayPaymentsSiteType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateAccountParamsSettingsPaypayPaymentsSiteType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "accessible" => CreateAccountParamsSettingsPaypayPaymentsSiteType::Accessible,
+            "in_development" => CreateAccountParamsSettingsPaypayPaymentsSiteType::InDevelopment,
+            "restricted" => CreateAccountParamsSettingsPaypayPaymentsSiteType::Restricted,
+            other => CreateAccountParamsSettingsPaypayPaymentsSiteType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3897,38 +3599,20 @@ impl CreateAccountParamsType {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for CreateAccountParamsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateAccountParamsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "custom" => CreateAccountParamsType::Custom,
-                    "express" => CreateAccountParamsType::Express,
-                    "standard" => CreateAccountParamsType::Standard,
-                    other => CreateAccountParamsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateAccountParamsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateAccountParamsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateAccountParamsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "custom" => CreateAccountParamsType::Custom,
+            "express" => CreateAccountParamsType::Express,
+            "standard" => CreateAccountParamsType::Standard,
+            other => CreateAccountParamsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3965,7 +3649,7 @@ pub struct CreateAccountPersonParams {
     #[doc = "The Kanji variation of the person's first name (Japan only)."]
     pub first_name_kanji: Option<String>,
     #[doc = "A list of alternate names or aliases that the person is known by."]
-    pub full_name_aliases: Option<serde_json::Value>,
+    pub full_name_aliases: Option<json::OwnedValue>,
     #[doc = "The person's gender (International regulations require either 'male' or 'female')."]
     pub gender: Option<String>,
     #[doc = "The person's ID number, as appropriate for their country."]
@@ -4096,7 +3780,7 @@ impl crate::params::FormEncode for CreateAccountPersonParamsDocuments {
 #[derive(Debug, Clone, Default)]
 pub struct CreateAccountPersonParamsDocumentsCompanyAuthorization {
     #[doc = "One or more document ids returned by a [file upload](https://docs.stripe.com/api#create_file) with a `purpose` value ..."]
-    pub files: Option<Vec<serde_json::Value>>,
+    pub files: Option<Vec<json::OwnedValue>>,
 }
 
 #[cfg(feature = "accounts")]
@@ -4134,7 +3818,7 @@ pub struct CreateAccountPersonParamsRelationship {
     #[doc = "Whether the person is an owner of the account’s legal entity."]
     pub owner: Option<bool>,
     #[doc = "The percent owned by the person of the account's legal entity."]
-    pub percent_ownership: Option<serde_json::Value>,
+    pub percent_ownership: Option<json::OwnedValue>,
     #[doc = "Whether the person is authorized as the primary representative of the account."]
     pub representative: Option<bool>,
     #[doc = "The person's title (e.g., CEO, Support Engineer)."]
@@ -4231,54 +3915,32 @@ impl CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cuban" => CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem::Cuban,
-                    "hispanic_or_latino" => {
-                        CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem::HispanicOrLatino
-                    }
-                    "mexican" => CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem::Mexican,
-                    "not_hispanic_or_latino" => {
-                        CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem::NotHispanicOrLatino
-                    }
-                    "other_hispanic_or_latino" => {
-                        CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem::OtherHispanicOrLatino
-                    }
-                    "prefer_not_to_answer" => {
-                        CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem::PreferNotToAnswer
-                    }
-                    "puerto_rican" => CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem::PuertoRican,
-                    other => {
-                        CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cuban" => CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem::Cuban,
+            "hispanic_or_latino" => CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem::HispanicOrLatino,
+            "mexican" => CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem::Mexican,
+            "not_hispanic_or_latino" => {
+                CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem::NotHispanicOrLatino
+            }
+            "other_hispanic_or_latino" => {
+                CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem::OtherHispanicOrLatino
+            }
+            "prefer_not_to_answer" => {
+                CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem::PreferNotToAnswer
+            }
+            "puerto_rican" => CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem::PuertoRican,
+            other => CreateAccountPersonParamsUsCfpbDataEthnicityDetailsEthnicityItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4382,71 +4044,49 @@ impl CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "african_american" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::AfricanAmerican,
-                    "american_indian_or_alaska_native" => {
-                        CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::AmericanIndianOrAlaskaNative
-                    }
-                    "asian" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Asian,
-                    "asian_indian" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::AsianIndian,
-                    "black_or_african_american" => {
-                        CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::BlackOrAfricanAmerican
-                    }
-                    "chinese" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Chinese,
-                    "ethiopian" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Ethiopian,
-                    "filipino" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Filipino,
-                    "guamanian_or_chamorro" => {
-                        CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::GuamanianOrChamorro
-                    }
-                    "haitian" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Haitian,
-                    "jamaican" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Jamaican,
-                    "japanese" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Japanese,
-                    "korean" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Korean,
-                    "native_hawaiian" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::NativeHawaiian,
-                    "native_hawaiian_or_other_pacific_islander" => {
-                        CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::NativeHawaiianOrOtherPacificIslander
-                    }
-                    "nigerian" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Nigerian,
-                    "other_asian" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::OtherAsian,
-                    "other_black_or_african_american" => {
-                        CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::OtherBlackOrAfricanAmerican
-                    }
-                    "other_pacific_islander" => {
-                        CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::OtherPacificIslander
-                    }
-                    "prefer_not_to_answer" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::PreferNotToAnswer,
-                    "samoan" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Samoan,
-                    "somali" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Somali,
-                    "vietnamese" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Vietnamese,
-                    "white" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::White,
-                    other => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "african_american" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::AfricanAmerican,
+            "american_indian_or_alaska_native" => {
+                CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::AmericanIndianOrAlaskaNative
+            }
+            "asian" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Asian,
+            "asian_indian" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::AsianIndian,
+            "black_or_african_american" => {
+                CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::BlackOrAfricanAmerican
+            }
+            "chinese" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Chinese,
+            "ethiopian" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Ethiopian,
+            "filipino" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Filipino,
+            "guamanian_or_chamorro" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::GuamanianOrChamorro,
+            "haitian" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Haitian,
+            "jamaican" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Jamaican,
+            "japanese" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Japanese,
+            "korean" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Korean,
+            "native_hawaiian" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::NativeHawaiian,
+            "native_hawaiian_or_other_pacific_islander" => {
+                CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::NativeHawaiianOrOtherPacificIslander
+            }
+            "nigerian" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Nigerian,
+            "other_asian" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::OtherAsian,
+            "other_black_or_african_american" => {
+                CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::OtherBlackOrAfricanAmerican
+            }
+            "other_pacific_islander" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::OtherPacificIslander,
+            "prefer_not_to_answer" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::PreferNotToAnswer,
+            "samoan" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Samoan,
+            "somali" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Somali,
+            "vietnamese" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Vietnamese,
+            "white" => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::White,
+            other => CreateAccountPersonParamsUsCfpbDataRaceDetailsRaceItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4534,7 +4174,7 @@ pub enum DeletedExternalAccount {
     /// Expanded `card`.
     Card(Box<crate::payment_methods::DeletedCard>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -4582,36 +4222,33 @@ pub enum DeletedExternalAccount {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for DeletedExternalAccount {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for DeletedExternalAccount {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "bank_account" => DeletedExternalAccount::BankAccount(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
-            "card" => {
-                DeletedExternalAccount::Card(Box::new(serde_json::from_value(value).map_err(serde::de::Error::custom)?))
+            "bank_account" => {
+                DeletedExternalAccount::BankAccount(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
             }
+            "card" => DeletedExternalAccount::Card(Box::new(json::from_slice_owned(&json::to_vec(&value))?)),
             _ => DeletedExternalAccount::Other(value),
         })
     }
 }
 
 #[cfg(feature = "accounts")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DeletedPerson {
     #[doc = "Always true for a deleted object"]
-    #[serde(default)]
+    #[json(default)]
     pub deleted: bool,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::accounts::PersonObject,
 }
 
@@ -4674,7 +4311,7 @@ pub enum ExternalAccount {
     /// Expanded `card`.
     Card(Box<crate::payment_methods::Card>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -4722,18 +4359,14 @@ pub enum ExternalAccount {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ExternalAccount {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for ExternalAccount {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "bank_account" => {
-                ExternalAccount::BankAccount(Box::new(serde_json::from_value(value).map_err(serde::de::Error::custom)?))
-            }
-            "card" => ExternalAccount::Card(Box::new(serde_json::from_value(value).map_err(serde::de::Error::custom)?)),
+            "bank_account" => ExternalAccount::BankAccount(Box::new(json::from_slice_owned(&json::to_vec(&value))?)),
+            "card" => ExternalAccount::Card(Box::new(json::from_slice_owned(&json::to_vec(&value))?)),
             _ => ExternalAccount::Other(value),
         })
     }
@@ -4784,19 +4417,20 @@ impl<'de> serde::Deserialize<'de> for ExternalAccount {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ExternalAccountRequirements {
     #[doc = "Fields that need to be resolved to keep the external account enabled."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub currently_due: Option<Vec<String>>,
     #[doc = "Fields that are `currently_due` and need to be collected again because validation or verification failed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub errors: Option<Vec<crate::account::AccountRequirementsError>>,
     #[doc = "Fields that haven't been resolved by `current_deadline`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub past_due: Option<Vec<String>>,
     #[doc = "Fields that are being reviewed, or might become required depending on the results of a review."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pending_verification: Option<Vec<String>>,
 }
 
@@ -4869,75 +4503,76 @@ pub type GetAccountPersonParams = crate::accounts::GetAccountParams;
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct LegalEntityCompany {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<crate::common::Address>,
     #[doc = "The Kana variation of the company's primary address (Japan only)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address_kana: Option<crate::accounts::LegalEntityJapanAddress>,
     #[doc = "The Kanji variation of the company's primary address (Japan only)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address_kanji: Option<crate::accounts::LegalEntityJapanAddress>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub administrative_address: Option<crate::common::Address>,
     #[doc = "Whether the company's directors have been provided."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub directors_provided: Option<bool>,
     #[doc = "This hash is used to attest that the director information provided to Stripe is both current and correct."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub directorship_declaration: Option<crate::accounts::LegalEntityDirectorshipDeclaration>,
     #[doc = "Whether the company's executives have been provided."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub executives_provided: Option<bool>,
     #[doc = "The export license ID number of the company, also referred as Import Export Code (India only)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub export_license_id: Option<String>,
     #[doc = "The purpose code to use for export transactions (India only)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub export_purpose_code: Option<String>,
     #[doc = "The company's legal name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[doc = "The Kana variation of the company's legal name (Japan only)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name_kana: Option<String>,
     #[doc = "The Kanji variation of the company's legal name (Japan only)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name_kanji: Option<String>,
     #[doc = "Whether the company's owners have been provided."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub owners_provided: Option<bool>,
     #[doc = "This hash is used to attest that the beneficial owner information provided to Stripe is both current and correct."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ownership_declaration: Option<crate::accounts::LegalEntityUboDeclaration>,
     #[doc = "This value is used to determine if a business is exempt from providing ultimate beneficial owners."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ownership_exemption_reason: Option<crate::accounts::LegalEntityCompanyOwnershipExemptionReason>,
     #[doc = "The company's phone number (used for verification)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub principal_place_of_business: Option<crate::common::Address>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub registration_date: Option<crate::accounts::LegalEntityRegistrationDate>,
     #[doc = "This hash is used to attest that the representative is authorized to act as the representative of their legal entity."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub representative_declaration: Option<crate::accounts::LegalEntityRepresentativeDeclaration>,
     #[doc = "The category identifying the legal structure of the company or legal entity."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub structure: Option<crate::accounts::LegalEntityCompanyStructure>,
     #[doc = "Whether the company's business ID number was provided."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_id_provided: Option<bool>,
     #[doc = "The jurisdiction in which the `tax_id` is registered (Germany-based companies only)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_id_registrar: Option<String>,
     #[doc = "Whether the company's business VAT number was provided."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub vat_id_provided: Option<bool>,
     #[doc = "Information on the verification state of the company."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verification: Option<crate::accounts::LegalEntityCompanyVerification>,
 }
 
@@ -5099,41 +4734,23 @@ impl LegalEntityCompanyOwnershipExemptionReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for LegalEntityCompanyOwnershipExemptionReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = LegalEntityCompanyOwnershipExemptionReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "qualified_entity_exceeds_ownership_threshold" => {
-                        LegalEntityCompanyOwnershipExemptionReason::QualifiedEntityExceedsOwnershipThreshold
-                    }
-                    "qualifies_as_financial_institution" => {
-                        LegalEntityCompanyOwnershipExemptionReason::QualifiesAsFinancialInstitution
-                    }
-                    other => LegalEntityCompanyOwnershipExemptionReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(LegalEntityCompanyOwnershipExemptionReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for LegalEntityCompanyOwnershipExemptionReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(LegalEntityCompanyOwnershipExemptionReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "qualified_entity_exceeds_ownership_threshold" => {
+                LegalEntityCompanyOwnershipExemptionReason::QualifiedEntityExceedsOwnershipThreshold
+            }
+            "qualifies_as_financial_institution" => {
+                LegalEntityCompanyOwnershipExemptionReason::QualifiesAsFinancialInstitution
+            }
+            other => LegalEntityCompanyOwnershipExemptionReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5333,60 +4950,40 @@ impl LegalEntityCompanyStructure {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for LegalEntityCompanyStructure {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = LegalEntityCompanyStructure;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "free_zone_establishment" => LegalEntityCompanyStructure::FreeZoneEstablishment,
-                    "free_zone_llc" => LegalEntityCompanyStructure::FreeZoneLlc,
-                    "government_instrumentality" => LegalEntityCompanyStructure::GovernmentInstrumentality,
-                    "governmental_unit" => LegalEntityCompanyStructure::GovernmentalUnit,
-                    "incorporated_non_profit" => LegalEntityCompanyStructure::IncorporatedNonProfit,
-                    "incorporated_partnership" => LegalEntityCompanyStructure::IncorporatedPartnership,
-                    "limited_liability_partnership" => LegalEntityCompanyStructure::LimitedLiabilityPartnership,
-                    "llc" => LegalEntityCompanyStructure::Llc,
-                    "multi_member_llc" => LegalEntityCompanyStructure::MultiMemberLlc,
-                    "private_company" => LegalEntityCompanyStructure::PrivateCompany,
-                    "private_corporation" => LegalEntityCompanyStructure::PrivateCorporation,
-                    "private_partnership" => LegalEntityCompanyStructure::PrivatePartnership,
-                    "public_company" => LegalEntityCompanyStructure::PublicCompany,
-                    "public_corporation" => LegalEntityCompanyStructure::PublicCorporation,
-                    "public_partnership" => LegalEntityCompanyStructure::PublicPartnership,
-                    "registered_charity" => LegalEntityCompanyStructure::RegisteredCharity,
-                    "single_member_llc" => LegalEntityCompanyStructure::SingleMemberLlc,
-                    "sole_establishment" => LegalEntityCompanyStructure::SoleEstablishment,
-                    "sole_proprietorship" => LegalEntityCompanyStructure::SoleProprietorship,
-                    "tax_exempt_government_instrumentality" => {
-                        LegalEntityCompanyStructure::TaxExemptGovernmentInstrumentality
-                    }
-                    "unincorporated_association" => LegalEntityCompanyStructure::UnincorporatedAssociation,
-                    "unincorporated_non_profit" => LegalEntityCompanyStructure::UnincorporatedNonProfit,
-                    "unincorporated_partnership" => LegalEntityCompanyStructure::UnincorporatedPartnership,
-                    other => LegalEntityCompanyStructure::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(LegalEntityCompanyStructure::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for LegalEntityCompanyStructure {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(LegalEntityCompanyStructure::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "free_zone_establishment" => LegalEntityCompanyStructure::FreeZoneEstablishment,
+            "free_zone_llc" => LegalEntityCompanyStructure::FreeZoneLlc,
+            "government_instrumentality" => LegalEntityCompanyStructure::GovernmentInstrumentality,
+            "governmental_unit" => LegalEntityCompanyStructure::GovernmentalUnit,
+            "incorporated_non_profit" => LegalEntityCompanyStructure::IncorporatedNonProfit,
+            "incorporated_partnership" => LegalEntityCompanyStructure::IncorporatedPartnership,
+            "limited_liability_partnership" => LegalEntityCompanyStructure::LimitedLiabilityPartnership,
+            "llc" => LegalEntityCompanyStructure::Llc,
+            "multi_member_llc" => LegalEntityCompanyStructure::MultiMemberLlc,
+            "private_company" => LegalEntityCompanyStructure::PrivateCompany,
+            "private_corporation" => LegalEntityCompanyStructure::PrivateCorporation,
+            "private_partnership" => LegalEntityCompanyStructure::PrivatePartnership,
+            "public_company" => LegalEntityCompanyStructure::PublicCompany,
+            "public_corporation" => LegalEntityCompanyStructure::PublicCorporation,
+            "public_partnership" => LegalEntityCompanyStructure::PublicPartnership,
+            "registered_charity" => LegalEntityCompanyStructure::RegisteredCharity,
+            "single_member_llc" => LegalEntityCompanyStructure::SingleMemberLlc,
+            "sole_establishment" => LegalEntityCompanyStructure::SoleEstablishment,
+            "sole_proprietorship" => LegalEntityCompanyStructure::SoleProprietorship,
+            "tax_exempt_government_instrumentality" => LegalEntityCompanyStructure::TaxExemptGovernmentInstrumentality,
+            "unincorporated_association" => LegalEntityCompanyStructure::UnincorporatedAssociation,
+            "unincorporated_non_profit" => LegalEntityCompanyStructure::UnincorporatedNonProfit,
+            "unincorporated_partnership" => LegalEntityCompanyStructure::UnincorporatedPartnership,
+            other => LegalEntityCompanyStructure::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5435,9 +5032,10 @@ impl<'de> serde::Deserialize<'de> for LegalEntityCompanyStructure {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct LegalEntityCompanyVerification {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub document: Option<crate::accounts::LegalEntityCompanyVerificationDocument>,
 }
 
@@ -5486,19 +5084,20 @@ pub struct LegalEntityCompanyVerification {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct LegalEntityCompanyVerificationDocument {
     #[doc = "The back of a document returned by a [file upload](https://docs.stripe.com/api#create_file) with a `purpose` value of..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub back: Option<crate::Expandable<crate::files::File>>,
     #[doc = "A user-displayable string describing the verification state of this document."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub details: Option<String>,
     #[doc = "One of `document_corrupt`, `document_expired`, `document_failed_copy`, `document_failed_greyscale`, `document_failed_..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub details_code: Option<String>,
     #[doc = "The front of a document returned by a [file upload](https://docs.stripe.com/api#create_file) with a `purpose` value o..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub front: Option<crate::Expandable<crate::files::File>>,
 }
 
@@ -5547,16 +5146,17 @@ pub struct LegalEntityCompanyVerificationDocument {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct LegalEntityDirectorshipDeclaration {
     #[doc = "The Unix timestamp marking when the directorship declaration attestation was made."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub date: Option<i64>,
     #[doc = "The IP address from which the directorship declaration attestation was made."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ip: Option<String>,
     #[doc = "The user-agent string from the browser where the directorship declaration attestation was made."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub user_agent: Option<String>,
 }
 
@@ -5605,16 +5205,17 @@ pub struct LegalEntityDirectorshipDeclaration {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct LegalEntityDob {
     #[doc = "The day of birth, between 1 and 31."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub day: Option<i64>,
     #[doc = "The month of birth, between 1 and 12."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub month: Option<i64>,
     #[doc = "The four-digit year of birth."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub year: Option<i64>,
 }
 
@@ -5663,28 +5264,29 @@ pub struct LegalEntityDob {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct LegalEntityJapanAddress {
     #[doc = "City/Ward."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
     #[doc = "Two-letter country code ([ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2))."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[doc = "Block/Building number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line1: Option<String>,
     #[doc = "Building details."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line2: Option<String>,
     #[doc = "ZIP or postal code."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub postal_code: Option<String>,
     #[doc = "Prefecture."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
     #[doc = "Town/cho-me."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub town: Option<String>,
 }
 
@@ -5733,21 +5335,22 @@ pub struct LegalEntityJapanAddress {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct LegalEntityPersonVerification {
     #[doc = "A document showing address, either a passport, local ID card, or utility bill from a well-known utility company."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub additional_document: Option<crate::accounts::LegalEntityPersonVerificationDocument>,
     #[doc = "A user-displayable string describing the verification state for the person."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub details: Option<String>,
     #[doc = "One of `document_address_mismatch`, `document_dob_mismatch`, `document_duplicate_type`, `document_id_number_mismatch`..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub details_code: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub document: Option<crate::accounts::LegalEntityPersonVerificationDocument>,
     #[doc = "The state of verification for the person."]
-    #[serde(default)]
+    #[json(default)]
     pub status: String,
 }
 
@@ -5796,19 +5399,20 @@ pub struct LegalEntityPersonVerification {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct LegalEntityPersonVerificationDocument {
     #[doc = "The back of an ID returned by a [file upload](https://docs.stripe.com/api#create_file) with a `purpose` value of `ide..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub back: Option<crate::Expandable<crate::files::File>>,
     #[doc = "A user-displayable string describing the verification state of this document."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub details: Option<String>,
     #[doc = "One of `document_corrupt`, `document_country_not_supported`, `document_expired`, `document_failed_copy`, `document_fa..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub details_code: Option<String>,
     #[doc = "The front of an ID returned by a [file upload](https://docs.stripe.com/api#create_file) with a `purpose` value of `id..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub front: Option<crate::Expandable<crate::files::File>>,
 }
 
@@ -5857,16 +5461,17 @@ pub struct LegalEntityPersonVerificationDocument {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct LegalEntityRegistrationDate {
     #[doc = "The day of registration, between 1 and 31."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub day: Option<i64>,
     #[doc = "The month of registration, between 1 and 12."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub month: Option<i64>,
     #[doc = "The four-digit year of registration."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub year: Option<i64>,
 }
 
@@ -5915,16 +5520,17 @@ pub struct LegalEntityRegistrationDate {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct LegalEntityRepresentativeDeclaration {
     #[doc = "The Unix timestamp marking when the representative declaration attestation was made."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub date: Option<i64>,
     #[doc = "The IP address from which the representative declaration attestation was made."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ip: Option<String>,
     #[doc = "The user-agent string from the browser where the representative declaration attestation was made."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub user_agent: Option<String>,
 }
 
@@ -5973,16 +5579,17 @@ pub struct LegalEntityRepresentativeDeclaration {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct LegalEntityUboDeclaration {
     #[doc = "The Unix timestamp marking when the beneficial owner attestation was made."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub date: Option<i64>,
     #[doc = "The IP address from which the beneficial owner attestation was made."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ip: Option<String>,
     #[doc = "The user-agent string from the browser where the beneficial owner attestation was made."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub user_agent: Option<String>,
 }
 
@@ -6034,37 +5641,19 @@ impl ListAccountExternalAccountsParamsObject {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for ListAccountExternalAccountsParamsObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListAccountExternalAccountsParamsObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "bank_account" => ListAccountExternalAccountsParamsObject::BankAccount,
-                    "card" => ListAccountExternalAccountsParamsObject::Card,
-                    other => ListAccountExternalAccountsParamsObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListAccountExternalAccountsParamsObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListAccountExternalAccountsParamsObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListAccountExternalAccountsParamsObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "bank_account" => ListAccountExternalAccountsParamsObject::BankAccount,
+            "card" => ListAccountExternalAccountsParamsObject::Card,
+            other => ListAccountExternalAccountsParamsObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6218,97 +5807,98 @@ impl crate::params::FormEncode for ListAccountsParamsCreated {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Person {
     #[doc = "The account the person is associated with."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub additional_tos_acceptances: Option<crate::accounts::PersonAdditionalTosAcceptances>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<crate::common::Address>,
     #[doc = "The Kana variation of the person's address (Japan only)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address_kana: Option<crate::accounts::LegalEntityJapanAddress>,
     #[doc = "The Kanji variation of the person's address (Japan only)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address_kanji: Option<crate::accounts::LegalEntityJapanAddress>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub dob: Option<crate::accounts::LegalEntityDob>,
     #[doc = "The person's email address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[doc = "The person's first name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub first_name: Option<String>,
     #[doc = "The Kana variation of the person's first name (Japan only)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub first_name_kana: Option<String>,
     #[doc = "The Kanji variation of the person's first name (Japan only)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub first_name_kanji: Option<String>,
     #[doc = "A list of alternate names or aliases that the person is known by."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub full_name_aliases: Option<Vec<String>>,
     #[doc = "Information about the [upcoming new requirements for this person](https://docs.stripe.com/connect/custom-accounts/fut..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub future_requirements: Option<crate::accounts::PersonFutureRequirements>,
     #[doc = "The person's gender."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub gender: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "Whether the person's `id_number` was provided."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub id_number_provided: Option<bool>,
     #[doc = "Whether the person's `id_number_secondary` was provided."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub id_number_secondary_provided: Option<bool>,
     #[doc = "The person's last name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last_name: Option<String>,
     #[doc = "The Kana variation of the person's last name (Japan only)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last_name_kana: Option<String>,
     #[doc = "The Kanji variation of the person's last name (Japan only)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last_name_kanji: Option<String>,
     #[doc = "The person's maiden name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub maiden_name: Option<String>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "The country where the person is a national."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub nationality: Option<String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::accounts::PersonObject,
     #[doc = "The person's phone number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     #[doc = "Indicates if the person or any of their representatives, family members, or other closely related persons, declares t..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub political_exposure: Option<crate::accounts::PersonPoliticalExposure>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub registered_address: Option<crate::common::Address>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub relationship: Option<crate::accounts::PersonRelationship>,
     #[doc = "Information about the requirements for this person, including what information needs to be collected, and by when."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub requirements: Option<crate::accounts::PersonRequirements>,
     #[doc = "Whether the last four digits of the person's Social Security number have been provided (U.S."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ssn_last_4_provided: Option<bool>,
     #[doc = "Demographic data related to the person."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us_cfpb_data: Option<crate::accounts::PersonUsCfpbData>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verification: Option<crate::accounts::LegalEntityPersonVerification>,
 }
 
@@ -6408,16 +5998,17 @@ impl crate::PagedItem for Person {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PersonAdditionalTosAcceptance {
     #[doc = "The Unix timestamp marking when the legal guardian accepted the service agreement."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub date: Option<i64>,
     #[doc = "The IP address from which the legal guardian accepted the service agreement."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ip: Option<String>,
     #[doc = "The user agent of the browser from which the legal guardian accepted the service agreement."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub user_agent: Option<String>,
 }
 
@@ -6466,10 +6057,11 @@ pub struct PersonAdditionalTosAcceptance {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PersonAdditionalTosAcceptances {
     #[doc = "Details on the legal guardian's acceptance of the main Stripe service agreement."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account: Option<crate::accounts::PersonAdditionalTosAcceptance>,
 }
 
@@ -6518,13 +6110,14 @@ pub struct PersonAdditionalTosAcceptances {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PersonEthnicityDetails {
     #[doc = "The persons ethnicity"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ethnicity: Option<Vec<crate::accounts::PersonEthnicityDetailsEthnicityItem>>,
     #[doc = "Please specify your origin, when other is selected."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ethnicity_other: Option<String>,
 }
 
@@ -6692,42 +6285,24 @@ impl PersonEthnicityDetailsEthnicityItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PersonEthnicityDetailsEthnicityItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PersonEthnicityDetailsEthnicityItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cuban" => PersonEthnicityDetailsEthnicityItem::Cuban,
-                    "hispanic_or_latino" => PersonEthnicityDetailsEthnicityItem::HispanicOrLatino,
-                    "mexican" => PersonEthnicityDetailsEthnicityItem::Mexican,
-                    "not_hispanic_or_latino" => PersonEthnicityDetailsEthnicityItem::NotHispanicOrLatino,
-                    "other_hispanic_or_latino" => PersonEthnicityDetailsEthnicityItem::OtherHispanicOrLatino,
-                    "prefer_not_to_answer" => PersonEthnicityDetailsEthnicityItem::PreferNotToAnswer,
-                    "puerto_rican" => PersonEthnicityDetailsEthnicityItem::PuertoRican,
-                    other => PersonEthnicityDetailsEthnicityItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PersonEthnicityDetailsEthnicityItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PersonEthnicityDetailsEthnicityItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PersonEthnicityDetailsEthnicityItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cuban" => PersonEthnicityDetailsEthnicityItem::Cuban,
+            "hispanic_or_latino" => PersonEthnicityDetailsEthnicityItem::HispanicOrLatino,
+            "mexican" => PersonEthnicityDetailsEthnicityItem::Mexican,
+            "not_hispanic_or_latino" => PersonEthnicityDetailsEthnicityItem::NotHispanicOrLatino,
+            "other_hispanic_or_latino" => PersonEthnicityDetailsEthnicityItem::OtherHispanicOrLatino,
+            "prefer_not_to_answer" => PersonEthnicityDetailsEthnicityItem::PreferNotToAnswer,
+            "puerto_rican" => PersonEthnicityDetailsEthnicityItem::PuertoRican,
+            other => PersonEthnicityDetailsEthnicityItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6776,25 +6351,26 @@ impl<'de> serde::Deserialize<'de> for PersonEthnicityDetailsEthnicityItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PersonFutureRequirements {
     #[doc = "Fields that are due and can be resolved by providing the corresponding alternative fields instead."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub alternatives: Option<Vec<crate::account::AccountRequirementsAlternative>>,
     #[doc = "Fields that need to be resolved to keep the person's account enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub currently_due: Vec<String>,
     #[doc = "Fields that are `currently_due` and need to be collected again because validation or verification failed."]
-    #[serde(default)]
+    #[json(default)]
     pub errors: Vec<crate::account::AccountRequirementsError>,
     #[doc = "Fields you must collect when all thresholds are reached."]
-    #[serde(default)]
+    #[json(default)]
     pub eventually_due: Vec<String>,
     #[doc = "Fields that haven't been resolved by the account's `requirements.current_deadline`."]
-    #[serde(default)]
+    #[json(default)]
     pub past_due: Vec<String>,
     #[doc = "Fields that are being reviewed, or might become required depending on the results of a review."]
-    #[serde(default)]
+    #[json(default)]
     pub pending_verification: Vec<String>,
 }
 
@@ -7001,36 +6577,18 @@ impl Default for PersonObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PersonObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PersonObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "person" => PersonObject::Person,
-                    other => PersonObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PersonObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PersonObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PersonObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "person" => PersonObject::Person,
+            other => PersonObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7188,37 +6746,19 @@ impl PersonPoliticalExposure {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PersonPoliticalExposure {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PersonPoliticalExposure;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "existing" => PersonPoliticalExposure::Existing,
-                    "none" => PersonPoliticalExposure::None,
-                    other => PersonPoliticalExposure::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PersonPoliticalExposure::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PersonPoliticalExposure {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PersonPoliticalExposure::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "existing" => PersonPoliticalExposure::Existing,
+            "none" => PersonPoliticalExposure::None,
+            other => PersonPoliticalExposure::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7267,13 +6807,14 @@ impl<'de> serde::Deserialize<'de> for PersonPoliticalExposure {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PersonRaceDetails {
     #[doc = "The persons race."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub race: Option<Vec<crate::accounts::PersonRaceDetailsRaceItem>>,
     #[doc = "Please specify your race, when other is selected."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub race_other: Option<String>,
 }
 
@@ -7477,61 +7018,43 @@ impl PersonRaceDetailsRaceItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PersonRaceDetailsRaceItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PersonRaceDetailsRaceItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "african_american" => PersonRaceDetailsRaceItem::AfricanAmerican,
-                    "american_indian_or_alaska_native" => PersonRaceDetailsRaceItem::AmericanIndianOrAlaskaNative,
-                    "asian" => PersonRaceDetailsRaceItem::Asian,
-                    "asian_indian" => PersonRaceDetailsRaceItem::AsianIndian,
-                    "black_or_african_american" => PersonRaceDetailsRaceItem::BlackOrAfricanAmerican,
-                    "chinese" => PersonRaceDetailsRaceItem::Chinese,
-                    "ethiopian" => PersonRaceDetailsRaceItem::Ethiopian,
-                    "filipino" => PersonRaceDetailsRaceItem::Filipino,
-                    "guamanian_or_chamorro" => PersonRaceDetailsRaceItem::GuamanianOrChamorro,
-                    "haitian" => PersonRaceDetailsRaceItem::Haitian,
-                    "jamaican" => PersonRaceDetailsRaceItem::Jamaican,
-                    "japanese" => PersonRaceDetailsRaceItem::Japanese,
-                    "korean" => PersonRaceDetailsRaceItem::Korean,
-                    "native_hawaiian" => PersonRaceDetailsRaceItem::NativeHawaiian,
-                    "native_hawaiian_or_other_pacific_islander" => {
-                        PersonRaceDetailsRaceItem::NativeHawaiianOrOtherPacificIslander
-                    }
-                    "nigerian" => PersonRaceDetailsRaceItem::Nigerian,
-                    "other_asian" => PersonRaceDetailsRaceItem::OtherAsian,
-                    "other_black_or_african_american" => PersonRaceDetailsRaceItem::OtherBlackOrAfricanAmerican,
-                    "other_pacific_islander" => PersonRaceDetailsRaceItem::OtherPacificIslander,
-                    "prefer_not_to_answer" => PersonRaceDetailsRaceItem::PreferNotToAnswer,
-                    "samoan" => PersonRaceDetailsRaceItem::Samoan,
-                    "somali" => PersonRaceDetailsRaceItem::Somali,
-                    "vietnamese" => PersonRaceDetailsRaceItem::Vietnamese,
-                    "white" => PersonRaceDetailsRaceItem::White,
-                    other => PersonRaceDetailsRaceItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PersonRaceDetailsRaceItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PersonRaceDetailsRaceItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PersonRaceDetailsRaceItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "african_american" => PersonRaceDetailsRaceItem::AfricanAmerican,
+            "american_indian_or_alaska_native" => PersonRaceDetailsRaceItem::AmericanIndianOrAlaskaNative,
+            "asian" => PersonRaceDetailsRaceItem::Asian,
+            "asian_indian" => PersonRaceDetailsRaceItem::AsianIndian,
+            "black_or_african_american" => PersonRaceDetailsRaceItem::BlackOrAfricanAmerican,
+            "chinese" => PersonRaceDetailsRaceItem::Chinese,
+            "ethiopian" => PersonRaceDetailsRaceItem::Ethiopian,
+            "filipino" => PersonRaceDetailsRaceItem::Filipino,
+            "guamanian_or_chamorro" => PersonRaceDetailsRaceItem::GuamanianOrChamorro,
+            "haitian" => PersonRaceDetailsRaceItem::Haitian,
+            "jamaican" => PersonRaceDetailsRaceItem::Jamaican,
+            "japanese" => PersonRaceDetailsRaceItem::Japanese,
+            "korean" => PersonRaceDetailsRaceItem::Korean,
+            "native_hawaiian" => PersonRaceDetailsRaceItem::NativeHawaiian,
+            "native_hawaiian_or_other_pacific_islander" => {
+                PersonRaceDetailsRaceItem::NativeHawaiianOrOtherPacificIslander
+            }
+            "nigerian" => PersonRaceDetailsRaceItem::Nigerian,
+            "other_asian" => PersonRaceDetailsRaceItem::OtherAsian,
+            "other_black_or_african_american" => PersonRaceDetailsRaceItem::OtherBlackOrAfricanAmerican,
+            "other_pacific_islander" => PersonRaceDetailsRaceItem::OtherPacificIslander,
+            "prefer_not_to_answer" => PersonRaceDetailsRaceItem::PreferNotToAnswer,
+            "samoan" => PersonRaceDetailsRaceItem::Samoan,
+            "somali" => PersonRaceDetailsRaceItem::Somali,
+            "vietnamese" => PersonRaceDetailsRaceItem::Vietnamese,
+            "white" => PersonRaceDetailsRaceItem::White,
+            other => PersonRaceDetailsRaceItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7580,31 +7103,32 @@ impl<'de> serde::Deserialize<'de> for PersonRaceDetailsRaceItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PersonRelationship {
     #[doc = "Whether the person is the authorizer of the account's representative."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub authorizer: Option<bool>,
     #[doc = "Whether the person is a director of the account's legal entity."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub director: Option<bool>,
     #[doc = "Whether the person has significant responsibility to control, manage, or direct the organization."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub executive: Option<bool>,
     #[doc = "Whether the person is the legal guardian of the account's representative."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub legal_guardian: Option<bool>,
     #[doc = "Whether the person is an owner of the account’s legal entity."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub owner: Option<bool>,
     #[doc = "The percent owned by the person of the account's legal entity."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub percent_ownership: Option<f64>,
     #[doc = "Whether the person is authorized as the primary representative of the account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub representative: Option<bool>,
     #[doc = "The person's title (e.g., CEO, Support Engineer)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
 }
 
@@ -7653,25 +7177,26 @@ pub struct PersonRelationship {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PersonRequirements {
     #[doc = "Fields that are due and can be resolved by providing the corresponding alternative fields instead."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub alternatives: Option<Vec<crate::account::AccountRequirementsAlternative>>,
     #[doc = "Fields that need to be resolved to keep the person's account enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub currently_due: Vec<String>,
     #[doc = "Fields that are `currently_due` and need to be collected again because validation or verification failed."]
-    #[serde(default)]
+    #[json(default)]
     pub errors: Vec<crate::account::AccountRequirementsError>,
     #[doc = "Fields you must collect when all thresholds are reached."]
-    #[serde(default)]
+    #[json(default)]
     pub eventually_due: Vec<String>,
     #[doc = "Fields that haven't been resolved by `current_deadline`."]
-    #[serde(default)]
+    #[json(default)]
     pub past_due: Vec<String>,
     #[doc = "Fields that are being reviewed, or might become required depending on the results of a review."]
-    #[serde(default)]
+    #[json(default)]
     pub pending_verification: Vec<String>,
 }
 
@@ -7720,16 +7245,17 @@ pub struct PersonRequirements {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PersonUsCfpbData {
     #[doc = "The persons ethnicity details"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ethnicity_details: Option<crate::accounts::PersonEthnicityDetails>,
     #[doc = "The persons race details"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub race_details: Option<crate::accounts::PersonRaceDetails>,
     #[doc = "The persons self-identified gender"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub self_identified_gender: Option<String>,
 }
 
@@ -7777,37 +7303,19 @@ impl RejectAccountParamsPayoutsAction {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for RejectAccountParamsPayoutsAction {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = RejectAccountParamsPayoutsAction;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "none" => RejectAccountParamsPayoutsAction::None,
-                    "pause" => RejectAccountParamsPayoutsAction::Pause,
-                    other => RejectAccountParamsPayoutsAction::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(RejectAccountParamsPayoutsAction::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for RejectAccountParamsPayoutsAction {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(RejectAccountParamsPayoutsAction::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "none" => RejectAccountParamsPayoutsAction::None,
+            "pause" => RejectAccountParamsPayoutsAction::Pause,
+            other => RejectAccountParamsPayoutsAction::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7850,42 +7358,24 @@ impl RejectAccountParamsReason {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for RejectAccountParamsReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = RejectAccountParamsReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "credit" => RejectAccountParamsReason::Credit,
-                    "fraud_no_intent_to_fulfill" => RejectAccountParamsReason::FraudNoIntentToFulfill,
-                    "fraud_other" => RejectAccountParamsReason::FraudOther,
-                    "fraud_payment_method_casher" => RejectAccountParamsReason::FraudPaymentMethodCasher,
-                    "fraud_payment_method_tester" => RejectAccountParamsReason::FraudPaymentMethodTester,
-                    "other" => RejectAccountParamsReason::Other,
-                    "terms_of_service" => RejectAccountParamsReason::TermsOfService,
-                    other => RejectAccountParamsReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(RejectAccountParamsReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for RejectAccountParamsReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(RejectAccountParamsReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "credit" => RejectAccountParamsReason::Credit,
+            "fraud_no_intent_to_fulfill" => RejectAccountParamsReason::FraudNoIntentToFulfill,
+            "fraud_other" => RejectAccountParamsReason::FraudOther,
+            "fraud_payment_method_casher" => RejectAccountParamsReason::FraudPaymentMethodCasher,
+            "fraud_payment_method_tester" => RejectAccountParamsReason::FraudPaymentMethodTester,
+            "other" => RejectAccountParamsReason::Other,
+            "terms_of_service" => RejectAccountParamsReason::TermsOfService,
+            other => RejectAccountParamsReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8007,38 +7497,20 @@ impl UpdateAccountExternalAccountParamsAccountHolderType {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for UpdateAccountExternalAccountParamsAccountHolderType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = UpdateAccountExternalAccountParamsAccountHolderType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => UpdateAccountExternalAccountParamsAccountHolderType::Unnamed,
-                    "company" => UpdateAccountExternalAccountParamsAccountHolderType::Company,
-                    "individual" => UpdateAccountExternalAccountParamsAccountHolderType::Individual,
-                    other => UpdateAccountExternalAccountParamsAccountHolderType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(UpdateAccountExternalAccountParamsAccountHolderType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for UpdateAccountExternalAccountParamsAccountHolderType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(UpdateAccountExternalAccountParamsAccountHolderType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => UpdateAccountExternalAccountParamsAccountHolderType::Unnamed,
+            "company" => UpdateAccountExternalAccountParamsAccountHolderType::Company,
+            "individual" => UpdateAccountExternalAccountParamsAccountHolderType::Individual,
+            other => UpdateAccountExternalAccountParamsAccountHolderType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8075,39 +7547,21 @@ impl UpdateAccountExternalAccountParamsAccountType {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for UpdateAccountExternalAccountParamsAccountType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = UpdateAccountExternalAccountParamsAccountType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "checking" => UpdateAccountExternalAccountParamsAccountType::Checking,
-                    "futsu" => UpdateAccountExternalAccountParamsAccountType::Futsu,
-                    "savings" => UpdateAccountExternalAccountParamsAccountType::Savings,
-                    "toza" => UpdateAccountExternalAccountParamsAccountType::Toza,
-                    other => UpdateAccountExternalAccountParamsAccountType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(UpdateAccountExternalAccountParamsAccountType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for UpdateAccountExternalAccountParamsAccountType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(UpdateAccountExternalAccountParamsAccountType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "checking" => UpdateAccountExternalAccountParamsAccountType::Checking,
+            "futsu" => UpdateAccountExternalAccountParamsAccountType::Futsu,
+            "savings" => UpdateAccountExternalAccountParamsAccountType::Savings,
+            "toza" => UpdateAccountExternalAccountParamsAccountType::Toza,
+            other => UpdateAccountExternalAccountParamsAccountType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8221,7 +7675,7 @@ pub struct UpdateAccountParamsBusinessProfile {
     #[doc = "Internal-only description of the product sold by, or service provided by, the business."]
     pub product_description: Option<String>,
     #[doc = "A link to the business's publicly available terms related to the Specified Commercial Transaction Act."]
-    pub specified_commercial_transactions_act_url: Option<serde_json::Value>,
+    pub specified_commercial_transactions_act_url: Option<json::OwnedValue>,
     #[doc = "A publicly available mailing address for sending support issues to."]
     pub support_address: Option<crate::accounts::UpdateAccountParamsBusinessProfileSupportAddress>,
     #[doc = "A publicly available email address for sending support issues to."]
@@ -8229,7 +7683,7 @@ pub struct UpdateAccountParamsBusinessProfile {
     #[doc = "A publicly available phone number to call with support issues."]
     pub support_phone: Option<String>,
     #[doc = "A publicly available website for handling support issues."]
-    pub support_url: Option<serde_json::Value>,
+    pub support_url: Option<json::OwnedValue>,
     #[doc = "The business's publicly available website."]
     pub url: Option<String>,
 }
@@ -9056,7 +8510,7 @@ pub struct UpdateAccountParamsIndividual {
     #[doc = "The Kanji variation of the individual's first name (Japan only)."]
     pub first_name_kanji: Option<String>,
     #[doc = "A list of alternate names or aliases that the individual is known by."]
-    pub full_name_aliases: Option<serde_json::Value>,
+    pub full_name_aliases: Option<json::OwnedValue>,
     #[doc = "The individual's gender"]
     pub gender: Option<String>,
     #[doc = "The government-issued ID number of the individual, as appropriate for the representative's country."]
@@ -9240,9 +8694,9 @@ pub struct UpdateAccountParamsSettingsCardPayments {
     #[doc = "The default text that appears on credit card statements when a charge is made."]
     pub statement_descriptor_prefix: Option<String>,
     #[doc = "The Kana variation of the default text that appears on credit card statements when a charge is made (Japan only)."]
-    pub statement_descriptor_prefix_kana: Option<serde_json::Value>,
+    pub statement_descriptor_prefix_kana: Option<json::OwnedValue>,
     #[doc = "The Kanji variation of the default text that appears on credit card statements when a charge is made (Japan only)."]
-    pub statement_descriptor_prefix_kanji: Option<serde_json::Value>,
+    pub statement_descriptor_prefix_kanji: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "accounts")]
@@ -9261,7 +8715,7 @@ pub type UpdateAccountParamsSettingsCardPaymentsDeclineOn =
 #[derive(Debug, Clone, Default)]
 pub struct UpdateAccountParamsSettingsInvoices {
     #[doc = "The list of default Account Tax IDs to automatically include on invoices."]
-    pub default_account_tax_ids: Option<serde_json::Value>,
+    pub default_account_tax_ids: Option<json::OwnedValue>,
     #[doc = "Whether to save the payment method after a payment is completed for a one-time invoice or a subscription invoice when..."]
     pub hosted_payment_method_save: Option<crate::accounts::UpdateAccountParamsSettingsInvoicesHostedPaymentMethodSave>,
 }
@@ -9304,7 +8758,7 @@ impl crate::params::FormEncode for UpdateAccountParamsSettingsPayouts {
 #[derive(Debug, Clone, Default)]
 pub struct UpdateAccountParamsSettingsPayoutsSchedule {
     #[doc = "The number of days charge funds are held before being paid out."]
-    pub delay_days: Option<serde_json::Value>,
+    pub delay_days: Option<json::OwnedValue>,
     #[doc = "How frequently available funds are paid out."]
     pub interval: Option<crate::accounts::UpdateAccountParamsSettingsPayoutsScheduleInterval>,
     #[doc = "The day of the month when available funds are paid out, specified as a number between 1--31."]
@@ -9462,7 +8916,7 @@ pub struct UpdateAccountPersonParams {
     #[doc = "The Kanji variation of the person's first name (Japan only)."]
     pub first_name_kanji: Option<String>,
     #[doc = "A list of alternate names or aliases that the person is known by."]
-    pub full_name_aliases: Option<serde_json::Value>,
+    pub full_name_aliases: Option<json::OwnedValue>,
     #[doc = "The person's gender (International regulations require either 'male' or 'female')."]
     pub gender: Option<String>,
     #[doc = "The person's ID number, as appropriate for their country."]

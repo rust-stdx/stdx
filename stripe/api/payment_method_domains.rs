@@ -71,37 +71,38 @@ impl crate::params::FormEncode for ListPaymentMethodDomainsParams {
 }
 
 #[cfg(feature = "payment_method_domains")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentMethodDomain {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amazon_pay: Option<crate::payment_method_domains::PaymentMethodDomainResourcePaymentMethodStatus>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub apple_pay: Option<crate::payment_method_domains::PaymentMethodDomainResourcePaymentMethodStatus>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "The domain name that this payment method domain object represents."]
-    #[serde(default)]
+    #[json(default)]
     pub domain_name: String,
     #[doc = "Whether this payment method domain is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub google_pay: Option<crate::payment_method_domains::PaymentMethodDomainResourcePaymentMethodStatus>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub klarna: Option<crate::payment_method_domains::PaymentMethodDomainResourcePaymentMethodStatus>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub link: Option<crate::payment_method_domains::PaymentMethodDomainResourcePaymentMethodStatus>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::payment_method_domains::PaymentMethodDomainObject,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paypal: Option<crate::payment_method_domains::PaymentMethodDomainResourcePaymentMethodStatus>,
 }
 
@@ -139,54 +140,38 @@ impl Default for PaymentMethodDomainObject {
 }
 
 #[cfg(feature = "payment_method_domains")]
-impl<'de> serde::Deserialize<'de> for PaymentMethodDomainObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentMethodDomainObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "payment_method_domain" => PaymentMethodDomainObject::PaymentMethodDomain,
-                    other => PaymentMethodDomainObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentMethodDomainObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentMethodDomainObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentMethodDomainObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "payment_method_domain" => PaymentMethodDomainObject::PaymentMethodDomain,
+            other => PaymentMethodDomainObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "payment_method_domains")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentMethodDomainResourcePaymentMethodStatus {
     #[doc = "The status of the payment method on the domain."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::payment_method_domains::PaymentMethodDomainResourcePaymentMethodStatusStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status_details: Option<crate::payment_method_domains::PaymentMethodDomainResourcePaymentMethodStatusDetails>,
 }
 
 #[cfg(feature = "payment_method_domains")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentMethodDomainResourcePaymentMethodStatusDetails {
     #[doc = "The error message associated with the status of the payment method on the domain."]
-    #[serde(default)]
+    #[json(default)]
     pub error_message: String,
 }
 
@@ -219,37 +204,19 @@ impl Default for PaymentMethodDomainResourcePaymentMethodStatusStatus {
 }
 
 #[cfg(feature = "payment_method_domains")]
-impl<'de> serde::Deserialize<'de> for PaymentMethodDomainResourcePaymentMethodStatusStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentMethodDomainResourcePaymentMethodStatusStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => PaymentMethodDomainResourcePaymentMethodStatusStatus::Active,
-                    "inactive" => PaymentMethodDomainResourcePaymentMethodStatusStatus::Inactive,
-                    other => PaymentMethodDomainResourcePaymentMethodStatusStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentMethodDomainResourcePaymentMethodStatusStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentMethodDomainResourcePaymentMethodStatusStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentMethodDomainResourcePaymentMethodStatusStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => PaymentMethodDomainResourcePaymentMethodStatusStatus::Active,
+            "inactive" => PaymentMethodDomainResourcePaymentMethodStatusStatus::Inactive,
+            other => PaymentMethodDomainResourcePaymentMethodStatusStatus::Unknown(other.to_string()),
+        })
     }
 }
 

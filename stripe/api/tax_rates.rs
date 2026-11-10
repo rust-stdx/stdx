@@ -112,53 +112,35 @@ impl CreateTaxRateParamsTaxType {
 }
 
 #[cfg(feature = "tax_rates")]
-impl<'de> serde::Deserialize<'de> for CreateTaxRateParamsTaxType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTaxRateParamsTaxType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "amusement_tax" => CreateTaxRateParamsTaxType::AmusementTax,
-                    "communications_tax" => CreateTaxRateParamsTaxType::CommunicationsTax,
-                    "digital_excise_tax" => CreateTaxRateParamsTaxType::DigitalExciseTax,
-                    "gst" => CreateTaxRateParamsTaxType::Gst,
-                    "hst" => CreateTaxRateParamsTaxType::Hst,
-                    "igst" => CreateTaxRateParamsTaxType::Igst,
-                    "jct" => CreateTaxRateParamsTaxType::Jct,
-                    "lease_tax" => CreateTaxRateParamsTaxType::LeaseTax,
-                    "mass_transit_parking_tax" => CreateTaxRateParamsTaxType::MassTransitParkingTax,
-                    "parking_tax" => CreateTaxRateParamsTaxType::ParkingTax,
-                    "pst" => CreateTaxRateParamsTaxType::Pst,
-                    "qst" => CreateTaxRateParamsTaxType::Qst,
-                    "retail_delivery_fee" => CreateTaxRateParamsTaxType::RetailDeliveryFee,
-                    "rst" => CreateTaxRateParamsTaxType::Rst,
-                    "sales_tax" => CreateTaxRateParamsTaxType::SalesTax,
-                    "service_tax" => CreateTaxRateParamsTaxType::ServiceTax,
-                    "utility_users_tax" => CreateTaxRateParamsTaxType::UtilityUsersTax,
-                    "vat" => CreateTaxRateParamsTaxType::Vat,
-                    other => CreateTaxRateParamsTaxType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTaxRateParamsTaxType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTaxRateParamsTaxType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTaxRateParamsTaxType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "amusement_tax" => CreateTaxRateParamsTaxType::AmusementTax,
+            "communications_tax" => CreateTaxRateParamsTaxType::CommunicationsTax,
+            "digital_excise_tax" => CreateTaxRateParamsTaxType::DigitalExciseTax,
+            "gst" => CreateTaxRateParamsTaxType::Gst,
+            "hst" => CreateTaxRateParamsTaxType::Hst,
+            "igst" => CreateTaxRateParamsTaxType::Igst,
+            "jct" => CreateTaxRateParamsTaxType::Jct,
+            "lease_tax" => CreateTaxRateParamsTaxType::LeaseTax,
+            "mass_transit_parking_tax" => CreateTaxRateParamsTaxType::MassTransitParkingTax,
+            "parking_tax" => CreateTaxRateParamsTaxType::ParkingTax,
+            "pst" => CreateTaxRateParamsTaxType::Pst,
+            "qst" => CreateTaxRateParamsTaxType::Qst,
+            "retail_delivery_fee" => CreateTaxRateParamsTaxType::RetailDeliveryFee,
+            "rst" => CreateTaxRateParamsTaxType::Rst,
+            "sales_tax" => CreateTaxRateParamsTaxType::SalesTax,
+            "service_tax" => CreateTaxRateParamsTaxType::ServiceTax,
+            "utility_users_tax" => CreateTaxRateParamsTaxType::UtilityUsersTax,
+            "vat" => CreateTaxRateParamsTaxType::Vat,
+            other => CreateTaxRateParamsTaxType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -280,61 +262,62 @@ impl crate::params::FormEncode for ListTaxRatesParamsCreated {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxRate {
     #[doc = "Defaults to `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub active: bool,
     #[doc = "Two-letter country code ([ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2))."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "An arbitrary string attached to the tax rate for your internal use only."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "The display name of the tax rates as it will appear to your customer on their receipt email, PDF, and the hosted invo..."]
-    #[serde(default)]
+    #[json(default)]
     pub display_name: String,
     #[doc = "Actual/effective tax rate percentage out of 100."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub effective_percentage: Option<f64>,
     #[doc = "The amount of the tax rate when the `rate_type` is `flat_amount`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub flat_amount: Option<crate::tax_rates::TaxRateFlatAmount>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "This specifies if the tax rate is inclusive or exclusive."]
-    #[serde(default)]
+    #[json(default)]
     pub inclusive: bool,
     #[doc = "The jurisdiction for the tax rate."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub jurisdiction: Option<String>,
     #[doc = "The level of the jurisdiction that imposes this tax rate."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub jurisdiction_level: Option<crate::tax_rates::TaxRateJurisdictionLevel>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::tax_rates::TaxRateObject,
     #[doc = "Tax rate percentage out of 100."]
-    #[serde(default)]
+    #[json(default)]
     pub percentage: f64,
     #[doc = "Indicates the type of tax rate applied to the taxable amount."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub rate_type: Option<crate::tax_rates::TaxRateRateType>,
     #[doc = "[ISO 3166-2 subdivision code](https://en.wikipedia.org/wiki/ISO_3166-2), without country prefix."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
     #[doc = "The high-level tax type, such as `vat` or `sales_tax`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_type: Option<crate::tax_rates::TaxRateTaxType>,
 }
 
@@ -437,13 +420,14 @@ impl crate::PagedItem for TaxRate {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TaxRateFlatAmount {
     #[doc = "Amount of the tax when the `rate_type` is `flat_amount`."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Three-letter ISO currency code, in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
 }
 
@@ -612,41 +596,23 @@ impl TaxRateJurisdictionLevel {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for TaxRateJurisdictionLevel {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxRateJurisdictionLevel;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "city" => TaxRateJurisdictionLevel::City,
-                    "country" => TaxRateJurisdictionLevel::Country,
-                    "county" => TaxRateJurisdictionLevel::County,
-                    "district" => TaxRateJurisdictionLevel::District,
-                    "multiple" => TaxRateJurisdictionLevel::Multiple,
-                    "state" => TaxRateJurisdictionLevel::State,
-                    other => TaxRateJurisdictionLevel::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxRateJurisdictionLevel::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxRateJurisdictionLevel {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxRateJurisdictionLevel::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "city" => TaxRateJurisdictionLevel::City,
+            "country" => TaxRateJurisdictionLevel::Country,
+            "county" => TaxRateJurisdictionLevel::County,
+            "district" => TaxRateJurisdictionLevel::District,
+            "multiple" => TaxRateJurisdictionLevel::Multiple,
+            "state" => TaxRateJurisdictionLevel::State,
+            other => TaxRateJurisdictionLevel::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -857,36 +823,18 @@ impl Default for TaxRateObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for TaxRateObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxRateObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "tax_rate" => TaxRateObject::TaxRate,
-                    other => TaxRateObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxRateObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxRateObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxRateObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "tax_rate" => TaxRateObject::TaxRate,
+            other => TaxRateObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1047,37 +995,19 @@ impl TaxRateRateType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for TaxRateRateType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxRateRateType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "flat_amount" => TaxRateRateType::FlatAmount,
-                    "percentage" => TaxRateRateType::Percentage,
-                    other => TaxRateRateType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxRateRateType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxRateRateType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxRateRateType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "flat_amount" => TaxRateRateType::FlatAmount,
+            "percentage" => TaxRateRateType::Percentage,
+            other => TaxRateRateType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1270,53 +1200,35 @@ impl TaxRateTaxType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for TaxRateTaxType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TaxRateTaxType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "amusement_tax" => TaxRateTaxType::AmusementTax,
-                    "communications_tax" => TaxRateTaxType::CommunicationsTax,
-                    "digital_excise_tax" => TaxRateTaxType::DigitalExciseTax,
-                    "gst" => TaxRateTaxType::Gst,
-                    "hst" => TaxRateTaxType::Hst,
-                    "igst" => TaxRateTaxType::Igst,
-                    "jct" => TaxRateTaxType::Jct,
-                    "lease_tax" => TaxRateTaxType::LeaseTax,
-                    "mass_transit_parking_tax" => TaxRateTaxType::MassTransitParkingTax,
-                    "parking_tax" => TaxRateTaxType::ParkingTax,
-                    "pst" => TaxRateTaxType::Pst,
-                    "qst" => TaxRateTaxType::Qst,
-                    "retail_delivery_fee" => TaxRateTaxType::RetailDeliveryFee,
-                    "rst" => TaxRateTaxType::Rst,
-                    "sales_tax" => TaxRateTaxType::SalesTax,
-                    "service_tax" => TaxRateTaxType::ServiceTax,
-                    "utility_users_tax" => TaxRateTaxType::UtilityUsersTax,
-                    "vat" => TaxRateTaxType::Vat,
-                    other => TaxRateTaxType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TaxRateTaxType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TaxRateTaxType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TaxRateTaxType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "amusement_tax" => TaxRateTaxType::AmusementTax,
+            "communications_tax" => TaxRateTaxType::CommunicationsTax,
+            "digital_excise_tax" => TaxRateTaxType::DigitalExciseTax,
+            "gst" => TaxRateTaxType::Gst,
+            "hst" => TaxRateTaxType::Hst,
+            "igst" => TaxRateTaxType::Igst,
+            "jct" => TaxRateTaxType::Jct,
+            "lease_tax" => TaxRateTaxType::LeaseTax,
+            "mass_transit_parking_tax" => TaxRateTaxType::MassTransitParkingTax,
+            "parking_tax" => TaxRateTaxType::ParkingTax,
+            "pst" => TaxRateTaxType::Pst,
+            "qst" => TaxRateTaxType::Qst,
+            "retail_delivery_fee" => TaxRateTaxType::RetailDeliveryFee,
+            "rst" => TaxRateTaxType::Rst,
+            "sales_tax" => TaxRateTaxType::SalesTax,
+            "service_tax" => TaxRateTaxType::ServiceTax,
+            "utility_users_tax" => TaxRateTaxType::UtilityUsersTax,
+            "vat" => TaxRateTaxType::Vat,
+            other => TaxRateTaxType::Unknown(other.to_string()),
+        })
     }
 }
 

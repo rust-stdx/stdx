@@ -207,37 +207,19 @@ impl CreatePaymentLinkParamsAfterCompletionType {
 }
 
 #[cfg(feature = "payment_links")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentLinkParamsAfterCompletionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentLinkParamsAfterCompletionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "hosted_confirmation" => CreatePaymentLinkParamsAfterCompletionType::HostedConfirmation,
-                    "redirect" => CreatePaymentLinkParamsAfterCompletionType::Redirect,
-                    other => CreatePaymentLinkParamsAfterCompletionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentLinkParamsAfterCompletionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentLinkParamsAfterCompletionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentLinkParamsAfterCompletionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "hosted_confirmation" => CreatePaymentLinkParamsAfterCompletionType::HostedConfirmation,
+            "redirect" => CreatePaymentLinkParamsAfterCompletionType::Redirect,
+            other => CreatePaymentLinkParamsAfterCompletionType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -304,37 +286,19 @@ impl CreatePaymentLinkParamsAutomaticTaxLiabilityType {
 }
 
 #[cfg(feature = "payment_links")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentLinkParamsAutomaticTaxLiabilityType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentLinkParamsAutomaticTaxLiabilityType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account" => CreatePaymentLinkParamsAutomaticTaxLiabilityType::Account,
-                    "self" => CreatePaymentLinkParamsAutomaticTaxLiabilityType::SelfValue,
-                    other => CreatePaymentLinkParamsAutomaticTaxLiabilityType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentLinkParamsAutomaticTaxLiabilityType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentLinkParamsAutomaticTaxLiabilityType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentLinkParamsAutomaticTaxLiabilityType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account" => CreatePaymentLinkParamsAutomaticTaxLiabilityType::Account,
+            "self" => CreatePaymentLinkParamsAutomaticTaxLiabilityType::SelfValue,
+            other => CreatePaymentLinkParamsAutomaticTaxLiabilityType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -367,37 +331,19 @@ impl CreatePaymentLinkParamsBillingAddressCollection {
 }
 
 #[cfg(feature = "payment_links")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentLinkParamsBillingAddressCollection {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentLinkParamsBillingAddressCollection;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => CreatePaymentLinkParamsBillingAddressCollection::Auto,
-                    "required" => CreatePaymentLinkParamsBillingAddressCollection::Required,
-                    other => CreatePaymentLinkParamsBillingAddressCollection::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentLinkParamsBillingAddressCollection::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentLinkParamsBillingAddressCollection {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentLinkParamsBillingAddressCollection::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => CreatePaymentLinkParamsBillingAddressCollection::Auto,
+            "required" => CreatePaymentLinkParamsBillingAddressCollection::Required,
+            other => CreatePaymentLinkParamsBillingAddressCollection::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -465,39 +411,23 @@ impl CreatePaymentLinkParamsConsentCollectionPaymentMethodReuseAgreementPosition
 }
 
 #[cfg(feature = "payment_links")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentLinkParamsConsentCollectionPaymentMethodReuseAgreementPosition {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentLinkParamsConsentCollectionPaymentMethodReuseAgreementPosition;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => CreatePaymentLinkParamsConsentCollectionPaymentMethodReuseAgreementPosition::Auto,
-                    "hidden" => CreatePaymentLinkParamsConsentCollectionPaymentMethodReuseAgreementPosition::Hidden,
-                    other => CreatePaymentLinkParamsConsentCollectionPaymentMethodReuseAgreementPosition::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentLinkParamsConsentCollectionPaymentMethodReuseAgreementPosition::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentLinkParamsConsentCollectionPaymentMethodReuseAgreementPosition {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentLinkParamsConsentCollectionPaymentMethodReuseAgreementPosition::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => CreatePaymentLinkParamsConsentCollectionPaymentMethodReuseAgreementPosition::Auto,
+            "hidden" => CreatePaymentLinkParamsConsentCollectionPaymentMethodReuseAgreementPosition::Hidden,
+            other => {
+                CreatePaymentLinkParamsConsentCollectionPaymentMethodReuseAgreementPosition::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -530,37 +460,19 @@ impl CreatePaymentLinkParamsConsentCollectionPromotions {
 }
 
 #[cfg(feature = "payment_links")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentLinkParamsConsentCollectionPromotions {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentLinkParamsConsentCollectionPromotions;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => CreatePaymentLinkParamsConsentCollectionPromotions::Auto,
-                    "none" => CreatePaymentLinkParamsConsentCollectionPromotions::None,
-                    other => CreatePaymentLinkParamsConsentCollectionPromotions::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentLinkParamsConsentCollectionPromotions::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentLinkParamsConsentCollectionPromotions {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentLinkParamsConsentCollectionPromotions::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => CreatePaymentLinkParamsConsentCollectionPromotions::Auto,
+            "none" => CreatePaymentLinkParamsConsentCollectionPromotions::None,
+            other => CreatePaymentLinkParamsConsentCollectionPromotions::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -593,37 +505,19 @@ impl CreatePaymentLinkParamsConsentCollectionTermsOfService {
 }
 
 #[cfg(feature = "payment_links")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentLinkParamsConsentCollectionTermsOfService {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentLinkParamsConsentCollectionTermsOfService;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "none" => CreatePaymentLinkParamsConsentCollectionTermsOfService::None,
-                    "required" => CreatePaymentLinkParamsConsentCollectionTermsOfService::Required,
-                    other => CreatePaymentLinkParamsConsentCollectionTermsOfService::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentLinkParamsConsentCollectionTermsOfService::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentLinkParamsConsentCollectionTermsOfService {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentLinkParamsConsentCollectionTermsOfService::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "none" => CreatePaymentLinkParamsConsentCollectionTermsOfService::None,
+            "required" => CreatePaymentLinkParamsConsentCollectionTermsOfService::Required,
+            other => CreatePaymentLinkParamsConsentCollectionTermsOfService::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -739,36 +633,18 @@ impl CreatePaymentLinkParamsCustomFieldsItemLabelType {
 }
 
 #[cfg(feature = "payment_links")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentLinkParamsCustomFieldsItemLabelType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentLinkParamsCustomFieldsItemLabelType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "custom" => CreatePaymentLinkParamsCustomFieldsItemLabelType::Custom,
-                    other => CreatePaymentLinkParamsCustomFieldsItemLabelType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentLinkParamsCustomFieldsItemLabelType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentLinkParamsCustomFieldsItemLabelType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentLinkParamsCustomFieldsItemLabelType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "custom" => CreatePaymentLinkParamsCustomFieldsItemLabelType::Custom,
+            other => CreatePaymentLinkParamsCustomFieldsItemLabelType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -827,38 +703,20 @@ impl CreatePaymentLinkParamsCustomFieldsItemType {
 }
 
 #[cfg(feature = "payment_links")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentLinkParamsCustomFieldsItemType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentLinkParamsCustomFieldsItemType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "dropdown" => CreatePaymentLinkParamsCustomFieldsItemType::Dropdown,
-                    "numeric" => CreatePaymentLinkParamsCustomFieldsItemType::Numeric,
-                    "text" => CreatePaymentLinkParamsCustomFieldsItemType::Text,
-                    other => CreatePaymentLinkParamsCustomFieldsItemType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentLinkParamsCustomFieldsItemType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentLinkParamsCustomFieldsItemType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentLinkParamsCustomFieldsItemType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "dropdown" => CreatePaymentLinkParamsCustomFieldsItemType::Dropdown,
+            "numeric" => CreatePaymentLinkParamsCustomFieldsItemType::Numeric,
+            "text" => CreatePaymentLinkParamsCustomFieldsItemType::Text,
+            other => CreatePaymentLinkParamsCustomFieldsItemType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -940,37 +798,19 @@ impl CreatePaymentLinkParamsCustomerCreation {
 }
 
 #[cfg(feature = "payment_links")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentLinkParamsCustomerCreation {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentLinkParamsCustomerCreation;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => CreatePaymentLinkParamsCustomerCreation::Always,
-                    "if_required" => CreatePaymentLinkParamsCustomerCreation::IfRequired,
-                    other => CreatePaymentLinkParamsCustomerCreation::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentLinkParamsCustomerCreation::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentLinkParamsCustomerCreation {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentLinkParamsCustomerCreation::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => CreatePaymentLinkParamsCustomerCreation::Always,
+            "if_required" => CreatePaymentLinkParamsCustomerCreation::IfRequired,
+            other => CreatePaymentLinkParamsCustomerCreation::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1002,9 +842,9 @@ impl crate::params::FormEncode for CreatePaymentLinkParamsInvoiceCreation {
 #[derive(Debug, Clone, Default)]
 pub struct CreatePaymentLinkParamsInvoiceCreationInvoiceData {
     #[doc = "The account tax IDs associated with the invoice."]
-    pub account_tax_ids: Option<serde_json::Value>,
+    pub account_tax_ids: Option<json::OwnedValue>,
     #[doc = "Default custom fields to be displayed on invoices for this customer."]
-    pub custom_fields: Option<serde_json::Value>,
+    pub custom_fields: Option<json::OwnedValue>,
     #[doc = "An arbitrary string attached to the object."]
     pub description: Option<String>,
     #[doc = "Default footer to be displayed on invoices for this customer."]
@@ -1100,44 +940,30 @@ impl CreatePaymentLinkParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxD
 }
 
 #[cfg(feature = "payment_links")]
-impl<'de> serde::Deserialize<'de>
-    for CreatePaymentLinkParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentLinkParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreatePaymentLinkParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay::Unnamed,
-                    "exclude_tax" => CreatePaymentLinkParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay::ExcludeTax,
-                    "include_inclusive_tax" => CreatePaymentLinkParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay::IncludeInclusiveTax,
-                    other => CreatePaymentLinkParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreatePaymentLinkParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreatePaymentLinkParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentLinkParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreatePaymentLinkParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay::Unnamed,
+            "exclude_tax" => {
+                CreatePaymentLinkParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay::ExcludeTax
+            }
+            "include_inclusive_tax" => {
+                CreatePaymentLinkParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay::IncludeInclusiveTax
+            }
+            other => CreatePaymentLinkParamsInvoiceCreationInvoiceDataRenderingOptionsAmountTaxDisplay::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -1267,7 +1093,7 @@ pub struct CreatePaymentLinkParamsLineItemsItemPriceDataProductDataTaxDetails {
     #[doc = "A tax location ID."]
     pub performance_location: Option<String>,
     #[doc = "A [tax code](https://docs.stripe.com/tax/tax-categories) ID."]
-    pub tax_code: Option<serde_json::Value>,
+    pub tax_code: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "payment_links")]
@@ -1320,41 +1146,23 @@ impl CreatePaymentLinkParamsLineItemsItemPriceDataRecurringInterval {
 }
 
 #[cfg(feature = "payment_links")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentLinkParamsLineItemsItemPriceDataRecurringInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentLinkParamsLineItemsItemPriceDataRecurringInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "day" => CreatePaymentLinkParamsLineItemsItemPriceDataRecurringInterval::Day,
-                    "month" => CreatePaymentLinkParamsLineItemsItemPriceDataRecurringInterval::Month,
-                    "week" => CreatePaymentLinkParamsLineItemsItemPriceDataRecurringInterval::Week,
-                    "year" => CreatePaymentLinkParamsLineItemsItemPriceDataRecurringInterval::Year,
-                    other => CreatePaymentLinkParamsLineItemsItemPriceDataRecurringInterval::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentLinkParamsLineItemsItemPriceDataRecurringInterval::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentLinkParamsLineItemsItemPriceDataRecurringInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentLinkParamsLineItemsItemPriceDataRecurringInterval::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "day" => CreatePaymentLinkParamsLineItemsItemPriceDataRecurringInterval::Day,
+            "month" => CreatePaymentLinkParamsLineItemsItemPriceDataRecurringInterval::Month,
+            "week" => CreatePaymentLinkParamsLineItemsItemPriceDataRecurringInterval::Week,
+            "year" => CreatePaymentLinkParamsLineItemsItemPriceDataRecurringInterval::Year,
+            other => CreatePaymentLinkParamsLineItemsItemPriceDataRecurringInterval::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1389,38 +1197,20 @@ impl CreatePaymentLinkParamsLineItemsItemPriceDataTaxBehavior {
 }
 
 #[cfg(feature = "payment_links")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentLinkParamsLineItemsItemPriceDataTaxBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentLinkParamsLineItemsItemPriceDataTaxBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exclusive" => CreatePaymentLinkParamsLineItemsItemPriceDataTaxBehavior::Exclusive,
-                    "inclusive" => CreatePaymentLinkParamsLineItemsItemPriceDataTaxBehavior::Inclusive,
-                    "unspecified" => CreatePaymentLinkParamsLineItemsItemPriceDataTaxBehavior::Unspecified,
-                    other => CreatePaymentLinkParamsLineItemsItemPriceDataTaxBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentLinkParamsLineItemsItemPriceDataTaxBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentLinkParamsLineItemsItemPriceDataTaxBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentLinkParamsLineItemsItemPriceDataTaxBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exclusive" => CreatePaymentLinkParamsLineItemsItemPriceDataTaxBehavior::Exclusive,
+            "inclusive" => CreatePaymentLinkParamsLineItemsItemPriceDataTaxBehavior::Inclusive,
+            "unspecified" => CreatePaymentLinkParamsLineItemsItemPriceDataTaxBehavior::Unspecified,
+            other => CreatePaymentLinkParamsLineItemsItemPriceDataTaxBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1567,38 +1357,20 @@ impl CreatePaymentLinkParamsPaymentIntentDataCaptureMethod {
 }
 
 #[cfg(feature = "payment_links")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentLinkParamsPaymentIntentDataCaptureMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentLinkParamsPaymentIntentDataCaptureMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "automatic" => CreatePaymentLinkParamsPaymentIntentDataCaptureMethod::Automatic,
-                    "automatic_async" => CreatePaymentLinkParamsPaymentIntentDataCaptureMethod::AutomaticAsync,
-                    "manual" => CreatePaymentLinkParamsPaymentIntentDataCaptureMethod::Manual,
-                    other => CreatePaymentLinkParamsPaymentIntentDataCaptureMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentLinkParamsPaymentIntentDataCaptureMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentLinkParamsPaymentIntentDataCaptureMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentLinkParamsPaymentIntentDataCaptureMethod::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "automatic" => CreatePaymentLinkParamsPaymentIntentDataCaptureMethod::Automatic,
+            "automatic_async" => CreatePaymentLinkParamsPaymentIntentDataCaptureMethod::AutomaticAsync,
+            "manual" => CreatePaymentLinkParamsPaymentIntentDataCaptureMethod::Manual,
+            other => CreatePaymentLinkParamsPaymentIntentDataCaptureMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1631,37 +1403,19 @@ impl CreatePaymentLinkParamsPaymentIntentDataSetupFutureUsage {
 }
 
 #[cfg(feature = "payment_links")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentLinkParamsPaymentIntentDataSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentLinkParamsPaymentIntentDataSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "off_session" => CreatePaymentLinkParamsPaymentIntentDataSetupFutureUsage::OffSession,
-                    "on_session" => CreatePaymentLinkParamsPaymentIntentDataSetupFutureUsage::OnSession,
-                    other => CreatePaymentLinkParamsPaymentIntentDataSetupFutureUsage::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentLinkParamsPaymentIntentDataSetupFutureUsage::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentLinkParamsPaymentIntentDataSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentLinkParamsPaymentIntentDataSetupFutureUsage::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "off_session" => CreatePaymentLinkParamsPaymentIntentDataSetupFutureUsage::OffSession,
+            "on_session" => CreatePaymentLinkParamsPaymentIntentDataSetupFutureUsage::OnSession,
+            other => CreatePaymentLinkParamsPaymentIntentDataSetupFutureUsage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1750,39 +1504,29 @@ impl CreatePaymentLinkParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedIte
 }
 
 #[cfg(feature = "payment_links")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentLinkParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentLinkParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "american_express" => CreatePaymentLinkParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::AmericanExpress,
-                    "discover_global_network" => CreatePaymentLinkParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::DiscoverGlobalNetwork,
-                    "mastercard" => CreatePaymentLinkParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::Mastercard,
-                    "visa" => CreatePaymentLinkParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::Visa,
-                    other => CreatePaymentLinkParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentLinkParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentLinkParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentLinkParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "american_express" => {
+                CreatePaymentLinkParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::AmericanExpress
+            }
+            "discover_global_network" => {
+                CreatePaymentLinkParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::DiscoverGlobalNetwork
+            }
+            "mastercard" => CreatePaymentLinkParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::Mastercard,
+            "visa" => CreatePaymentLinkParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::Visa,
+            other => {
+                CreatePaymentLinkParamsPaymentMethodOptionsCardRestrictionsBrandsBlockedItem::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -1899,79 +1643,61 @@ impl CreatePaymentLinkParamsPaymentMethodTypesItem {
 }
 
 #[cfg(feature = "payment_links")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentLinkParamsPaymentMethodTypesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentLinkParamsPaymentMethodTypesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "affirm" => CreatePaymentLinkParamsPaymentMethodTypesItem::Affirm,
-                    "afterpay_clearpay" => CreatePaymentLinkParamsPaymentMethodTypesItem::AfterpayClearpay,
-                    "alipay" => CreatePaymentLinkParamsPaymentMethodTypesItem::Alipay,
-                    "alma" => CreatePaymentLinkParamsPaymentMethodTypesItem::Alma,
-                    "au_becs_debit" => CreatePaymentLinkParamsPaymentMethodTypesItem::AuBecsDebit,
-                    "bacs_debit" => CreatePaymentLinkParamsPaymentMethodTypesItem::BacsDebit,
-                    "bancontact" => CreatePaymentLinkParamsPaymentMethodTypesItem::Bancontact,
-                    "billie" => CreatePaymentLinkParamsPaymentMethodTypesItem::Billie,
-                    "bizum" => CreatePaymentLinkParamsPaymentMethodTypesItem::Bizum,
-                    "blik" => CreatePaymentLinkParamsPaymentMethodTypesItem::Blik,
-                    "boleto" => CreatePaymentLinkParamsPaymentMethodTypesItem::Boleto,
-                    "card" => CreatePaymentLinkParamsPaymentMethodTypesItem::Card,
-                    "cashapp" => CreatePaymentLinkParamsPaymentMethodTypesItem::Cashapp,
-                    "eps" => CreatePaymentLinkParamsPaymentMethodTypesItem::Eps,
-                    "fpx" => CreatePaymentLinkParamsPaymentMethodTypesItem::Fpx,
-                    "giropay" => CreatePaymentLinkParamsPaymentMethodTypesItem::Giropay,
-                    "grabpay" => CreatePaymentLinkParamsPaymentMethodTypesItem::Grabpay,
-                    "ideal" => CreatePaymentLinkParamsPaymentMethodTypesItem::Ideal,
-                    "klarna" => CreatePaymentLinkParamsPaymentMethodTypesItem::Klarna,
-                    "konbini" => CreatePaymentLinkParamsPaymentMethodTypesItem::Konbini,
-                    "link" => CreatePaymentLinkParamsPaymentMethodTypesItem::Link,
-                    "mb_way" => CreatePaymentLinkParamsPaymentMethodTypesItem::MbWay,
-                    "mobilepay" => CreatePaymentLinkParamsPaymentMethodTypesItem::Mobilepay,
-                    "multibanco" => CreatePaymentLinkParamsPaymentMethodTypesItem::Multibanco,
-                    "oxxo" => CreatePaymentLinkParamsPaymentMethodTypesItem::Oxxo,
-                    "p24" => CreatePaymentLinkParamsPaymentMethodTypesItem::P24,
-                    "pay_by_bank" => CreatePaymentLinkParamsPaymentMethodTypesItem::PayByBank,
-                    "paynow" => CreatePaymentLinkParamsPaymentMethodTypesItem::Paynow,
-                    "paypal" => CreatePaymentLinkParamsPaymentMethodTypesItem::Paypal,
-                    "paypay" => CreatePaymentLinkParamsPaymentMethodTypesItem::Paypay,
-                    "payto" => CreatePaymentLinkParamsPaymentMethodTypesItem::Payto,
-                    "pix" => CreatePaymentLinkParamsPaymentMethodTypesItem::Pix,
-                    "promptpay" => CreatePaymentLinkParamsPaymentMethodTypesItem::Promptpay,
-                    "satispay" => CreatePaymentLinkParamsPaymentMethodTypesItem::Satispay,
-                    "sepa_debit" => CreatePaymentLinkParamsPaymentMethodTypesItem::SepaDebit,
-                    "sequra" => CreatePaymentLinkParamsPaymentMethodTypesItem::Sequra,
-                    "sofort" => CreatePaymentLinkParamsPaymentMethodTypesItem::Sofort,
-                    "sunbit" => CreatePaymentLinkParamsPaymentMethodTypesItem::Sunbit,
-                    "swish" => CreatePaymentLinkParamsPaymentMethodTypesItem::Swish,
-                    "twint" => CreatePaymentLinkParamsPaymentMethodTypesItem::Twint,
-                    "upi" => CreatePaymentLinkParamsPaymentMethodTypesItem::Upi,
-                    "us_bank_account" => CreatePaymentLinkParamsPaymentMethodTypesItem::UsBankAccount,
-                    "wechat_pay" => CreatePaymentLinkParamsPaymentMethodTypesItem::WechatPay,
-                    "zip" => CreatePaymentLinkParamsPaymentMethodTypesItem::Zip,
-                    other => CreatePaymentLinkParamsPaymentMethodTypesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentLinkParamsPaymentMethodTypesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentLinkParamsPaymentMethodTypesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentLinkParamsPaymentMethodTypesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "affirm" => CreatePaymentLinkParamsPaymentMethodTypesItem::Affirm,
+            "afterpay_clearpay" => CreatePaymentLinkParamsPaymentMethodTypesItem::AfterpayClearpay,
+            "alipay" => CreatePaymentLinkParamsPaymentMethodTypesItem::Alipay,
+            "alma" => CreatePaymentLinkParamsPaymentMethodTypesItem::Alma,
+            "au_becs_debit" => CreatePaymentLinkParamsPaymentMethodTypesItem::AuBecsDebit,
+            "bacs_debit" => CreatePaymentLinkParamsPaymentMethodTypesItem::BacsDebit,
+            "bancontact" => CreatePaymentLinkParamsPaymentMethodTypesItem::Bancontact,
+            "billie" => CreatePaymentLinkParamsPaymentMethodTypesItem::Billie,
+            "bizum" => CreatePaymentLinkParamsPaymentMethodTypesItem::Bizum,
+            "blik" => CreatePaymentLinkParamsPaymentMethodTypesItem::Blik,
+            "boleto" => CreatePaymentLinkParamsPaymentMethodTypesItem::Boleto,
+            "card" => CreatePaymentLinkParamsPaymentMethodTypesItem::Card,
+            "cashapp" => CreatePaymentLinkParamsPaymentMethodTypesItem::Cashapp,
+            "eps" => CreatePaymentLinkParamsPaymentMethodTypesItem::Eps,
+            "fpx" => CreatePaymentLinkParamsPaymentMethodTypesItem::Fpx,
+            "giropay" => CreatePaymentLinkParamsPaymentMethodTypesItem::Giropay,
+            "grabpay" => CreatePaymentLinkParamsPaymentMethodTypesItem::Grabpay,
+            "ideal" => CreatePaymentLinkParamsPaymentMethodTypesItem::Ideal,
+            "klarna" => CreatePaymentLinkParamsPaymentMethodTypesItem::Klarna,
+            "konbini" => CreatePaymentLinkParamsPaymentMethodTypesItem::Konbini,
+            "link" => CreatePaymentLinkParamsPaymentMethodTypesItem::Link,
+            "mb_way" => CreatePaymentLinkParamsPaymentMethodTypesItem::MbWay,
+            "mobilepay" => CreatePaymentLinkParamsPaymentMethodTypesItem::Mobilepay,
+            "multibanco" => CreatePaymentLinkParamsPaymentMethodTypesItem::Multibanco,
+            "oxxo" => CreatePaymentLinkParamsPaymentMethodTypesItem::Oxxo,
+            "p24" => CreatePaymentLinkParamsPaymentMethodTypesItem::P24,
+            "pay_by_bank" => CreatePaymentLinkParamsPaymentMethodTypesItem::PayByBank,
+            "paynow" => CreatePaymentLinkParamsPaymentMethodTypesItem::Paynow,
+            "paypal" => CreatePaymentLinkParamsPaymentMethodTypesItem::Paypal,
+            "paypay" => CreatePaymentLinkParamsPaymentMethodTypesItem::Paypay,
+            "payto" => CreatePaymentLinkParamsPaymentMethodTypesItem::Payto,
+            "pix" => CreatePaymentLinkParamsPaymentMethodTypesItem::Pix,
+            "promptpay" => CreatePaymentLinkParamsPaymentMethodTypesItem::Promptpay,
+            "satispay" => CreatePaymentLinkParamsPaymentMethodTypesItem::Satispay,
+            "sepa_debit" => CreatePaymentLinkParamsPaymentMethodTypesItem::SepaDebit,
+            "sequra" => CreatePaymentLinkParamsPaymentMethodTypesItem::Sequra,
+            "sofort" => CreatePaymentLinkParamsPaymentMethodTypesItem::Sofort,
+            "sunbit" => CreatePaymentLinkParamsPaymentMethodTypesItem::Sunbit,
+            "swish" => CreatePaymentLinkParamsPaymentMethodTypesItem::Swish,
+            "twint" => CreatePaymentLinkParamsPaymentMethodTypesItem::Twint,
+            "upi" => CreatePaymentLinkParamsPaymentMethodTypesItem::Upi,
+            "us_bank_account" => CreatePaymentLinkParamsPaymentMethodTypesItem::UsBankAccount,
+            "wechat_pay" => CreatePaymentLinkParamsPaymentMethodTypesItem::WechatPay,
+            "zip" => CreatePaymentLinkParamsPaymentMethodTypesItem::Zip,
+            other => CreatePaymentLinkParamsPaymentMethodTypesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2533,277 +2259,257 @@ impl CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem {
 }
 
 #[cfg(feature = "payment_links")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "AC" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AC,
-                    "AD" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AD,
-                    "AE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AE,
-                    "AF" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AF,
-                    "AG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AG,
-                    "AI" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AI,
-                    "AL" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AL,
-                    "AM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AM,
-                    "AO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AO,
-                    "AQ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AQ,
-                    "AR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AR,
-                    "AT" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AT,
-                    "AU" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AU,
-                    "AW" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AW,
-                    "AX" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AX,
-                    "AZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AZ,
-                    "BA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BA,
-                    "BB" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BB,
-                    "BD" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BD,
-                    "BE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BE,
-                    "BF" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BF,
-                    "BG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BG,
-                    "BH" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BH,
-                    "BI" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BI,
-                    "BJ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BJ,
-                    "BL" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BL,
-                    "BM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BM,
-                    "BN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BN,
-                    "BO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BO,
-                    "BQ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BQ,
-                    "BR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BR,
-                    "BS" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BS,
-                    "BT" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BT,
-                    "BV" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BV,
-                    "BW" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BW,
-                    "BY" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BY,
-                    "BZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BZ,
-                    "CA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CA,
-                    "CD" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CD,
-                    "CF" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CF,
-                    "CG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CG,
-                    "CH" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CH,
-                    "CI" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CI,
-                    "CK" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CK,
-                    "CL" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CL,
-                    "CM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CM,
-                    "CN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CN,
-                    "CO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CO,
-                    "CR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CR,
-                    "CV" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CV,
-                    "CW" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CW,
-                    "CY" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CY,
-                    "CZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CZ,
-                    "DE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::DE,
-                    "DJ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::DJ,
-                    "DK" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::DK,
-                    "DM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::DM,
-                    "DO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::DO,
-                    "DZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::DZ,
-                    "EC" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::EC,
-                    "EE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::EE,
-                    "EG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::EG,
-                    "EH" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::EH,
-                    "ER" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ER,
-                    "ES" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ES,
-                    "ET" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ET,
-                    "FI" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::FI,
-                    "FJ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::FJ,
-                    "FK" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::FK,
-                    "FO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::FO,
-                    "FR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::FR,
-                    "GA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GA,
-                    "GB" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GB,
-                    "GD" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GD,
-                    "GE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GE,
-                    "GF" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GF,
-                    "GG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GG,
-                    "GH" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GH,
-                    "GI" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GI,
-                    "GL" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GL,
-                    "GM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GM,
-                    "GN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GN,
-                    "GP" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GP,
-                    "GQ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GQ,
-                    "GR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GR,
-                    "GS" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GS,
-                    "GT" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GT,
-                    "GU" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GU,
-                    "GW" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GW,
-                    "GY" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GY,
-                    "HK" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::HK,
-                    "HN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::HN,
-                    "HR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::HR,
-                    "HT" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::HT,
-                    "HU" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::HU,
-                    "ID" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ID,
-                    "IE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::IE,
-                    "IL" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::IL,
-                    "IM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::IM,
-                    "IN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::IN,
-                    "IO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::IO,
-                    "IQ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::IQ,
-                    "IS" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::IS,
-                    "IT" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::IT,
-                    "JE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::JE,
-                    "JM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::JM,
-                    "JO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::JO,
-                    "JP" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::JP,
-                    "KE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::KE,
-                    "KG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::KG,
-                    "KH" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::KH,
-                    "KI" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::KI,
-                    "KM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::KM,
-                    "KN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::KN,
-                    "KR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::KR,
-                    "KW" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::KW,
-                    "KY" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::KY,
-                    "KZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::KZ,
-                    "LA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LA,
-                    "LB" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LB,
-                    "LC" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LC,
-                    "LI" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LI,
-                    "LK" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LK,
-                    "LR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LR,
-                    "LS" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LS,
-                    "LT" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LT,
-                    "LU" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LU,
-                    "LV" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LV,
-                    "LY" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LY,
-                    "MA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MA,
-                    "MC" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MC,
-                    "MD" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MD,
-                    "ME" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ME,
-                    "MF" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MF,
-                    "MG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MG,
-                    "MK" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MK,
-                    "ML" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ML,
-                    "MM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MM,
-                    "MN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MN,
-                    "MO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MO,
-                    "MQ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MQ,
-                    "MR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MR,
-                    "MS" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MS,
-                    "MT" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MT,
-                    "MU" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MU,
-                    "MV" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MV,
-                    "MW" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MW,
-                    "MX" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MX,
-                    "MY" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MY,
-                    "MZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MZ,
-                    "NA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NA,
-                    "NC" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NC,
-                    "NE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NE,
-                    "NG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NG,
-                    "NI" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NI,
-                    "NL" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NL,
-                    "NO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NO,
-                    "NP" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NP,
-                    "NR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NR,
-                    "NU" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NU,
-                    "NZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NZ,
-                    "OM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::OM,
-                    "PA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PA,
-                    "PE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PE,
-                    "PF" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PF,
-                    "PG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PG,
-                    "PH" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PH,
-                    "PK" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PK,
-                    "PL" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PL,
-                    "PM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PM,
-                    "PN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PN,
-                    "PR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PR,
-                    "PS" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PS,
-                    "PT" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PT,
-                    "PY" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PY,
-                    "QA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::QA,
-                    "RE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::RE,
-                    "RO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::RO,
-                    "RS" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::RS,
-                    "RU" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::RU,
-                    "RW" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::RW,
-                    "SA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SA,
-                    "SB" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SB,
-                    "SC" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SC,
-                    "SD" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SD,
-                    "SE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SE,
-                    "SG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SG,
-                    "SH" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SH,
-                    "SI" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SI,
-                    "SJ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SJ,
-                    "SK" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SK,
-                    "SL" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SL,
-                    "SM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SM,
-                    "SN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SN,
-                    "SO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SO,
-                    "SR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SR,
-                    "SS" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SS,
-                    "ST" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ST,
-                    "SV" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SV,
-                    "SX" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SX,
-                    "SZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SZ,
-                    "TA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TA,
-                    "TC" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TC,
-                    "TD" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TD,
-                    "TF" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TF,
-                    "TG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TG,
-                    "TH" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TH,
-                    "TJ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TJ,
-                    "TK" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TK,
-                    "TL" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TL,
-                    "TM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TM,
-                    "TN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TN,
-                    "TO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TO,
-                    "TR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TR,
-                    "TT" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TT,
-                    "TV" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TV,
-                    "TW" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TW,
-                    "TZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TZ,
-                    "UA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::UA,
-                    "UG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::UG,
-                    "US" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::US,
-                    "UY" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::UY,
-                    "UZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::UZ,
-                    "VA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::VA,
-                    "VC" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::VC,
-                    "VE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::VE,
-                    "VG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::VG,
-                    "VN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::VN,
-                    "VU" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::VU,
-                    "WF" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::WF,
-                    "WS" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::WS,
-                    "XK" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::XK,
-                    "YE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::YE,
-                    "YT" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::YT,
-                    "ZA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ZA,
-                    "ZM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ZM,
-                    "ZW" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ZW,
-                    "ZZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ZZ,
-                    other => {
-                        CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "AC" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AC,
+            "AD" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AD,
+            "AE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AE,
+            "AF" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AF,
+            "AG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AG,
+            "AI" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AI,
+            "AL" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AL,
+            "AM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AM,
+            "AO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AO,
+            "AQ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AQ,
+            "AR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AR,
+            "AT" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AT,
+            "AU" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AU,
+            "AW" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AW,
+            "AX" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AX,
+            "AZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::AZ,
+            "BA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BA,
+            "BB" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BB,
+            "BD" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BD,
+            "BE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BE,
+            "BF" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BF,
+            "BG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BG,
+            "BH" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BH,
+            "BI" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BI,
+            "BJ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BJ,
+            "BL" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BL,
+            "BM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BM,
+            "BN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BN,
+            "BO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BO,
+            "BQ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BQ,
+            "BR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BR,
+            "BS" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BS,
+            "BT" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BT,
+            "BV" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BV,
+            "BW" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BW,
+            "BY" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BY,
+            "BZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::BZ,
+            "CA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CA,
+            "CD" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CD,
+            "CF" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CF,
+            "CG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CG,
+            "CH" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CH,
+            "CI" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CI,
+            "CK" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CK,
+            "CL" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CL,
+            "CM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CM,
+            "CN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CN,
+            "CO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CO,
+            "CR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CR,
+            "CV" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CV,
+            "CW" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CW,
+            "CY" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CY,
+            "CZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::CZ,
+            "DE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::DE,
+            "DJ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::DJ,
+            "DK" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::DK,
+            "DM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::DM,
+            "DO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::DO,
+            "DZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::DZ,
+            "EC" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::EC,
+            "EE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::EE,
+            "EG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::EG,
+            "EH" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::EH,
+            "ER" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ER,
+            "ES" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ES,
+            "ET" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ET,
+            "FI" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::FI,
+            "FJ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::FJ,
+            "FK" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::FK,
+            "FO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::FO,
+            "FR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::FR,
+            "GA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GA,
+            "GB" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GB,
+            "GD" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GD,
+            "GE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GE,
+            "GF" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GF,
+            "GG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GG,
+            "GH" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GH,
+            "GI" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GI,
+            "GL" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GL,
+            "GM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GM,
+            "GN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GN,
+            "GP" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GP,
+            "GQ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GQ,
+            "GR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GR,
+            "GS" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GS,
+            "GT" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GT,
+            "GU" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GU,
+            "GW" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GW,
+            "GY" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::GY,
+            "HK" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::HK,
+            "HN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::HN,
+            "HR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::HR,
+            "HT" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::HT,
+            "HU" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::HU,
+            "ID" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ID,
+            "IE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::IE,
+            "IL" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::IL,
+            "IM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::IM,
+            "IN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::IN,
+            "IO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::IO,
+            "IQ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::IQ,
+            "IS" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::IS,
+            "IT" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::IT,
+            "JE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::JE,
+            "JM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::JM,
+            "JO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::JO,
+            "JP" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::JP,
+            "KE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::KE,
+            "KG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::KG,
+            "KH" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::KH,
+            "KI" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::KI,
+            "KM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::KM,
+            "KN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::KN,
+            "KR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::KR,
+            "KW" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::KW,
+            "KY" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::KY,
+            "KZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::KZ,
+            "LA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LA,
+            "LB" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LB,
+            "LC" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LC,
+            "LI" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LI,
+            "LK" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LK,
+            "LR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LR,
+            "LS" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LS,
+            "LT" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LT,
+            "LU" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LU,
+            "LV" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LV,
+            "LY" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::LY,
+            "MA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MA,
+            "MC" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MC,
+            "MD" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MD,
+            "ME" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ME,
+            "MF" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MF,
+            "MG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MG,
+            "MK" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MK,
+            "ML" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ML,
+            "MM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MM,
+            "MN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MN,
+            "MO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MO,
+            "MQ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MQ,
+            "MR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MR,
+            "MS" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MS,
+            "MT" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MT,
+            "MU" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MU,
+            "MV" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MV,
+            "MW" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MW,
+            "MX" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MX,
+            "MY" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MY,
+            "MZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::MZ,
+            "NA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NA,
+            "NC" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NC,
+            "NE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NE,
+            "NG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NG,
+            "NI" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NI,
+            "NL" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NL,
+            "NO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NO,
+            "NP" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NP,
+            "NR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NR,
+            "NU" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NU,
+            "NZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::NZ,
+            "OM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::OM,
+            "PA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PA,
+            "PE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PE,
+            "PF" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PF,
+            "PG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PG,
+            "PH" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PH,
+            "PK" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PK,
+            "PL" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PL,
+            "PM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PM,
+            "PN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PN,
+            "PR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PR,
+            "PS" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PS,
+            "PT" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PT,
+            "PY" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::PY,
+            "QA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::QA,
+            "RE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::RE,
+            "RO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::RO,
+            "RS" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::RS,
+            "RU" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::RU,
+            "RW" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::RW,
+            "SA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SA,
+            "SB" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SB,
+            "SC" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SC,
+            "SD" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SD,
+            "SE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SE,
+            "SG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SG,
+            "SH" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SH,
+            "SI" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SI,
+            "SJ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SJ,
+            "SK" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SK,
+            "SL" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SL,
+            "SM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SM,
+            "SN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SN,
+            "SO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SO,
+            "SR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SR,
+            "SS" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SS,
+            "ST" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ST,
+            "SV" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SV,
+            "SX" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SX,
+            "SZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::SZ,
+            "TA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TA,
+            "TC" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TC,
+            "TD" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TD,
+            "TF" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TF,
+            "TG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TG,
+            "TH" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TH,
+            "TJ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TJ,
+            "TK" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TK,
+            "TL" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TL,
+            "TM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TM,
+            "TN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TN,
+            "TO" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TO,
+            "TR" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TR,
+            "TT" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TT,
+            "TV" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TV,
+            "TW" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TW,
+            "TZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::TZ,
+            "UA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::UA,
+            "UG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::UG,
+            "US" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::US,
+            "UY" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::UY,
+            "UZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::UZ,
+            "VA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::VA,
+            "VC" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::VC,
+            "VE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::VE,
+            "VG" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::VG,
+            "VN" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::VN,
+            "VU" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::VU,
+            "WF" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::WF,
+            "WS" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::WS,
+            "XK" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::XK,
+            "YE" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::YE,
+            "YT" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::YT,
+            "ZA" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ZA,
+            "ZM" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ZM,
+            "ZW" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ZW,
+            "ZZ" => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::ZZ,
+            other => CreatePaymentLinkParamsShippingAddressCollectionAllowedCountriesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2856,40 +2562,22 @@ impl CreatePaymentLinkParamsSubmitType {
 }
 
 #[cfg(feature = "payment_links")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentLinkParamsSubmitType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentLinkParamsSubmitType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => CreatePaymentLinkParamsSubmitType::Auto,
-                    "book" => CreatePaymentLinkParamsSubmitType::Book,
-                    "donate" => CreatePaymentLinkParamsSubmitType::Donate,
-                    "pay" => CreatePaymentLinkParamsSubmitType::Pay,
-                    "subscribe" => CreatePaymentLinkParamsSubmitType::Subscribe,
-                    other => CreatePaymentLinkParamsSubmitType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentLinkParamsSubmitType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentLinkParamsSubmitType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentLinkParamsSubmitType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => CreatePaymentLinkParamsSubmitType::Auto,
+            "book" => CreatePaymentLinkParamsSubmitType::Book,
+            "donate" => CreatePaymentLinkParamsSubmitType::Donate,
+            "pay" => CreatePaymentLinkParamsSubmitType::Pay,
+            "subscribe" => CreatePaymentLinkParamsSubmitType::Subscribe,
+            other => CreatePaymentLinkParamsSubmitType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3022,44 +2710,30 @@ impl CreatePaymentLinkParamsSubscriptionDataTrialSettingsEndBehaviorMissingPayme
 }
 
 #[cfg(feature = "payment_links")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreatePaymentLinkParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentLinkParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cancel" => CreatePaymentLinkParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod::Cancel,
-                    "create_invoice" => CreatePaymentLinkParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod::CreateInvoice,
-                    "pause" => CreatePaymentLinkParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod::Pause,
-                    other => CreatePaymentLinkParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreatePaymentLinkParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentLinkParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cancel" => CreatePaymentLinkParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod::Cancel,
+            "create_invoice" => {
+                CreatePaymentLinkParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod::CreateInvoice
+            }
+            "pause" => CreatePaymentLinkParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod::Pause,
+            other => CreatePaymentLinkParamsSubscriptionDataTrialSettingsEndBehaviorMissingPaymentMethod::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -3109,37 +2783,19 @@ impl CreatePaymentLinkParamsTaxIdCollectionRequired {
 }
 
 #[cfg(feature = "payment_links")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentLinkParamsTaxIdCollectionRequired {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentLinkParamsTaxIdCollectionRequired;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "if_supported" => CreatePaymentLinkParamsTaxIdCollectionRequired::IfSupported,
-                    "never" => CreatePaymentLinkParamsTaxIdCollectionRequired::Never,
-                    other => CreatePaymentLinkParamsTaxIdCollectionRequired::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentLinkParamsTaxIdCollectionRequired::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentLinkParamsTaxIdCollectionRequired {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentLinkParamsTaxIdCollectionRequired::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "if_supported" => CreatePaymentLinkParamsTaxIdCollectionRequired::IfSupported,
+            "never" => CreatePaymentLinkParamsTaxIdCollectionRequired::Never,
+            other => CreatePaymentLinkParamsTaxIdCollectionRequired::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3233,112 +2889,113 @@ impl crate::params::FormEncode for ListPaymentLinksParams {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLink {
     #[doc = "Whether the payment link's `url` is active."]
-    #[serde(default)]
+    #[json(default)]
     pub active: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub after_completion: Option<crate::payment_links::PaymentLinksResourceAfterCompletion>,
     #[doc = "Whether user redeemable promotion codes are enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub allow_promotion_codes: bool,
     #[doc = "The ID of the Connect application that created the Payment Link."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application: Option<crate::Expandable<crate::payment_links::PaymentLinkApplicationExpanded>>,
     #[doc = "The amount of the application fee (if any) that will be requested to be applied to the payment and transferred to the..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application_fee_amount: Option<i64>,
     #[doc = "This represents the percentage of the subscription invoice total that will be transferred to the application owner's ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application_fee_percent: Option<f64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub automatic_tax: Option<crate::payment_links::PaymentLinksResourceAutomaticTax>,
     #[doc = "Configuration for collecting the customer's billing address."]
-    #[serde(default)]
+    #[json(default)]
     pub billing_address_collection: crate::payment_links::PaymentLinkBillingAddressCollection,
     #[doc = "When set, provides configuration to gather active consent from customers."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub consent_collection: Option<crate::payment_links::PaymentLinksResourceConsentCollection>,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "Collect additional information from your customer using custom fields."]
-    #[serde(default)]
+    #[json(default)]
     pub custom_fields: Vec<crate::payment_links::PaymentLinksResourceCustomFields>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub custom_text: Option<crate::payment_links::PaymentLinksResourceCustomText>,
     #[doc = "Configuration for Customer creation during checkout."]
-    #[serde(default)]
+    #[json(default)]
     pub customer_creation: crate::payment_links::PaymentLinkCustomerCreation,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The custom message to be displayed to a customer when a payment link is no longer active."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub inactive_message: Option<String>,
     #[doc = "Configuration for creating invoice for payment mode payment links."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice_creation: Option<crate::payment_links::PaymentLinksResourceInvoiceCreation>,
     #[doc = "The line items representing what is being sold."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line_items: Option<crate::List<crate::common::Item>>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Settings for Managed Payments for this Payment Link and resulting [CheckoutSessions](/api/checkout/sessions/object), ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub managed_payments: Option<crate::checkout::PaymentPagesCheckoutSessionManagedPayments>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name_collection: Option<crate::payment_links::PaymentLinksResourceNameCollection>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::payment_links::PaymentLinkObject,
     #[doc = "The account on behalf of which to charge."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub on_behalf_of: Option<crate::Expandable<crate::account::Account>>,
     #[doc = "The optional items presented to the customer at checkout."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub optional_items: Option<Vec<crate::payment_links::PaymentLinksResourceOptionalItem>>,
     #[doc = "Indicates the parameters to be passed to PaymentIntent creation during checkout."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_intent_data: Option<crate::payment_links::PaymentLinksResourcePaymentIntentData>,
     #[doc = "Configuration for collecting a payment method during checkout."]
-    #[serde(default)]
+    #[json(default)]
     pub payment_method_collection: crate::payment_links::PaymentLinkCustomerCreation,
     #[doc = "Payment-method-specific configuration."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_options: Option<crate::payment_links::PaymentLinksResourcePaymentMethodOptions>,
     #[doc = "The list of payment method types that customers can use."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_types: Option<Vec<crate::payment_links::PaymentLinkPaymentMethodTypesItem>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone_number_collection: Option<crate::payment_links::PaymentLinksResourcePhoneNumberCollection>,
     #[doc = "Settings that restrict the usage of a payment link."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub restrictions: Option<crate::payment_links::PaymentLinksResourceRestrictions>,
     #[doc = "Configuration for collecting the customer's shipping address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_address_collection: Option<crate::payment_links::PaymentLinksResourceShippingAddressCollection>,
     #[doc = "The shipping rate options applied to the session."]
-    #[serde(default)]
+    #[json(default)]
     pub shipping_options: Vec<crate::payment_links::PaymentLinksResourceShippingOption>,
     #[doc = "Indicates the type of transaction being performed which customizes relevant text on the page, such as the submit button."]
-    #[serde(default)]
+    #[json(default)]
     pub submit_type: crate::payment_links::PaymentLinkSubmitType,
     #[doc = "When creating a subscription, the specified configuration data will be used."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription_data: Option<crate::payment_links::PaymentLinksResourceSubscriptionData>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_id_collection: Option<crate::payment_links::PaymentLinksResourceTaxIdCollection>,
     #[doc = "The account (if any) the payments will be attributed to for tax reporting, and where funds from each payment will be ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transfer_data: Option<crate::payment_links::PaymentLinksResourceTransferData>,
     #[doc = "The public URL that can be shared with customers."]
-    #[serde(default)]
+    #[json(default)]
     pub url: String,
 }
 
@@ -3367,7 +3024,7 @@ pub enum PaymentLinkApplicationExpanded {
     /// Expanded `application`.
     Application(Box<crate::common::Application>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -3377,17 +3034,15 @@ pub enum PaymentLinkApplicationExpanded {
     feature = "events",
     feature = "payment_links"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentLinkApplicationExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for PaymentLinkApplicationExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "application" => PaymentLinkApplicationExpanded::Application(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "application" => {
+                PaymentLinkApplicationExpanded::Application(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
             _ => PaymentLinkApplicationExpanded::Other(value),
         })
     }
@@ -3446,37 +3101,19 @@ impl Default for PaymentLinkBillingAddressCollection {
     feature = "events",
     feature = "payment_links"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentLinkBillingAddressCollection {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentLinkBillingAddressCollection;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => PaymentLinkBillingAddressCollection::Auto,
-                    "required" => PaymentLinkBillingAddressCollection::Required,
-                    other => PaymentLinkBillingAddressCollection::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentLinkBillingAddressCollection::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentLinkBillingAddressCollection {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentLinkBillingAddressCollection::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => PaymentLinkBillingAddressCollection::Auto,
+            "required" => PaymentLinkBillingAddressCollection::Required,
+            other => PaymentLinkBillingAddressCollection::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3533,37 +3170,19 @@ impl Default for PaymentLinkCustomerCreation {
     feature = "events",
     feature = "payment_links"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentLinkCustomerCreation {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentLinkCustomerCreation;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => PaymentLinkCustomerCreation::Always,
-                    "if_required" => PaymentLinkCustomerCreation::IfRequired,
-                    other => PaymentLinkCustomerCreation::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentLinkCustomerCreation::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentLinkCustomerCreation {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentLinkCustomerCreation::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => PaymentLinkCustomerCreation::Always,
+            "if_required" => PaymentLinkCustomerCreation::IfRequired,
+            other => PaymentLinkCustomerCreation::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3618,36 +3237,18 @@ impl Default for PaymentLinkObject {
     feature = "events",
     feature = "payment_links"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentLinkObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentLinkObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "payment_link" => PaymentLinkObject::PaymentLink,
-                    other => PaymentLinkObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentLinkObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentLinkObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentLinkObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "payment_link" => PaymentLinkObject::PaymentLink,
+            other => PaymentLinkObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3775,79 +3376,61 @@ impl PaymentLinkPaymentMethodTypesItem {
     feature = "events",
     feature = "payment_links"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentLinkPaymentMethodTypesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentLinkPaymentMethodTypesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "affirm" => PaymentLinkPaymentMethodTypesItem::Affirm,
-                    "afterpay_clearpay" => PaymentLinkPaymentMethodTypesItem::AfterpayClearpay,
-                    "alipay" => PaymentLinkPaymentMethodTypesItem::Alipay,
-                    "alma" => PaymentLinkPaymentMethodTypesItem::Alma,
-                    "au_becs_debit" => PaymentLinkPaymentMethodTypesItem::AuBecsDebit,
-                    "bacs_debit" => PaymentLinkPaymentMethodTypesItem::BacsDebit,
-                    "bancontact" => PaymentLinkPaymentMethodTypesItem::Bancontact,
-                    "billie" => PaymentLinkPaymentMethodTypesItem::Billie,
-                    "bizum" => PaymentLinkPaymentMethodTypesItem::Bizum,
-                    "blik" => PaymentLinkPaymentMethodTypesItem::Blik,
-                    "boleto" => PaymentLinkPaymentMethodTypesItem::Boleto,
-                    "card" => PaymentLinkPaymentMethodTypesItem::Card,
-                    "cashapp" => PaymentLinkPaymentMethodTypesItem::Cashapp,
-                    "eps" => PaymentLinkPaymentMethodTypesItem::Eps,
-                    "fpx" => PaymentLinkPaymentMethodTypesItem::Fpx,
-                    "giropay" => PaymentLinkPaymentMethodTypesItem::Giropay,
-                    "grabpay" => PaymentLinkPaymentMethodTypesItem::Grabpay,
-                    "ideal" => PaymentLinkPaymentMethodTypesItem::Ideal,
-                    "klarna" => PaymentLinkPaymentMethodTypesItem::Klarna,
-                    "konbini" => PaymentLinkPaymentMethodTypesItem::Konbini,
-                    "link" => PaymentLinkPaymentMethodTypesItem::Link,
-                    "mb_way" => PaymentLinkPaymentMethodTypesItem::MbWay,
-                    "mobilepay" => PaymentLinkPaymentMethodTypesItem::Mobilepay,
-                    "multibanco" => PaymentLinkPaymentMethodTypesItem::Multibanco,
-                    "oxxo" => PaymentLinkPaymentMethodTypesItem::Oxxo,
-                    "p24" => PaymentLinkPaymentMethodTypesItem::P24,
-                    "pay_by_bank" => PaymentLinkPaymentMethodTypesItem::PayByBank,
-                    "paynow" => PaymentLinkPaymentMethodTypesItem::Paynow,
-                    "paypal" => PaymentLinkPaymentMethodTypesItem::Paypal,
-                    "paypay" => PaymentLinkPaymentMethodTypesItem::Paypay,
-                    "payto" => PaymentLinkPaymentMethodTypesItem::Payto,
-                    "pix" => PaymentLinkPaymentMethodTypesItem::Pix,
-                    "promptpay" => PaymentLinkPaymentMethodTypesItem::Promptpay,
-                    "satispay" => PaymentLinkPaymentMethodTypesItem::Satispay,
-                    "sepa_debit" => PaymentLinkPaymentMethodTypesItem::SepaDebit,
-                    "sequra" => PaymentLinkPaymentMethodTypesItem::Sequra,
-                    "sofort" => PaymentLinkPaymentMethodTypesItem::Sofort,
-                    "sunbit" => PaymentLinkPaymentMethodTypesItem::Sunbit,
-                    "swish" => PaymentLinkPaymentMethodTypesItem::Swish,
-                    "twint" => PaymentLinkPaymentMethodTypesItem::Twint,
-                    "upi" => PaymentLinkPaymentMethodTypesItem::Upi,
-                    "us_bank_account" => PaymentLinkPaymentMethodTypesItem::UsBankAccount,
-                    "wechat_pay" => PaymentLinkPaymentMethodTypesItem::WechatPay,
-                    "zip" => PaymentLinkPaymentMethodTypesItem::Zip,
-                    other => PaymentLinkPaymentMethodTypesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentLinkPaymentMethodTypesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentLinkPaymentMethodTypesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentLinkPaymentMethodTypesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "affirm" => PaymentLinkPaymentMethodTypesItem::Affirm,
+            "afterpay_clearpay" => PaymentLinkPaymentMethodTypesItem::AfterpayClearpay,
+            "alipay" => PaymentLinkPaymentMethodTypesItem::Alipay,
+            "alma" => PaymentLinkPaymentMethodTypesItem::Alma,
+            "au_becs_debit" => PaymentLinkPaymentMethodTypesItem::AuBecsDebit,
+            "bacs_debit" => PaymentLinkPaymentMethodTypesItem::BacsDebit,
+            "bancontact" => PaymentLinkPaymentMethodTypesItem::Bancontact,
+            "billie" => PaymentLinkPaymentMethodTypesItem::Billie,
+            "bizum" => PaymentLinkPaymentMethodTypesItem::Bizum,
+            "blik" => PaymentLinkPaymentMethodTypesItem::Blik,
+            "boleto" => PaymentLinkPaymentMethodTypesItem::Boleto,
+            "card" => PaymentLinkPaymentMethodTypesItem::Card,
+            "cashapp" => PaymentLinkPaymentMethodTypesItem::Cashapp,
+            "eps" => PaymentLinkPaymentMethodTypesItem::Eps,
+            "fpx" => PaymentLinkPaymentMethodTypesItem::Fpx,
+            "giropay" => PaymentLinkPaymentMethodTypesItem::Giropay,
+            "grabpay" => PaymentLinkPaymentMethodTypesItem::Grabpay,
+            "ideal" => PaymentLinkPaymentMethodTypesItem::Ideal,
+            "klarna" => PaymentLinkPaymentMethodTypesItem::Klarna,
+            "konbini" => PaymentLinkPaymentMethodTypesItem::Konbini,
+            "link" => PaymentLinkPaymentMethodTypesItem::Link,
+            "mb_way" => PaymentLinkPaymentMethodTypesItem::MbWay,
+            "mobilepay" => PaymentLinkPaymentMethodTypesItem::Mobilepay,
+            "multibanco" => PaymentLinkPaymentMethodTypesItem::Multibanco,
+            "oxxo" => PaymentLinkPaymentMethodTypesItem::Oxxo,
+            "p24" => PaymentLinkPaymentMethodTypesItem::P24,
+            "pay_by_bank" => PaymentLinkPaymentMethodTypesItem::PayByBank,
+            "paynow" => PaymentLinkPaymentMethodTypesItem::Paynow,
+            "paypal" => PaymentLinkPaymentMethodTypesItem::Paypal,
+            "paypay" => PaymentLinkPaymentMethodTypesItem::Paypay,
+            "payto" => PaymentLinkPaymentMethodTypesItem::Payto,
+            "pix" => PaymentLinkPaymentMethodTypesItem::Pix,
+            "promptpay" => PaymentLinkPaymentMethodTypesItem::Promptpay,
+            "satispay" => PaymentLinkPaymentMethodTypesItem::Satispay,
+            "sepa_debit" => PaymentLinkPaymentMethodTypesItem::SepaDebit,
+            "sequra" => PaymentLinkPaymentMethodTypesItem::Sequra,
+            "sofort" => PaymentLinkPaymentMethodTypesItem::Sofort,
+            "sunbit" => PaymentLinkPaymentMethodTypesItem::Sunbit,
+            "swish" => PaymentLinkPaymentMethodTypesItem::Swish,
+            "twint" => PaymentLinkPaymentMethodTypesItem::Twint,
+            "upi" => PaymentLinkPaymentMethodTypesItem::Upi,
+            "us_bank_account" => PaymentLinkPaymentMethodTypesItem::UsBankAccount,
+            "wechat_pay" => PaymentLinkPaymentMethodTypesItem::WechatPay,
+            "zip" => PaymentLinkPaymentMethodTypesItem::Zip,
+            other => PaymentLinkPaymentMethodTypesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3910,40 +3493,22 @@ impl Default for PaymentLinkSubmitType {
     feature = "events",
     feature = "payment_links"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentLinkSubmitType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentLinkSubmitType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => PaymentLinkSubmitType::Auto,
-                    "book" => PaymentLinkSubmitType::Book,
-                    "donate" => PaymentLinkSubmitType::Donate,
-                    "pay" => PaymentLinkSubmitType::Pay,
-                    "subscribe" => PaymentLinkSubmitType::Subscribe,
-                    other => PaymentLinkSubmitType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentLinkSubmitType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentLinkSubmitType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentLinkSubmitType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => PaymentLinkSubmitType::Auto,
+            "book" => PaymentLinkSubmitType::Book,
+            "donate" => PaymentLinkSubmitType::Donate,
+            "pay" => PaymentLinkSubmitType::Pay,
+            "subscribe" => PaymentLinkSubmitType::Subscribe,
+            other => PaymentLinkSubmitType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3954,14 +3519,15 @@ impl<'de> serde::Deserialize<'de> for PaymentLinkSubmitType {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceAfterCompletion {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hosted_confirmation: Option<crate::payment_links::PaymentLinksResourceCompletionBehaviorConfirmationPage>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub redirect: Option<crate::payment_links::PaymentLinksResourceCompletionBehaviorRedirect>,
     #[doc = "The specified behavior after the purchase is complete."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::payment_links::PaymentLinksResourceAfterCompletionType,
 }
 
@@ -4018,37 +3584,19 @@ impl Default for PaymentLinksResourceAfterCompletionType {
     feature = "events",
     feature = "payment_links"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentLinksResourceAfterCompletionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentLinksResourceAfterCompletionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "hosted_confirmation" => PaymentLinksResourceAfterCompletionType::HostedConfirmation,
-                    "redirect" => PaymentLinksResourceAfterCompletionType::Redirect,
-                    other => PaymentLinksResourceAfterCompletionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentLinksResourceAfterCompletionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentLinksResourceAfterCompletionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentLinksResourceAfterCompletionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "hosted_confirmation" => PaymentLinksResourceAfterCompletionType::HostedConfirmation,
+            "redirect" => PaymentLinksResourceAfterCompletionType::Redirect,
+            other => PaymentLinksResourceAfterCompletionType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4059,13 +3607,14 @@ impl<'de> serde::Deserialize<'de> for PaymentLinksResourceAfterCompletionType {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceAutomaticTax {
     #[doc = "If `true`, tax will be calculated automatically using the customer's location."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "The account that's liable for tax."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub liability: Option<crate::accounts::ConnectAccountReference>,
 }
 
@@ -4076,13 +3625,14 @@ pub struct PaymentLinksResourceAutomaticTax {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceBusinessName {
     #[doc = "Indicates whether business name collection is enabled for the payment link."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "Whether the customer is required to complete the field before checking out."]
-    #[serde(default)]
+    #[json(default)]
     pub optional: bool,
 }
 
@@ -4093,10 +3643,11 @@ pub struct PaymentLinksResourceBusinessName {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceCardPaymentMethodOptions {
     #[doc = "Restrictions to apply to the card payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub restrictions: Option<crate::payment_links::PaymentLinksResourceCardRestrictions>,
 }
 
@@ -4107,10 +3658,11 @@ pub struct PaymentLinksResourceCardPaymentMethodOptions {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceCardRestrictions {
     #[doc = "The card brands to block."]
-    #[serde(default)]
+    #[json(default)]
     pub brands_blocked: Vec<crate::payment_links::PaymentLinksResourceCardRestrictionsBrandsBlockedItem>,
 }
 
@@ -4158,41 +3710,21 @@ impl PaymentLinksResourceCardRestrictionsBrandsBlockedItem {
     feature = "events",
     feature = "payment_links"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentLinksResourceCardRestrictionsBrandsBlockedItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentLinksResourceCardRestrictionsBrandsBlockedItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "american_express" => PaymentLinksResourceCardRestrictionsBrandsBlockedItem::AmericanExpress,
-                    "discover_global_network" => {
-                        PaymentLinksResourceCardRestrictionsBrandsBlockedItem::DiscoverGlobalNetwork
-                    }
-                    "mastercard" => PaymentLinksResourceCardRestrictionsBrandsBlockedItem::Mastercard,
-                    "visa" => PaymentLinksResourceCardRestrictionsBrandsBlockedItem::Visa,
-                    other => PaymentLinksResourceCardRestrictionsBrandsBlockedItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentLinksResourceCardRestrictionsBrandsBlockedItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentLinksResourceCardRestrictionsBrandsBlockedItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentLinksResourceCardRestrictionsBrandsBlockedItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "american_express" => PaymentLinksResourceCardRestrictionsBrandsBlockedItem::AmericanExpress,
+            "discover_global_network" => PaymentLinksResourceCardRestrictionsBrandsBlockedItem::DiscoverGlobalNetwork,
+            "mastercard" => PaymentLinksResourceCardRestrictionsBrandsBlockedItem::Mastercard,
+            "visa" => PaymentLinksResourceCardRestrictionsBrandsBlockedItem::Visa,
+            other => PaymentLinksResourceCardRestrictionsBrandsBlockedItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4203,13 +3735,14 @@ impl<'de> serde::Deserialize<'de> for PaymentLinksResourceCardRestrictionsBrands
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceCompletedSessions {
     #[doc = "The current number of checkout sessions that have been completed on the payment link which count towards the `complet..."]
-    #[serde(default)]
+    #[json(default)]
     pub count: i64,
     #[doc = "The maximum number of checkout sessions that can be completed for the `completed_sessions` restriction to be met."]
-    #[serde(default)]
+    #[json(default)]
     pub limit: i64,
 }
 
@@ -4220,10 +3753,11 @@ pub struct PaymentLinksResourceCompletedSessions {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceCompletionBehaviorConfirmationPage {
     #[doc = "The custom message that is displayed to the customer after the purchase is complete."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub custom_message: Option<String>,
 }
 
@@ -4234,10 +3768,11 @@ pub struct PaymentLinksResourceCompletionBehaviorConfirmationPage {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceCompletionBehaviorRedirect {
     #[doc = "The URL the customer will be redirected to after the purchase is complete."]
-    #[serde(default)]
+    #[json(default)]
     pub url: String,
 }
 
@@ -4248,16 +3783,17 @@ pub struct PaymentLinksResourceCompletionBehaviorRedirect {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceConsentCollection {
     #[doc = "Settings related to the payment method reuse text shown in the Checkout UI."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_reuse_agreement: Option<crate::payment_links::PaymentLinksResourcePaymentMethodReuseAgreement>,
     #[doc = "If set to `auto`, enables the collection of customer consent for promotional communications."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub promotions: Option<crate::payment_links::PaymentLinksResourceConsentCollectionPromotions>,
     #[doc = "If set to `required`, it requires cutomers to accept the terms of service before being able to pay."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub terms_of_service: Option<crate::payment_links::PaymentLinksResourceConsentCollectionTermsOfService>,
 }
 
@@ -4301,37 +3837,19 @@ impl PaymentLinksResourceConsentCollectionPromotions {
     feature = "events",
     feature = "payment_links"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentLinksResourceConsentCollectionPromotions {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentLinksResourceConsentCollectionPromotions;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => PaymentLinksResourceConsentCollectionPromotions::Auto,
-                    "none" => PaymentLinksResourceConsentCollectionPromotions::None,
-                    other => PaymentLinksResourceConsentCollectionPromotions::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentLinksResourceConsentCollectionPromotions::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentLinksResourceConsentCollectionPromotions {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentLinksResourceConsentCollectionPromotions::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => PaymentLinksResourceConsentCollectionPromotions::Auto,
+            "none" => PaymentLinksResourceConsentCollectionPromotions::None,
+            other => PaymentLinksResourceConsentCollectionPromotions::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4375,37 +3893,19 @@ impl PaymentLinksResourceConsentCollectionTermsOfService {
     feature = "events",
     feature = "payment_links"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentLinksResourceConsentCollectionTermsOfService {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentLinksResourceConsentCollectionTermsOfService;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "none" => PaymentLinksResourceConsentCollectionTermsOfService::None,
-                    "required" => PaymentLinksResourceConsentCollectionTermsOfService::Required,
-                    other => PaymentLinksResourceConsentCollectionTermsOfService::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentLinksResourceConsentCollectionTermsOfService::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentLinksResourceConsentCollectionTermsOfService {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentLinksResourceConsentCollectionTermsOfService::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "none" => PaymentLinksResourceConsentCollectionTermsOfService::None,
+            "required" => PaymentLinksResourceConsentCollectionTermsOfService::Required,
+            other => PaymentLinksResourceConsentCollectionTermsOfService::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4416,24 +3916,25 @@ impl<'de> serde::Deserialize<'de> for PaymentLinksResourceConsentCollectionTerms
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceCustomFields {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub dropdown: Option<crate::payment_links::PaymentLinksResourceCustomFieldsDropdown>,
     #[doc = "String of your choice that your integration can use to reconcile this field."]
-    #[serde(default)]
+    #[json(default)]
     pub key: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub label: Option<crate::payment_links::PaymentLinksResourceCustomFieldsLabel>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub numeric: Option<crate::payment_links::PaymentLinksResourceCustomFieldsNumeric>,
     #[doc = "Whether the customer is required to complete the field before completing the Checkout Session."]
-    #[serde(default)]
+    #[json(default)]
     pub optional: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub text: Option<crate::payment_links::PaymentLinksResourceCustomFieldsText>,
     #[doc = "The type of the field."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::payment_links::PaymentLinksResourceCustomFieldsType,
 }
 
@@ -4444,13 +3945,14 @@ pub struct PaymentLinksResourceCustomFields {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceCustomFieldsDropdown {
     #[doc = "The value that pre-fills on the payment page."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_value: Option<String>,
     #[doc = "The options available for the customer to select."]
-    #[serde(default)]
+    #[json(default)]
     pub options: Vec<crate::payment_links::PaymentLinksResourceCustomFieldsDropdownOption>,
 }
 
@@ -4461,13 +3963,14 @@ pub struct PaymentLinksResourceCustomFieldsDropdown {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceCustomFieldsDropdownOption {
     #[doc = "The label for the option, displayed to the customer."]
-    #[serde(default)]
+    #[json(default)]
     pub label: String,
     #[doc = "The value for this option, not displayed to the customer, used by your integration to reconcile the option selected b..."]
-    #[serde(default)]
+    #[json(default)]
     pub value: String,
 }
 
@@ -4478,13 +3981,14 @@ pub struct PaymentLinksResourceCustomFieldsDropdownOption {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceCustomFieldsLabel {
     #[doc = "Custom text for the label, displayed to the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub custom: Option<String>,
     #[doc = "The type of the label."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::payment_links::PaymentLinksResourceCustomFieldsLabelType,
 }
 
@@ -4539,36 +4043,18 @@ impl Default for PaymentLinksResourceCustomFieldsLabelType {
     feature = "events",
     feature = "payment_links"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentLinksResourceCustomFieldsLabelType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentLinksResourceCustomFieldsLabelType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "custom" => PaymentLinksResourceCustomFieldsLabelType::Custom,
-                    other => PaymentLinksResourceCustomFieldsLabelType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentLinksResourceCustomFieldsLabelType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentLinksResourceCustomFieldsLabelType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentLinksResourceCustomFieldsLabelType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "custom" => PaymentLinksResourceCustomFieldsLabelType::Custom,
+            other => PaymentLinksResourceCustomFieldsLabelType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4579,16 +4065,17 @@ impl<'de> serde::Deserialize<'de> for PaymentLinksResourceCustomFieldsLabelType 
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceCustomFieldsNumeric {
     #[doc = "The value that pre-fills the field on the payment page."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_value: Option<String>,
     #[doc = "The maximum character length constraint for the customer's input."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub maximum_length: Option<i64>,
     #[doc = "The minimum character length requirement for the customer's input."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub minimum_length: Option<i64>,
 }
 
@@ -4599,16 +4086,17 @@ pub struct PaymentLinksResourceCustomFieldsNumeric {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceCustomFieldsText {
     #[doc = "The value that pre-fills the field on the payment page."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_value: Option<String>,
     #[doc = "The maximum character length constraint for the customer's input."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub maximum_length: Option<i64>,
     #[doc = "The minimum character length requirement for the customer's input."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub minimum_length: Option<i64>,
 }
 
@@ -4667,38 +4155,20 @@ impl Default for PaymentLinksResourceCustomFieldsType {
     feature = "events",
     feature = "payment_links"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentLinksResourceCustomFieldsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentLinksResourceCustomFieldsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "dropdown" => PaymentLinksResourceCustomFieldsType::Dropdown,
-                    "numeric" => PaymentLinksResourceCustomFieldsType::Numeric,
-                    "text" => PaymentLinksResourceCustomFieldsType::Text,
-                    other => PaymentLinksResourceCustomFieldsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentLinksResourceCustomFieldsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentLinksResourceCustomFieldsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentLinksResourceCustomFieldsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "dropdown" => PaymentLinksResourceCustomFieldsType::Dropdown,
+            "numeric" => PaymentLinksResourceCustomFieldsType::Numeric,
+            "text" => PaymentLinksResourceCustomFieldsType::Text,
+            other => PaymentLinksResourceCustomFieldsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4709,19 +4179,20 @@ impl<'de> serde::Deserialize<'de> for PaymentLinksResourceCustomFieldsType {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceCustomText {
     #[doc = "Custom text that should be displayed after the payment confirmation button."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub after_submit: Option<crate::payment_links::PaymentLinksResourceCustomTextPosition>,
     #[doc = "Custom text that should be displayed alongside shipping address collection."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_address: Option<crate::payment_links::PaymentLinksResourceCustomTextPosition>,
     #[doc = "Custom text that should be displayed alongside the payment confirmation button."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub submit: Option<crate::payment_links::PaymentLinksResourceCustomTextPosition>,
     #[doc = "Custom text that should be displayed in place of the default terms of service agreement text."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub terms_of_service_acceptance: Option<crate::payment_links::PaymentLinksResourceCustomTextPosition>,
 }
 
@@ -4732,10 +4203,11 @@ pub struct PaymentLinksResourceCustomText {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceCustomTextPosition {
     #[doc = "Text can be up to 1200 characters in length."]
-    #[serde(default)]
+    #[json(default)]
     pub message: String,
 }
 
@@ -4746,13 +4218,14 @@ pub struct PaymentLinksResourceCustomTextPosition {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceIndividualName {
     #[doc = "Indicates whether individual name collection is enabled for the payment link."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "Whether the customer is required to complete the field before checking out."]
-    #[serde(default)]
+    #[json(default)]
     pub optional: bool,
 }
 
@@ -4763,13 +4236,14 @@ pub struct PaymentLinksResourceIndividualName {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceInvoiceCreation {
     #[doc = "Enable creating an invoice on successful payment."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "Configuration for the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice_data: Option<crate::payment_links::PaymentLinksResourceInvoiceSettings>,
 }
 
@@ -4780,30 +4254,31 @@ pub struct PaymentLinksResourceInvoiceCreation {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceInvoiceSettings {
     #[doc = "The account tax IDs associated with the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_tax_ids: Option<
         Vec<crate::Expandable<crate::payment_links::PaymentLinksResourceInvoiceSettingsAccountTaxIdsItemExpanded>>,
     >,
     #[doc = "A list of up to 4 custom fields to be displayed on the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub custom_fields: Option<Vec<crate::invoices::InvoiceSettingCustomField>>,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "Footer to be displayed on the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub footer: Option<String>,
     #[doc = "The connected account that issues the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuer: Option<crate::accounts::ConnectAccountReference>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "Options for invoice PDF rendering."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub rendering_options: Option<crate::invoices::InvoiceSettingCheckoutRenderingOptions>,
 }
 
@@ -4819,7 +4294,7 @@ pub enum PaymentLinksResourceInvoiceSettingsAccountTaxIdsItemExpanded {
     /// Expanded `tax_id`.
     TaxId(Box<crate::tax_ids::TaxId>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -4829,16 +4304,14 @@ pub enum PaymentLinksResourceInvoiceSettingsAccountTaxIdsItemExpanded {
     feature = "events",
     feature = "payment_links"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentLinksResourceInvoiceSettingsAccountTaxIdsItemExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for PaymentLinksResourceInvoiceSettingsAccountTaxIdsItemExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
             "tax_id" => PaymentLinksResourceInvoiceSettingsAccountTaxIdsItemExpanded::TaxId(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
+                json::from_slice_owned(&json::to_vec(&value))?,
             )),
             _ => PaymentLinksResourceInvoiceSettingsAccountTaxIdsItemExpanded::Other(value),
         })
@@ -4852,11 +4325,12 @@ impl<'de> serde::Deserialize<'de> for PaymentLinksResourceInvoiceSettingsAccount
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceNameCollection {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub business: Option<crate::payment_links::PaymentLinksResourceBusinessName>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub individual: Option<crate::payment_links::PaymentLinksResourceIndividualName>,
 }
 
@@ -4867,13 +4341,14 @@ pub struct PaymentLinksResourceNameCollection {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceOptionalItem {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub adjustable_quantity: Option<crate::payment_links::PaymentLinksResourceOptionalItemAdjustableQuantity>,
-    #[serde(default)]
+    #[json(default)]
     pub price: String,
-    #[serde(default)]
+    #[json(default)]
     pub quantity: i64,
 }
 
@@ -4884,16 +4359,17 @@ pub struct PaymentLinksResourceOptionalItem {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceOptionalItemAdjustableQuantity {
     #[doc = "Set to true if the quantity can be adjusted to any non-negative integer."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "The maximum quantity of this item the customer can purchase."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub maximum: Option<i64>,
     #[doc = "The minimum quantity of this item the customer must purchase, if they choose to purchase it."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub minimum: Option<i64>,
 }
 
@@ -4904,28 +4380,29 @@ pub struct PaymentLinksResourceOptionalItemAdjustableQuantity {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourcePaymentIntentData {
     #[doc = "Indicates when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method: Option<crate::payment_links::PaymentLinksResourcePaymentIntentDataCaptureMethod>,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that will set metadata on [Payment Intents](https://do..."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "Indicates that you intend to make future payments with the payment method collected during checkout."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::payment_links::PaymentLinksResourcePaymentIntentDataSetupFutureUsage>,
     #[doc = "For a non-card payment, information about the charge that appears on the customer's statement when this payment succe..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
     #[doc = "For a card payment, information about the charge that appears on the customer's statement when this payment succeeds ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor_suffix: Option<String>,
     #[doc = "A string that identifies the resulting payment as part of a group."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transfer_group: Option<String>,
 }
 
@@ -4971,38 +4448,20 @@ impl PaymentLinksResourcePaymentIntentDataCaptureMethod {
     feature = "events",
     feature = "payment_links"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentLinksResourcePaymentIntentDataCaptureMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentLinksResourcePaymentIntentDataCaptureMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "automatic" => PaymentLinksResourcePaymentIntentDataCaptureMethod::Automatic,
-                    "automatic_async" => PaymentLinksResourcePaymentIntentDataCaptureMethod::AutomaticAsync,
-                    "manual" => PaymentLinksResourcePaymentIntentDataCaptureMethod::Manual,
-                    other => PaymentLinksResourcePaymentIntentDataCaptureMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentLinksResourcePaymentIntentDataCaptureMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentLinksResourcePaymentIntentDataCaptureMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentLinksResourcePaymentIntentDataCaptureMethod::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "automatic" => PaymentLinksResourcePaymentIntentDataCaptureMethod::Automatic,
+            "automatic_async" => PaymentLinksResourcePaymentIntentDataCaptureMethod::AutomaticAsync,
+            "manual" => PaymentLinksResourcePaymentIntentDataCaptureMethod::Manual,
+            other => PaymentLinksResourcePaymentIntentDataCaptureMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5046,37 +4505,19 @@ impl PaymentLinksResourcePaymentIntentDataSetupFutureUsage {
     feature = "events",
     feature = "payment_links"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentLinksResourcePaymentIntentDataSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentLinksResourcePaymentIntentDataSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "off_session" => PaymentLinksResourcePaymentIntentDataSetupFutureUsage::OffSession,
-                    "on_session" => PaymentLinksResourcePaymentIntentDataSetupFutureUsage::OnSession,
-                    other => PaymentLinksResourcePaymentIntentDataSetupFutureUsage::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentLinksResourcePaymentIntentDataSetupFutureUsage::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentLinksResourcePaymentIntentDataSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentLinksResourcePaymentIntentDataSetupFutureUsage::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "off_session" => PaymentLinksResourcePaymentIntentDataSetupFutureUsage::OffSession,
+            "on_session" => PaymentLinksResourcePaymentIntentDataSetupFutureUsage::OnSession,
+            other => PaymentLinksResourcePaymentIntentDataSetupFutureUsage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5087,10 +4528,11 @@ impl<'de> serde::Deserialize<'de> for PaymentLinksResourcePaymentIntentDataSetup
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourcePaymentMethodOptions {
     #[doc = "Configuration for `card` payment methods."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::payment_links::PaymentLinksResourceCardPaymentMethodOptions>,
 }
 
@@ -5101,10 +4543,11 @@ pub struct PaymentLinksResourcePaymentMethodOptions {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourcePaymentMethodReuseAgreement {
     #[doc = "Determines the position and visibility of the payment method reuse agreement in the UI."]
-    #[serde(default)]
+    #[json(default)]
     pub position: crate::payment_links::PaymentLinksResourcePaymentMethodReuseAgreementPosition,
 }
 
@@ -5161,37 +4604,19 @@ impl Default for PaymentLinksResourcePaymentMethodReuseAgreementPosition {
     feature = "events",
     feature = "payment_links"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentLinksResourcePaymentMethodReuseAgreementPosition {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentLinksResourcePaymentMethodReuseAgreementPosition;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => PaymentLinksResourcePaymentMethodReuseAgreementPosition::Auto,
-                    "hidden" => PaymentLinksResourcePaymentMethodReuseAgreementPosition::Hidden,
-                    other => PaymentLinksResourcePaymentMethodReuseAgreementPosition::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentLinksResourcePaymentMethodReuseAgreementPosition::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentLinksResourcePaymentMethodReuseAgreementPosition {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentLinksResourcePaymentMethodReuseAgreementPosition::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => PaymentLinksResourcePaymentMethodReuseAgreementPosition::Auto,
+            "hidden" => PaymentLinksResourcePaymentMethodReuseAgreementPosition::Hidden,
+            other => PaymentLinksResourcePaymentMethodReuseAgreementPosition::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5202,10 +4627,11 @@ impl<'de> serde::Deserialize<'de> for PaymentLinksResourcePaymentMethodReuseAgre
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourcePhoneNumberCollection {
     #[doc = "If `true`, a phone number will be collected during checkout."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
 }
 
@@ -5216,9 +4642,10 @@ pub struct PaymentLinksResourcePhoneNumberCollection {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceRestrictions {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub completed_sessions: Option<crate::payment_links::PaymentLinksResourceCompletedSessions>,
 }
 
@@ -5229,10 +4656,11 @@ pub struct PaymentLinksResourceRestrictions {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceShippingAddressCollection {
     #[doc = "An array of two-letter ISO country codes representing which countries Checkout should provide as options for shipping..."]
-    #[serde(default)]
+    #[json(default)]
     pub allowed_countries: Vec<crate::payment_links::PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem>,
 }
 
@@ -5748,277 +5176,257 @@ impl PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem {
     feature = "events",
     feature = "payment_links"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "AC" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AC,
-                    "AD" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AD,
-                    "AE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AE,
-                    "AF" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AF,
-                    "AG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AG,
-                    "AI" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AI,
-                    "AL" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AL,
-                    "AM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AM,
-                    "AO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AO,
-                    "AQ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AQ,
-                    "AR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AR,
-                    "AT" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AT,
-                    "AU" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AU,
-                    "AW" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AW,
-                    "AX" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AX,
-                    "AZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AZ,
-                    "BA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BA,
-                    "BB" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BB,
-                    "BD" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BD,
-                    "BE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BE,
-                    "BF" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BF,
-                    "BG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BG,
-                    "BH" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BH,
-                    "BI" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BI,
-                    "BJ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BJ,
-                    "BL" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BL,
-                    "BM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BM,
-                    "BN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BN,
-                    "BO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BO,
-                    "BQ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BQ,
-                    "BR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BR,
-                    "BS" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BS,
-                    "BT" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BT,
-                    "BV" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BV,
-                    "BW" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BW,
-                    "BY" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BY,
-                    "BZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BZ,
-                    "CA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CA,
-                    "CD" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CD,
-                    "CF" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CF,
-                    "CG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CG,
-                    "CH" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CH,
-                    "CI" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CI,
-                    "CK" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CK,
-                    "CL" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CL,
-                    "CM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CM,
-                    "CN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CN,
-                    "CO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CO,
-                    "CR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CR,
-                    "CV" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CV,
-                    "CW" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CW,
-                    "CY" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CY,
-                    "CZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CZ,
-                    "DE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::DE,
-                    "DJ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::DJ,
-                    "DK" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::DK,
-                    "DM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::DM,
-                    "DO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::DO,
-                    "DZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::DZ,
-                    "EC" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::EC,
-                    "EE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::EE,
-                    "EG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::EG,
-                    "EH" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::EH,
-                    "ER" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ER,
-                    "ES" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ES,
-                    "ET" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ET,
-                    "FI" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::FI,
-                    "FJ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::FJ,
-                    "FK" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::FK,
-                    "FO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::FO,
-                    "FR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::FR,
-                    "GA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GA,
-                    "GB" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GB,
-                    "GD" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GD,
-                    "GE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GE,
-                    "GF" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GF,
-                    "GG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GG,
-                    "GH" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GH,
-                    "GI" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GI,
-                    "GL" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GL,
-                    "GM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GM,
-                    "GN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GN,
-                    "GP" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GP,
-                    "GQ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GQ,
-                    "GR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GR,
-                    "GS" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GS,
-                    "GT" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GT,
-                    "GU" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GU,
-                    "GW" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GW,
-                    "GY" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GY,
-                    "HK" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::HK,
-                    "HN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::HN,
-                    "HR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::HR,
-                    "HT" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::HT,
-                    "HU" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::HU,
-                    "ID" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ID,
-                    "IE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::IE,
-                    "IL" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::IL,
-                    "IM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::IM,
-                    "IN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::IN,
-                    "IO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::IO,
-                    "IQ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::IQ,
-                    "IS" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::IS,
-                    "IT" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::IT,
-                    "JE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::JE,
-                    "JM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::JM,
-                    "JO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::JO,
-                    "JP" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::JP,
-                    "KE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::KE,
-                    "KG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::KG,
-                    "KH" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::KH,
-                    "KI" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::KI,
-                    "KM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::KM,
-                    "KN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::KN,
-                    "KR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::KR,
-                    "KW" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::KW,
-                    "KY" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::KY,
-                    "KZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::KZ,
-                    "LA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LA,
-                    "LB" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LB,
-                    "LC" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LC,
-                    "LI" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LI,
-                    "LK" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LK,
-                    "LR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LR,
-                    "LS" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LS,
-                    "LT" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LT,
-                    "LU" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LU,
-                    "LV" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LV,
-                    "LY" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LY,
-                    "MA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MA,
-                    "MC" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MC,
-                    "MD" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MD,
-                    "ME" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ME,
-                    "MF" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MF,
-                    "MG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MG,
-                    "MK" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MK,
-                    "ML" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ML,
-                    "MM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MM,
-                    "MN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MN,
-                    "MO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MO,
-                    "MQ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MQ,
-                    "MR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MR,
-                    "MS" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MS,
-                    "MT" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MT,
-                    "MU" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MU,
-                    "MV" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MV,
-                    "MW" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MW,
-                    "MX" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MX,
-                    "MY" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MY,
-                    "MZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MZ,
-                    "NA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NA,
-                    "NC" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NC,
-                    "NE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NE,
-                    "NG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NG,
-                    "NI" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NI,
-                    "NL" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NL,
-                    "NO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NO,
-                    "NP" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NP,
-                    "NR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NR,
-                    "NU" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NU,
-                    "NZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NZ,
-                    "OM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::OM,
-                    "PA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PA,
-                    "PE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PE,
-                    "PF" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PF,
-                    "PG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PG,
-                    "PH" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PH,
-                    "PK" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PK,
-                    "PL" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PL,
-                    "PM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PM,
-                    "PN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PN,
-                    "PR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PR,
-                    "PS" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PS,
-                    "PT" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PT,
-                    "PY" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PY,
-                    "QA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::QA,
-                    "RE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::RE,
-                    "RO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::RO,
-                    "RS" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::RS,
-                    "RU" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::RU,
-                    "RW" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::RW,
-                    "SA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SA,
-                    "SB" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SB,
-                    "SC" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SC,
-                    "SD" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SD,
-                    "SE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SE,
-                    "SG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SG,
-                    "SH" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SH,
-                    "SI" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SI,
-                    "SJ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SJ,
-                    "SK" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SK,
-                    "SL" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SL,
-                    "SM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SM,
-                    "SN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SN,
-                    "SO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SO,
-                    "SR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SR,
-                    "SS" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SS,
-                    "ST" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ST,
-                    "SV" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SV,
-                    "SX" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SX,
-                    "SZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SZ,
-                    "TA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TA,
-                    "TC" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TC,
-                    "TD" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TD,
-                    "TF" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TF,
-                    "TG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TG,
-                    "TH" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TH,
-                    "TJ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TJ,
-                    "TK" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TK,
-                    "TL" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TL,
-                    "TM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TM,
-                    "TN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TN,
-                    "TO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TO,
-                    "TR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TR,
-                    "TT" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TT,
-                    "TV" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TV,
-                    "TW" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TW,
-                    "TZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TZ,
-                    "UA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::UA,
-                    "UG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::UG,
-                    "US" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::US,
-                    "UY" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::UY,
-                    "UZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::UZ,
-                    "VA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::VA,
-                    "VC" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::VC,
-                    "VE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::VE,
-                    "VG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::VG,
-                    "VN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::VN,
-                    "VU" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::VU,
-                    "WF" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::WF,
-                    "WS" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::WS,
-                    "XK" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::XK,
-                    "YE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::YE,
-                    "YT" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::YT,
-                    "ZA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ZA,
-                    "ZM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ZM,
-                    "ZW" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ZW,
-                    "ZZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ZZ,
-                    other => {
-                        PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "AC" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AC,
+            "AD" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AD,
+            "AE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AE,
+            "AF" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AF,
+            "AG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AG,
+            "AI" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AI,
+            "AL" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AL,
+            "AM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AM,
+            "AO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AO,
+            "AQ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AQ,
+            "AR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AR,
+            "AT" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AT,
+            "AU" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AU,
+            "AW" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AW,
+            "AX" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AX,
+            "AZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::AZ,
+            "BA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BA,
+            "BB" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BB,
+            "BD" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BD,
+            "BE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BE,
+            "BF" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BF,
+            "BG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BG,
+            "BH" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BH,
+            "BI" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BI,
+            "BJ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BJ,
+            "BL" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BL,
+            "BM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BM,
+            "BN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BN,
+            "BO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BO,
+            "BQ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BQ,
+            "BR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BR,
+            "BS" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BS,
+            "BT" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BT,
+            "BV" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BV,
+            "BW" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BW,
+            "BY" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BY,
+            "BZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::BZ,
+            "CA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CA,
+            "CD" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CD,
+            "CF" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CF,
+            "CG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CG,
+            "CH" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CH,
+            "CI" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CI,
+            "CK" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CK,
+            "CL" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CL,
+            "CM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CM,
+            "CN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CN,
+            "CO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CO,
+            "CR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CR,
+            "CV" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CV,
+            "CW" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CW,
+            "CY" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CY,
+            "CZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::CZ,
+            "DE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::DE,
+            "DJ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::DJ,
+            "DK" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::DK,
+            "DM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::DM,
+            "DO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::DO,
+            "DZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::DZ,
+            "EC" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::EC,
+            "EE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::EE,
+            "EG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::EG,
+            "EH" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::EH,
+            "ER" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ER,
+            "ES" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ES,
+            "ET" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ET,
+            "FI" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::FI,
+            "FJ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::FJ,
+            "FK" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::FK,
+            "FO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::FO,
+            "FR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::FR,
+            "GA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GA,
+            "GB" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GB,
+            "GD" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GD,
+            "GE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GE,
+            "GF" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GF,
+            "GG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GG,
+            "GH" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GH,
+            "GI" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GI,
+            "GL" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GL,
+            "GM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GM,
+            "GN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GN,
+            "GP" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GP,
+            "GQ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GQ,
+            "GR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GR,
+            "GS" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GS,
+            "GT" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GT,
+            "GU" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GU,
+            "GW" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GW,
+            "GY" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::GY,
+            "HK" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::HK,
+            "HN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::HN,
+            "HR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::HR,
+            "HT" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::HT,
+            "HU" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::HU,
+            "ID" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ID,
+            "IE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::IE,
+            "IL" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::IL,
+            "IM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::IM,
+            "IN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::IN,
+            "IO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::IO,
+            "IQ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::IQ,
+            "IS" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::IS,
+            "IT" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::IT,
+            "JE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::JE,
+            "JM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::JM,
+            "JO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::JO,
+            "JP" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::JP,
+            "KE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::KE,
+            "KG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::KG,
+            "KH" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::KH,
+            "KI" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::KI,
+            "KM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::KM,
+            "KN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::KN,
+            "KR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::KR,
+            "KW" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::KW,
+            "KY" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::KY,
+            "KZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::KZ,
+            "LA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LA,
+            "LB" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LB,
+            "LC" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LC,
+            "LI" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LI,
+            "LK" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LK,
+            "LR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LR,
+            "LS" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LS,
+            "LT" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LT,
+            "LU" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LU,
+            "LV" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LV,
+            "LY" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::LY,
+            "MA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MA,
+            "MC" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MC,
+            "MD" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MD,
+            "ME" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ME,
+            "MF" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MF,
+            "MG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MG,
+            "MK" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MK,
+            "ML" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ML,
+            "MM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MM,
+            "MN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MN,
+            "MO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MO,
+            "MQ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MQ,
+            "MR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MR,
+            "MS" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MS,
+            "MT" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MT,
+            "MU" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MU,
+            "MV" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MV,
+            "MW" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MW,
+            "MX" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MX,
+            "MY" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MY,
+            "MZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::MZ,
+            "NA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NA,
+            "NC" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NC,
+            "NE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NE,
+            "NG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NG,
+            "NI" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NI,
+            "NL" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NL,
+            "NO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NO,
+            "NP" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NP,
+            "NR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NR,
+            "NU" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NU,
+            "NZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::NZ,
+            "OM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::OM,
+            "PA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PA,
+            "PE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PE,
+            "PF" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PF,
+            "PG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PG,
+            "PH" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PH,
+            "PK" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PK,
+            "PL" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PL,
+            "PM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PM,
+            "PN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PN,
+            "PR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PR,
+            "PS" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PS,
+            "PT" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PT,
+            "PY" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::PY,
+            "QA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::QA,
+            "RE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::RE,
+            "RO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::RO,
+            "RS" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::RS,
+            "RU" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::RU,
+            "RW" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::RW,
+            "SA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SA,
+            "SB" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SB,
+            "SC" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SC,
+            "SD" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SD,
+            "SE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SE,
+            "SG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SG,
+            "SH" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SH,
+            "SI" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SI,
+            "SJ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SJ,
+            "SK" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SK,
+            "SL" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SL,
+            "SM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SM,
+            "SN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SN,
+            "SO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SO,
+            "SR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SR,
+            "SS" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SS,
+            "ST" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ST,
+            "SV" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SV,
+            "SX" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SX,
+            "SZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::SZ,
+            "TA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TA,
+            "TC" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TC,
+            "TD" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TD,
+            "TF" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TF,
+            "TG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TG,
+            "TH" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TH,
+            "TJ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TJ,
+            "TK" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TK,
+            "TL" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TL,
+            "TM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TM,
+            "TN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TN,
+            "TO" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TO,
+            "TR" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TR,
+            "TT" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TT,
+            "TV" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TV,
+            "TW" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TW,
+            "TZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::TZ,
+            "UA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::UA,
+            "UG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::UG,
+            "US" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::US,
+            "UY" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::UY,
+            "UZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::UZ,
+            "VA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::VA,
+            "VC" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::VC,
+            "VE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::VE,
+            "VG" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::VG,
+            "VN" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::VN,
+            "VU" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::VU,
+            "WF" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::WF,
+            "WS" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::WS,
+            "XK" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::XK,
+            "YE" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::YE,
+            "YT" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::YT,
+            "ZA" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ZA,
+            "ZM" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ZM,
+            "ZW" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ZW,
+            "ZZ" => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::ZZ,
+            other => PaymentLinksResourceShippingAddressCollectionAllowedCountriesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6029,13 +5437,14 @@ impl<'de> serde::Deserialize<'de> for PaymentLinksResourceShippingAddressCollect
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceShippingOption {
     #[doc = "A non-negative integer in cents representing how much to charge."]
-    #[serde(default)]
+    #[json(default)]
     pub shipping_amount: i64,
     #[doc = "The ID of the Shipping Rate to use for this shipping option."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_rate: Option<crate::Expandable<crate::shipping_rates::ShippingRate>>,
 }
 
@@ -6046,21 +5455,22 @@ pub struct PaymentLinksResourceShippingOption {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceSubscriptionData {
     #[doc = "The subscription's description, meant to be displayable to the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice_settings: Option<crate::payment_links::PaymentLinksResourceSubscriptionDataInvoiceSettings>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that will set metadata on [Subscriptions](https://docs..."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "Integer representing the number of trial period days before the customer is charged for the first time."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub trial_period_days: Option<i64>,
     #[doc = "Settings related to subscription trials."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub trial_settings: Option<crate::subscriptions::SubscriptionsTrialsResourceTrialSettings>,
 }
 
@@ -6071,9 +5481,10 @@ pub struct PaymentLinksResourceSubscriptionData {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceSubscriptionDataInvoiceSettings {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuer: Option<crate::accounts::ConnectAccountReference>,
 }
 
@@ -6084,12 +5495,13 @@ pub struct PaymentLinksResourceSubscriptionDataInvoiceSettings {
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceTaxIdCollection {
     #[doc = "Indicates whether tax ID collection is enabled for the session."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
-    #[serde(default)]
+    #[json(default)]
     pub required: crate::payment_links::PaymentLinksResourceTaxIdCollectionRequired,
 }
 
@@ -6146,37 +5558,19 @@ impl Default for PaymentLinksResourceTaxIdCollectionRequired {
     feature = "events",
     feature = "payment_links"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentLinksResourceTaxIdCollectionRequired {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentLinksResourceTaxIdCollectionRequired;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "if_supported" => PaymentLinksResourceTaxIdCollectionRequired::IfSupported,
-                    "never" => PaymentLinksResourceTaxIdCollectionRequired::Never,
-                    other => PaymentLinksResourceTaxIdCollectionRequired::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentLinksResourceTaxIdCollectionRequired::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentLinksResourceTaxIdCollectionRequired {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentLinksResourceTaxIdCollectionRequired::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "if_supported" => PaymentLinksResourceTaxIdCollectionRequired::IfSupported,
+            "never" => PaymentLinksResourceTaxIdCollectionRequired::Never,
+            other => PaymentLinksResourceTaxIdCollectionRequired::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6187,13 +5581,14 @@ impl<'de> serde::Deserialize<'de> for PaymentLinksResourceTaxIdCollectionRequire
     feature = "events",
     feature = "payment_links"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentLinksResourceTransferData {
     #[doc = "The amount in cents (or local equivalent) that will be transferred to the destination account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
     #[doc = "The connected account receiving the transfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub destination: Option<crate::Expandable<crate::account::Account>>,
 }
 
@@ -6207,9 +5602,9 @@ pub struct UpdatePaymentLinkParams {
     #[doc = "Enables user redeemable promotion codes."]
     pub allow_promotion_codes: Option<bool>,
     #[doc = "The amount of the application fee (if any) that will be requested to be applied to the payment and transferred to the..."]
-    pub application_fee_amount: Option<serde_json::Value>,
+    pub application_fee_amount: Option<json::OwnedValue>,
     #[doc = "A non-negative decimal between 0 and 100, with at most two decimal places."]
-    pub application_fee_percent: Option<serde_json::Value>,
+    pub application_fee_percent: Option<json::OwnedValue>,
     #[doc = "Configuration for automatic tax collection."]
     pub automatic_tax: Option<crate::payment_links::UpdatePaymentLinkParamsAutomaticTax>,
     #[doc = "Configuration for collecting the customer's billing address."]
@@ -6217,7 +5612,7 @@ pub struct UpdatePaymentLinkParams {
     #[doc = "Configure fields to gather active consent from customers."]
     pub consent_collection: Option<crate::payment_links::UpdatePaymentLinkParamsConsentCollection>,
     #[doc = "Collect additional information from your customer using custom fields."]
-    pub custom_fields: Option<serde_json::Value>,
+    pub custom_fields: Option<json::OwnedValue>,
     #[doc = "Display additional text for your customers using custom text."]
     pub custom_text: Option<crate::payment_links::UpdatePaymentLinkParamsCustomText>,
     #[doc = "Configures whether [checkout sessions](https://docs.stripe.com/api/checkout/sessions) created by this payment link cr..."]
@@ -6225,7 +5620,7 @@ pub struct UpdatePaymentLinkParams {
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "The custom message to be displayed to a customer when a payment link is no longer active."]
-    pub inactive_message: Option<serde_json::Value>,
+    pub inactive_message: Option<json::OwnedValue>,
     #[doc = "Generate a post-purchase Invoice for one-time payments."]
     pub invoice_creation: Option<crate::payment_links::UpdatePaymentLinkParamsInvoiceCreation>,
     #[doc = "The line items representing what is being sold."]
@@ -6235,9 +5630,9 @@ pub struct UpdatePaymentLinkParams {
     #[doc = "Controls settings applied for collecting the customer's name."]
     pub name_collection: Option<crate::payment_links::UpdatePaymentLinkParamsNameCollection>,
     #[doc = "The account on behalf of which to charge."]
-    pub on_behalf_of: Option<serde_json::Value>,
+    pub on_behalf_of: Option<json::OwnedValue>,
     #[doc = "A list of optional items the customer can add to their order at checkout."]
-    pub optional_items: Option<serde_json::Value>,
+    pub optional_items: Option<json::OwnedValue>,
     #[doc = "A subset of parameters to be passed to PaymentIntent creation for Checkout Sessions in `payment` mode."]
     pub payment_intent_data: Option<crate::payment_links::UpdatePaymentLinkParamsPaymentIntentData>,
     #[doc = "Specify whether Checkout should collect a payment method."]
@@ -6245,7 +5640,7 @@ pub struct UpdatePaymentLinkParams {
     #[doc = "Payment-method-specific configuration."]
     pub payment_method_options: Option<crate::payment_links::UpdatePaymentLinkParamsPaymentMethodOptions>,
     #[doc = "The list of payment method types that customers can use."]
-    pub payment_method_types: Option<serde_json::Value>,
+    pub payment_method_types: Option<json::OwnedValue>,
     #[doc = "Controls phone number collection settings during checkout."]
     pub phone_number_collection: Option<crate::payment_links::UpdatePaymentLinkParamsPhoneNumberCollection>,
     #[doc = "Settings that restrict the usage of a payment link."]
@@ -6253,7 +5648,7 @@ pub struct UpdatePaymentLinkParams {
     #[doc = "Configuration for collecting the customer's shipping address."]
     pub shipping_address_collection: Option<crate::payment_links::UpdatePaymentLinkParamsShippingAddressCollection>,
     #[doc = "The shipping rate options to apply to [checkout sessions](https://docs.stripe.com/api/checkout/sessions) created by t..."]
-    pub shipping_options: Option<serde_json::Value>,
+    pub shipping_options: Option<json::OwnedValue>,
     #[doc = "Describes the type of transaction being performed in order to customize relevant text on the page, such as the submit..."]
     pub submit_type: Option<crate::payment_links::UpdatePaymentLinkParamsSubmitType>,
     #[doc = "When creating a subscription, the specified configuration data will be used."]
@@ -6486,9 +5881,9 @@ impl crate::params::FormEncode for UpdatePaymentLinkParamsInvoiceCreation {
 #[derive(Debug, Clone, Default)]
 pub struct UpdatePaymentLinkParamsInvoiceCreationInvoiceData {
     #[doc = "The account tax IDs associated with the invoice."]
-    pub account_tax_ids: Option<serde_json::Value>,
+    pub account_tax_ids: Option<json::OwnedValue>,
     #[doc = "Default custom fields to be displayed on invoices for this customer."]
-    pub custom_fields: Option<serde_json::Value>,
+    pub custom_fields: Option<json::OwnedValue>,
     #[doc = "An arbitrary string attached to the object."]
     pub description: Option<String>,
     #[doc = "Default footer to be displayed on invoices for this customer."]
@@ -6613,17 +6008,17 @@ pub type UpdatePaymentLinkParamsNameCollectionIndividual =
 #[derive(Debug, Clone, Default)]
 pub struct UpdatePaymentLinkParamsPaymentIntentData {
     #[doc = "An arbitrary string attached to the object."]
-    pub description: Option<serde_json::Value>,
+    pub description: Option<json::OwnedValue>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that will declaratively set metadata on [Payment Inten..."]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "Indicates that you intend to [make future payments](https://docs.stripe.com/payments/payment-intents#future-usage) wi..."]
     pub setup_future_usage: Option<crate::payment_links::UpdatePaymentLinkParamsPaymentIntentDataSetupFutureUsage>,
     #[doc = "Text that appears on the customer's statement as the statement descriptor for a non-card charge."]
-    pub statement_descriptor: Option<serde_json::Value>,
+    pub statement_descriptor: Option<json::OwnedValue>,
     #[doc = "Provides information about a card charge."]
-    pub statement_descriptor_suffix: Option<serde_json::Value>,
+    pub statement_descriptor_suffix: Option<json::OwnedValue>,
     #[doc = "A string that identifies the resulting payment as part of a group."]
-    pub transfer_group: Option<serde_json::Value>,
+    pub transfer_group: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "payment_links")]
@@ -6662,38 +6057,20 @@ impl UpdatePaymentLinkParamsPaymentIntentDataSetupFutureUsage {
 }
 
 #[cfg(feature = "payment_links")]
-impl<'de> serde::Deserialize<'de> for UpdatePaymentLinkParamsPaymentIntentDataSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = UpdatePaymentLinkParamsPaymentIntentDataSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => UpdatePaymentLinkParamsPaymentIntentDataSetupFutureUsage::Unnamed,
-                    "off_session" => UpdatePaymentLinkParamsPaymentIntentDataSetupFutureUsage::OffSession,
-                    "on_session" => UpdatePaymentLinkParamsPaymentIntentDataSetupFutureUsage::OnSession,
-                    other => UpdatePaymentLinkParamsPaymentIntentDataSetupFutureUsage::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(UpdatePaymentLinkParamsPaymentIntentDataSetupFutureUsage::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for UpdatePaymentLinkParamsPaymentIntentDataSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(UpdatePaymentLinkParamsPaymentIntentDataSetupFutureUsage::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => UpdatePaymentLinkParamsPaymentIntentDataSetupFutureUsage::Unnamed,
+            "off_session" => UpdatePaymentLinkParamsPaymentIntentDataSetupFutureUsage::OffSession,
+            "on_session" => UpdatePaymentLinkParamsPaymentIntentDataSetupFutureUsage::OnSession,
+            other => UpdatePaymentLinkParamsPaymentIntentDataSetupFutureUsage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6739,7 +6116,7 @@ impl crate::params::FormEncode for UpdatePaymentLinkParamsPaymentMethodOptionsCa
 #[derive(Debug, Clone, Default)]
 pub struct UpdatePaymentLinkParamsPaymentMethodOptionsCardRestrictions {
     #[doc = "The card brands to block."]
-    pub brands_blocked: Option<serde_json::Value>,
+    pub brands_blocked: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "payment_links")]
@@ -6803,7 +6180,7 @@ pub struct UpdatePaymentLinkParamsSubscriptionData {
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that will declaratively set metadata on [Subscriptions..."]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "Integer representing the number of trial period days before the customer is charged for the first time."]
-    pub trial_period_days: Option<serde_json::Value>,
+    pub trial_period_days: Option<json::OwnedValue>,
     #[doc = "Settings related to subscription trials."]
     pub trial_settings: Option<crate::payment_links::UpdatePaymentLinkParamsSubscriptionDataTrialSettings>,
 }
@@ -6914,7 +6291,7 @@ pub type UpdatePaymentLinkParamsTaxIdCollectionRequired =
 #[derive(Debug, Clone, Default)]
 pub struct UpdatePaymentLinkParamsTransferData {
     #[doc = "The amount that will be transferred automatically when a charge succeeds."]
-    pub amount: Option<serde_json::Value>,
+    pub amount: Option<json::OwnedValue>,
     #[doc = "If specified, successful charges will be attributed to the destination  account for tax reporting, and the funds from..."]
     pub destination: String,
 }

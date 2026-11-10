@@ -9,12 +9,13 @@
 #![allow(non_camel_case_types)]
 
 #[cfg(any(feature = "balance_settings", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BalanceSettings {
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::balance_settings::BalanceSettingsObject,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payments: Option<crate::balance_settings::BalanceSettingsResourcePayments>,
 }
 
@@ -45,50 +46,33 @@ impl Default for BalanceSettingsObject {
 }
 
 #[cfg(any(feature = "balance_settings", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for BalanceSettingsObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BalanceSettingsObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "balance_settings" => BalanceSettingsObject::BalanceSettings,
-                    other => BalanceSettingsObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BalanceSettingsObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BalanceSettingsObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BalanceSettingsObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "balance_settings" => BalanceSettingsObject::BalanceSettings,
+            other => BalanceSettingsObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "balance_settings", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BalanceSettingsResourceAutomaticTransferRule {
     #[doc = "The ID of the FinancialAccount that funds will be transferred to during automatic transfers."]
-    #[serde(default)]
+    #[json(default)]
     pub payout_method: String,
     #[doc = "The maximum amount in minor units to transfer to the FinancialAccount."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transfer_up_to_amount: Option<i64>,
     #[doc = "The type of automatic transfer rule."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::balance_settings::BalanceSettingsResourceAutomaticTransferRuleType,
 }
 
@@ -121,64 +105,48 @@ impl Default for BalanceSettingsResourceAutomaticTransferRuleType {
 }
 
 #[cfg(any(feature = "balance_settings", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for BalanceSettingsResourceAutomaticTransferRuleType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BalanceSettingsResourceAutomaticTransferRuleType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "transfer_all" => BalanceSettingsResourceAutomaticTransferRuleType::TransferAll,
-                    "transfer_up_to_amount" => BalanceSettingsResourceAutomaticTransferRuleType::TransferUpToAmount,
-                    other => BalanceSettingsResourceAutomaticTransferRuleType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BalanceSettingsResourceAutomaticTransferRuleType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BalanceSettingsResourceAutomaticTransferRuleType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BalanceSettingsResourceAutomaticTransferRuleType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "transfer_all" => BalanceSettingsResourceAutomaticTransferRuleType::TransferAll,
+            "transfer_up_to_amount" => BalanceSettingsResourceAutomaticTransferRuleType::TransferUpToAmount,
+            other => BalanceSettingsResourceAutomaticTransferRuleType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "balance_settings", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BalanceSettingsResourcePayments {
     #[doc = "A Boolean indicating if Stripe should try to reclaim negative balances from an attached bank account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub debit_negative_balances: Option<bool>,
     #[doc = "Settings specific to the account's payouts."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payouts: Option<crate::balance_settings::BalanceSettingsResourcePayouts>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub settlement_timing: Option<crate::balance_settings::BalanceSettingsResourceSettlementTiming>,
 }
 
 #[cfg(any(feature = "balance_settings", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BalanceSettingsResourcePayoutSchedule {
     #[doc = "How frequently funds will be paid out."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub interval: Option<crate::balance_settings::BalanceSettingsResourcePayoutScheduleInterval>,
     #[doc = "The day of the month funds will be paid out."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub monthly_payout_days: Option<Vec<i64>>,
     #[doc = "The days of the week when available funds are paid out, specified as an array, for example, [`monday`, `tuesday`]."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub weekly_payout_days:
         Option<Vec<crate::balance_settings::BalanceSettingsResourcePayoutScheduleWeeklyPayoutDaysItem>>,
 }
@@ -209,39 +177,21 @@ impl BalanceSettingsResourcePayoutScheduleInterval {
 }
 
 #[cfg(any(feature = "balance_settings", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for BalanceSettingsResourcePayoutScheduleInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BalanceSettingsResourcePayoutScheduleInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "daily" => BalanceSettingsResourcePayoutScheduleInterval::Daily,
-                    "manual" => BalanceSettingsResourcePayoutScheduleInterval::Manual,
-                    "monthly" => BalanceSettingsResourcePayoutScheduleInterval::Monthly,
-                    "weekly" => BalanceSettingsResourcePayoutScheduleInterval::Weekly,
-                    other => BalanceSettingsResourcePayoutScheduleInterval::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BalanceSettingsResourcePayoutScheduleInterval::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BalanceSettingsResourcePayoutScheduleInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BalanceSettingsResourcePayoutScheduleInterval::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "daily" => BalanceSettingsResourcePayoutScheduleInterval::Daily,
+            "manual" => BalanceSettingsResourcePayoutScheduleInterval::Manual,
+            "monthly" => BalanceSettingsResourcePayoutScheduleInterval::Monthly,
+            "weekly" => BalanceSettingsResourcePayoutScheduleInterval::Weekly,
+            other => BalanceSettingsResourcePayoutScheduleInterval::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -273,62 +223,45 @@ impl BalanceSettingsResourcePayoutScheduleWeeklyPayoutDaysItem {
 }
 
 #[cfg(any(feature = "balance_settings", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for BalanceSettingsResourcePayoutScheduleWeeklyPayoutDaysItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BalanceSettingsResourcePayoutScheduleWeeklyPayoutDaysItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "friday" => BalanceSettingsResourcePayoutScheduleWeeklyPayoutDaysItem::Friday,
-                    "monday" => BalanceSettingsResourcePayoutScheduleWeeklyPayoutDaysItem::Monday,
-                    "thursday" => BalanceSettingsResourcePayoutScheduleWeeklyPayoutDaysItem::Thursday,
-                    "tuesday" => BalanceSettingsResourcePayoutScheduleWeeklyPayoutDaysItem::Tuesday,
-                    "wednesday" => BalanceSettingsResourcePayoutScheduleWeeklyPayoutDaysItem::Wednesday,
-                    other => BalanceSettingsResourcePayoutScheduleWeeklyPayoutDaysItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BalanceSettingsResourcePayoutScheduleWeeklyPayoutDaysItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BalanceSettingsResourcePayoutScheduleWeeklyPayoutDaysItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BalanceSettingsResourcePayoutScheduleWeeklyPayoutDaysItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "friday" => BalanceSettingsResourcePayoutScheduleWeeklyPayoutDaysItem::Friday,
+            "monday" => BalanceSettingsResourcePayoutScheduleWeeklyPayoutDaysItem::Monday,
+            "thursday" => BalanceSettingsResourcePayoutScheduleWeeklyPayoutDaysItem::Thursday,
+            "tuesday" => BalanceSettingsResourcePayoutScheduleWeeklyPayoutDaysItem::Tuesday,
+            "wednesday" => BalanceSettingsResourcePayoutScheduleWeeklyPayoutDaysItem::Wednesday,
+            other => BalanceSettingsResourcePayoutScheduleWeeklyPayoutDaysItem::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "balance_settings", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BalanceSettingsResourcePayouts {
     #[doc = "Configures per-currency rules for automatically transferring funds from the payments balance to a FinancialAccount."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub automatic_transfer_rules_by_currency: Option<
         std::collections::HashMap<String, Vec<crate::balance_settings::BalanceSettingsResourceAutomaticTransferRule>>,
     >,
     #[doc = "The minimum balance amount to retain per currency after automatic payouts."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub minimum_balance_by_currency: Option<std::collections::HashMap<String, i64>>,
     #[doc = "Details on when funds from charges are available, and when they are paid out to an external account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub schedule: Option<crate::balance_settings::BalanceSettingsResourcePayoutSchedule>,
     #[doc = "The text that appears on the bank account statement for payouts."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
     #[doc = "Whether the funds in this account can be paid out."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::balance_settings::BalanceSettingsResourcePayoutsStatus,
 }
 
@@ -361,65 +294,49 @@ impl Default for BalanceSettingsResourcePayoutsStatus {
 }
 
 #[cfg(any(feature = "balance_settings", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for BalanceSettingsResourcePayoutsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BalanceSettingsResourcePayoutsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "disabled" => BalanceSettingsResourcePayoutsStatus::Disabled,
-                    "enabled" => BalanceSettingsResourcePayoutsStatus::Enabled,
-                    other => BalanceSettingsResourcePayoutsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BalanceSettingsResourcePayoutsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BalanceSettingsResourcePayoutsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BalanceSettingsResourcePayoutsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "disabled" => BalanceSettingsResourcePayoutsStatus::Disabled,
+            "enabled" => BalanceSettingsResourcePayoutsStatus::Enabled,
+            other => BalanceSettingsResourcePayoutsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "balance_settings", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BalanceSettingsResourceSettlementTiming {
     #[doc = "The number of days charge funds are held before becoming available."]
-    #[serde(default)]
+    #[json(default)]
     pub delay_days: i64,
     #[doc = "The number of days charge funds are held before becoming available."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub delay_days_override: Option<i64>,
     #[doc = "Customized start of day configuration for automatic payouts to group and send payments in local timezones with a cust..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub start_of_day: Option<crate::balance_settings::BalanceSettingsResourceStartOfDay>,
 }
 
 #[cfg(any(feature = "balance_settings", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BalanceSettingsResourceStartOfDay {
     #[doc = "Hour at which the customized start of day begins according to the given timezone."]
-    #[serde(default)]
+    #[json(default)]
     pub hour: i64,
     #[doc = "Minutes at which the customized start of day begins according to the given timezone."]
-    #[serde(default)]
+    #[json(default)]
     pub minutes: i64,
     #[doc = "Timezone for the customized start of day."]
-    #[serde(default)]
+    #[json(default)]
     pub timezone: String,
 }
 
@@ -466,9 +383,9 @@ impl crate::params::FormEncode for CreateBalanceSettingParamsPayments {
 #[derive(Debug, Clone, Default)]
 pub struct CreateBalanceSettingParamsPaymentsPayouts {
     #[doc = "Configures per-currency rules for automatically transferring funds from the payments balance to a FinancialAccount."]
-    pub automatic_transfer_rules_by_currency: Option<std::collections::HashMap<String, serde_json::Value>>,
+    pub automatic_transfer_rules_by_currency: Option<std::collections::HashMap<String, json::OwnedValue>>,
     #[doc = "The minimum balance amount to retain per currency after automatic payouts."]
-    pub minimum_balance_by_currency: Option<std::collections::HashMap<String, serde_json::Value>>,
+    pub minimum_balance_by_currency: Option<std::collections::HashMap<String, json::OwnedValue>>,
     #[doc = "Details on when funds from charges are available, and when they are paid out to an external account."]
     pub schedule: Option<crate::balance_settings::CreateBalanceSettingParamsPaymentsPayoutsSchedule>,
     #[doc = "The text that appears on the bank account statement for payouts."]
@@ -534,39 +451,21 @@ impl CreateBalanceSettingParamsPaymentsPayoutsScheduleInterval {
 }
 
 #[cfg(feature = "balance_settings")]
-impl<'de> serde::Deserialize<'de> for CreateBalanceSettingParamsPaymentsPayoutsScheduleInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateBalanceSettingParamsPaymentsPayoutsScheduleInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "daily" => CreateBalanceSettingParamsPaymentsPayoutsScheduleInterval::Daily,
-                    "manual" => CreateBalanceSettingParamsPaymentsPayoutsScheduleInterval::Manual,
-                    "monthly" => CreateBalanceSettingParamsPaymentsPayoutsScheduleInterval::Monthly,
-                    "weekly" => CreateBalanceSettingParamsPaymentsPayoutsScheduleInterval::Weekly,
-                    other => CreateBalanceSettingParamsPaymentsPayoutsScheduleInterval::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateBalanceSettingParamsPaymentsPayoutsScheduleInterval::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateBalanceSettingParamsPaymentsPayoutsScheduleInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateBalanceSettingParamsPaymentsPayoutsScheduleInterval::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "daily" => CreateBalanceSettingParamsPaymentsPayoutsScheduleInterval::Daily,
+            "manual" => CreateBalanceSettingParamsPaymentsPayoutsScheduleInterval::Manual,
+            "monthly" => CreateBalanceSettingParamsPaymentsPayoutsScheduleInterval::Monthly,
+            "weekly" => CreateBalanceSettingParamsPaymentsPayoutsScheduleInterval::Weekly,
+            other => CreateBalanceSettingParamsPaymentsPayoutsScheduleInterval::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -605,44 +504,24 @@ impl CreateBalanceSettingParamsPaymentsPayoutsScheduleWeeklyPayoutDaysItem {
 }
 
 #[cfg(feature = "balance_settings")]
-impl<'de> serde::Deserialize<'de> for CreateBalanceSettingParamsPaymentsPayoutsScheduleWeeklyPayoutDaysItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateBalanceSettingParamsPaymentsPayoutsScheduleWeeklyPayoutDaysItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "friday" => CreateBalanceSettingParamsPaymentsPayoutsScheduleWeeklyPayoutDaysItem::Friday,
-                    "monday" => CreateBalanceSettingParamsPaymentsPayoutsScheduleWeeklyPayoutDaysItem::Monday,
-                    "thursday" => CreateBalanceSettingParamsPaymentsPayoutsScheduleWeeklyPayoutDaysItem::Thursday,
-                    "tuesday" => CreateBalanceSettingParamsPaymentsPayoutsScheduleWeeklyPayoutDaysItem::Tuesday,
-                    "wednesday" => CreateBalanceSettingParamsPaymentsPayoutsScheduleWeeklyPayoutDaysItem::Wednesday,
-                    other => CreateBalanceSettingParamsPaymentsPayoutsScheduleWeeklyPayoutDaysItem::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateBalanceSettingParamsPaymentsPayoutsScheduleWeeklyPayoutDaysItem::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateBalanceSettingParamsPaymentsPayoutsScheduleWeeklyPayoutDaysItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateBalanceSettingParamsPaymentsPayoutsScheduleWeeklyPayoutDaysItem::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "friday" => CreateBalanceSettingParamsPaymentsPayoutsScheduleWeeklyPayoutDaysItem::Friday,
+            "monday" => CreateBalanceSettingParamsPaymentsPayoutsScheduleWeeklyPayoutDaysItem::Monday,
+            "thursday" => CreateBalanceSettingParamsPaymentsPayoutsScheduleWeeklyPayoutDaysItem::Thursday,
+            "tuesday" => CreateBalanceSettingParamsPaymentsPayoutsScheduleWeeklyPayoutDaysItem::Tuesday,
+            "wednesday" => CreateBalanceSettingParamsPaymentsPayoutsScheduleWeeklyPayoutDaysItem::Wednesday,
+            other => CreateBalanceSettingParamsPaymentsPayoutsScheduleWeeklyPayoutDaysItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -657,7 +536,7 @@ impl crate::params::FormEncode for CreateBalanceSettingParamsPaymentsPayoutsSche
 #[derive(Debug, Clone, Default)]
 pub struct CreateBalanceSettingParamsPaymentsSettlementTiming {
     #[doc = "Change `delay_days` for this account, which determines the number of days charge funds are held before becoming avail..."]
-    pub delay_days_override: Option<serde_json::Value>,
+    pub delay_days_override: Option<json::OwnedValue>,
     #[doc = "Customized start of day configuration for automatic payouts to group and send payments in local timezones with a cust..."]
     pub start_of_day: Option<crate::balance_settings::CreateBalanceSettingParamsPaymentsSettlementTimingStartOfDay>,
 }

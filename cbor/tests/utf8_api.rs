@@ -94,7 +94,7 @@ fn to_canonical_vec_into_matches_to_canonical_vec() {
     assert_eq!(buffer, cbor::to_canonical_vec(&value));
 }
 
-#[cfg(feature = "std")]
+#[cfg(all(feature = "std", feature = "serde"))]
 #[test]
 fn serde_to_vec_into_reuses_the_buffer() {
     let value = ("hello", 42u64);

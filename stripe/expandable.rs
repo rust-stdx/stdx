@@ -5,12 +5,7 @@
 //! without ambiguity and without buffering the whole JSON document: a string is
 //! parsed straight to [`Expandable::Id`], and an object is streamed into `T`.
 
-use core::{fmt, marker::PhantomData};
-
-use serde::{
-    Deserialize, Deserializer, Serialize, Serializer,
-    de::{MapAccess, Visitor, value::MapAccessDeserializer},
-};
+use json::{Decode, Decoder, Encode, Encoder, ErrorKind, Result, Write};
 
 /// A field that may be either an id or the expanded object.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -55,55 +50,23 @@ impl<T> Expandable<T> {
     }
 }
 
-impl<'de, T: Deserialize<'de>> Deserialize<'de> for Expandable<T> {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        struct ExpandableVisitor<T>(PhantomData<T>);
-
-        impl<'de, T: Deserialize<'de>> Visitor<'de> for ExpandableVisitor<T> {
-            type Value = Expandable<T>;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("a string id or an expanded object")
-            }
-
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(Expandable::Id(value.to_string()))
-            }
-
-            fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(Expandable::Id(value))
-            }
-
-            fn visit_map<A>(self, map: A) -> Result<Self::Value, A::Error>
-            where
-                A: MapAccess<'de>,
-            {
-                let object = T::deserialize(MapAccessDeserializer::new(map))?;
-                Ok(Expandable::Object(Box::new(object)))
-            }
+impl<'a, T: Decode<'a>> Decode<'a> for Expandable<T> {
+    fn decode(decoder: &mut Decoder<'a>) -> Result<Self> {
+        decoder.skip_ws()?;
+        match decoder.peek_byte() {
+            Some(b'"') => Ok(Expandable::Id(decoder.decode_string()?)),
+            Some(b'{') => Ok(Expandable::Object(Box::new(decoder.decode::<T>()?))),
+            None => Err(decoder.error(ErrorKind::UnexpectedEof)),
+            Some(_) => Err(decoder.error(ErrorKind::Message("expected an id or an expanded object"))),
         }
-
-        deserializer.deserialize_any(ExpandableVisitor(PhantomData))
     }
 }
 
-impl<T: Serialize> Serialize for Expandable<T> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
+impl<T: Encode> Encode for Expandable<T> {
+    fn encode<W: Write>(&self, encoder: &mut Encoder<W>) -> core::result::Result<(), W::Error> {
         match self {
-            Expandable::Id(id) => serializer.serialize_str(id),
-            Expandable::Object(object) => object.serialize(serializer),
+            Expandable::Id(id) => encoder.string(id),
+            Expandable::Object(object) => object.encode(encoder),
         }
     }
 }

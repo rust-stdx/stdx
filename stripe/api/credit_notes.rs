@@ -97,37 +97,19 @@ impl CreateCreditNoteParamsEmailType {
 }
 
 #[cfg(feature = "credit_notes")]
-impl<'de> serde::Deserialize<'de> for CreateCreditNoteParamsEmailType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCreditNoteParamsEmailType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "credit_note" => CreateCreditNoteParamsEmailType::CreditNote,
-                    "none" => CreateCreditNoteParamsEmailType::None,
-                    other => CreateCreditNoteParamsEmailType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCreditNoteParamsEmailType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCreditNoteParamsEmailType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCreditNoteParamsEmailType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "credit_note" => CreateCreditNoteParamsEmailType::CreditNote,
+            "none" => CreateCreditNoteParamsEmailType::None,
+            other => CreateCreditNoteParamsEmailType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -152,9 +134,9 @@ pub struct CreateCreditNoteParamsLinesItem {
     #[doc = "The line item quantity to credit."]
     pub quantity: Option<i64>,
     #[doc = "A list of up to 20 tax amounts for the credit note line item."]
-    pub tax_amounts: Option<serde_json::Value>,
+    pub tax_amounts: Option<json::OwnedValue>,
     #[doc = "The tax rates which apply to the credit note line item."]
-    pub tax_rates: Option<serde_json::Value>,
+    pub tax_rates: Option<json::OwnedValue>,
     #[doc = "Type of the credit note line item, one of `invoice_line_item` or `custom_line_item`."]
     pub r#type: crate::credit_notes::CreateCreditNoteParamsLinesItemType,
     #[doc = "The integer unit amount in cents (or local equivalent) of the credit note line item."]
@@ -203,37 +185,19 @@ impl CreateCreditNoteParamsLinesItemType {
 }
 
 #[cfg(feature = "credit_notes")]
-impl<'de> serde::Deserialize<'de> for CreateCreditNoteParamsLinesItemType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCreditNoteParamsLinesItemType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "custom_line_item" => CreateCreditNoteParamsLinesItemType::CustomLineItem,
-                    "invoice_line_item" => CreateCreditNoteParamsLinesItemType::InvoiceLineItem,
-                    other => CreateCreditNoteParamsLinesItemType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCreditNoteParamsLinesItemType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCreditNoteParamsLinesItemType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCreditNoteParamsLinesItemType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "custom_line_item" => CreateCreditNoteParamsLinesItemType::CustomLineItem,
+            "invoice_line_item" => CreateCreditNoteParamsLinesItemType::InvoiceLineItem,
+            other => CreateCreditNoteParamsLinesItemType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -270,39 +234,21 @@ impl CreateCreditNoteParamsReason {
 }
 
 #[cfg(feature = "credit_notes")]
-impl<'de> serde::Deserialize<'de> for CreateCreditNoteParamsReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCreditNoteParamsReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "duplicate" => CreateCreditNoteParamsReason::Duplicate,
-                    "fraudulent" => CreateCreditNoteParamsReason::Fraudulent,
-                    "order_change" => CreateCreditNoteParamsReason::OrderChange,
-                    "product_unsatisfactory" => CreateCreditNoteParamsReason::ProductUnsatisfactory,
-                    other => CreateCreditNoteParamsReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCreditNoteParamsReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCreditNoteParamsReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCreditNoteParamsReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "duplicate" => CreateCreditNoteParamsReason::Duplicate,
+            "fraudulent" => CreateCreditNoteParamsReason::Fraudulent,
+            "order_change" => CreateCreditNoteParamsReason::OrderChange,
+            "product_unsatisfactory" => CreateCreditNoteParamsReason::ProductUnsatisfactory,
+            other => CreateCreditNoteParamsReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -375,37 +321,19 @@ impl CreateCreditNoteParamsRefundsItemType {
 }
 
 #[cfg(feature = "credit_notes")]
-impl<'de> serde::Deserialize<'de> for CreateCreditNoteParamsRefundsItemType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCreditNoteParamsRefundsItemType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "payment_record_refund" => CreateCreditNoteParamsRefundsItemType::PaymentRecordRefund,
-                    "refund" => CreateCreditNoteParamsRefundsItemType::Refund,
-                    other => CreateCreditNoteParamsRefundsItemType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCreditNoteParamsRefundsItemType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCreditNoteParamsRefundsItemType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCreditNoteParamsRefundsItemType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "payment_record_refund" => CreateCreditNoteParamsRefundsItemType::PaymentRecordRefund,
+            "refund" => CreateCreditNoteParamsRefundsItemType::Refund,
+            other => CreateCreditNoteParamsRefundsItemType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -431,109 +359,110 @@ impl crate::params::FormEncode for CreateCreditNoteParamsShippingCost {
 }
 
 #[cfg(any(feature = "credit_notes", feature = "customers", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CreditNote {
     #[doc = "The integer amount in cents (or local equivalent) representing the total amount of the credit note, including tax."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "This is the sum of all the shipping amounts."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_shipping: i64,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "ID of the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<crate::Expandable<crate::credit_notes::CreditNoteCustomerExpanded>>,
     #[doc = "ID of the account representing the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_account: Option<String>,
     #[doc = "Customer balance transaction related to this credit note."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_balance_transaction: Option<crate::Expandable<crate::customers::CustomerBalanceTransaction>>,
     #[doc = "The integer amount in cents (or local equivalent) representing the total amount of discount that was credited."]
-    #[serde(default)]
+    #[json(default)]
     pub discount_amount: i64,
     #[doc = "The aggregate amounts calculated per discount for all line items."]
-    #[serde(default)]
+    #[json(default)]
     pub discount_amounts: Vec<crate::common::DiscountsResourceDiscountAmount>,
     #[doc = "The date when this credit note is in effect."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub effective_at: Option<i64>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "ID of the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice: Option<crate::Expandable<crate::invoices::Invoice>>,
     #[doc = "Line items that make up the credit note"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub lines: Option<crate::List<crate::credit_notes::CreditNoteLineItem>>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Customer-facing text that appears on the credit note PDF."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub memo: Option<String>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "A unique number that identifies this particular credit note and appears on the PDF of the credit note and its associa..."]
-    #[serde(default)]
+    #[json(default)]
     pub number: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::credit_notes::CreditNoteObject,
     #[doc = "Amount that was credited outside of Stripe."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub out_of_band_amount: Option<i64>,
     #[doc = "The link to download the PDF of the credit note."]
-    #[serde(default)]
+    #[json(default)]
     pub pdf: String,
     #[doc = "The amount of the credit note that was refunded to the customer, credited to the customer's balance, credited outside..."]
-    #[serde(default)]
+    #[json(default)]
     pub post_payment_amount: i64,
     #[doc = "The amount of the credit note by which the invoice's `amount_remaining` and `amount_due` were reduced."]
-    #[serde(default)]
+    #[json(default)]
     pub pre_payment_amount: i64,
     #[doc = "The pretax credit amounts (ex: discount, credit grants, etc) for all line items."]
-    #[serde(default)]
+    #[json(default)]
     pub pretax_credit_amounts: Vec<crate::credit_notes::CreditNotesPretaxCreditAmount>,
     #[doc = "Reason for issuing this credit note, one of `duplicate`, `fraudulent`, `order_change`, or `product_unsatisfactory`"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<crate::credit_notes::CreditNoteReason>,
     #[doc = "Refunds related to this credit note."]
-    #[serde(default)]
+    #[json(default)]
     pub refunds: Vec<crate::credit_notes::CreditNoteRefund>,
     #[doc = "The details of the cost of shipping, including the ShippingRate applied to the invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_cost: Option<crate::invoices::InvoicesResourceShippingCost>,
     #[doc = "Status of this credit note, one of `issued` or `void`."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::credit_notes::CreditNoteStatus,
     #[doc = "The integer amount in cents (or local equivalent) representing the amount of the credit note, excluding exclusive tax..."]
-    #[serde(default)]
+    #[json(default)]
     pub subtotal: i64,
     #[doc = "The integer amount in cents (or local equivalent) representing the amount of the credit note, excluding all tax and i..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subtotal_excluding_tax: Option<i64>,
     #[doc = "The integer amount in cents (or local equivalent) representing the total amount of the credit note, including tax and..."]
-    #[serde(default)]
+    #[json(default)]
     pub total: i64,
     #[doc = "The integer amount in cents (or local equivalent) representing the total amount of the credit note, excluding tax, bu..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub total_excluding_tax: Option<i64>,
     #[doc = "The aggregate tax information for all line items."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub total_taxes: Option<Vec<crate::billing::BillingBillResourceInvoicingTaxesTax>>,
     #[doc = "Type of this credit note, one of `pre_payment` or `post_payment`."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::credit_notes::CreditNoteType,
     #[doc = "The time that the credit note was voided."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub voided_at: Option<i64>,
 }
 
@@ -550,76 +479,75 @@ pub enum CreditNoteCustomerExpanded {
     /// Expanded `customer`.
     Customer(Box<crate::customers::Customer>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(feature = "credit_notes", feature = "customers", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for CreditNoteCustomerExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for CreditNoteCustomerExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "customer" => CreditNoteCustomerExpanded::Customer(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "customer" => {
+                CreditNoteCustomerExpanded::Customer(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
             _ => CreditNoteCustomerExpanded::Other(value),
         })
     }
 }
 
 #[cfg(any(feature = "credit_notes", feature = "customers", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CreditNoteLineItem {
     #[doc = "The integer amount in cents (or local equivalent) representing the gross amount being credited for this line item, ex..."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Description of the item being credited."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "The integer amount in cents (or local equivalent) representing the discount being credited for this line item."]
-    #[serde(default)]
+    #[json(default)]
     pub discount_amount: i64,
     #[doc = "The amount of discount calculated per discount for this line item"]
-    #[serde(default)]
+    #[json(default)]
     pub discount_amounts: Vec<crate::common::DiscountsResourceDiscountAmount>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "ID of the invoice line item being credited"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice_line_item: Option<String>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::credit_notes::CreditNoteLineItemObject,
     #[doc = "The pretax credit amounts (ex: discount, credit grants, etc) for this line item."]
-    #[serde(default)]
+    #[json(default)]
     pub pretax_credit_amounts: Vec<crate::credit_notes::CreditNotesPretaxCreditAmount>,
     #[doc = "The number of units of product being credited."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub quantity: Option<i64>,
     #[doc = "The tax rates which apply to the line item."]
-    #[serde(default)]
+    #[json(default)]
     pub tax_rates: Vec<crate::tax_rates::TaxRate>,
     #[doc = "The tax information of the line item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub taxes: Option<Vec<crate::billing::BillingBillResourceInvoicingTaxesTax>>,
     #[doc = "The type of the credit note line item, one of `invoice_line_item` or `custom_line_item`."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::credit_notes::CreditNoteLineItemType,
     #[doc = "The cost of each unit of product being credited."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unit_amount: Option<i64>,
     #[doc = "Same as `unit_amount`, but contains a decimal value with at most 12 decimal places."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unit_amount_decimal: Option<String>,
 }
 
@@ -657,36 +585,18 @@ impl Default for CreditNoteLineItemObject {
 }
 
 #[cfg(any(feature = "credit_notes", feature = "customers", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for CreditNoteLineItemObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreditNoteLineItemObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "credit_note_line_item" => CreditNoteLineItemObject::CreditNoteLineItem,
-                    other => CreditNoteLineItemObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreditNoteLineItemObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreditNoteLineItemObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreditNoteLineItemObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "credit_note_line_item" => CreditNoteLineItemObject::CreditNoteLineItem,
+            other => CreditNoteLineItemObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -719,37 +629,19 @@ impl Default for CreditNoteLineItemType {
 }
 
 #[cfg(any(feature = "credit_notes", feature = "customers", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for CreditNoteLineItemType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreditNoteLineItemType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "custom_line_item" => CreditNoteLineItemType::CustomLineItem,
-                    "invoice_line_item" => CreditNoteLineItemType::InvoiceLineItem,
-                    other => CreditNoteLineItemType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreditNoteLineItemType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreditNoteLineItemType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreditNoteLineItemType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "custom_line_item" => CreditNoteLineItemType::CustomLineItem,
+            "invoice_line_item" => CreditNoteLineItemType::InvoiceLineItem,
+            other => CreditNoteLineItemType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -780,36 +672,18 @@ impl Default for CreditNoteObject {
 }
 
 #[cfg(any(feature = "credit_notes", feature = "customers", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for CreditNoteObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreditNoteObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "credit_note" => CreditNoteObject::CreditNote,
-                    other => CreditNoteObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreditNoteObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreditNoteObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreditNoteObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "credit_note" => CreditNoteObject::CreditNote,
+            other => CreditNoteObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -839,56 +713,39 @@ impl CreditNoteReason {
 }
 
 #[cfg(any(feature = "credit_notes", feature = "customers", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for CreditNoteReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreditNoteReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "duplicate" => CreditNoteReason::Duplicate,
-                    "fraudulent" => CreditNoteReason::Fraudulent,
-                    "order_change" => CreditNoteReason::OrderChange,
-                    "product_unsatisfactory" => CreditNoteReason::ProductUnsatisfactory,
-                    other => CreditNoteReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreditNoteReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreditNoteReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreditNoteReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "duplicate" => CreditNoteReason::Duplicate,
+            "fraudulent" => CreditNoteReason::Fraudulent,
+            "order_change" => CreditNoteReason::OrderChange,
+            "product_unsatisfactory" => CreditNoteReason::ProductUnsatisfactory,
+            other => CreditNoteReason::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "credit_notes", feature = "customers", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CreditNoteRefund {
     #[doc = "Amount of the refund that applies to this credit note, in cents (or local equivalent)."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_refunded: i64,
     #[doc = "The PaymentRecord refund details associated with this credit note refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_record_refund: Option<crate::credit_notes::CreditNotesPaymentRecordRefund>,
     #[doc = "ID of the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund: Option<crate::Expandable<crate::refunds::Refund>>,
     #[doc = "Type of the refund, one of `refund` or `payment_record_refund`."]
-    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    #[json(rename = "type", default, skip_serializing_if = "Option::is_none")]
     pub r#type: Option<crate::credit_notes::CreditNoteRefundType>,
 }
 
@@ -914,37 +771,19 @@ impl CreditNoteRefundType {
 }
 
 #[cfg(any(feature = "credit_notes", feature = "customers", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for CreditNoteRefundType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreditNoteRefundType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "payment_record_refund" => CreditNoteRefundType::PaymentRecordRefund,
-                    "refund" => CreditNoteRefundType::Refund,
-                    other => CreditNoteRefundType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreditNoteRefundType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreditNoteRefundType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreditNoteRefundType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "payment_record_refund" => CreditNoteRefundType::PaymentRecordRefund,
+            "refund" => CreditNoteRefundType::Refund,
+            other => CreditNoteRefundType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -977,37 +816,19 @@ impl Default for CreditNoteStatus {
 }
 
 #[cfg(any(feature = "credit_notes", feature = "customers", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for CreditNoteStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreditNoteStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "issued" => CreditNoteStatus::Issued,
-                    "void" => CreditNoteStatus::Void,
-                    other => CreditNoteStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreditNoteStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreditNoteStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreditNoteStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "issued" => CreditNoteStatus::Issued,
+            "void" => CreditNoteStatus::Void,
+            other => CreditNoteStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1042,66 +863,50 @@ impl Default for CreditNoteType {
 }
 
 #[cfg(any(feature = "credit_notes", feature = "customers", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for CreditNoteType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreditNoteType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "mixed" => CreditNoteType::Mixed,
-                    "post_payment" => CreditNoteType::PostPayment,
-                    "pre_payment" => CreditNoteType::PrePayment,
-                    other => CreditNoteType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreditNoteType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreditNoteType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreditNoteType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "mixed" => CreditNoteType::Mixed,
+            "post_payment" => CreditNoteType::PostPayment,
+            "pre_payment" => CreditNoteType::PrePayment,
+            other => CreditNoteType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "credit_notes", feature = "customers", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CreditNotesPaymentRecordRefund {
     #[doc = "ID of the payment record."]
-    #[serde(default)]
+    #[json(default)]
     pub payment_record: String,
     #[doc = "ID of the refund group."]
-    #[serde(default)]
+    #[json(default)]
     pub refund_group: String,
 }
 
 #[cfg(any(feature = "credit_notes", feature = "customers", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CreditNotesPretaxCreditAmount {
     #[doc = "The amount, in cents (or local equivalent), of the pretax credit amount."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "The credit balance transaction that was applied to get this pretax credit amount."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub credit_balance_transaction: Option<crate::Expandable<crate::billing::BillingCreditBalanceTransaction>>,
     #[doc = "The discount that was applied to get this pretax credit amount."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub discount: Option<crate::Expandable<crate::credit_notes::CreditNotesPretaxCreditAmountDiscountExpanded>>,
     #[doc = "Type of the pretax credit amount referenced."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::credit_notes::CreditNotesPretaxCreditAmountType,
 }
 
@@ -1111,21 +916,19 @@ pub enum CreditNotesPretaxCreditAmountDiscountExpanded {
     /// Expanded `discount`.
     Discount(Box<crate::coupons::Discount>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(feature = "credit_notes", feature = "customers", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for CreditNotesPretaxCreditAmountDiscountExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for CreditNotesPretaxCreditAmountDiscountExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "discount" => CreditNotesPretaxCreditAmountDiscountExpanded::Discount(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "discount" => CreditNotesPretaxCreditAmountDiscountExpanded::Discount(Box::new(json::from_slice_owned(
+                &json::to_vec(&value),
+            )?)),
             _ => CreditNotesPretaxCreditAmountDiscountExpanded::Other(value),
         })
     }
@@ -1160,37 +963,19 @@ impl Default for CreditNotesPretaxCreditAmountType {
 }
 
 #[cfg(any(feature = "credit_notes", feature = "customers", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for CreditNotesPretaxCreditAmountType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreditNotesPretaxCreditAmountType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "credit_balance_transaction" => CreditNotesPretaxCreditAmountType::CreditBalanceTransaction,
-                    "discount" => CreditNotesPretaxCreditAmountType::Discount,
-                    other => CreditNotesPretaxCreditAmountType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreditNotesPretaxCreditAmountType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreditNotesPretaxCreditAmountType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreditNotesPretaxCreditAmountType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "credit_balance_transaction" => CreditNotesPretaxCreditAmountType::CreditBalanceTransaction,
+            "discount" => CreditNotesPretaxCreditAmountType::Discount,
+            other => CreditNotesPretaxCreditAmountType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1279,9 +1064,9 @@ pub struct GetCreditNotePreviewParamsLinesItem {
     #[doc = "The line item quantity to credit."]
     pub quantity: Option<i64>,
     #[doc = "A list of up to 20 tax amounts for the credit note line item."]
-    pub tax_amounts: Option<serde_json::Value>,
+    pub tax_amounts: Option<json::OwnedValue>,
     #[doc = "The tax rates which apply to the credit note line item."]
-    pub tax_rates: Option<serde_json::Value>,
+    pub tax_rates: Option<json::OwnedValue>,
     #[doc = "Type of the credit note line item, one of `invoice_line_item` or `custom_line_item`."]
     pub r#type: crate::credit_notes::GetCreditNotePreviewParamsLinesItemType,
     #[doc = "The integer unit amount in cents (or local equivalent) of the credit note line item."]
@@ -1444,9 +1229,9 @@ pub struct ListCreditNotePreviewLinesParamsLinesItem {
     #[doc = "The line item quantity to credit."]
     pub quantity: Option<i64>,
     #[doc = "A list of up to 20 tax amounts for the credit note line item."]
-    pub tax_amounts: Option<serde_json::Value>,
+    pub tax_amounts: Option<json::OwnedValue>,
     #[doc = "The tax rates which apply to the credit note line item."]
-    pub tax_rates: Option<serde_json::Value>,
+    pub tax_rates: Option<json::OwnedValue>,
     #[doc = "Type of the credit note line item, one of `invoice_line_item` or `custom_line_item`."]
     pub r#type: crate::credit_notes::ListCreditNotePreviewLinesParamsLinesItemType,
     #[doc = "The integer unit amount in cents (or local equivalent) of the credit note line item."]

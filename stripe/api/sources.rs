@@ -97,39 +97,21 @@ impl CreateSourceParamsFlow {
 }
 
 #[cfg(feature = "sources")]
-impl<'de> serde::Deserialize<'de> for CreateSourceParamsFlow {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSourceParamsFlow;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "code_verification" => CreateSourceParamsFlow::CodeVerification,
-                    "none" => CreateSourceParamsFlow::None,
-                    "receiver" => CreateSourceParamsFlow::Receiver,
-                    "redirect" => CreateSourceParamsFlow::Redirect,
-                    other => CreateSourceParamsFlow::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSourceParamsFlow::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateSourceParamsFlow {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSourceParamsFlow::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "code_verification" => CreateSourceParamsFlow::CodeVerification,
+            "none" => CreateSourceParamsFlow::None,
+            "receiver" => CreateSourceParamsFlow::Receiver,
+            "redirect" => CreateSourceParamsFlow::Redirect,
+            other => CreateSourceParamsFlow::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -146,7 +128,7 @@ pub struct CreateSourceParamsMandate {
     #[doc = "The parameters required to notify Stripe of a mandate acceptance or refusal by the customer."]
     pub acceptance: Option<crate::sources::CreateSourceParamsMandateAcceptance>,
     #[doc = "The amount specified by the mandate."]
-    pub amount: Option<serde_json::Value>,
+    pub amount: Option<json::OwnedValue>,
     #[doc = "The currency specified by the mandate."]
     pub currency: Option<String>,
     #[doc = "The interval of debits permitted by the mandate."]
@@ -257,39 +239,21 @@ impl CreateSourceParamsMandateAcceptanceStatus {
 }
 
 #[cfg(feature = "sources")]
-impl<'de> serde::Deserialize<'de> for CreateSourceParamsMandateAcceptanceStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSourceParamsMandateAcceptanceStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "accepted" => CreateSourceParamsMandateAcceptanceStatus::Accepted,
-                    "pending" => CreateSourceParamsMandateAcceptanceStatus::Pending,
-                    "refused" => CreateSourceParamsMandateAcceptanceStatus::Refused,
-                    "revoked" => CreateSourceParamsMandateAcceptanceStatus::Revoked,
-                    other => CreateSourceParamsMandateAcceptanceStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSourceParamsMandateAcceptanceStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateSourceParamsMandateAcceptanceStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSourceParamsMandateAcceptanceStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "accepted" => CreateSourceParamsMandateAcceptanceStatus::Accepted,
+            "pending" => CreateSourceParamsMandateAcceptanceStatus::Pending,
+            "refused" => CreateSourceParamsMandateAcceptanceStatus::Refused,
+            "revoked" => CreateSourceParamsMandateAcceptanceStatus::Revoked,
+            other => CreateSourceParamsMandateAcceptanceStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -322,37 +286,19 @@ impl CreateSourceParamsMandateAcceptanceType {
 }
 
 #[cfg(feature = "sources")]
-impl<'de> serde::Deserialize<'de> for CreateSourceParamsMandateAcceptanceType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSourceParamsMandateAcceptanceType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "offline" => CreateSourceParamsMandateAcceptanceType::Offline,
-                    "online" => CreateSourceParamsMandateAcceptanceType::Online,
-                    other => CreateSourceParamsMandateAcceptanceType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSourceParamsMandateAcceptanceType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateSourceParamsMandateAcceptanceType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSourceParamsMandateAcceptanceType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "offline" => CreateSourceParamsMandateAcceptanceType::Offline,
+            "online" => CreateSourceParamsMandateAcceptanceType::Online,
+            other => CreateSourceParamsMandateAcceptanceType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -387,38 +333,20 @@ impl CreateSourceParamsMandateInterval {
 }
 
 #[cfg(feature = "sources")]
-impl<'de> serde::Deserialize<'de> for CreateSourceParamsMandateInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSourceParamsMandateInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "one_time" => CreateSourceParamsMandateInterval::OneTime,
-                    "scheduled" => CreateSourceParamsMandateInterval::Scheduled,
-                    "variable" => CreateSourceParamsMandateInterval::Variable,
-                    other => CreateSourceParamsMandateInterval::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSourceParamsMandateInterval::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateSourceParamsMandateInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSourceParamsMandateInterval::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "one_time" => CreateSourceParamsMandateInterval::OneTime,
+            "scheduled" => CreateSourceParamsMandateInterval::Scheduled,
+            "variable" => CreateSourceParamsMandateInterval::Variable,
+            other => CreateSourceParamsMandateInterval::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -457,40 +385,22 @@ impl CreateSourceParamsMandateNotificationMethod {
 }
 
 #[cfg(feature = "sources")]
-impl<'de> serde::Deserialize<'de> for CreateSourceParamsMandateNotificationMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSourceParamsMandateNotificationMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "deprecated_none" => CreateSourceParamsMandateNotificationMethod::DeprecatedNone,
-                    "email" => CreateSourceParamsMandateNotificationMethod::Email,
-                    "manual" => CreateSourceParamsMandateNotificationMethod::Manual,
-                    "none" => CreateSourceParamsMandateNotificationMethod::None,
-                    "stripe_email" => CreateSourceParamsMandateNotificationMethod::StripeEmail,
-                    other => CreateSourceParamsMandateNotificationMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSourceParamsMandateNotificationMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateSourceParamsMandateNotificationMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSourceParamsMandateNotificationMethod::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "deprecated_none" => CreateSourceParamsMandateNotificationMethod::DeprecatedNone,
+            "email" => CreateSourceParamsMandateNotificationMethod::Email,
+            "manual" => CreateSourceParamsMandateNotificationMethod::Manual,
+            "none" => CreateSourceParamsMandateNotificationMethod::None,
+            "stripe_email" => CreateSourceParamsMandateNotificationMethod::StripeEmail,
+            other => CreateSourceParamsMandateNotificationMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -591,38 +501,20 @@ impl CreateSourceParamsReceiverRefundAttributesMethod {
 }
 
 #[cfg(feature = "sources")]
-impl<'de> serde::Deserialize<'de> for CreateSourceParamsReceiverRefundAttributesMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSourceParamsReceiverRefundAttributesMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "email" => CreateSourceParamsReceiverRefundAttributesMethod::Email,
-                    "manual" => CreateSourceParamsReceiverRefundAttributesMethod::Manual,
-                    "none" => CreateSourceParamsReceiverRefundAttributesMethod::None,
-                    other => CreateSourceParamsReceiverRefundAttributesMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSourceParamsReceiverRefundAttributesMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateSourceParamsReceiverRefundAttributesMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSourceParamsReceiverRefundAttributesMethod::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "email" => CreateSourceParamsReceiverRefundAttributesMethod::Email,
+            "manual" => CreateSourceParamsReceiverRefundAttributesMethod::Manual,
+            "none" => CreateSourceParamsReceiverRefundAttributesMethod::None,
+            other => CreateSourceParamsReceiverRefundAttributesMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -719,39 +611,21 @@ impl CreateSourceParamsSourceOrderItemsItemType {
 }
 
 #[cfg(feature = "sources")]
-impl<'de> serde::Deserialize<'de> for CreateSourceParamsSourceOrderItemsItemType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSourceParamsSourceOrderItemsItemType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "discount" => CreateSourceParamsSourceOrderItemsItemType::Discount,
-                    "shipping" => CreateSourceParamsSourceOrderItemsItemType::Shipping,
-                    "sku" => CreateSourceParamsSourceOrderItemsItemType::Sku,
-                    "tax" => CreateSourceParamsSourceOrderItemsItemType::Tax,
-                    other => CreateSourceParamsSourceOrderItemsItemType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSourceParamsSourceOrderItemsItemType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateSourceParamsSourceOrderItemsItemType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSourceParamsSourceOrderItemsItemType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "discount" => CreateSourceParamsSourceOrderItemsItemType::Discount,
+            "shipping" => CreateSourceParamsSourceOrderItemsItemType::Shipping,
+            "sku" => CreateSourceParamsSourceOrderItemsItemType::Sku,
+            "tax" => CreateSourceParamsSourceOrderItemsItemType::Tax,
+            other => CreateSourceParamsSourceOrderItemsItemType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -839,37 +713,19 @@ impl CreateSourceParamsUsage {
 }
 
 #[cfg(feature = "sources")]
-impl<'de> serde::Deserialize<'de> for CreateSourceParamsUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateSourceParamsUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "reusable" => CreateSourceParamsUsage::Reusable,
-                    "single_use" => CreateSourceParamsUsage::SingleUse,
-                    other => CreateSourceParamsUsage::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateSourceParamsUsage::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateSourceParamsUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateSourceParamsUsage::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "reusable" => CreateSourceParamsUsage::Reusable,
+            "single_use" => CreateSourceParamsUsage::SingleUse,
+            other => CreateSourceParamsUsage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -964,101 +820,102 @@ impl crate::params::FormEncode for ListSourceSourceTransactionsParams {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Source {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ach_credit_transfer: Option<crate::sources::SourceTypeAchCreditTransfer>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ach_debit: Option<crate::sources::SourceTypeAchDebit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub acss_debit: Option<crate::sources::SourceTypeAcssDebit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub alipay: Option<crate::sources::SourceTypeAlipay>,
     #[doc = "This field indicates whether this payment method can be shown again to its customer in a checkout flow."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub allow_redisplay: Option<crate::sources::SourceAllowRedisplay>,
     #[doc = "A positive integer in the smallest currency unit (that is, 100 cents for $1.00, or 1 for ¥1, Japanese Yen being a zer..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub au_becs_debit: Option<crate::sources::SourceTypeAuBecsDebit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bancontact: Option<crate::sources::SourceTypeBancontact>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::sources::SourceTypeCard>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card_present: Option<crate::sources::SourceTypeCardPresent>,
     #[doc = "The client secret of the source."]
-    #[serde(default)]
+    #[json(default)]
     pub client_secret: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub code_verification: Option<crate::sources::SourceCodeVerificationFlow>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO code for the currency](https://stripe.com/docs/currencies) associated with the source."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[doc = "The ID of the customer to which this source is attached."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub eps: Option<crate::sources::SourceTypeEps>,
     #[doc = "The authentication `flow` of the source."]
-    #[serde(default)]
+    #[json(default)]
     pub flow: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub giropay: Option<crate::sources::SourceTypeGiropay>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ideal: Option<crate::sources::SourceTypeIdeal>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub klarna: Option<crate::sources::SourceTypeKlarna>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub multibanco: Option<crate::sources::SourceTypeMultibanco>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::sources::SourceObject,
     #[doc = "Information about the owner of the payment instrument that may be used or required by particular source types."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub owner: Option<crate::sources::SourceOwner>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub p24: Option<crate::sources::SourceTypeP24>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub receiver: Option<crate::sources::SourceReceiverFlow>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub redirect: Option<crate::sources::SourceRedirectFlow>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sepa_credit_transfer: Option<crate::sources::SourceTypeSepaCreditTransfer>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sepa_debit: Option<crate::sources::SourceTypeSepaDebit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sofort: Option<crate::sources::SourceTypeSofort>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub source_order: Option<crate::sources::SourceOrder>,
     #[doc = "Extra information about a source."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
     #[doc = "The status of the source, one of `canceled`, `chargeable`, `consumed`, `failed`, or `pending`."]
-    #[serde(default)]
+    #[json(default)]
     pub status: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub three_d_secure: Option<crate::sources::SourceTypeThreeDSecure>,
     #[doc = "The `type` of the source."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::sources::SourceType,
     #[doc = "Either `reusable` or `single_use`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub usage: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub wechat: Option<crate::sources::SourceTypeWechat>,
 }
 
@@ -1273,38 +1130,20 @@ impl SourceAllowRedisplay {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SourceAllowRedisplay {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SourceAllowRedisplay;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => SourceAllowRedisplay::Always,
-                    "limited" => SourceAllowRedisplay::Limited,
-                    "unspecified" => SourceAllowRedisplay::Unspecified,
-                    other => SourceAllowRedisplay::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SourceAllowRedisplay::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SourceAllowRedisplay {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SourceAllowRedisplay::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => SourceAllowRedisplay::Always,
+            "limited" => SourceAllowRedisplay::Limited,
+            "unspecified" => SourceAllowRedisplay::Unspecified,
+            other => SourceAllowRedisplay::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1354,50 +1193,52 @@ impl<'de> serde::Deserialize<'de> for SourceAllowRedisplay {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceCodeVerificationFlow {
     #[doc = "The number of attempts remaining to authenticate the source object with a verification code."]
-    #[serde(default)]
+    #[json(default)]
     pub attempts_remaining: i64,
     #[doc = "The status of the code verification, either `pending` (awaiting verification, `attempts_remaining` should be greater ..."]
-    #[serde(default)]
+    #[json(default)]
     pub status: String,
 }
 
 #[cfg(feature = "events")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceMandateNotification {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub acss_debit: Option<crate::sources::SourceMandateNotificationAcssDebitData>,
     #[doc = "A positive integer in the smallest currency unit (that is, 100 cents for $1.00, or 1 for ¥1, Japanese Yen being a zer..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bacs_debit: Option<crate::sources::SourceMandateNotificationBacsDebitData>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::sources::SourceMandateNotificationObject,
     #[doc = "The reason of the mandate notification."]
-    #[serde(default)]
+    #[json(default)]
     pub reason: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sepa_debit: Option<crate::sources::SourceMandateNotificationSepaDebitData>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<crate::sources::Source>,
     #[doc = "The status of the mandate notification."]
-    #[serde(default)]
+    #[json(default)]
     pub status: String,
     #[doc = "The type of source this mandate notification is attached to."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: String,
 }
 
@@ -1409,18 +1250,20 @@ impl crate::PagedItem for SourceMandateNotification {
 }
 
 #[cfg(feature = "events")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceMandateNotificationAcssDebitData {
     #[doc = "The statement descriptor associate with the debit."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
 }
 
 #[cfg(feature = "events")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceMandateNotificationBacsDebitData {
     #[doc = "Last 4 digits of the account number associated with the debit."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last4: Option<String>,
 }
 
@@ -1451,50 +1294,33 @@ impl Default for SourceMandateNotificationObject {
 }
 
 #[cfg(feature = "events")]
-impl<'de> serde::Deserialize<'de> for SourceMandateNotificationObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SourceMandateNotificationObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "source_mandate_notification" => SourceMandateNotificationObject::SourceMandateNotification,
-                    other => SourceMandateNotificationObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SourceMandateNotificationObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SourceMandateNotificationObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SourceMandateNotificationObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "source_mandate_notification" => SourceMandateNotificationObject::SourceMandateNotification,
+            other => SourceMandateNotificationObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "events")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceMandateNotificationSepaDebitData {
     #[doc = "SEPA creditor ID."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub creditor_identifier: Option<String>,
     #[doc = "Last 4 digits of the account number associated with the debit."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last4: Option<String>,
     #[doc = "Mandate reference associated with the debit."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate_reference: Option<String>,
 }
 
@@ -1705,36 +1531,18 @@ impl Default for SourceObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SourceObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SourceObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "source" => SourceObject::Source,
-                    other => SourceObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SourceObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SourceObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SourceObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "source" => SourceObject::Source,
+            other => SourceObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1784,21 +1592,22 @@ impl<'de> serde::Deserialize<'de> for SourceObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceOrder {
     #[doc = "A positive integer in the smallest currency unit (that is, 100 cents for $1.00, or 1 for ¥1, Japanese Yen being a zer..."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "The email address of the customer placing the order."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[doc = "List of items constituting the order."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub items: Option<Vec<crate::sources::SourceOrderItem>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping: Option<crate::common::Shipping>,
 }
 
@@ -1848,25 +1657,26 @@ pub struct SourceOrder {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceOrderItem {
     #[doc = "The amount (price) for this order item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
     #[doc = "This currency of this order item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[doc = "Human-readable description for this order item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "The ID of the associated object for this line item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<String>,
     #[doc = "The quantity of this order item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub quantity: Option<i64>,
     #[doc = "The type of this order item."]
-    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    #[json(rename = "type", default, skip_serializing_if = "Option::is_none")]
     pub r#type: Option<String>,
 }
 
@@ -1916,31 +1726,32 @@ pub struct SourceOrderItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceOwner {
     #[doc = "Owner's address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<crate::common::Address>,
     #[doc = "Owner's email address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[doc = "Owner's full name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[doc = "Owner's phone number (including extension)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     #[doc = "Verified owner's address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verified_address: Option<crate::common::Address>,
     #[doc = "Verified owner's email address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verified_email: Option<String>,
     #[doc = "Verified owner's full name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verified_name: Option<String>,
     #[doc = "Verified owner's phone number (including extension)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verified_phone: Option<String>,
 }
 
@@ -1990,25 +1801,26 @@ pub struct SourceOwner {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceReceiverFlow {
     #[doc = "The address of the receiver source."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<String>,
     #[doc = "The total amount that was moved to your balance."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_charged: i64,
     #[doc = "The total amount received by the receiver source."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_received: i64,
     #[doc = "The total amount that was returned to the customer."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_returned: i64,
     #[doc = "Type of refund attribute method, one of `email`, `manual`, or `none`."]
-    #[serde(default)]
+    #[json(default)]
     pub refund_attributes_method: String,
     #[doc = "Type of refund attribute status, one of `missing`, `requested`, or `available`."]
-    #[serde(default)]
+    #[json(default)]
     pub refund_attributes_status: String,
 }
 
@@ -2058,61 +1870,63 @@ pub struct SourceReceiverFlow {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceRedirectFlow {
     #[doc = "The failure reason for the redirect, either `user_abort` (the customer aborted or dropped out of the redirect flow), ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub failure_reason: Option<String>,
     #[doc = "The URL you provide to redirect the customer to after they authenticated their payment."]
-    #[serde(default)]
+    #[json(default)]
     pub return_url: String,
     #[doc = "The status of the redirect, either `pending` (ready to be used by your customer to authenticate the transaction), `su..."]
-    #[serde(default)]
+    #[json(default)]
     pub status: String,
     #[doc = "The URL provided to you to redirect a customer to as part of a `redirect` authentication flow."]
-    #[serde(default)]
+    #[json(default)]
     pub url: String,
 }
 
 #[cfg(any(feature = "events", feature = "sources"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTransaction {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ach_credit_transfer: Option<crate::sources::SourceTransactionAchCreditTransferData>,
     #[doc = "A positive integer in the smallest currency unit (that is, 100 cents for $1.00, or 1 for ¥1, Japanese Yen being a zer..."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub chf_credit_transfer: Option<crate::sources::SourceTransactionChfCreditTransferData>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub gbp_credit_transfer: Option<crate::sources::SourceTransactionGbpCreditTransferData>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::sources::SourceTransactionObject,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paper_check: Option<crate::sources::SourceTransactionPaperCheckData>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sepa_credit_transfer: Option<crate::sources::SourceTransactionSepaCreditTransferData>,
     #[doc = "The ID of the source this transaction is attached to."]
-    #[serde(default)]
+    #[json(default)]
     pub source: String,
     #[doc = "The status of the transaction, one of `succeeded`, `pending`, or `failed`."]
-    #[serde(default)]
+    #[json(default)]
     pub status: String,
     #[doc = "The type of source this transaction is attached to."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::sources::SourceTransactionType,
 }
 
@@ -2124,65 +1938,68 @@ impl crate::PagedItem for SourceTransaction {
 }
 
 #[cfg(any(feature = "events", feature = "sources"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTransactionAchCreditTransferData {
     #[doc = "Customer data associated with the transfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_data: Option<String>,
     #[doc = "Bank account fingerprint associated with the transfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
     #[doc = "Last 4 digits of the account number associated with the transfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last4: Option<String>,
     #[doc = "Routing number associated with the transfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub routing_number: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "sources"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTransactionChfCreditTransferData {
     #[doc = "Reference associated with the transfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     #[doc = "Sender's country address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sender_address_country: Option<String>,
     #[doc = "Sender's line 1 address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sender_address_line1: Option<String>,
     #[doc = "Sender's bank account IBAN."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sender_iban: Option<String>,
     #[doc = "Sender's name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sender_name: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "sources"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTransactionGbpCreditTransferData {
     #[doc = "Bank account fingerprint associated with the Stripe owned bank account receiving the transfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
     #[doc = "The credit transfer rails the sender used to push this transfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub funding_method: Option<String>,
     #[doc = "Last 4 digits of sender account number associated with the transfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last4: Option<String>,
     #[doc = "Sender entered arbitrary information about the transfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     #[doc = "Sender account number associated with the transfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sender_account_number: Option<String>,
     #[doc = "Sender name associated with the transfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sender_name: Option<String>,
     #[doc = "Sender sort code associated with the transfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sender_sort_code: Option<String>,
 }
 
@@ -2213,61 +2030,45 @@ impl Default for SourceTransactionObject {
 }
 
 #[cfg(any(feature = "events", feature = "sources"))]
-impl<'de> serde::Deserialize<'de> for SourceTransactionObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SourceTransactionObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "source_transaction" => SourceTransactionObject::SourceTransaction,
-                    other => SourceTransactionObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SourceTransactionObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SourceTransactionObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SourceTransactionObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "source_transaction" => SourceTransactionObject::SourceTransaction,
+            other => SourceTransactionObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "sources"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTransactionPaperCheckData {
     #[doc = "Time at which the deposited funds will be available for use."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub available_at: Option<String>,
     #[doc = "Comma-separated list of invoice IDs associated with the paper check."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoices: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "sources"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTransactionSepaCreditTransferData {
     #[doc = "Reference associated with the transfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     #[doc = "Sender's bank account IBAN."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sender_iban: Option<String>,
     #[doc = "Sender's name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sender_name: Option<String>,
 }
 
@@ -2328,51 +2129,33 @@ impl Default for SourceTransactionType {
 }
 
 #[cfg(any(feature = "events", feature = "sources"))]
-impl<'de> serde::Deserialize<'de> for SourceTransactionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SourceTransactionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ach_credit_transfer" => SourceTransactionType::AchCreditTransfer,
-                    "ach_debit" => SourceTransactionType::AchDebit,
-                    "alipay" => SourceTransactionType::Alipay,
-                    "bancontact" => SourceTransactionType::Bancontact,
-                    "card" => SourceTransactionType::Card,
-                    "card_present" => SourceTransactionType::CardPresent,
-                    "eps" => SourceTransactionType::Eps,
-                    "giropay" => SourceTransactionType::Giropay,
-                    "ideal" => SourceTransactionType::Ideal,
-                    "klarna" => SourceTransactionType::Klarna,
-                    "multibanco" => SourceTransactionType::Multibanco,
-                    "p24" => SourceTransactionType::P24,
-                    "sepa_debit" => SourceTransactionType::SepaDebit,
-                    "sofort" => SourceTransactionType::Sofort,
-                    "three_d_secure" => SourceTransactionType::ThreeDSecure,
-                    "wechat" => SourceTransactionType::Wechat,
-                    other => SourceTransactionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SourceTransactionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SourceTransactionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SourceTransactionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ach_credit_transfer" => SourceTransactionType::AchCreditTransfer,
+            "ach_debit" => SourceTransactionType::AchDebit,
+            "alipay" => SourceTransactionType::Alipay,
+            "bancontact" => SourceTransactionType::Bancontact,
+            "card" => SourceTransactionType::Card,
+            "card_present" => SourceTransactionType::CardPresent,
+            "eps" => SourceTransactionType::Eps,
+            "giropay" => SourceTransactionType::Giropay,
+            "ideal" => SourceTransactionType::Ideal,
+            "klarna" => SourceTransactionType::Klarna,
+            "multibanco" => SourceTransactionType::Multibanco,
+            "p24" => SourceTransactionType::P24,
+            "sepa_debit" => SourceTransactionType::SepaDebit,
+            "sofort" => SourceTransactionType::Sofort,
+            "three_d_secure" => SourceTransactionType::ThreeDSecure,
+            "wechat" => SourceTransactionType::Wechat,
+            other => SourceTransactionType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2619,54 +2402,36 @@ impl Default for SourceType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for SourceType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SourceType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ach_credit_transfer" => SourceType::AchCreditTransfer,
-                    "ach_debit" => SourceType::AchDebit,
-                    "acss_debit" => SourceType::AcssDebit,
-                    "alipay" => SourceType::Alipay,
-                    "au_becs_debit" => SourceType::AuBecsDebit,
-                    "bancontact" => SourceType::Bancontact,
-                    "card" => SourceType::Card,
-                    "card_present" => SourceType::CardPresent,
-                    "eps" => SourceType::Eps,
-                    "giropay" => SourceType::Giropay,
-                    "ideal" => SourceType::Ideal,
-                    "klarna" => SourceType::Klarna,
-                    "multibanco" => SourceType::Multibanco,
-                    "p24" => SourceType::P24,
-                    "sepa_credit_transfer" => SourceType::SepaCreditTransfer,
-                    "sepa_debit" => SourceType::SepaDebit,
-                    "sofort" => SourceType::Sofort,
-                    "three_d_secure" => SourceType::ThreeDSecure,
-                    "wechat" => SourceType::Wechat,
-                    other => SourceType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SourceType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SourceType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SourceType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ach_credit_transfer" => SourceType::AchCreditTransfer,
+            "ach_debit" => SourceType::AchDebit,
+            "acss_debit" => SourceType::AcssDebit,
+            "alipay" => SourceType::Alipay,
+            "au_becs_debit" => SourceType::AuBecsDebit,
+            "bancontact" => SourceType::Bancontact,
+            "card" => SourceType::Card,
+            "card_present" => SourceType::CardPresent,
+            "eps" => SourceType::Eps,
+            "giropay" => SourceType::Giropay,
+            "ideal" => SourceType::Ideal,
+            "klarna" => SourceType::Klarna,
+            "multibanco" => SourceType::Multibanco,
+            "p24" => SourceType::P24,
+            "sepa_credit_transfer" => SourceType::SepaCreditTransfer,
+            "sepa_debit" => SourceType::SepaDebit,
+            "sofort" => SourceType::Sofort,
+            "three_d_secure" => SourceType::ThreeDSecure,
+            "wechat" => SourceType::Wechat,
+            other => SourceType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2716,23 +2481,24 @@ impl<'de> serde::Deserialize<'de> for SourceType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTypeAchCreditTransfer {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_number: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_account_holder_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_account_holder_type: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_routing_number: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub routing_number: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub swift_code: Option<String>,
 }
 
@@ -2782,19 +2548,20 @@ pub struct SourceTypeAchCreditTransfer {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTypeAchDebit {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last4: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub routing_number: Option<String>,
-    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    #[json(rename = "type", default, skip_serializing_if = "Option::is_none")]
     pub r#type: Option<String>,
 }
 
@@ -2844,27 +2611,28 @@ pub struct SourceTypeAchDebit {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTypeAcssDebit {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_address_city: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_address_line_1: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_address_line_2: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_address_postal_code: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last4: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub routing_number: Option<String>,
 }
 
@@ -2914,13 +2682,14 @@ pub struct SourceTypeAcssDebit {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTypeAlipay {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub data_string: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub native_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
 }
 
@@ -2970,13 +2739,14 @@ pub struct SourceTypeAlipay {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTypeAuBecsDebit {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bsb_number: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last4: Option<String>,
 }
 
@@ -3026,19 +2796,20 @@ pub struct SourceTypeAuBecsDebit {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTypeBancontact {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_code: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bic: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub iban_last4: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub preferred_language: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
 }
 
@@ -3088,41 +2859,42 @@ pub struct SourceTypeBancontact {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTypeCard {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address_line1_check: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address_zip_check: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub brand: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cvc_check: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub dynamic_last4: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub exp_month: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub exp_year: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub funding: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub iin: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuer: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last4: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub three_d_secure: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tokenization_method: Option<String>,
 }
 
@@ -3172,59 +2944,60 @@ pub struct SourceTypeCard {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTypeCardPresent {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application_cryptogram: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application_preferred_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub authorization_code: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub authorization_response_code: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub brand: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cvm_type: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub data_type: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub dedicated_file_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub emv_auth_data: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub evidence_customer_signature: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub evidence_transaction_certificate: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub exp_month: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub exp_year: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub funding: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub iin: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuer: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last4: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pos_device_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pos_entry_mode: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub read_method: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reader: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub terminal_verification_results: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transaction_status_information: Option<String>,
 }
 
@@ -3274,11 +3047,12 @@ pub struct SourceTypeCardPresent {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTypeEps {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
 }
 
@@ -3328,15 +3102,16 @@ pub struct SourceTypeEps {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTypeGiropay {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_code: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bic: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
 }
 
@@ -3386,15 +3161,16 @@ pub struct SourceTypeGiropay {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTypeIdeal {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bic: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub iban_last4: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
 }
 
@@ -3444,59 +3220,60 @@ pub struct SourceTypeIdeal {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTypeKlarna {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub background_image_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub client_token: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub first_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub locale: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub logo_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub page_title: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pay_later_asset_urls_descriptive: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pay_later_asset_urls_standard: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pay_later_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pay_later_redirect_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pay_now_asset_urls_descriptive: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pay_now_asset_urls_standard: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pay_now_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pay_now_redirect_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pay_over_time_asset_urls_descriptive: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pay_over_time_asset_urls_standard: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pay_over_time_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pay_over_time_redirect_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_categories: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub purchase_country: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub purchase_type: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub redirect_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_delay: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_first_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping_last_name: Option<String>,
 }
 
@@ -3546,27 +3323,28 @@ pub struct SourceTypeKlarna {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTypeMultibanco {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub entity: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_account_holder_address_city: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_account_holder_address_country: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_account_holder_address_line1: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_account_holder_address_line2: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_account_holder_address_postal_code: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_account_holder_address_state: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_account_holder_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_iban: Option<String>,
 }
 
@@ -3616,9 +3394,10 @@ pub struct SourceTypeMultibanco {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTypeP24 {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
 }
 
@@ -3668,29 +3447,30 @@ pub struct SourceTypeP24 {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTypeSepaCreditTransfer {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bic: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub iban: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_account_holder_address_city: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_account_holder_address_country: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_account_holder_address_line1: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_account_holder_address_line2: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_account_holder_address_postal_code: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_account_holder_address_state: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_account_holder_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_iban: Option<String>,
 }
 
@@ -3740,21 +3520,22 @@ pub struct SourceTypeSepaCreditTransfer {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTypeSepaDebit {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_code: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub branch_code: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last4: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate_reference: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate_url: Option<String>,
 }
 
@@ -3804,21 +3585,22 @@ pub struct SourceTypeSepaDebit {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTypeSofort {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_code: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bic: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub iban_last4: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub preferred_language: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
 }
 
@@ -3868,47 +3650,48 @@ pub struct SourceTypeSofort {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTypeThreeDSecure {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address_line1_check: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address_zip_check: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub authenticated: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub brand: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cvc_check: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub dynamic_last4: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub exp_month: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub exp_year: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub funding: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub iin: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuer: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last4: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub three_d_secure: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tokenization_method: Option<String>,
 }
 
@@ -3958,13 +3741,14 @@ pub struct SourceTypeThreeDSecure {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SourceTypeWechat {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub prepay_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub qr_code_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
 }
 
@@ -4009,7 +3793,7 @@ pub struct UpdateSourceParamsMandate {
     #[doc = "The parameters required to notify Stripe of a mandate acceptance or refusal by the customer."]
     pub acceptance: Option<crate::sources::UpdateSourceParamsMandateAcceptance>,
     #[doc = "The amount specified by the mandate."]
-    pub amount: Option<serde_json::Value>,
+    pub amount: Option<json::OwnedValue>,
     #[doc = "The currency specified by the mandate."]
     pub currency: Option<String>,
     #[doc = "The interval of debits permitted by the mandate."]

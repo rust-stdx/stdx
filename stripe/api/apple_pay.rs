@@ -9,21 +9,22 @@
 #![allow(non_camel_case_types)]
 
 #[cfg(feature = "apple_pay")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ApplePayDomain {
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
-    #[serde(default)]
+    #[json(default)]
     pub domain_name: String,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::apple_pay::ApplePayDomainObject,
 }
 
@@ -61,36 +62,18 @@ impl Default for ApplePayDomainObject {
 }
 
 #[cfg(feature = "apple_pay")]
-impl<'de> serde::Deserialize<'de> for ApplePayDomainObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ApplePayDomainObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "apple_pay_domain" => ApplePayDomainObject::ApplePayDomain,
-                    other => ApplePayDomainObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ApplePayDomainObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ApplePayDomainObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ApplePayDomainObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "apple_pay_domain" => ApplePayDomainObject::ApplePayDomain,
+            other => ApplePayDomainObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -113,16 +96,17 @@ impl crate::params::FormEncode for CreateApplePayDomainParams {
 }
 
 #[cfg(feature = "apple_pay")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DeletedApplePayDomain {
     #[doc = "Always true for a deleted object"]
-    #[serde(default)]
+    #[json(default)]
     pub deleted: bool,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::apple_pay::ApplePayDomainObject,
 }
 

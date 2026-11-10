@@ -18,9 +18,9 @@ pub type CancelQuoteParams = crate::quotes::GetQuoteParams;
 #[derive(Debug, Clone, Default)]
 pub struct CreateQuoteParams {
     #[doc = "The amount of the application fee (if any) that will be requested to be applied to the payment and transferred to the..."]
-    pub application_fee_amount: Option<serde_json::Value>,
+    pub application_fee_amount: Option<json::OwnedValue>,
     #[doc = "A non-negative decimal between 0 and 100, with at most two decimal places."]
-    pub application_fee_percent: Option<serde_json::Value>,
+    pub application_fee_percent: Option<json::OwnedValue>,
     #[doc = "Settings for automatic tax lookup for this quote and resulting invoices and subscriptions."]
     pub automatic_tax: Option<crate::quotes::CreateQuoteParamsAutomaticTax>,
     #[doc = "Either `charge_automatically`, or `send_invoice`."]
@@ -30,21 +30,21 @@ pub struct CreateQuoteParams {
     #[doc = "The account for which this quote belongs to."]
     pub customer_account: Option<String>,
     #[doc = "The tax rates that will apply to any line item that does not have `tax_rates` set."]
-    pub default_tax_rates: Option<serde_json::Value>,
+    pub default_tax_rates: Option<json::OwnedValue>,
     #[doc = "A description that will be displayed on the quote PDF."]
-    pub description: Option<serde_json::Value>,
+    pub description: Option<json::OwnedValue>,
     #[doc = "The discounts applied to the quote."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "A future timestamp on which the quote will be canceled if in `open` or `draft` status."]
     pub expires_at: Option<i64>,
     #[doc = "A footer that will be displayed on the quote PDF."]
-    pub footer: Option<serde_json::Value>,
+    pub footer: Option<json::OwnedValue>,
     #[doc = "Clone an existing quote."]
     pub from_quote: Option<crate::quotes::CreateQuoteParamsFromQuote>,
     #[doc = "A header that will be displayed on the quote PDF."]
-    pub header: Option<serde_json::Value>,
+    pub header: Option<json::OwnedValue>,
     #[doc = "All invoices will be billed using the specified settings."]
     pub invoice_settings: Option<crate::quotes::CreateQuoteParamsInvoiceSettings>,
     #[doc = "A list of line items the customer is being quoted for."]
@@ -52,7 +52,7 @@ pub struct CreateQuoteParams {
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "The account on behalf of which to charge."]
-    pub on_behalf_of: Option<serde_json::Value>,
+    pub on_behalf_of: Option<json::OwnedValue>,
     #[doc = "When creating a subscription or subscription schedule, the specified configuration data will be used."]
     pub subscription_data: Option<crate::quotes::CreateQuoteParamsSubscriptionData>,
     #[doc = "ID of the test clock to attach to the quote."]
@@ -146,37 +146,19 @@ impl CreateQuoteParamsAutomaticTaxLiabilityType {
 }
 
 #[cfg(feature = "quotes")]
-impl<'de> serde::Deserialize<'de> for CreateQuoteParamsAutomaticTaxLiabilityType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateQuoteParamsAutomaticTaxLiabilityType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account" => CreateQuoteParamsAutomaticTaxLiabilityType::Account,
-                    "self" => CreateQuoteParamsAutomaticTaxLiabilityType::SelfValue,
-                    other => CreateQuoteParamsAutomaticTaxLiabilityType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateQuoteParamsAutomaticTaxLiabilityType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateQuoteParamsAutomaticTaxLiabilityType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateQuoteParamsAutomaticTaxLiabilityType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account" => CreateQuoteParamsAutomaticTaxLiabilityType::Account,
+            "self" => CreateQuoteParamsAutomaticTaxLiabilityType::SelfValue,
+            other => CreateQuoteParamsAutomaticTaxLiabilityType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -209,37 +191,19 @@ impl CreateQuoteParamsCollectionMethod {
 }
 
 #[cfg(feature = "quotes")]
-impl<'de> serde::Deserialize<'de> for CreateQuoteParamsCollectionMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateQuoteParamsCollectionMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "charge_automatically" => CreateQuoteParamsCollectionMethod::ChargeAutomatically,
-                    "send_invoice" => CreateQuoteParamsCollectionMethod::SendInvoice,
-                    other => CreateQuoteParamsCollectionMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateQuoteParamsCollectionMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateQuoteParamsCollectionMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateQuoteParamsCollectionMethod::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "charge_automatically" => CreateQuoteParamsCollectionMethod::ChargeAutomatically,
+            "send_invoice" => CreateQuoteParamsCollectionMethod::SendInvoice,
+            other => CreateQuoteParamsCollectionMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -271,13 +235,13 @@ impl crate::params::FormEncode for CreateQuoteParamsFromQuote {
 #[derive(Debug, Clone, Default)]
 pub struct CreateQuoteParamsInvoiceSettings {
     #[doc = "A list of up to 4 custom fields to be displayed on the invoice."]
-    pub custom_fields: Option<serde_json::Value>,
+    pub custom_fields: Option<json::OwnedValue>,
     #[doc = "Number of days within which a customer must pay the invoice generated by this quote."]
     pub days_until_due: Option<i64>,
     #[doc = "An arbitrary string attached to the object."]
-    pub description: Option<serde_json::Value>,
+    pub description: Option<json::OwnedValue>,
     #[doc = "Footer to be displayed on the invoice."]
-    pub footer: Option<serde_json::Value>,
+    pub footer: Option<json::OwnedValue>,
     #[doc = "The connected account that issues the invoice."]
     pub issuer: Option<crate::quotes::CreateQuoteParamsInvoiceSettingsIssuer>,
 }
@@ -314,7 +278,7 @@ pub type CreateQuoteParamsInvoiceSettingsIssuerType = crate::quotes::CreateQuote
 #[derive(Debug, Clone, Default)]
 pub struct CreateQuoteParamsLineItemsItem {
     #[doc = "The discounts applied to this line item."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "The ID of the price object."]
     pub price: Option<String>,
     #[doc = "Data used to generate a new [Price](https://docs.stripe.com/api/prices) object inline."]
@@ -322,7 +286,7 @@ pub struct CreateQuoteParamsLineItemsItem {
     #[doc = "The quantity of the line item."]
     pub quantity: Option<i64>,
     #[doc = "The tax rates which apply to the line item."]
-    pub tax_rates: Option<serde_json::Value>,
+    pub tax_rates: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "quotes")]
@@ -406,39 +370,21 @@ impl CreateQuoteParamsLineItemsItemPriceDataRecurringInterval {
 }
 
 #[cfg(feature = "quotes")]
-impl<'de> serde::Deserialize<'de> for CreateQuoteParamsLineItemsItemPriceDataRecurringInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateQuoteParamsLineItemsItemPriceDataRecurringInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "day" => CreateQuoteParamsLineItemsItemPriceDataRecurringInterval::Day,
-                    "month" => CreateQuoteParamsLineItemsItemPriceDataRecurringInterval::Month,
-                    "week" => CreateQuoteParamsLineItemsItemPriceDataRecurringInterval::Week,
-                    "year" => CreateQuoteParamsLineItemsItemPriceDataRecurringInterval::Year,
-                    other => CreateQuoteParamsLineItemsItemPriceDataRecurringInterval::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateQuoteParamsLineItemsItemPriceDataRecurringInterval::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateQuoteParamsLineItemsItemPriceDataRecurringInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateQuoteParamsLineItemsItemPriceDataRecurringInterval::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "day" => CreateQuoteParamsLineItemsItemPriceDataRecurringInterval::Day,
+            "month" => CreateQuoteParamsLineItemsItemPriceDataRecurringInterval::Month,
+            "week" => CreateQuoteParamsLineItemsItemPriceDataRecurringInterval::Week,
+            "year" => CreateQuoteParamsLineItemsItemPriceDataRecurringInterval::Year,
+            other => CreateQuoteParamsLineItemsItemPriceDataRecurringInterval::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -473,38 +419,20 @@ impl CreateQuoteParamsLineItemsItemPriceDataTaxBehavior {
 }
 
 #[cfg(feature = "quotes")]
-impl<'de> serde::Deserialize<'de> for CreateQuoteParamsLineItemsItemPriceDataTaxBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateQuoteParamsLineItemsItemPriceDataTaxBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exclusive" => CreateQuoteParamsLineItemsItemPriceDataTaxBehavior::Exclusive,
-                    "inclusive" => CreateQuoteParamsLineItemsItemPriceDataTaxBehavior::Inclusive,
-                    "unspecified" => CreateQuoteParamsLineItemsItemPriceDataTaxBehavior::Unspecified,
-                    other => CreateQuoteParamsLineItemsItemPriceDataTaxBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateQuoteParamsLineItemsItemPriceDataTaxBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateQuoteParamsLineItemsItemPriceDataTaxBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateQuoteParamsLineItemsItemPriceDataTaxBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exclusive" => CreateQuoteParamsLineItemsItemPriceDataTaxBehavior::Exclusive,
+            "inclusive" => CreateQuoteParamsLineItemsItemPriceDataTaxBehavior::Inclusive,
+            "unspecified" => CreateQuoteParamsLineItemsItemPriceDataTaxBehavior::Unspecified,
+            other => CreateQuoteParamsLineItemsItemPriceDataTaxBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -523,11 +451,11 @@ pub struct CreateQuoteParamsSubscriptionData {
     #[doc = "The subscription's description, meant to be displayable to the customer."]
     pub description: Option<String>,
     #[doc = "When creating a new subscription, the date of which the subscription schedule will start after the quote is accepted."]
-    pub effective_date: Option<serde_json::Value>,
+    pub effective_date: Option<json::OwnedValue>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that will set metadata on the subscription or subscrip..."]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "Integer representing the number of trial period days before the customer is charged for the first time."]
-    pub trial_period_days: Option<serde_json::Value>,
+    pub trial_period_days: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "quotes")]
@@ -597,41 +525,21 @@ impl CreateQuoteParamsSubscriptionDataBillingModeFlexibleProrationDiscounts {
 }
 
 #[cfg(feature = "quotes")]
-impl<'de> serde::Deserialize<'de> for CreateQuoteParamsSubscriptionDataBillingModeFlexibleProrationDiscounts {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateQuoteParamsSubscriptionDataBillingModeFlexibleProrationDiscounts;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "included" => CreateQuoteParamsSubscriptionDataBillingModeFlexibleProrationDiscounts::Included,
-                    "itemized" => CreateQuoteParamsSubscriptionDataBillingModeFlexibleProrationDiscounts::Itemized,
-                    other => CreateQuoteParamsSubscriptionDataBillingModeFlexibleProrationDiscounts::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateQuoteParamsSubscriptionDataBillingModeFlexibleProrationDiscounts::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateQuoteParamsSubscriptionDataBillingModeFlexibleProrationDiscounts {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateQuoteParamsSubscriptionDataBillingModeFlexibleProrationDiscounts::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "included" => CreateQuoteParamsSubscriptionDataBillingModeFlexibleProrationDiscounts::Included,
+            "itemized" => CreateQuoteParamsSubscriptionDataBillingModeFlexibleProrationDiscounts::Itemized,
+            other => CreateQuoteParamsSubscriptionDataBillingModeFlexibleProrationDiscounts::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -664,37 +572,19 @@ impl CreateQuoteParamsSubscriptionDataBillingModeType {
 }
 
 #[cfg(feature = "quotes")]
-impl<'de> serde::Deserialize<'de> for CreateQuoteParamsSubscriptionDataBillingModeType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateQuoteParamsSubscriptionDataBillingModeType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "classic" => CreateQuoteParamsSubscriptionDataBillingModeType::Classic,
-                    "flexible" => CreateQuoteParamsSubscriptionDataBillingModeType::Flexible,
-                    other => CreateQuoteParamsSubscriptionDataBillingModeType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateQuoteParamsSubscriptionDataBillingModeType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateQuoteParamsSubscriptionDataBillingModeType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateQuoteParamsSubscriptionDataBillingModeType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "classic" => CreateQuoteParamsSubscriptionDataBillingModeType::Classic,
+            "flexible" => CreateQuoteParamsSubscriptionDataBillingModeType::Flexible,
+            other => CreateQuoteParamsSubscriptionDataBillingModeType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -841,39 +731,21 @@ impl ListQuotesParamsStatus {
 }
 
 #[cfg(feature = "quotes")]
-impl<'de> serde::Deserialize<'de> for ListQuotesParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListQuotesParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "accepted" => ListQuotesParamsStatus::Accepted,
-                    "canceled" => ListQuotesParamsStatus::Canceled,
-                    "draft" => ListQuotesParamsStatus::Draft,
-                    "open" => ListQuotesParamsStatus::Open,
-                    other => ListQuotesParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListQuotesParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListQuotesParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListQuotesParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "accepted" => ListQuotesParamsStatus::Accepted,
+            "canceled" => ListQuotesParamsStatus::Canceled,
+            "draft" => ListQuotesParamsStatus::Draft,
+            "open" => ListQuotesParamsStatus::Open,
+            other => ListQuotesParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -885,109 +757,110 @@ impl crate::params::FormEncode for ListQuotesParamsStatus {
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Quote {
     #[doc = "Total before any discounts or taxes are applied."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_subtotal: i64,
     #[doc = "Total after discounts and taxes are applied."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_total: i64,
     #[doc = "ID of the Connect Application that created the quote."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application: Option<crate::Expandable<crate::quotes::QuoteApplicationExpanded>>,
     #[doc = "The amount of the application fee (if any) that will be requested to be applied to the payment and transferred to the..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application_fee_amount: Option<i64>,
     #[doc = "A non-negative decimal between 0 and 100, with at most two decimal places."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application_fee_percent: Option<f64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub automatic_tax: Option<crate::quotes::QuotesResourceAutomaticTax>,
     #[doc = "Either `charge_automatically`, or `send_invoice`."]
-    #[serde(default)]
+    #[json(default)]
     pub collection_method: crate::quotes::QuoteCollectionMethod,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub computed: Option<crate::quotes::QuotesResourceComputed>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[doc = "The customer who received this quote."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<crate::Expandable<crate::quotes::QuoteCustomerExpanded>>,
     #[doc = "The account representing the customer who received this quote."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_account: Option<String>,
     #[doc = "The tax rates applied to this quote."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_tax_rates: Option<Vec<crate::Expandable<crate::tax_rates::TaxRate>>>,
     #[doc = "A description that will be displayed on the quote PDF."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "The discounts applied to this quote."]
-    #[serde(default)]
+    #[json(default)]
     pub discounts: Vec<crate::Expandable<crate::coupons::Discount>>,
     #[doc = "The date on which the quote will be canceled if in `open` or `draft` status."]
-    #[serde(default)]
+    #[json(default)]
     pub expires_at: i64,
     #[doc = "A footer that will be displayed on the quote PDF."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub footer: Option<String>,
     #[doc = "Details of the quote that was cloned."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub from_quote: Option<crate::quotes::QuotesResourceFromQuote>,
     #[doc = "A header that will be displayed on the quote PDF."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub header: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The invoice that was created from this quote."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice: Option<crate::Expandable<crate::quotes::QuoteInvoiceExpanded>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice_settings: Option<crate::invoices::InvoiceSettingQuoteSetting>,
     #[doc = "A list of items the customer is being quoted for."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line_items: Option<crate::List<crate::common::Item>>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "A unique number that identifies this particular quote."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub number: Option<String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::quotes::QuoteObject,
     #[doc = "The account on behalf of which to charge."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub on_behalf_of: Option<crate::Expandable<crate::account::Account>>,
     #[doc = "The status of the quote."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::quotes::QuoteStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status_transitions: Option<crate::quotes::QuotesResourceStatusTransitions>,
     #[doc = "The subscription that was created or updated from this quote."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription: Option<crate::Expandable<crate::subscriptions::Subscription>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription_data: Option<crate::quotes::QuotesResourceSubscriptionDataSubscriptionData>,
     #[doc = "The subscription schedule that was created or updated from this quote."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription_schedule: Option<crate::Expandable<crate::subscription_schedules::SubscriptionSchedule>>,
     #[doc = "ID of the test clock this quote belongs to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub test_clock: Option<crate::Expandable<crate::test_helpers::TestHelpersTestClock>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub total_details: Option<crate::quotes::QuotesResourceTotalDetails>,
     #[doc = "The account (if any) the payments will be attributed to for tax reporting, and where funds from each payment will be ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transfer_data: Option<crate::quotes::QuotesResourceTransferData>,
 }
 
@@ -1004,21 +877,19 @@ pub enum QuoteApplicationExpanded {
     /// Expanded `application`.
     Application(Box<crate::common::Application>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-impl<'de> serde::Deserialize<'de> for QuoteApplicationExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for QuoteApplicationExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "application" => QuoteApplicationExpanded::Application(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "application" => {
+                QuoteApplicationExpanded::Application(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
             _ => QuoteApplicationExpanded::Other(value),
         })
     }
@@ -1053,37 +924,19 @@ impl Default for QuoteCollectionMethod {
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-impl<'de> serde::Deserialize<'de> for QuoteCollectionMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = QuoteCollectionMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "charge_automatically" => QuoteCollectionMethod::ChargeAutomatically,
-                    "send_invoice" => QuoteCollectionMethod::SendInvoice,
-                    other => QuoteCollectionMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(QuoteCollectionMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for QuoteCollectionMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(QuoteCollectionMethod::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "charge_automatically" => QuoteCollectionMethod::ChargeAutomatically,
+            "send_invoice" => QuoteCollectionMethod::SendInvoice,
+            other => QuoteCollectionMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1093,21 +946,17 @@ pub enum QuoteCustomerExpanded {
     /// Expanded `customer`.
     Customer(Box<crate::customers::Customer>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-impl<'de> serde::Deserialize<'de> for QuoteCustomerExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for QuoteCustomerExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "customer" => QuoteCustomerExpanded::Customer(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "customer" => QuoteCustomerExpanded::Customer(Box::new(json::from_slice_owned(&json::to_vec(&value))?)),
             _ => QuoteCustomerExpanded::Other(value),
         })
     }
@@ -1119,21 +968,17 @@ pub enum QuoteInvoiceExpanded {
     /// Expanded `invoice`.
     Invoice(Box<crate::invoices::Invoice>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-impl<'de> serde::Deserialize<'de> for QuoteInvoiceExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for QuoteInvoiceExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "invoice" => QuoteInvoiceExpanded::Invoice(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "invoice" => QuoteInvoiceExpanded::Invoice(Box::new(json::from_slice_owned(&json::to_vec(&value))?)),
             _ => QuoteInvoiceExpanded::Other(value),
         })
     }
@@ -1166,36 +1011,18 @@ impl Default for QuoteObject {
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-impl<'de> serde::Deserialize<'de> for QuoteObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = QuoteObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "quote" => QuoteObject::Quote,
-                    other => QuoteObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(QuoteObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for QuoteObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(QuoteObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "quote" => QuoteObject::Quote,
+            other => QuoteObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1232,56 +1059,39 @@ impl Default for QuoteStatus {
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-impl<'de> serde::Deserialize<'de> for QuoteStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = QuoteStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "accepted" => QuoteStatus::Accepted,
-                    "canceled" => QuoteStatus::Canceled,
-                    "draft" => QuoteStatus::Draft,
-                    "open" => QuoteStatus::Open,
-                    other => QuoteStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(QuoteStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for QuoteStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(QuoteStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "accepted" => QuoteStatus::Accepted,
+            "canceled" => QuoteStatus::Canceled,
+            "draft" => QuoteStatus::Draft,
+            "open" => QuoteStatus::Open,
+            other => QuoteStatus::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct QuotesResourceAutomaticTax {
     #[doc = "Automatically calculate taxes"]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "The account that's liable for tax."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub liability: Option<crate::accounts::ConnectAccountReference>,
     #[doc = "The tax provider powering automatic tax."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
     #[doc = "The status of the most recent automated tax calculation for this quote."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<crate::quotes::QuotesResourceAutomaticTaxStatus>,
 }
 
@@ -1309,78 +1119,63 @@ impl QuotesResourceAutomaticTaxStatus {
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-impl<'de> serde::Deserialize<'de> for QuotesResourceAutomaticTaxStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = QuotesResourceAutomaticTaxStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "complete" => QuotesResourceAutomaticTaxStatus::Complete,
-                    "failed" => QuotesResourceAutomaticTaxStatus::Failed,
-                    "requires_location_inputs" => QuotesResourceAutomaticTaxStatus::RequiresLocationInputs,
-                    other => QuotesResourceAutomaticTaxStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(QuotesResourceAutomaticTaxStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for QuotesResourceAutomaticTaxStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(QuotesResourceAutomaticTaxStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "complete" => QuotesResourceAutomaticTaxStatus::Complete,
+            "failed" => QuotesResourceAutomaticTaxStatus::Failed,
+            "requires_location_inputs" => QuotesResourceAutomaticTaxStatus::RequiresLocationInputs,
+            other => QuotesResourceAutomaticTaxStatus::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct QuotesResourceComputed {
     #[doc = "The definitive totals and line items the customer will be charged on a recurring basis."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub recurring: Option<crate::quotes::QuotesResourceRecurring>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub upfront: Option<crate::quotes::QuotesResourceUpfront>,
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct QuotesResourceFromQuote {
     #[doc = "Whether this quote is a revision of a different quote."]
-    #[serde(default)]
+    #[json(default)]
     pub is_revision: bool,
     #[doc = "The quote that was cloned."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub quote: Option<crate::Expandable<crate::quotes::Quote>>,
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct QuotesResourceRecurring {
     #[doc = "Total before any discounts or taxes are applied."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_subtotal: i64,
     #[doc = "Total after discounts and taxes are applied."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_total: i64,
     #[doc = "The frequency at which a subscription is billed."]
-    #[serde(default)]
+    #[json(default)]
     pub interval: crate::quotes::QuotesResourceRecurringInterval,
     #[doc = "The number of intervals (specified in the `interval` attribute) between subscription billings."]
-    #[serde(default)]
+    #[json(default)]
     pub interval_count: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub total_details: Option<crate::quotes::QuotesResourceTotalDetails>,
 }
 
@@ -1417,63 +1212,47 @@ impl Default for QuotesResourceRecurringInterval {
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-impl<'de> serde::Deserialize<'de> for QuotesResourceRecurringInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = QuotesResourceRecurringInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "day" => QuotesResourceRecurringInterval::Day,
-                    "month" => QuotesResourceRecurringInterval::Month,
-                    "week" => QuotesResourceRecurringInterval::Week,
-                    "year" => QuotesResourceRecurringInterval::Year,
-                    other => QuotesResourceRecurringInterval::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(QuotesResourceRecurringInterval::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for QuotesResourceRecurringInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(QuotesResourceRecurringInterval::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "day" => QuotesResourceRecurringInterval::Day,
+            "month" => QuotesResourceRecurringInterval::Month,
+            "week" => QuotesResourceRecurringInterval::Week,
+            "year" => QuotesResourceRecurringInterval::Year,
+            other => QuotesResourceRecurringInterval::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct QuotesResourceStatusTransitions {
     #[doc = "The time that the quote was accepted."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub accepted_at: Option<i64>,
     #[doc = "The time that the quote was canceled."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub canceled_at: Option<i64>,
     #[doc = "The time that the quote was finalized."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub finalized_at: Option<i64>,
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct QuotesResourceSubscriptionDataBillingMode {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub flexible: Option<crate::subscriptions::SubscriptionsResourceBillingModeFlexible>,
     #[doc = "Controls how prorations and invoices for subscriptions are calculated and orchestrated."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::quotes::QuotesResourceSubscriptionDataBillingModeType,
 }
 
@@ -1506,113 +1285,100 @@ impl Default for QuotesResourceSubscriptionDataBillingModeType {
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-impl<'de> serde::Deserialize<'de> for QuotesResourceSubscriptionDataBillingModeType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = QuotesResourceSubscriptionDataBillingModeType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "classic" => QuotesResourceSubscriptionDataBillingModeType::Classic,
-                    "flexible" => QuotesResourceSubscriptionDataBillingModeType::Flexible,
-                    other => QuotesResourceSubscriptionDataBillingModeType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(QuotesResourceSubscriptionDataBillingModeType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for QuotesResourceSubscriptionDataBillingModeType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(QuotesResourceSubscriptionDataBillingModeType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "classic" => QuotesResourceSubscriptionDataBillingModeType::Classic,
+            "flexible" => QuotesResourceSubscriptionDataBillingModeType::Flexible,
+            other => QuotesResourceSubscriptionDataBillingModeType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct QuotesResourceSubscriptionDataSubscriptionData {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billing_mode: Option<crate::quotes::QuotesResourceSubscriptionDataBillingMode>,
     #[doc = "The subscription's description, meant to be displayable to the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "When creating a new subscription, the date of which the subscription schedule will start after the quote is accepted."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub effective_date: Option<i64>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that will set metadata on the subscription or subscrip..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "Integer representing the number of trial period days before the customer is charged for the first time."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub trial_period_days: Option<i64>,
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct QuotesResourceTotalDetails {
     #[doc = "This is the sum of all the discounts."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_discount: i64,
     #[doc = "This is the sum of all the shipping amounts."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_shipping: Option<i64>,
     #[doc = "This is the sum of all the tax amounts."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_tax: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub breakdown: Option<crate::quotes::QuotesResourceTotalDetailsResourceBreakdown>,
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct QuotesResourceTotalDetailsResourceBreakdown {
     #[doc = "The aggregated discounts."]
-    #[serde(default)]
+    #[json(default)]
     pub discounts: Vec<crate::common::LineItemsDiscountAmount>,
     #[doc = "The aggregated tax amounts by rate."]
-    #[serde(default)]
+    #[json(default)]
     pub taxes: Vec<crate::common::LineItemsTaxAmount>,
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct QuotesResourceTransferData {
     #[doc = "The amount in cents (or local equivalent) that will be transferred to the destination account when the invoice is paid."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
     #[doc = "A non-negative decimal between 0 and 100, with at most two decimal places."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_percent: Option<f64>,
     #[doc = "The account where funds from the payment will be transferred to upon payment success."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub destination: Option<crate::Expandable<crate::account::Account>>,
 }
 
 #[cfg(any(feature = "events", feature = "quotes"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct QuotesResourceUpfront {
     #[doc = "Total before any discounts or taxes are applied."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_subtotal: i64,
     #[doc = "Total after discounts and taxes are applied."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_total: i64,
     #[doc = "The line items that will appear on the next invoice after this quote is accepted."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line_items: Option<crate::List<crate::common::Item>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub total_details: Option<crate::quotes::QuotesResourceTotalDetails>,
 }
 
@@ -1620,9 +1386,9 @@ pub struct QuotesResourceUpfront {
 #[derive(Debug, Clone, Default)]
 pub struct UpdateQuoteParams {
     #[doc = "The amount of the application fee (if any) that will be requested to be applied to the payment and transferred to the..."]
-    pub application_fee_amount: Option<serde_json::Value>,
+    pub application_fee_amount: Option<json::OwnedValue>,
     #[doc = "A non-negative decimal between 0 and 100, with at most two decimal places."]
-    pub application_fee_percent: Option<serde_json::Value>,
+    pub application_fee_percent: Option<json::OwnedValue>,
     #[doc = "Settings for automatic tax lookup for this quote and resulting invoices and subscriptions."]
     pub automatic_tax: Option<crate::quotes::UpdateQuoteParamsAutomaticTax>,
     #[doc = "Either `charge_automatically`, or `send_invoice`."]
@@ -1632,19 +1398,19 @@ pub struct UpdateQuoteParams {
     #[doc = "The account for which this quote belongs to."]
     pub customer_account: Option<String>,
     #[doc = "The tax rates that will apply to any line item that does not have `tax_rates` set."]
-    pub default_tax_rates: Option<serde_json::Value>,
+    pub default_tax_rates: Option<json::OwnedValue>,
     #[doc = "A description that will be displayed on the quote PDF."]
-    pub description: Option<serde_json::Value>,
+    pub description: Option<json::OwnedValue>,
     #[doc = "The discounts applied to the quote."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "A future timestamp on which the quote will be canceled if in `open` or `draft` status."]
     pub expires_at: Option<i64>,
     #[doc = "A footer that will be displayed on the quote PDF."]
-    pub footer: Option<serde_json::Value>,
+    pub footer: Option<json::OwnedValue>,
     #[doc = "A header that will be displayed on the quote PDF."]
-    pub header: Option<serde_json::Value>,
+    pub header: Option<json::OwnedValue>,
     #[doc = "All invoices will be billed using the specified settings."]
     pub invoice_settings: Option<crate::quotes::UpdateQuoteParamsInvoiceSettings>,
     #[doc = "A list of line items the customer is being quoted for."]
@@ -1652,7 +1418,7 @@ pub struct UpdateQuoteParams {
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "The account on behalf of which to charge."]
-    pub on_behalf_of: Option<serde_json::Value>,
+    pub on_behalf_of: Option<json::OwnedValue>,
     #[doc = "When creating a subscription or subscription schedule, the specified configuration data will be used."]
     pub subscription_data: Option<crate::quotes::UpdateQuoteParamsSubscriptionData>,
     #[doc = "The data with which to automatically create a Transfer for each of the invoices."]
@@ -1730,13 +1496,13 @@ pub type UpdateQuoteParamsCollectionMethod = crate::quotes::CreateQuoteParamsCol
 #[derive(Debug, Clone, Default)]
 pub struct UpdateQuoteParamsInvoiceSettings {
     #[doc = "A list of up to 4 custom fields to be displayed on the invoice."]
-    pub custom_fields: Option<serde_json::Value>,
+    pub custom_fields: Option<json::OwnedValue>,
     #[doc = "Number of days within which a customer must pay the invoice generated by this quote."]
     pub days_until_due: Option<i64>,
     #[doc = "An arbitrary string attached to the object."]
-    pub description: Option<serde_json::Value>,
+    pub description: Option<json::OwnedValue>,
     #[doc = "Footer to be displayed on the invoice."]
-    pub footer: Option<serde_json::Value>,
+    pub footer: Option<json::OwnedValue>,
     #[doc = "The connected account that issues the invoice."]
     pub issuer: Option<crate::quotes::UpdateQuoteParamsInvoiceSettingsIssuer>,
 }
@@ -1773,7 +1539,7 @@ pub type UpdateQuoteParamsInvoiceSettingsIssuerType = crate::quotes::CreateQuote
 #[derive(Debug, Clone, Default)]
 pub struct UpdateQuoteParamsLineItemsItem {
     #[doc = "The discounts applied to this line item."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "The ID of an existing line item on the quote."]
     pub id: Option<String>,
     #[doc = "The ID of the price object."]
@@ -1783,7 +1549,7 @@ pub struct UpdateQuoteParamsLineItemsItem {
     #[doc = "The quantity of the line item."]
     pub quantity: Option<i64>,
     #[doc = "The tax rates which apply to the line item."]
-    pub tax_rates: Option<serde_json::Value>,
+    pub tax_rates: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "quotes")]
@@ -1854,13 +1620,13 @@ pub type UpdateQuoteParamsLineItemsItemPriceDataTaxBehavior =
 #[derive(Debug, Clone, Default)]
 pub struct UpdateQuoteParamsSubscriptionData {
     #[doc = "The subscription's description, meant to be displayable to the customer."]
-    pub description: Option<serde_json::Value>,
+    pub description: Option<json::OwnedValue>,
     #[doc = "When creating a new subscription, the date of which the subscription schedule will start after the quote is accepted."]
-    pub effective_date: Option<serde_json::Value>,
+    pub effective_date: Option<json::OwnedValue>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that will set metadata on the subscription or subscrip..."]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "Integer representing the number of trial period days before the customer is charged for the first time."]
-    pub trial_period_days: Option<serde_json::Value>,
+    pub trial_period_days: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "quotes")]

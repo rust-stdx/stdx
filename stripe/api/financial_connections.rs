@@ -92,37 +92,19 @@ impl CreateFinancialConnectionSessionParamsAccountHolderType {
 }
 
 #[cfg(feature = "financial_connections")]
-impl<'de> serde::Deserialize<'de> for CreateFinancialConnectionSessionParamsAccountHolderType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateFinancialConnectionSessionParamsAccountHolderType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account" => CreateFinancialConnectionSessionParamsAccountHolderType::Account,
-                    "customer" => CreateFinancialConnectionSessionParamsAccountHolderType::Customer,
-                    other => CreateFinancialConnectionSessionParamsAccountHolderType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateFinancialConnectionSessionParamsAccountHolderType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateFinancialConnectionSessionParamsAccountHolderType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateFinancialConnectionSessionParamsAccountHolderType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account" => CreateFinancialConnectionSessionParamsAccountHolderType::Account,
+            "customer" => CreateFinancialConnectionSessionParamsAccountHolderType::Customer,
+            other => CreateFinancialConnectionSessionParamsAccountHolderType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -186,46 +168,24 @@ impl CreateFinancialConnectionSessionParamsFiltersAccountSubcategoriesItem {
 }
 
 #[cfg(feature = "financial_connections")]
-impl<'de> serde::Deserialize<'de> for CreateFinancialConnectionSessionParamsFiltersAccountSubcategoriesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateFinancialConnectionSessionParamsFiltersAccountSubcategoriesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "checking" => CreateFinancialConnectionSessionParamsFiltersAccountSubcategoriesItem::Checking,
-                    "credit_card" => CreateFinancialConnectionSessionParamsFiltersAccountSubcategoriesItem::CreditCard,
-                    "line_of_credit" => {
-                        CreateFinancialConnectionSessionParamsFiltersAccountSubcategoriesItem::LineOfCredit
-                    }
-                    "mortgage" => CreateFinancialConnectionSessionParamsFiltersAccountSubcategoriesItem::Mortgage,
-                    "savings" => CreateFinancialConnectionSessionParamsFiltersAccountSubcategoriesItem::Savings,
-                    other => CreateFinancialConnectionSessionParamsFiltersAccountSubcategoriesItem::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateFinancialConnectionSessionParamsFiltersAccountSubcategoriesItem::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateFinancialConnectionSessionParamsFiltersAccountSubcategoriesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateFinancialConnectionSessionParamsFiltersAccountSubcategoriesItem::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "checking" => CreateFinancialConnectionSessionParamsFiltersAccountSubcategoriesItem::Checking,
+            "credit_card" => CreateFinancialConnectionSessionParamsFiltersAccountSubcategoriesItem::CreditCard,
+            "line_of_credit" => CreateFinancialConnectionSessionParamsFiltersAccountSubcategoriesItem::LineOfCredit,
+            "mortgage" => CreateFinancialConnectionSessionParamsFiltersAccountSubcategoriesItem::Mortgage,
+            "savings" => CreateFinancialConnectionSessionParamsFiltersAccountSubcategoriesItem::Savings,
+            other => CreateFinancialConnectionSessionParamsFiltersAccountSubcategoriesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -260,42 +220,24 @@ impl CreateFinancialConnectionSessionParamsFiltersRequirePaymentMethodSupport {
 }
 
 #[cfg(feature = "financial_connections")]
-impl<'de> serde::Deserialize<'de> for CreateFinancialConnectionSessionParamsFiltersRequirePaymentMethodSupport {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateFinancialConnectionSessionParamsFiltersRequirePaymentMethodSupport;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "all" => CreateFinancialConnectionSessionParamsFiltersRequirePaymentMethodSupport::All,
-                    "at_least_one" => {
-                        CreateFinancialConnectionSessionParamsFiltersRequirePaymentMethodSupport::AtLeastOne
-                    }
-                    "none" => CreateFinancialConnectionSessionParamsFiltersRequirePaymentMethodSupport::None,
-                    other => CreateFinancialConnectionSessionParamsFiltersRequirePaymentMethodSupport::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateFinancialConnectionSessionParamsFiltersRequirePaymentMethodSupport::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateFinancialConnectionSessionParamsFiltersRequirePaymentMethodSupport {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateFinancialConnectionSessionParamsFiltersRequirePaymentMethodSupport::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "all" => CreateFinancialConnectionSessionParamsFiltersRequirePaymentMethodSupport::All,
+            "at_least_one" => CreateFinancialConnectionSessionParamsFiltersRequirePaymentMethodSupport::AtLeastOne,
+            "none" => CreateFinancialConnectionSessionParamsFiltersRequirePaymentMethodSupport::None,
+            other => {
+                CreateFinancialConnectionSessionParamsFiltersRequirePaymentMethodSupport::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -310,7 +252,7 @@ impl crate::params::FormEncode for CreateFinancialConnectionSessionParamsFilters
 #[derive(Debug, Clone, Default)]
 pub struct CreateFinancialConnectionSessionParamsLimits {
     #[doc = "The number of accounts that can be linked in this Session."]
-    pub accounts: serde_json::Value,
+    pub accounts: json::OwnedValue,
 }
 
 #[cfg(feature = "financial_connections")]
@@ -356,37 +298,19 @@ impl CreateFinancialConnectionSessionParamsManualEntryMode {
 }
 
 #[cfg(feature = "financial_connections")]
-impl<'de> serde::Deserialize<'de> for CreateFinancialConnectionSessionParamsManualEntryMode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateFinancialConnectionSessionParamsManualEntryMode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "automatic" => CreateFinancialConnectionSessionParamsManualEntryMode::Automatic,
-                    "disabled" => CreateFinancialConnectionSessionParamsManualEntryMode::Disabled,
-                    other => CreateFinancialConnectionSessionParamsManualEntryMode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateFinancialConnectionSessionParamsManualEntryMode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateFinancialConnectionSessionParamsManualEntryMode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateFinancialConnectionSessionParamsManualEntryMode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "automatic" => CreateFinancialConnectionSessionParamsManualEntryMode::Automatic,
+            "disabled" => CreateFinancialConnectionSessionParamsManualEntryMode::Disabled,
+            other => CreateFinancialConnectionSessionParamsManualEntryMode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -423,39 +347,21 @@ impl CreateFinancialConnectionSessionParamsPermissionsItem {
 }
 
 #[cfg(feature = "financial_connections")]
-impl<'de> serde::Deserialize<'de> for CreateFinancialConnectionSessionParamsPermissionsItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateFinancialConnectionSessionParamsPermissionsItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "balances" => CreateFinancialConnectionSessionParamsPermissionsItem::Balances,
-                    "ownership" => CreateFinancialConnectionSessionParamsPermissionsItem::Ownership,
-                    "payment_method" => CreateFinancialConnectionSessionParamsPermissionsItem::PaymentMethod,
-                    "transactions" => CreateFinancialConnectionSessionParamsPermissionsItem::Transactions,
-                    other => CreateFinancialConnectionSessionParamsPermissionsItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateFinancialConnectionSessionParamsPermissionsItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateFinancialConnectionSessionParamsPermissionsItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateFinancialConnectionSessionParamsPermissionsItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "balances" => CreateFinancialConnectionSessionParamsPermissionsItem::Balances,
+            "ownership" => CreateFinancialConnectionSessionParamsPermissionsItem::Ownership,
+            "payment_method" => CreateFinancialConnectionSessionParamsPermissionsItem::PaymentMethod,
+            "transactions" => CreateFinancialConnectionSessionParamsPermissionsItem::Transactions,
+            other => CreateFinancialConnectionSessionParamsPermissionsItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -490,38 +396,20 @@ impl CreateFinancialConnectionSessionParamsPrefetchItem {
 }
 
 #[cfg(feature = "financial_connections")]
-impl<'de> serde::Deserialize<'de> for CreateFinancialConnectionSessionParamsPrefetchItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateFinancialConnectionSessionParamsPrefetchItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "balances" => CreateFinancialConnectionSessionParamsPrefetchItem::Balances,
-                    "ownership" => CreateFinancialConnectionSessionParamsPrefetchItem::Ownership,
-                    "transactions" => CreateFinancialConnectionSessionParamsPrefetchItem::Transactions,
-                    other => CreateFinancialConnectionSessionParamsPrefetchItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateFinancialConnectionSessionParamsPrefetchItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateFinancialConnectionSessionParamsPrefetchItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateFinancialConnectionSessionParamsPrefetchItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "balances" => CreateFinancialConnectionSessionParamsPrefetchItem::Balances,
+            "ownership" => CreateFinancialConnectionSessionParamsPrefetchItem::Ownership,
+            "transactions" => CreateFinancialConnectionSessionParamsPrefetchItem::Transactions,
+            other => CreateFinancialConnectionSessionParamsPrefetchItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -536,70 +424,71 @@ impl crate::params::FormEncode for CreateFinancialConnectionSessionParamsPrefetc
 pub type DisconnectFinancialConnectionAccountParams = crate::financial_connections::GetFinancialConnectionAccountParams;
 
 #[cfg(any(feature = "events", feature = "financial_connections"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct FinancialConnectionsAccount {
     #[doc = "The account holder that this account belongs to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_holder: Option<crate::payment_methods::BankConnectionsResourceAccountholder>,
     #[doc = "Details about the account numbers."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_numbers: Option<Vec<crate::payment_methods::BankConnectionsResourceAccountNumberDetails>>,
     #[doc = "The most recent information about the account's balance."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub balance: Option<crate::payment_methods::BankConnectionsResourceBalance>,
     #[doc = "The state of the most recent attempt to refresh the account balance."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub balance_refresh: Option<crate::payment_methods::BankConnectionsResourceBalanceRefresh>,
     #[doc = "The type of the account."]
-    #[serde(default)]
+    #[json(default)]
     pub category: crate::financial_connections::FinancialConnectionsAccountCategory,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "A human-readable name that has been assigned to this account, either by the account holder or by the institution."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The name of the institution that holds this account."]
-    #[serde(default)]
+    #[json(default)]
     pub institution_name: String,
     #[doc = "The last 4 digits of the account number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last4: Option<String>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::financial_connections::FinancialConnectionsAccountObject,
     #[doc = "The most recent information about the account's owners."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ownership: Option<crate::Expandable<crate::financial_connections::FinancialConnectionsAccountOwnership>>,
     #[doc = "The state of the most recent attempt to refresh the account owners."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ownership_refresh: Option<crate::payment_methods::BankConnectionsResourceOwnershipRefresh>,
     #[doc = "The list of permissions granted by this account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub permissions: Option<Vec<crate::financial_connections::FinancialConnectionsAccountPermissionsItem>>,
     #[doc = "The status of the link to the account."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::financial_connections::FinancialConnectionsAccountStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status_details: Option<crate::payment_methods::BankConnectionsResourceAccountStatusDetails>,
     #[doc = "If `category` is `cash`, one of:   - `checking`  - `savings`  - `other`  If `category` is `credit`, one of:   - `mort..."]
-    #[serde(default)]
+    #[json(default)]
     pub subcategory: crate::financial_connections::FinancialConnectionsAccountSubcategory,
     #[doc = "The list of data refresh subscriptions requested on this account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscriptions: Option<Vec<crate::financial_connections::FinancialConnectionsAccountSubscriptionsItem>>,
     #[doc = "The [PaymentMethod type](https://docs.stripe.com/api/payment_methods/object#payment_method_object-type)(s) that can b..."]
-    #[serde(default)]
+    #[json(default)]
     pub supported_payment_method_types:
         Vec<crate::financial_connections::FinancialConnectionsAccountSupportedPaymentMethodTypesItem>,
     #[doc = "The state of the most recent attempt to refresh the account transactions."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transaction_refresh: Option<crate::payment_methods::BankConnectionsResourceTransactionRefresh>,
 }
 
@@ -643,39 +532,21 @@ impl Default for FinancialConnectionsAccountCategory {
 }
 
 #[cfg(any(feature = "events", feature = "financial_connections"))]
-impl<'de> serde::Deserialize<'de> for FinancialConnectionsAccountCategory {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FinancialConnectionsAccountCategory;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cash" => FinancialConnectionsAccountCategory::Cash,
-                    "credit" => FinancialConnectionsAccountCategory::Credit,
-                    "investment" => FinancialConnectionsAccountCategory::Investment,
-                    "other" => FinancialConnectionsAccountCategory::Other,
-                    other => FinancialConnectionsAccountCategory::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FinancialConnectionsAccountCategory::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for FinancialConnectionsAccountCategory {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FinancialConnectionsAccountCategory::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cash" => FinancialConnectionsAccountCategory::Cash,
+            "credit" => FinancialConnectionsAccountCategory::Credit,
+            "investment" => FinancialConnectionsAccountCategory::Investment,
+            "other" => FinancialConnectionsAccountCategory::Other,
+            other => FinancialConnectionsAccountCategory::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -706,65 +577,48 @@ impl Default for FinancialConnectionsAccountObject {
 }
 
 #[cfg(any(feature = "events", feature = "financial_connections"))]
-impl<'de> serde::Deserialize<'de> for FinancialConnectionsAccountObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FinancialConnectionsAccountObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "financial_connections.account" => FinancialConnectionsAccountObject::FinancialConnectionsAccount,
-                    other => FinancialConnectionsAccountObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FinancialConnectionsAccountObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for FinancialConnectionsAccountObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FinancialConnectionsAccountObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "financial_connections.account" => FinancialConnectionsAccountObject::FinancialConnectionsAccount,
+            other => FinancialConnectionsAccountObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "financial_connections"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct FinancialConnectionsAccountOwner {
     #[doc = "The email address of the owner."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The full name of the owner."]
-    #[serde(default)]
+    #[json(default)]
     pub name: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::financial_connections::FinancialConnectionsAccountOwnerObject,
     #[doc = "The ownership object that this owner belongs to."]
-    #[serde(default)]
+    #[json(default)]
     pub ownership: String,
     #[doc = "The raw phone number of the owner."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     #[doc = "The raw physical address of the owner."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub raw_address: Option<String>,
     #[doc = "The timestamp of the refresh that updated this owner."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refreshed_at: Option<i64>,
 }
 
@@ -804,55 +658,38 @@ impl Default for FinancialConnectionsAccountOwnerObject {
 }
 
 #[cfg(any(feature = "events", feature = "financial_connections"))]
-impl<'de> serde::Deserialize<'de> for FinancialConnectionsAccountOwnerObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FinancialConnectionsAccountOwnerObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "financial_connections.account_owner" => {
-                        FinancialConnectionsAccountOwnerObject::FinancialConnectionsAccountOwner
-                    }
-                    other => FinancialConnectionsAccountOwnerObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FinancialConnectionsAccountOwnerObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for FinancialConnectionsAccountOwnerObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FinancialConnectionsAccountOwnerObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "financial_connections.account_owner" => {
+                FinancialConnectionsAccountOwnerObject::FinancialConnectionsAccountOwner
+            }
+            other => FinancialConnectionsAccountOwnerObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "financial_connections"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct FinancialConnectionsAccountOwnership {
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::financial_connections::FinancialConnectionsAccountOwnershipObject,
     #[doc = "A paginated list of owners for this account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub owners: Option<crate::List<crate::financial_connections::FinancialConnectionsAccountOwner>>,
 }
 
@@ -892,38 +729,20 @@ impl Default for FinancialConnectionsAccountOwnershipObject {
 }
 
 #[cfg(any(feature = "events", feature = "financial_connections"))]
-impl<'de> serde::Deserialize<'de> for FinancialConnectionsAccountOwnershipObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FinancialConnectionsAccountOwnershipObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "financial_connections.account_ownership" => {
-                        FinancialConnectionsAccountOwnershipObject::FinancialConnectionsAccountOwnership
-                    }
-                    other => FinancialConnectionsAccountOwnershipObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FinancialConnectionsAccountOwnershipObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for FinancialConnectionsAccountOwnershipObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FinancialConnectionsAccountOwnershipObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "financial_connections.account_ownership" => {
+                FinancialConnectionsAccountOwnershipObject::FinancialConnectionsAccountOwnership
+            }
+            other => FinancialConnectionsAccountOwnershipObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1085,39 +904,21 @@ impl FinancialConnectionsAccountPermissionsItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for FinancialConnectionsAccountPermissionsItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FinancialConnectionsAccountPermissionsItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "balances" => FinancialConnectionsAccountPermissionsItem::Balances,
-                    "ownership" => FinancialConnectionsAccountPermissionsItem::Ownership,
-                    "payment_method" => FinancialConnectionsAccountPermissionsItem::PaymentMethod,
-                    "transactions" => FinancialConnectionsAccountPermissionsItem::Transactions,
-                    other => FinancialConnectionsAccountPermissionsItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FinancialConnectionsAccountPermissionsItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for FinancialConnectionsAccountPermissionsItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FinancialConnectionsAccountPermissionsItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "balances" => FinancialConnectionsAccountPermissionsItem::Balances,
+            "ownership" => FinancialConnectionsAccountPermissionsItem::Ownership,
+            "payment_method" => FinancialConnectionsAccountPermissionsItem::PaymentMethod,
+            "transactions" => FinancialConnectionsAccountPermissionsItem::Transactions,
+            other => FinancialConnectionsAccountPermissionsItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1152,38 +953,20 @@ impl Default for FinancialConnectionsAccountStatus {
 }
 
 #[cfg(any(feature = "events", feature = "financial_connections"))]
-impl<'de> serde::Deserialize<'de> for FinancialConnectionsAccountStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FinancialConnectionsAccountStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => FinancialConnectionsAccountStatus::Active,
-                    "disconnected" => FinancialConnectionsAccountStatus::Disconnected,
-                    "inactive" => FinancialConnectionsAccountStatus::Inactive,
-                    other => FinancialConnectionsAccountStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FinancialConnectionsAccountStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for FinancialConnectionsAccountStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FinancialConnectionsAccountStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => FinancialConnectionsAccountStatus::Active,
+            "disconnected" => FinancialConnectionsAccountStatus::Disconnected,
+            "inactive" => FinancialConnectionsAccountStatus::Inactive,
+            other => FinancialConnectionsAccountStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1224,41 +1007,23 @@ impl Default for FinancialConnectionsAccountSubcategory {
 }
 
 #[cfg(any(feature = "events", feature = "financial_connections"))]
-impl<'de> serde::Deserialize<'de> for FinancialConnectionsAccountSubcategory {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FinancialConnectionsAccountSubcategory;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "checking" => FinancialConnectionsAccountSubcategory::Checking,
-                    "credit_card" => FinancialConnectionsAccountSubcategory::CreditCard,
-                    "line_of_credit" => FinancialConnectionsAccountSubcategory::LineOfCredit,
-                    "mortgage" => FinancialConnectionsAccountSubcategory::Mortgage,
-                    "other" => FinancialConnectionsAccountSubcategory::Other,
-                    "savings" => FinancialConnectionsAccountSubcategory::Savings,
-                    other => FinancialConnectionsAccountSubcategory::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FinancialConnectionsAccountSubcategory::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for FinancialConnectionsAccountSubcategory {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FinancialConnectionsAccountSubcategory::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "checking" => FinancialConnectionsAccountSubcategory::Checking,
+            "credit_card" => FinancialConnectionsAccountSubcategory::CreditCard,
+            "line_of_credit" => FinancialConnectionsAccountSubcategory::LineOfCredit,
+            "mortgage" => FinancialConnectionsAccountSubcategory::Mortgage,
+            "other" => FinancialConnectionsAccountSubcategory::Other,
+            "savings" => FinancialConnectionsAccountSubcategory::Savings,
+            other => FinancialConnectionsAccountSubcategory::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1282,36 +1047,18 @@ impl FinancialConnectionsAccountSubscriptionsItem {
 }
 
 #[cfg(any(feature = "events", feature = "financial_connections"))]
-impl<'de> serde::Deserialize<'de> for FinancialConnectionsAccountSubscriptionsItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FinancialConnectionsAccountSubscriptionsItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "transactions" => FinancialConnectionsAccountSubscriptionsItem::Transactions,
-                    other => FinancialConnectionsAccountSubscriptionsItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FinancialConnectionsAccountSubscriptionsItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for FinancialConnectionsAccountSubscriptionsItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FinancialConnectionsAccountSubscriptionsItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "transactions" => FinancialConnectionsAccountSubscriptionsItem::Transactions,
+            other => FinancialConnectionsAccountSubscriptionsItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1337,61 +1084,44 @@ impl FinancialConnectionsAccountSupportedPaymentMethodTypesItem {
 }
 
 #[cfg(any(feature = "events", feature = "financial_connections"))]
-impl<'de> serde::Deserialize<'de> for FinancialConnectionsAccountSupportedPaymentMethodTypesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FinancialConnectionsAccountSupportedPaymentMethodTypesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "link" => FinancialConnectionsAccountSupportedPaymentMethodTypesItem::Link,
-                    "us_bank_account" => FinancialConnectionsAccountSupportedPaymentMethodTypesItem::UsBankAccount,
-                    other => FinancialConnectionsAccountSupportedPaymentMethodTypesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FinancialConnectionsAccountSupportedPaymentMethodTypesItem::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for FinancialConnectionsAccountSupportedPaymentMethodTypesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FinancialConnectionsAccountSupportedPaymentMethodTypesItem::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "link" => FinancialConnectionsAccountSupportedPaymentMethodTypesItem::Link,
+            "us_bank_account" => FinancialConnectionsAccountSupportedPaymentMethodTypesItem::UsBankAccount,
+            other => FinancialConnectionsAccountSupportedPaymentMethodTypesItem::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "events")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct FinancialConnectionsAuthorization {
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The name of the institution that this authorization belongs to."]
-    #[serde(default)]
+    #[json(default)]
     pub institution_name: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::financial_connections::FinancialConnectionsAuthorizationObject,
     #[doc = "The status of the connection to the Authorization."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::financial_connections::FinancialConnectionsAuthorizationStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status_details: Option<crate::payment_methods::BankConnectionsResourceAuthorizationStatusDetails>,
 }
 
@@ -1431,38 +1161,20 @@ impl Default for FinancialConnectionsAuthorizationObject {
 }
 
 #[cfg(feature = "events")]
-impl<'de> serde::Deserialize<'de> for FinancialConnectionsAuthorizationObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FinancialConnectionsAuthorizationObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "financial_connections.authorization" => {
-                        FinancialConnectionsAuthorizationObject::FinancialConnectionsAuthorization
-                    }
-                    other => FinancialConnectionsAuthorizationObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FinancialConnectionsAuthorizationObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for FinancialConnectionsAuthorizationObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FinancialConnectionsAuthorizationObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "financial_connections.authorization" => {
+                FinancialConnectionsAuthorizationObject::FinancialConnectionsAuthorization
+            }
+            other => FinancialConnectionsAuthorizationObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1495,77 +1207,60 @@ impl Default for FinancialConnectionsAuthorizationStatus {
 }
 
 #[cfg(feature = "events")]
-impl<'de> serde::Deserialize<'de> for FinancialConnectionsAuthorizationStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FinancialConnectionsAuthorizationStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => FinancialConnectionsAuthorizationStatus::Active,
-                    "inactive" => FinancialConnectionsAuthorizationStatus::Inactive,
-                    other => FinancialConnectionsAuthorizationStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FinancialConnectionsAuthorizationStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for FinancialConnectionsAuthorizationStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FinancialConnectionsAuthorizationStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => FinancialConnectionsAuthorizationStatus::Active,
+            "inactive" => FinancialConnectionsAuthorizationStatus::Inactive,
+            other => FinancialConnectionsAuthorizationStatus::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "financial_connections")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct FinancialConnectionsSession {
     #[doc = "The account holder for whom accounts are collected in this session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_holder: Option<crate::payment_methods::BankConnectionsResourceAccountholder>,
     #[doc = "The accounts that were collected as part of this Session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub accounts: Option<crate::List<crate::financial_connections::FinancialConnectionsAccount>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_account_token: Option<crate::tokens::Token>,
     #[doc = "A value that will be passed to the client to launch the authentication flow."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub client_secret: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub filters: Option<crate::payment_methods::BankConnectionsResourceLinkAccountSessionFilters>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub limits: Option<crate::payment_methods::BankConnectionsResourceLinkAccountSessionLimits>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub manual_entry: Option<crate::payment_methods::BankConnectionsResourceLinkAccountSessionManualEntry>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::financial_connections::FinancialConnectionsSessionObject,
     #[doc = "Permissions requested for accounts collected during this session."]
-    #[serde(default)]
+    #[json(default)]
     pub permissions: Vec<crate::financial_connections::FinancialConnectionsAccountPermissionsItem>,
     #[doc = "Data features requested to be retrieved upon account creation."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub prefetch: Option<Vec<crate::financial_connections::FinancialConnectionsSessionPrefetchItem>>,
     #[doc = "For webview integrations only."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub return_url: Option<String>,
 }
 
@@ -1603,36 +1298,18 @@ impl Default for FinancialConnectionsSessionObject {
 }
 
 #[cfg(feature = "financial_connections")]
-impl<'de> serde::Deserialize<'de> for FinancialConnectionsSessionObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FinancialConnectionsSessionObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "financial_connections.session" => FinancialConnectionsSessionObject::FinancialConnectionsSession,
-                    other => FinancialConnectionsSessionObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FinancialConnectionsSessionObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for FinancialConnectionsSessionObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FinancialConnectionsSessionObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "financial_connections.session" => FinancialConnectionsSessionObject::FinancialConnectionsSession,
+            other => FinancialConnectionsSessionObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1792,78 +1469,61 @@ impl FinancialConnectionsSessionPrefetchItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for FinancialConnectionsSessionPrefetchItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FinancialConnectionsSessionPrefetchItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "balances" => FinancialConnectionsSessionPrefetchItem::Balances,
-                    "ownership" => FinancialConnectionsSessionPrefetchItem::Ownership,
-                    "transactions" => FinancialConnectionsSessionPrefetchItem::Transactions,
-                    other => FinancialConnectionsSessionPrefetchItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FinancialConnectionsSessionPrefetchItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for FinancialConnectionsSessionPrefetchItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FinancialConnectionsSessionPrefetchItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "balances" => FinancialConnectionsSessionPrefetchItem::Balances,
+            "ownership" => FinancialConnectionsSessionPrefetchItem::Ownership,
+            "transactions" => FinancialConnectionsSessionPrefetchItem::Transactions,
+            other => FinancialConnectionsSessionPrefetchItem::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "financial_connections")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct FinancialConnectionsTransaction {
     #[doc = "The ID of the Financial Connections Account this transaction belongs to."]
-    #[serde(default)]
+    #[json(default)]
     pub account: String,
     #[doc = "The amount of this transaction, in cents (or local equivalent)."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "The description of this transaction."]
-    #[serde(default)]
+    #[json(default)]
     pub description: String,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::financial_connections::FinancialConnectionsTransactionObject,
     #[doc = "The status of the transaction."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::financial_connections::FinancialConnectionsTransactionStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status_transitions: Option<crate::payment_methods::BankConnectionsResourceTransactionResourceStatusTransitions>,
     #[doc = "Time at which the transaction was transacted."]
-    #[serde(default)]
+    #[json(default)]
     pub transacted_at: i64,
     #[doc = "The token of the transaction refresh that last updated or created this transaction."]
-    #[serde(default)]
+    #[json(default)]
     pub transaction_refresh: String,
     #[doc = "Time at which the object was last updated."]
-    #[serde(default)]
+    #[json(default)]
     pub updated: i64,
 }
 
@@ -1903,38 +1563,20 @@ impl Default for FinancialConnectionsTransactionObject {
 }
 
 #[cfg(feature = "financial_connections")]
-impl<'de> serde::Deserialize<'de> for FinancialConnectionsTransactionObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FinancialConnectionsTransactionObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "financial_connections.transaction" => {
-                        FinancialConnectionsTransactionObject::FinancialConnectionsTransaction
-                    }
-                    other => FinancialConnectionsTransactionObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FinancialConnectionsTransactionObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for FinancialConnectionsTransactionObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FinancialConnectionsTransactionObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "financial_connections.transaction" => {
+                FinancialConnectionsTransactionObject::FinancialConnectionsTransaction
+            }
+            other => FinancialConnectionsTransactionObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1969,38 +1611,20 @@ impl Default for FinancialConnectionsTransactionStatus {
 }
 
 #[cfg(feature = "financial_connections")]
-impl<'de> serde::Deserialize<'de> for FinancialConnectionsTransactionStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FinancialConnectionsTransactionStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "pending" => FinancialConnectionsTransactionStatus::Pending,
-                    "posted" => FinancialConnectionsTransactionStatus::Posted,
-                    "void" => FinancialConnectionsTransactionStatus::Void,
-                    other => FinancialConnectionsTransactionStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FinancialConnectionsTransactionStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for FinancialConnectionsTransactionStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FinancialConnectionsTransactionStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "pending" => FinancialConnectionsTransactionStatus::Pending,
+            "posted" => FinancialConnectionsTransactionStatus::Posted,
+            "void" => FinancialConnectionsTransactionStatus::Void,
+            other => FinancialConnectionsTransactionStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2070,20 +1694,21 @@ pub type GetFinancialConnectionTransactionParams = crate::financial_connections:
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct LinkedAccountOptionsCommon {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub filters: Option<
         crate::payment_intents::PaymentFlowsPrivatePaymentMethodsFinancialConnectionsCommonLinkedAccountOptionsFilters,
     >,
     #[doc = "The list of permissions to request."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub permissions: Option<Vec<crate::financial_connections::FinancialConnectionsAccountPermissionsItem>>,
     #[doc = "Data features requested to be retrieved upon account creation."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub prefetch: Option<Vec<crate::financial_connections::FinancialConnectionsSessionPrefetchItem>>,
     #[doc = "For webview integrations only."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub return_url: Option<String>,
 }
 
@@ -2263,38 +1888,20 @@ impl RefreshFinancialConnectionAccountParamsFeaturesItem {
 }
 
 #[cfg(feature = "financial_connections")]
-impl<'de> serde::Deserialize<'de> for RefreshFinancialConnectionAccountParamsFeaturesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = RefreshFinancialConnectionAccountParamsFeaturesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "balance" => RefreshFinancialConnectionAccountParamsFeaturesItem::Balance,
-                    "ownership" => RefreshFinancialConnectionAccountParamsFeaturesItem::Ownership,
-                    "transactions" => RefreshFinancialConnectionAccountParamsFeaturesItem::Transactions,
-                    other => RefreshFinancialConnectionAccountParamsFeaturesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(RefreshFinancialConnectionAccountParamsFeaturesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for RefreshFinancialConnectionAccountParamsFeaturesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(RefreshFinancialConnectionAccountParamsFeaturesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "balance" => RefreshFinancialConnectionAccountParamsFeaturesItem::Balance,
+            "ownership" => RefreshFinancialConnectionAccountParamsFeaturesItem::Ownership,
+            "transactions" => RefreshFinancialConnectionAccountParamsFeaturesItem::Transactions,
+            other => RefreshFinancialConnectionAccountParamsFeaturesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2344,36 +1951,18 @@ impl SubscribeFinancialConnectionAccountParamsFeaturesItem {
 }
 
 #[cfg(feature = "financial_connections")]
-impl<'de> serde::Deserialize<'de> for SubscribeFinancialConnectionAccountParamsFeaturesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SubscribeFinancialConnectionAccountParamsFeaturesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "transactions" => SubscribeFinancialConnectionAccountParamsFeaturesItem::Transactions,
-                    other => SubscribeFinancialConnectionAccountParamsFeaturesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SubscribeFinancialConnectionAccountParamsFeaturesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SubscribeFinancialConnectionAccountParamsFeaturesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SubscribeFinancialConnectionAccountParamsFeaturesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "transactions" => SubscribeFinancialConnectionAccountParamsFeaturesItem::Transactions,
+            other => SubscribeFinancialConnectionAccountParamsFeaturesItem::Unknown(other.to_string()),
+        })
     }
 }
 

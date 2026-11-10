@@ -121,7 +121,7 @@ scalar_shape!(
     String,
     uuid::Uuid,
     time::DateTime,
-    serde_json::Value,
+    json::Value<'static>,
     ipnetwork::IpNetwork,
     Interval,
 );

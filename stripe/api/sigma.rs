@@ -45,39 +45,40 @@ impl crate::params::FormEncode for ListSigmaScheduledQueryRunsParams {
 }
 
 #[cfg(any(feature = "events", feature = "sigma"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ScheduledQueryRun {
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "When the query was run, Sigma contained a snapshot of your Stripe data at this time."]
-    #[serde(default)]
+    #[json(default)]
     pub data_load_time: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<crate::sigma::SigmaScheduledQueryRunError>,
     #[doc = "The file object representing the results of the query."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub file: Option<crate::files::File>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::sigma::ScheduledQueryRunObject,
     #[doc = "Time at which the result expires and is no longer available for download."]
-    #[serde(default)]
+    #[json(default)]
     pub result_available_until: i64,
     #[doc = "SQL for the query."]
-    #[serde(default)]
+    #[json(default)]
     pub sql: String,
     #[doc = "The query's execution status, which will be `completed` for successful runs, and `canceled`, `failed`, or `timed_out`..."]
-    #[serde(default)]
+    #[json(default)]
     pub status: String,
     #[doc = "Title of the query."]
-    #[serde(default)]
+    #[json(default)]
     pub title: String,
 }
 
@@ -115,44 +116,27 @@ impl Default for ScheduledQueryRunObject {
 }
 
 #[cfg(any(feature = "events", feature = "sigma"))]
-impl<'de> serde::Deserialize<'de> for ScheduledQueryRunObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ScheduledQueryRunObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "scheduled_query_run" => ScheduledQueryRunObject::ScheduledQueryRun,
-                    other => ScheduledQueryRunObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ScheduledQueryRunObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ScheduledQueryRunObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ScheduledQueryRunObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "scheduled_query_run" => ScheduledQueryRunObject::ScheduledQueryRun,
+            other => ScheduledQueryRunObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "sigma"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SigmaScheduledQueryRunError {
     #[doc = "Information about the run failure."]
-    #[serde(default)]
+    #[json(default)]
     pub message: String,
 }
 

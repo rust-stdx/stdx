@@ -259,7 +259,7 @@ pub struct CreateTreasuryFinancialAccountParams {
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "The nickname for the FinancialAccount."]
-    pub nickname: Option<serde_json::Value>,
+    pub nickname: Option<json::OwnedValue>,
     #[doc = "The set of functionalities that the platform can restrict on the FinancialAccount."]
     pub platform_restrictions: Option<crate::treasury::CreateTreasuryFinancialAccountParamsPlatformRestrictions>,
     #[doc = "The currencies the FinancialAccount can hold a balance in."]
@@ -464,43 +464,21 @@ impl CreateTreasuryFinancialAccountParamsPlatformRestrictionsInboundFlows {
 }
 
 #[cfg(feature = "treasury")]
-impl<'de> serde::Deserialize<'de> for CreateTreasuryFinancialAccountParamsPlatformRestrictionsInboundFlows {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTreasuryFinancialAccountParamsPlatformRestrictionsInboundFlows;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "restricted" => CreateTreasuryFinancialAccountParamsPlatformRestrictionsInboundFlows::Restricted,
-                    "unrestricted" => {
-                        CreateTreasuryFinancialAccountParamsPlatformRestrictionsInboundFlows::Unrestricted
-                    }
-                    other => {
-                        CreateTreasuryFinancialAccountParamsPlatformRestrictionsInboundFlows::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTreasuryFinancialAccountParamsPlatformRestrictionsInboundFlows::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateTreasuryFinancialAccountParamsPlatformRestrictionsInboundFlows {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTreasuryFinancialAccountParamsPlatformRestrictionsInboundFlows::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "restricted" => CreateTreasuryFinancialAccountParamsPlatformRestrictionsInboundFlows::Restricted,
+            "unrestricted" => CreateTreasuryFinancialAccountParamsPlatformRestrictionsInboundFlows::Unrestricted,
+            other => CreateTreasuryFinancialAccountParamsPlatformRestrictionsInboundFlows::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -653,11 +631,11 @@ pub struct CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataBillin
     pub address:
         Option<crate::treasury::CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataBillingDetailsAddress>,
     #[doc = "Email address."]
-    pub email: Option<serde_json::Value>,
+    pub email: Option<json::OwnedValue>,
     #[doc = "Full name."]
-    pub name: Option<serde_json::Value>,
+    pub name: Option<json::OwnedValue>,
     #[doc = "Billing phone number (including extension)."]
-    pub phone: Option<serde_json::Value>,
+    pub phone: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "treasury")]
@@ -722,45 +700,23 @@ impl CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataType {
 }
 
 #[cfg(feature = "treasury")]
-impl<'de> serde::Deserialize<'de> for CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "financial_account" => {
-                        CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataType::FinancialAccount
-                    }
-                    "us_bank_account" => {
-                        CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataType::UsBankAccount
-                    }
-                    other => {
-                        CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataType::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "financial_account" => {
+                CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataType::FinancialAccount
+            }
+            "us_bank_account" => CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataType::UsBankAccount,
+            other => CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -823,39 +779,25 @@ impl CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccoun
 }
 
 #[cfg(feature = "treasury")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccountAccountHolderType
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccountAccountHolderType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "company" => CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccountAccountHolderType::Company,
-                    "individual" => CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccountAccountHolderType::Individual,
-                    other => CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccountAccountHolderType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccountAccountHolderType::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccountAccountHolderType::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "company" => CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccountAccountHolderType::Company,
+            "individual" => CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccountAccountHolderType::Individual,
+            other => CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccountAccountHolderType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -896,43 +838,31 @@ impl CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccoun
 }
 
 #[cfg(feature = "treasury")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccountAccountType
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccountAccountType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "checking" => CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccountAccountType::Checking,
-                    "savings" => CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccountAccountType::Savings,
-                    other => CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccountAccountType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccountAccountType::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccountAccountType::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "checking" => {
+                CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccountAccountType::Checking
+            }
+            "savings" => {
+                CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccountAccountType::Savings
+            }
+            other => CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodDataUsBankAccountAccountType::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -1001,43 +931,29 @@ impl CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodOptionsUsBankAcc
 }
 
 #[cfg(feature = "treasury")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodOptionsUsBankAccountNetwork
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodOptionsUsBankAccountNetwork;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ach" => CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodOptionsUsBankAccountNetwork::Ach,
-                    "us_domestic_wire" => CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodOptionsUsBankAccountNetwork::UsDomesticWire,
-                    other => CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodOptionsUsBankAccountNetwork::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodOptionsUsBankAccountNetwork::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodOptionsUsBankAccountNetwork::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ach" => CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodOptionsUsBankAccountNetwork::Ach,
+            "us_domestic_wire" => {
+                CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodOptionsUsBankAccountNetwork::UsDomesticWire
+            }
+            other => CreateTreasuryOutboundPaymentParamsDestinationPaymentMethodOptionsUsBankAccountNetwork::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -1158,42 +1074,22 @@ impl CreateTreasuryOutboundTransferParamsDestinationPaymentMethodDataType {
 }
 
 #[cfg(feature = "treasury")]
-impl<'de> serde::Deserialize<'de> for CreateTreasuryOutboundTransferParamsDestinationPaymentMethodDataType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTreasuryOutboundTransferParamsDestinationPaymentMethodDataType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "financial_account" => {
-                        CreateTreasuryOutboundTransferParamsDestinationPaymentMethodDataType::FinancialAccount
-                    }
-                    other => {
-                        CreateTreasuryOutboundTransferParamsDestinationPaymentMethodDataType::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTreasuryOutboundTransferParamsDestinationPaymentMethodDataType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateTreasuryOutboundTransferParamsDestinationPaymentMethodDataType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTreasuryOutboundTransferParamsDestinationPaymentMethodDataType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "financial_account" => {
+                CreateTreasuryOutboundTransferParamsDestinationPaymentMethodDataType::FinancialAccount
+            }
+            other => CreateTreasuryOutboundTransferParamsDestinationPaymentMethodDataType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1285,44 +1181,46 @@ pub type GetTreasuryTransactionEntryParams = crate::treasury::GetTreasuryCreditR
 pub type GetTreasuryTransactionParams = crate::treasury::GetTreasuryCreditReversalParams;
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InboundTransfers {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billing_details: Option<crate::treasury::TreasurySharedResourceBillingDetails>,
     #[doc = "The type of the payment method used in the InboundTransfer."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::treasury::InboundTransfersType,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us_bank_account: Option<crate::treasury::InboundTransfersPaymentMethodDetailsUsBankAccount>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InboundTransfersPaymentMethodDetailsUsBankAccount {
     #[doc = "Account holder type: individual or company."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_holder_type:
         Option<crate::treasury::InboundTransfersPaymentMethodDetailsUsBankAccountAccountHolderType>,
     #[doc = "Account type: checkings or savings."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_type: Option<crate::treasury::InboundTransfersPaymentMethodDetailsUsBankAccountAccountType>,
     #[doc = "Name of the bank associated with the bank account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_name: Option<String>,
     #[doc = "Uniquely identifies this particular bank account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
     #[doc = "Last four digits of the bank account number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last4: Option<String>,
     #[doc = "ID of the mandate used to make this payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate: Option<crate::Expandable<crate::mandates::Mandate>>,
     #[doc = "The network rails used."]
-    #[serde(default)]
+    #[json(default)]
     pub network: crate::treasury::InboundTransfersPaymentMethodDetailsUsBankAccountNetwork,
     #[doc = "Routing number of the bank account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub routing_number: Option<String>,
 }
 
@@ -1348,41 +1246,21 @@ impl InboundTransfersPaymentMethodDetailsUsBankAccountAccountHolderType {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for InboundTransfersPaymentMethodDetailsUsBankAccountAccountHolderType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InboundTransfersPaymentMethodDetailsUsBankAccountAccountHolderType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "company" => InboundTransfersPaymentMethodDetailsUsBankAccountAccountHolderType::Company,
-                    "individual" => InboundTransfersPaymentMethodDetailsUsBankAccountAccountHolderType::Individual,
-                    other => {
-                        InboundTransfersPaymentMethodDetailsUsBankAccountAccountHolderType::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InboundTransfersPaymentMethodDetailsUsBankAccountAccountHolderType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for InboundTransfersPaymentMethodDetailsUsBankAccountAccountHolderType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InboundTransfersPaymentMethodDetailsUsBankAccountAccountHolderType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "company" => InboundTransfersPaymentMethodDetailsUsBankAccountAccountHolderType::Company,
+            "individual" => InboundTransfersPaymentMethodDetailsUsBankAccountAccountHolderType::Individual,
+            other => InboundTransfersPaymentMethodDetailsUsBankAccountAccountHolderType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1408,39 +1286,21 @@ impl InboundTransfersPaymentMethodDetailsUsBankAccountAccountType {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for InboundTransfersPaymentMethodDetailsUsBankAccountAccountType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InboundTransfersPaymentMethodDetailsUsBankAccountAccountType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "checking" => InboundTransfersPaymentMethodDetailsUsBankAccountAccountType::Checking,
-                    "savings" => InboundTransfersPaymentMethodDetailsUsBankAccountAccountType::Savings,
-                    other => InboundTransfersPaymentMethodDetailsUsBankAccountAccountType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InboundTransfersPaymentMethodDetailsUsBankAccountAccountType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for InboundTransfersPaymentMethodDetailsUsBankAccountAccountType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InboundTransfersPaymentMethodDetailsUsBankAccountAccountType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "checking" => InboundTransfersPaymentMethodDetailsUsBankAccountAccountType::Checking,
+            "savings" => InboundTransfersPaymentMethodDetailsUsBankAccountAccountType::Savings,
+            other => InboundTransfersPaymentMethodDetailsUsBankAccountAccountType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1471,36 +1331,18 @@ impl Default for InboundTransfersPaymentMethodDetailsUsBankAccountNetwork {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for InboundTransfersPaymentMethodDetailsUsBankAccountNetwork {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InboundTransfersPaymentMethodDetailsUsBankAccountNetwork;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ach" => InboundTransfersPaymentMethodDetailsUsBankAccountNetwork::Ach,
-                    other => InboundTransfersPaymentMethodDetailsUsBankAccountNetwork::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InboundTransfersPaymentMethodDetailsUsBankAccountNetwork::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InboundTransfersPaymentMethodDetailsUsBankAccountNetwork {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InboundTransfersPaymentMethodDetailsUsBankAccountNetwork::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ach" => InboundTransfersPaymentMethodDetailsUsBankAccountNetwork::Ach,
+            other => InboundTransfersPaymentMethodDetailsUsBankAccountNetwork::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1531,36 +1373,18 @@ impl Default for InboundTransfersType {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for InboundTransfersType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InboundTransfersType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "us_bank_account" => InboundTransfersType::UsBankAccount,
-                    other => InboundTransfersType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InboundTransfersType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InboundTransfersType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InboundTransfersType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "us_bank_account" => InboundTransfersType::UsBankAccount,
+            other => InboundTransfersType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1615,38 +1439,20 @@ impl ListTreasuryCreditReversalsParamsStatus {
 }
 
 #[cfg(feature = "treasury")]
-impl<'de> serde::Deserialize<'de> for ListTreasuryCreditReversalsParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListTreasuryCreditReversalsParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "canceled" => ListTreasuryCreditReversalsParamsStatus::Canceled,
-                    "posted" => ListTreasuryCreditReversalsParamsStatus::Posted,
-                    "processing" => ListTreasuryCreditReversalsParamsStatus::Processing,
-                    other => ListTreasuryCreditReversalsParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListTreasuryCreditReversalsParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListTreasuryCreditReversalsParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListTreasuryCreditReversalsParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "canceled" => ListTreasuryCreditReversalsParamsStatus::Canceled,
+            "posted" => ListTreasuryCreditReversalsParamsStatus::Posted,
+            "processing" => ListTreasuryCreditReversalsParamsStatus::Processing,
+            other => ListTreasuryCreditReversalsParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1708,37 +1514,19 @@ impl ListTreasuryDebitReversalsParamsResolution {
 }
 
 #[cfg(feature = "treasury")]
-impl<'de> serde::Deserialize<'de> for ListTreasuryDebitReversalsParamsResolution {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListTreasuryDebitReversalsParamsResolution;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "lost" => ListTreasuryDebitReversalsParamsResolution::Lost,
-                    "won" => ListTreasuryDebitReversalsParamsResolution::Won,
-                    other => ListTreasuryDebitReversalsParamsResolution::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListTreasuryDebitReversalsParamsResolution::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListTreasuryDebitReversalsParamsResolution {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListTreasuryDebitReversalsParamsResolution::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "lost" => ListTreasuryDebitReversalsParamsResolution::Lost,
+            "won" => ListTreasuryDebitReversalsParamsResolution::Won,
+            other => ListTreasuryDebitReversalsParamsResolution::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1773,38 +1561,20 @@ impl ListTreasuryDebitReversalsParamsStatus {
 }
 
 #[cfg(feature = "treasury")]
-impl<'de> serde::Deserialize<'de> for ListTreasuryDebitReversalsParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListTreasuryDebitReversalsParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "canceled" => ListTreasuryDebitReversalsParamsStatus::Canceled,
-                    "completed" => ListTreasuryDebitReversalsParamsStatus::Completed,
-                    "processing" => ListTreasuryDebitReversalsParamsStatus::Processing,
-                    other => ListTreasuryDebitReversalsParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListTreasuryDebitReversalsParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListTreasuryDebitReversalsParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListTreasuryDebitReversalsParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "canceled" => ListTreasuryDebitReversalsParamsStatus::Canceled,
+            "completed" => ListTreasuryDebitReversalsParamsStatus::Completed,
+            "processing" => ListTreasuryDebitReversalsParamsStatus::Processing,
+            other => ListTreasuryDebitReversalsParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1885,37 +1655,19 @@ impl ListTreasuryFinancialAccountsParamsStatus {
 }
 
 #[cfg(feature = "treasury")]
-impl<'de> serde::Deserialize<'de> for ListTreasuryFinancialAccountsParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListTreasuryFinancialAccountsParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "closed" => ListTreasuryFinancialAccountsParamsStatus::Closed,
-                    "open" => ListTreasuryFinancialAccountsParamsStatus::Open,
-                    other => ListTreasuryFinancialAccountsParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListTreasuryFinancialAccountsParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListTreasuryFinancialAccountsParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListTreasuryFinancialAccountsParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "closed" => ListTreasuryFinancialAccountsParamsStatus::Closed,
+            "open" => ListTreasuryFinancialAccountsParamsStatus::Open,
+            other => ListTreasuryFinancialAccountsParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1977,39 +1729,21 @@ impl ListTreasuryInboundTransfersParamsStatus {
 }
 
 #[cfg(feature = "treasury")]
-impl<'de> serde::Deserialize<'de> for ListTreasuryInboundTransfersParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListTreasuryInboundTransfersParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "canceled" => ListTreasuryInboundTransfersParamsStatus::Canceled,
-                    "failed" => ListTreasuryInboundTransfersParamsStatus::Failed,
-                    "processing" => ListTreasuryInboundTransfersParamsStatus::Processing,
-                    "succeeded" => ListTreasuryInboundTransfersParamsStatus::Succeeded,
-                    other => ListTreasuryInboundTransfersParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListTreasuryInboundTransfersParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListTreasuryInboundTransfersParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListTreasuryInboundTransfersParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "canceled" => ListTreasuryInboundTransfersParamsStatus::Canceled,
+            "failed" => ListTreasuryInboundTransfersParamsStatus::Failed,
+            "processing" => ListTreasuryInboundTransfersParamsStatus::Processing,
+            "succeeded" => ListTreasuryInboundTransfersParamsStatus::Succeeded,
+            other => ListTreasuryInboundTransfersParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2080,40 +1814,22 @@ impl ListTreasuryOutboundPaymentsParamsStatus {
 }
 
 #[cfg(feature = "treasury")]
-impl<'de> serde::Deserialize<'de> for ListTreasuryOutboundPaymentsParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListTreasuryOutboundPaymentsParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "canceled" => ListTreasuryOutboundPaymentsParamsStatus::Canceled,
-                    "failed" => ListTreasuryOutboundPaymentsParamsStatus::Failed,
-                    "posted" => ListTreasuryOutboundPaymentsParamsStatus::Posted,
-                    "processing" => ListTreasuryOutboundPaymentsParamsStatus::Processing,
-                    "returned" => ListTreasuryOutboundPaymentsParamsStatus::Returned,
-                    other => ListTreasuryOutboundPaymentsParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListTreasuryOutboundPaymentsParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListTreasuryOutboundPaymentsParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListTreasuryOutboundPaymentsParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "canceled" => ListTreasuryOutboundPaymentsParamsStatus::Canceled,
+            "failed" => ListTreasuryOutboundPaymentsParamsStatus::Failed,
+            "posted" => ListTreasuryOutboundPaymentsParamsStatus::Posted,
+            "processing" => ListTreasuryOutboundPaymentsParamsStatus::Processing,
+            "returned" => ListTreasuryOutboundPaymentsParamsStatus::Returned,
+            other => ListTreasuryOutboundPaymentsParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2221,42 +1937,24 @@ impl ListTreasuryReceivedCreditsParamsLinkedFlowsSourceFlowType {
 }
 
 #[cfg(feature = "treasury")]
-impl<'de> serde::Deserialize<'de> for ListTreasuryReceivedCreditsParamsLinkedFlowsSourceFlowType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListTreasuryReceivedCreditsParamsLinkedFlowsSourceFlowType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "credit_reversal" => ListTreasuryReceivedCreditsParamsLinkedFlowsSourceFlowType::CreditReversal,
-                    "other" => ListTreasuryReceivedCreditsParamsLinkedFlowsSourceFlowType::Other,
-                    "outbound_payment" => ListTreasuryReceivedCreditsParamsLinkedFlowsSourceFlowType::OutboundPayment,
-                    "outbound_transfer" => ListTreasuryReceivedCreditsParamsLinkedFlowsSourceFlowType::OutboundTransfer,
-                    "payout" => ListTreasuryReceivedCreditsParamsLinkedFlowsSourceFlowType::Payout,
-                    other => ListTreasuryReceivedCreditsParamsLinkedFlowsSourceFlowType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListTreasuryReceivedCreditsParamsLinkedFlowsSourceFlowType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for ListTreasuryReceivedCreditsParamsLinkedFlowsSourceFlowType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListTreasuryReceivedCreditsParamsLinkedFlowsSourceFlowType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "credit_reversal" => ListTreasuryReceivedCreditsParamsLinkedFlowsSourceFlowType::CreditReversal,
+            "other" => ListTreasuryReceivedCreditsParamsLinkedFlowsSourceFlowType::Other,
+            "outbound_payment" => ListTreasuryReceivedCreditsParamsLinkedFlowsSourceFlowType::OutboundPayment,
+            "outbound_transfer" => ListTreasuryReceivedCreditsParamsLinkedFlowsSourceFlowType::OutboundTransfer,
+            "payout" => ListTreasuryReceivedCreditsParamsLinkedFlowsSourceFlowType::Payout,
+            other => ListTreasuryReceivedCreditsParamsLinkedFlowsSourceFlowType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2289,37 +1987,19 @@ impl ListTreasuryReceivedCreditsParamsStatus {
 }
 
 #[cfg(feature = "treasury")]
-impl<'de> serde::Deserialize<'de> for ListTreasuryReceivedCreditsParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListTreasuryReceivedCreditsParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "failed" => ListTreasuryReceivedCreditsParamsStatus::Failed,
-                    "succeeded" => ListTreasuryReceivedCreditsParamsStatus::Succeeded,
-                    other => ListTreasuryReceivedCreditsParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListTreasuryReceivedCreditsParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListTreasuryReceivedCreditsParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListTreasuryReceivedCreditsParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "failed" => ListTreasuryReceivedCreditsParamsStatus::Failed,
+            "succeeded" => ListTreasuryReceivedCreditsParamsStatus::Succeeded,
+            other => ListTreasuryReceivedCreditsParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2417,37 +2097,19 @@ impl ListTreasuryTransactionEntriesParamsOrderBy {
 }
 
 #[cfg(feature = "treasury")]
-impl<'de> serde::Deserialize<'de> for ListTreasuryTransactionEntriesParamsOrderBy {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListTreasuryTransactionEntriesParamsOrderBy;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "created" => ListTreasuryTransactionEntriesParamsOrderBy::Created,
-                    "effective_at" => ListTreasuryTransactionEntriesParamsOrderBy::EffectiveAt,
-                    other => ListTreasuryTransactionEntriesParamsOrderBy::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListTreasuryTransactionEntriesParamsOrderBy::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListTreasuryTransactionEntriesParamsOrderBy {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListTreasuryTransactionEntriesParamsOrderBy::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "created" => ListTreasuryTransactionEntriesParamsOrderBy::Created,
+            "effective_at" => ListTreasuryTransactionEntriesParamsOrderBy::EffectiveAt,
+            other => ListTreasuryTransactionEntriesParamsOrderBy::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2514,37 +2176,19 @@ impl ListTreasuryTransactionsParamsOrderBy {
 }
 
 #[cfg(feature = "treasury")]
-impl<'de> serde::Deserialize<'de> for ListTreasuryTransactionsParamsOrderBy {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListTreasuryTransactionsParamsOrderBy;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "created" => ListTreasuryTransactionsParamsOrderBy::Created,
-                    "posted_at" => ListTreasuryTransactionsParamsOrderBy::PostedAt,
-                    other => ListTreasuryTransactionsParamsOrderBy::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListTreasuryTransactionsParamsOrderBy::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListTreasuryTransactionsParamsOrderBy {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListTreasuryTransactionsParamsOrderBy::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "created" => ListTreasuryTransactionsParamsOrderBy::Created,
+            "posted_at" => ListTreasuryTransactionsParamsOrderBy::PostedAt,
+            other => ListTreasuryTransactionsParamsOrderBy::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2579,38 +2223,20 @@ impl ListTreasuryTransactionsParamsStatus {
 }
 
 #[cfg(feature = "treasury")]
-impl<'de> serde::Deserialize<'de> for ListTreasuryTransactionsParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListTreasuryTransactionsParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "open" => ListTreasuryTransactionsParamsStatus::Open,
-                    "posted" => ListTreasuryTransactionsParamsStatus::Posted,
-                    "void" => ListTreasuryTransactionsParamsStatus::Void,
-                    other => ListTreasuryTransactionsParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListTreasuryTransactionsParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListTreasuryTransactionsParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListTreasuryTransactionsParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "open" => ListTreasuryTransactionsParamsStatus::Open,
+            "posted" => ListTreasuryTransactionsParamsStatus::Posted,
+            "void" => ListTreasuryTransactionsParamsStatus::Void,
+            other => ListTreasuryTransactionsParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2640,27 +2266,29 @@ pub type ListTreasuryTransactionsParamsStatusTransitionsPostedAt =
     crate::treasury::ListTreasuryFinancialAccountsParamsCreated;
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct OutboundPaymentsPaymentMethodDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billing_details: Option<crate::treasury::TreasurySharedResourceBillingDetails>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub financial_account: Option<crate::treasury::OutboundPaymentsPaymentMethodDetailsFinancialAccount>,
     #[doc = "The type of the payment method used in the OutboundPayment."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::treasury::OutboundPaymentsPaymentMethodDetailsType,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us_bank_account: Option<crate::treasury::OutboundPaymentsPaymentMethodDetailsUsBankAccount>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct OutboundPaymentsPaymentMethodDetailsFinancialAccount {
     #[doc = "Token of the FinancialAccount."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The rails used to send funds."]
-    #[serde(default)]
+    #[json(default)]
     pub network: crate::treasury::OutboundPaymentsPaymentMethodDetailsFinancialAccountNetwork,
 }
 
@@ -2698,38 +2326,20 @@ impl Default for OutboundPaymentsPaymentMethodDetailsFinancialAccountNetwork {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for OutboundPaymentsPaymentMethodDetailsFinancialAccountNetwork {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = OutboundPaymentsPaymentMethodDetailsFinancialAccountNetwork;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "stripe" => OutboundPaymentsPaymentMethodDetailsFinancialAccountNetwork::Stripe,
-                    other => OutboundPaymentsPaymentMethodDetailsFinancialAccountNetwork::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(OutboundPaymentsPaymentMethodDetailsFinancialAccountNetwork::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for OutboundPaymentsPaymentMethodDetailsFinancialAccountNetwork {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(OutboundPaymentsPaymentMethodDetailsFinancialAccountNetwork::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "stripe" => OutboundPaymentsPaymentMethodDetailsFinancialAccountNetwork::Stripe,
+            other => OutboundPaymentsPaymentMethodDetailsFinancialAccountNetwork::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2762,67 +2372,50 @@ impl Default for OutboundPaymentsPaymentMethodDetailsType {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for OutboundPaymentsPaymentMethodDetailsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = OutboundPaymentsPaymentMethodDetailsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "financial_account" => OutboundPaymentsPaymentMethodDetailsType::FinancialAccount,
-                    "us_bank_account" => OutboundPaymentsPaymentMethodDetailsType::UsBankAccount,
-                    other => OutboundPaymentsPaymentMethodDetailsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(OutboundPaymentsPaymentMethodDetailsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for OutboundPaymentsPaymentMethodDetailsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(OutboundPaymentsPaymentMethodDetailsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "financial_account" => OutboundPaymentsPaymentMethodDetailsType::FinancialAccount,
+            "us_bank_account" => OutboundPaymentsPaymentMethodDetailsType::UsBankAccount,
+            other => OutboundPaymentsPaymentMethodDetailsType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct OutboundPaymentsPaymentMethodDetailsUsBankAccount {
     #[doc = "Account holder type: individual or company."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_holder_type:
         Option<crate::treasury::InboundTransfersPaymentMethodDetailsUsBankAccountAccountHolderType>,
     #[doc = "Account type: checkings or savings."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_type: Option<crate::treasury::InboundTransfersPaymentMethodDetailsUsBankAccountAccountType>,
     #[doc = "Name of the bank associated with the bank account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_name: Option<String>,
     #[doc = "Uniquely identifies this particular bank account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
     #[doc = "Last four digits of the bank account number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last4: Option<String>,
     #[doc = "ID of the mandate used to make this payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate: Option<crate::Expandable<crate::mandates::Mandate>>,
     #[doc = "The network rails used."]
-    #[serde(default)]
+    #[json(default)]
     pub network: crate::treasury::OutboundPaymentsPaymentMethodDetailsUsBankAccountNetwork,
     #[doc = "Routing number of the bank account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub routing_number: Option<String>,
 }
 
@@ -2855,62 +2448,46 @@ impl Default for OutboundPaymentsPaymentMethodDetailsUsBankAccountNetwork {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for OutboundPaymentsPaymentMethodDetailsUsBankAccountNetwork {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = OutboundPaymentsPaymentMethodDetailsUsBankAccountNetwork;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ach" => OutboundPaymentsPaymentMethodDetailsUsBankAccountNetwork::Ach,
-                    "us_domestic_wire" => OutboundPaymentsPaymentMethodDetailsUsBankAccountNetwork::UsDomesticWire,
-                    other => OutboundPaymentsPaymentMethodDetailsUsBankAccountNetwork::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(OutboundPaymentsPaymentMethodDetailsUsBankAccountNetwork::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for OutboundPaymentsPaymentMethodDetailsUsBankAccountNetwork {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(OutboundPaymentsPaymentMethodDetailsUsBankAccountNetwork::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ach" => OutboundPaymentsPaymentMethodDetailsUsBankAccountNetwork::Ach,
+            "us_domestic_wire" => OutboundPaymentsPaymentMethodDetailsUsBankAccountNetwork::UsDomesticWire,
+            other => OutboundPaymentsPaymentMethodDetailsUsBankAccountNetwork::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct OutboundTransfersPaymentMethodDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billing_details: Option<crate::treasury::TreasurySharedResourceBillingDetails>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub financial_account: Option<crate::treasury::OutboundTransfersPaymentMethodDetailsFinancialAccount>,
     #[doc = "The type of the payment method used in the OutboundTransfer."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::treasury::OutboundPaymentsPaymentMethodDetailsType,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us_bank_account: Option<crate::treasury::OutboundTransfersPaymentMethodDetailsUsBankAccount>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct OutboundTransfersPaymentMethodDetailsFinancialAccount {
     #[doc = "Token of the FinancialAccount."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The rails used to send funds."]
-    #[serde(default)]
+    #[json(default)]
     pub network: crate::treasury::OutboundPaymentsPaymentMethodDetailsFinancialAccountNetwork,
 }
 
@@ -2922,43 +2499,45 @@ impl crate::PagedItem for OutboundTransfersPaymentMethodDetailsFinancialAccount 
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct OutboundTransfersPaymentMethodDetailsUsBankAccount {
     #[doc = "Account holder type: individual or company."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_holder_type:
         Option<crate::treasury::InboundTransfersPaymentMethodDetailsUsBankAccountAccountHolderType>,
     #[doc = "Account type: checkings or savings."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_type: Option<crate::treasury::InboundTransfersPaymentMethodDetailsUsBankAccountAccountType>,
     #[doc = "Name of the bank associated with the bank account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_name: Option<String>,
     #[doc = "Uniquely identifies this particular bank account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
     #[doc = "Last four digits of the bank account number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last4: Option<String>,
     #[doc = "ID of the mandate used to make this payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate: Option<crate::Expandable<crate::mandates::Mandate>>,
     #[doc = "The network rails used."]
-    #[serde(default)]
+    #[json(default)]
     pub network: crate::treasury::OutboundPaymentsPaymentMethodDetailsUsBankAccountNetwork,
     #[doc = "Routing number of the bank account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub routing_number: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ReceivedPaymentMethodDetailsFinancialAccount {
     #[doc = "The FinancialAccount ID."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The rails the ReceivedCredit was sent over."]
-    #[serde(default)]
+    #[json(default)]
     pub network: crate::treasury::OutboundPaymentsPaymentMethodDetailsFinancialAccountNetwork,
 }
 
@@ -2970,57 +2549,58 @@ impl crate::PagedItem for ReceivedPaymentMethodDetailsFinancialAccount {
 }
 
 #[cfg(feature = "events")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ReserveHold {
     #[doc = "Amount reserved."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Amount in cents that can be released from this ReserveHold"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_releasable: Option<i64>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Indicates which party created this ReserveHold."]
-    #[serde(default)]
+    #[json(default)]
     pub created_by: crate::treasury::ReserveHoldCreatedBy,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "The balance destination to which the reserved funds are sent."]
-    #[serde(default)]
+    #[json(default)]
     pub destination: crate::treasury::ReserveHoldDestination,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "Whether there are any funds available to release on this ReserveHold."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub is_releasable: Option<bool>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::treasury::ReserveHoldObject,
     #[doc = "The reason for the ReserveHold."]
-    #[serde(default)]
+    #[json(default)]
     pub reason: crate::treasury::ReserveHoldReason,
     #[doc = "List of ReserveReleases and the amounts released from this ReserveHold."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub release_details: Option<Vec<crate::treasury::ReservesReserveHoldsResourcesReleaseDetail>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub release_schedule: Option<crate::treasury::ReservesReserveHoldsResourcesReleaseSchedule>,
     #[doc = "The ReservePlan which produced this ReserveHold (i.e., resplan_123)"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reserve_plan: Option<crate::Expandable<crate::treasury::ReservePlan>>,
     #[doc = "The Charge which funded this ReserveHold (e.g., ch_123)"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub source_charge: Option<crate::Expandable<crate::charges::Charge>>,
     #[doc = "Which source balance type this ReserveHold reserves funds from."]
-    #[serde(default)]
+    #[json(default)]
     pub source_type: crate::treasury::ReserveHoldSourceType,
 }
 
@@ -3060,37 +2640,19 @@ impl Default for ReserveHoldCreatedBy {
 }
 
 #[cfg(feature = "events")]
-impl<'de> serde::Deserialize<'de> for ReserveHoldCreatedBy {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ReserveHoldCreatedBy;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "application" => ReserveHoldCreatedBy::Application,
-                    "stripe" => ReserveHoldCreatedBy::Stripe,
-                    other => ReserveHoldCreatedBy::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ReserveHoldCreatedBy::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ReserveHoldCreatedBy {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ReserveHoldCreatedBy::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "application" => ReserveHoldCreatedBy::Application,
+            "stripe" => ReserveHoldCreatedBy::Stripe,
+            other => ReserveHoldCreatedBy::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3125,38 +2687,20 @@ impl Default for ReserveHoldDestination {
 }
 
 #[cfg(feature = "events")]
-impl<'de> serde::Deserialize<'de> for ReserveHoldDestination {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ReserveHoldDestination;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "other" => ReserveHoldDestination::Other,
-                    "risk_reserved" => ReserveHoldDestination::RiskReserved,
-                    "settlement_reserved" => ReserveHoldDestination::SettlementReserved,
-                    other => ReserveHoldDestination::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ReserveHoldDestination::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ReserveHoldDestination {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ReserveHoldDestination::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "other" => ReserveHoldDestination::Other,
+            "risk_reserved" => ReserveHoldDestination::RiskReserved,
+            "settlement_reserved" => ReserveHoldDestination::SettlementReserved,
+            other => ReserveHoldDestination::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3187,36 +2731,18 @@ impl Default for ReserveHoldObject {
 }
 
 #[cfg(feature = "events")]
-impl<'de> serde::Deserialize<'de> for ReserveHoldObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ReserveHoldObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "reserve.hold" => ReserveHoldObject::ReserveHold,
-                    other => ReserveHoldObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ReserveHoldObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ReserveHoldObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ReserveHoldObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "reserve.hold" => ReserveHoldObject::ReserveHold,
+            other => ReserveHoldObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3249,37 +2775,19 @@ impl Default for ReserveHoldReason {
 }
 
 #[cfg(feature = "events")]
-impl<'de> serde::Deserialize<'de> for ReserveHoldReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ReserveHoldReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "charge" => ReserveHoldReason::Charge,
-                    "standalone" => ReserveHoldReason::Standalone,
-                    other => ReserveHoldReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ReserveHoldReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ReserveHoldReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ReserveHoldReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "charge" => ReserveHoldReason::Charge,
+            "standalone" => ReserveHoldReason::Standalone,
+            other => ReserveHoldReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3314,85 +2822,68 @@ impl Default for ReserveHoldSourceType {
 }
 
 #[cfg(feature = "events")]
-impl<'de> serde::Deserialize<'de> for ReserveHoldSourceType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ReserveHoldSourceType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "bank_account" => ReserveHoldSourceType::BankAccount,
-                    "card" => ReserveHoldSourceType::Card,
-                    "fpx" => ReserveHoldSourceType::Fpx,
-                    other => ReserveHoldSourceType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ReserveHoldSourceType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ReserveHoldSourceType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ReserveHoldSourceType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "bank_account" => ReserveHoldSourceType::BankAccount,
+            "card" => ReserveHoldSourceType::Card,
+            "fpx" => ReserveHoldSourceType::Fpx,
+            other => ReserveHoldSourceType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "events")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ReservePlan {
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Indicates which party created this ReservePlan."]
-    #[serde(default)]
+    #[json(default)]
     pub created_by: crate::treasury::ReserveHoldCreatedBy,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[doc = "The balance destination to which the reserved funds are sent."]
-    #[serde(default)]
+    #[json(default)]
     pub destination: crate::treasury::ReserveHoldDestination,
     #[doc = "Time at which the ReservePlan was disabled."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub disabled_at: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fixed_release: Option<crate::treasury::ReservesReservePlansResourcesFixedRelease>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub manual_release: Option<crate::treasury::ReservesReservePlansResourcesManualRelease>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::treasury::ReservePlanObject,
     #[doc = "The percent of each Charge to reserve."]
-    #[serde(default)]
+    #[json(default)]
     pub percent: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub rolling_release: Option<crate::treasury::ReservesReservePlansResourcesRollingRelease>,
     #[doc = "The current status of the ReservePlan."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::treasury::ReservePlanStatus,
     #[doc = "The type of the ReservePlan."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::treasury::ReservePlanType,
 }
 
@@ -3430,36 +2921,18 @@ impl Default for ReservePlanObject {
 }
 
 #[cfg(feature = "events")]
-impl<'de> serde::Deserialize<'de> for ReservePlanObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ReservePlanObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "reserve.plan" => ReservePlanObject::ReservePlan,
-                    other => ReservePlanObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ReservePlanObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ReservePlanObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ReservePlanObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "reserve.plan" => ReservePlanObject::ReservePlan,
+            other => ReservePlanObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3496,39 +2969,21 @@ impl Default for ReservePlanStatus {
 }
 
 #[cfg(feature = "events")]
-impl<'de> serde::Deserialize<'de> for ReservePlanStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ReservePlanStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => ReservePlanStatus::Active,
-                    "disabled" => ReservePlanStatus::Disabled,
-                    "expired" => ReservePlanStatus::Expired,
-                    "other" => ReservePlanStatus::Other,
-                    other => ReservePlanStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ReservePlanStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ReservePlanStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ReservePlanStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => ReservePlanStatus::Active,
+            "disabled" => ReservePlanStatus::Disabled,
+            "expired" => ReservePlanStatus::Expired,
+            "other" => ReservePlanStatus::Other,
+            other => ReservePlanStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3565,85 +3020,68 @@ impl Default for ReservePlanType {
 }
 
 #[cfg(feature = "events")]
-impl<'de> serde::Deserialize<'de> for ReservePlanType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ReservePlanType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "fixed_release" => ReservePlanType::FixedRelease,
-                    "manual_release" => ReservePlanType::ManualRelease,
-                    "other" => ReservePlanType::Other,
-                    "rolling_release" => ReservePlanType::RollingRelease,
-                    other => ReservePlanType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ReservePlanType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ReservePlanType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ReservePlanType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "fixed_release" => ReservePlanType::FixedRelease,
+            "manual_release" => ReservePlanType::ManualRelease,
+            "other" => ReservePlanType::Other,
+            "rolling_release" => ReservePlanType::RollingRelease,
+            other => ReservePlanType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "events")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ReserveRelease {
     #[doc = "Amount released."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Indicates which party created this ReserveRelease."]
-    #[serde(default)]
+    #[json(default)]
     pub created_by: crate::treasury::ReserveHoldCreatedBy,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "The balance destination to which the released funds are sent."]
-    #[serde(default)]
+    #[json(default)]
     pub destination: crate::treasury::ReserveReleaseDestination,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::treasury::ReserveReleaseObject,
     #[doc = "The reason for the ReserveRelease, indicating why the funds were released."]
-    #[serde(default)]
+    #[json(default)]
     pub reason: crate::treasury::ReserveReleaseReason,
     #[doc = "The release timestamp of the funds."]
-    #[serde(default)]
+    #[json(default)]
     pub released_at: i64,
     #[doc = "The ReserveHold this ReserveRelease is associated with."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reserve_hold: Option<crate::Expandable<crate::treasury::ReserveHold>>,
     #[doc = "The ReservePlan ID this ReserveRelease is associated with."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reserve_plan: Option<crate::Expandable<crate::treasury::ReservePlan>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub source_transaction: Option<crate::treasury::ReservesReserveReleasesResourcesSourceTransaction>,
 }
 
@@ -3683,37 +3121,19 @@ impl Default for ReserveReleaseDestination {
 }
 
 #[cfg(feature = "events")]
-impl<'de> serde::Deserialize<'de> for ReserveReleaseDestination {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ReserveReleaseDestination;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "other" => ReserveReleaseDestination::Other,
-                    "payments" => ReserveReleaseDestination::Payments,
-                    other => ReserveReleaseDestination::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ReserveReleaseDestination::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ReserveReleaseDestination {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ReserveReleaseDestination::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "other" => ReserveReleaseDestination::Other,
+            "payments" => ReserveReleaseDestination::Payments,
+            other => ReserveReleaseDestination::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3744,36 +3164,18 @@ impl Default for ReserveReleaseObject {
 }
 
 #[cfg(feature = "events")]
-impl<'de> serde::Deserialize<'de> for ReserveReleaseObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ReserveReleaseObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "reserve.release" => ReserveReleaseObject::ReserveRelease,
-                    other => ReserveReleaseObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ReserveReleaseObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ReserveReleaseObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ReserveReleaseObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "reserve.release" => ReserveReleaseObject::ReserveRelease,
+            other => ReserveReleaseObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3810,39 +3212,21 @@ impl Default for ReserveReleaseReason {
 }
 
 #[cfg(feature = "events")]
-impl<'de> serde::Deserialize<'de> for ReserveReleaseReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ReserveReleaseReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "hold_expired" => ReserveReleaseReason::HoldExpired,
-                    "hold_released_early" => ReserveReleaseReason::HoldReleasedEarly,
-                    "hold_reversed" => ReserveReleaseReason::HoldReversed,
-                    "plan_disabled" => ReserveReleaseReason::PlanDisabled,
-                    other => ReserveReleaseReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ReserveReleaseReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ReserveReleaseReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ReserveReleaseReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "hold_expired" => ReserveReleaseReason::HoldExpired,
+            "hold_released_early" => ReserveReleaseReason::HoldReleasedEarly,
+            "hold_reversed" => ReserveReleaseReason::HoldReversed,
+            "plan_disabled" => ReserveReleaseReason::PlanDisabled,
+            other => ReserveReleaseReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3891,21 +3275,22 @@ impl<'de> serde::Deserialize<'de> for ReserveReleaseReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ReserveTransaction {
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::treasury::ReserveTransactionObject,
 }
 
@@ -4163,98 +3548,86 @@ impl Default for ReserveTransactionObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ReserveTransactionObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ReserveTransactionObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "reserve_transaction" => ReserveTransactionObject::ReserveTransaction,
-                    other => ReserveTransactionObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ReserveTransactionObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ReserveTransactionObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ReserveTransactionObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "reserve_transaction" => ReserveTransactionObject::ReserveTransaction,
+            other => ReserveTransactionObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "events")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ReservesReserveHoldsResourcesReleaseDetail {
     #[doc = "The amount released by the ReserveRelease from this ReserveHold."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "The ReserveRelease which released funds from this ReserveHold (e.g., resrel_123)."]
-    #[serde(default)]
+    #[json(default)]
     pub reserve_release: String,
 }
 
 #[cfg(feature = "events")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ReservesReserveHoldsResourcesReleaseSchedule {
     #[doc = "The time after which the ReserveHold is requested to be released."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub release_after: Option<i64>,
     #[doc = "The time at which the ReserveHold is scheduled to be released, automatically set to midnight UTC of the day after `re..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub scheduled_release: Option<i64>,
 }
 
 #[cfg(feature = "events")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ReservesReservePlansResourcesFixedRelease {
     #[doc = "The time after which all reserved funds are requested for release."]
-    #[serde(default)]
+    #[json(default)]
     pub release_after: i64,
     #[doc = "The time at which reserved funds are scheduled for release, automatically set to midnight UTC of the day after `relea..."]
-    #[serde(default)]
+    #[json(default)]
     pub scheduled_release: i64,
 }
 
 #[cfg(feature = "events")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ReservesReservePlansResourcesManualRelease {}
 
 #[cfg(feature = "events")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ReservesReservePlansResourcesRollingRelease {
     #[doc = "The number of days to reserve funds before releasing."]
-    #[serde(default)]
+    #[json(default)]
     pub days_after_charge: i64,
     #[doc = "The time at which the ReservePlan expires."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expires_on: Option<i64>,
 }
 
 #[cfg(feature = "events")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ReservesReserveReleasesResourcesSourceTransaction {
     #[doc = "The ID of the dispute."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub dispute: Option<crate::Expandable<crate::disputes::Dispute>>,
     #[doc = "The ID of the refund."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund: Option<crate::Expandable<crate::refunds::Refund>>,
     #[doc = "The type of source transaction."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::treasury::ReservesReserveReleasesResourcesSourceTransactionType,
 }
 
@@ -4287,83 +3660,66 @@ impl Default for ReservesReserveReleasesResourcesSourceTransactionType {
 }
 
 #[cfg(feature = "events")]
-impl<'de> serde::Deserialize<'de> for ReservesReserveReleasesResourcesSourceTransactionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ReservesReserveReleasesResourcesSourceTransactionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "dispute" => ReservesReserveReleasesResourcesSourceTransactionType::Dispute,
-                    "refund" => ReservesReserveReleasesResourcesSourceTransactionType::Refund,
-                    other => ReservesReserveReleasesResourcesSourceTransactionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ReservesReserveReleasesResourcesSourceTransactionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ReservesReserveReleasesResourcesSourceTransactionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ReservesReserveReleasesResourcesSourceTransactionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "dispute" => ReservesReserveReleasesResourcesSourceTransactionType::Dispute,
+            "refund" => ReservesReserveReleasesResourcesSourceTransactionType::Refund,
+            other => ReservesReserveReleasesResourcesSourceTransactionType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryCreditReversal {
     #[doc = "Amount (in cents) transferred."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "The FinancialAccount to reverse funds from."]
-    #[serde(default)]
+    #[json(default)]
     pub financial_account: String,
     #[doc = "A [hosted transaction receipt](https://docs.stripe.com/treasury/moving-money/regulatory-receipts) URL that is provide..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hosted_regulatory_receipt_url: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "The rails used to reverse the funds."]
-    #[serde(default)]
+    #[json(default)]
     pub network: crate::treasury::TreasuryCreditReversalNetwork,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::treasury::TreasuryCreditReversalObject,
     #[doc = "The ReceivedCredit being reversed."]
-    #[serde(default)]
+    #[json(default)]
     pub received_credit: String,
     #[doc = "Status of the CreditReversal"]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::treasury::TreasuryCreditReversalStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status_transitions: Option<crate::treasury::TreasuryReceivedCreditsResourceStatusTransitions>,
     #[doc = "The Transaction associated with this object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transaction: Option<crate::Expandable<crate::treasury::TreasuryTransaction>>,
 }
 
@@ -4403,37 +3759,19 @@ impl Default for TreasuryCreditReversalNetwork {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryCreditReversalNetwork {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryCreditReversalNetwork;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ach" => TreasuryCreditReversalNetwork::Ach,
-                    "stripe" => TreasuryCreditReversalNetwork::Stripe,
-                    other => TreasuryCreditReversalNetwork::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryCreditReversalNetwork::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryCreditReversalNetwork {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryCreditReversalNetwork::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ach" => TreasuryCreditReversalNetwork::Ach,
+            "stripe" => TreasuryCreditReversalNetwork::Stripe,
+            other => TreasuryCreditReversalNetwork::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4464,36 +3802,18 @@ impl Default for TreasuryCreditReversalObject {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryCreditReversalObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryCreditReversalObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "treasury.credit_reversal" => TreasuryCreditReversalObject::TreasuryCreditReversal,
-                    other => TreasuryCreditReversalObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryCreditReversalObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryCreditReversalObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryCreditReversalObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "treasury.credit_reversal" => TreasuryCreditReversalObject::TreasuryCreditReversal,
+            other => TreasuryCreditReversalObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4528,87 +3848,70 @@ impl Default for TreasuryCreditReversalStatus {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryCreditReversalStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryCreditReversalStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "canceled" => TreasuryCreditReversalStatus::Canceled,
-                    "posted" => TreasuryCreditReversalStatus::Posted,
-                    "processing" => TreasuryCreditReversalStatus::Processing,
-                    other => TreasuryCreditReversalStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryCreditReversalStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryCreditReversalStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryCreditReversalStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "canceled" => TreasuryCreditReversalStatus::Canceled,
+            "posted" => TreasuryCreditReversalStatus::Posted,
+            "processing" => TreasuryCreditReversalStatus::Processing,
+            other => TreasuryCreditReversalStatus::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryDebitReversal {
     #[doc = "Amount (in cents) transferred."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "The FinancialAccount to reverse funds from."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub financial_account: Option<String>,
     #[doc = "A [hosted transaction receipt](https://docs.stripe.com/treasury/moving-money/regulatory-receipts) URL that is provide..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hosted_regulatory_receipt_url: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "Other flows linked to a DebitReversal."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub linked_flows: Option<crate::treasury::TreasuryReceivedDebitsResourceDebitReversalLinkedFlows>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "The rails used to reverse the funds."]
-    #[serde(default)]
+    #[json(default)]
     pub network: crate::treasury::TreasuryDebitReversalNetwork,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::treasury::TreasuryDebitReversalObject,
     #[doc = "The ReceivedDebit being reversed."]
-    #[serde(default)]
+    #[json(default)]
     pub received_debit: String,
     #[doc = "Status of the DebitReversal"]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::treasury::TreasuryDebitReversalStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status_transitions: Option<crate::treasury::TreasuryReceivedDebitsResourceStatusTransitions>,
     #[doc = "The Transaction associated with this object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transaction: Option<crate::Expandable<crate::treasury::TreasuryTransaction>>,
 }
 
@@ -4648,37 +3951,19 @@ impl Default for TreasuryDebitReversalNetwork {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryDebitReversalNetwork {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryDebitReversalNetwork;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ach" => TreasuryDebitReversalNetwork::Ach,
-                    "card" => TreasuryDebitReversalNetwork::Card,
-                    other => TreasuryDebitReversalNetwork::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryDebitReversalNetwork::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryDebitReversalNetwork {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryDebitReversalNetwork::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ach" => TreasuryDebitReversalNetwork::Ach,
+            "card" => TreasuryDebitReversalNetwork::Card,
+            other => TreasuryDebitReversalNetwork::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4709,36 +3994,18 @@ impl Default for TreasuryDebitReversalObject {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryDebitReversalObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryDebitReversalObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "treasury.debit_reversal" => TreasuryDebitReversalObject::TreasuryDebitReversal,
-                    other => TreasuryDebitReversalObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryDebitReversalObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryDebitReversalObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryDebitReversalObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "treasury.debit_reversal" => TreasuryDebitReversalObject::TreasuryDebitReversal,
+            other => TreasuryDebitReversalObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4773,93 +4040,76 @@ impl Default for TreasuryDebitReversalStatus {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryDebitReversalStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryDebitReversalStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "failed" => TreasuryDebitReversalStatus::Failed,
-                    "processing" => TreasuryDebitReversalStatus::Processing,
-                    "succeeded" => TreasuryDebitReversalStatus::Succeeded,
-                    other => TreasuryDebitReversalStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryDebitReversalStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryDebitReversalStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryDebitReversalStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "failed" => TreasuryDebitReversalStatus::Failed,
+            "processing" => TreasuryDebitReversalStatus::Processing,
+            "succeeded" => TreasuryDebitReversalStatus::Succeeded,
+            other => TreasuryDebitReversalStatus::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryFinancialAccount {
     #[doc = "The array of paths to active Features in the Features hash."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub active_features: Option<Vec<crate::treasury::TreasuryFinancialAccountActiveFeaturesItem>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub balance: Option<crate::treasury::TreasuryFinancialAccountsResourceBalance>,
     #[doc = "Two-letter country code ([ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2))."]
-    #[serde(default)]
+    #[json(default)]
     pub country: String,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub features: Option<crate::treasury::TreasuryFinancialAccountFeatures>,
     #[doc = "The set of credentials that resolve to a FinancialAccount."]
-    #[serde(default)]
+    #[json(default)]
     pub financial_addresses: Vec<crate::treasury::TreasuryFinancialAccountsResourceFinancialAddress>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub is_default: Option<bool>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "The nickname for the FinancialAccount."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub nickname: Option<String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::treasury::TreasuryFinancialAccountObject,
     #[doc = "The array of paths to pending Features in the Features hash."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pending_features: Option<Vec<crate::treasury::TreasuryFinancialAccountActiveFeaturesItem>>,
     #[doc = "The set of functionalities that the platform can restrict on the FinancialAccount."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub platform_restrictions: Option<crate::treasury::TreasuryFinancialAccountsResourcePlatformRestrictions>,
     #[doc = "The array of paths to restricted Features in the Features hash."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub restricted_features: Option<Vec<crate::treasury::TreasuryFinancialAccountActiveFeaturesItem>>,
     #[doc = "Status of this FinancialAccount."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::treasury::TreasuryFinancialAccountStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status_details: Option<crate::treasury::TreasuryFinancialAccountsResourceStatusDetails>,
     #[doc = "The currencies the FinancialAccount can hold a balance in."]
-    #[serde(default)]
+    #[json(default)]
     pub supported_currencies: Vec<String>,
 }
 
@@ -4916,74 +4166,57 @@ impl TreasuryFinancialAccountActiveFeaturesItem {
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryFinancialAccountActiveFeaturesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryFinancialAccountActiveFeaturesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "card_issuing" => TreasuryFinancialAccountActiveFeaturesItem::CardIssuing,
-                    "deposit_insurance" => TreasuryFinancialAccountActiveFeaturesItem::DepositInsurance,
-                    "financial_addresses.aba" => TreasuryFinancialAccountActiveFeaturesItem::FinancialAddressesAba,
-                    "financial_addresses.aba.forwarding" => {
-                        TreasuryFinancialAccountActiveFeaturesItem::FinancialAddressesAbaForwarding
-                    }
-                    "inbound_transfers.ach" => TreasuryFinancialAccountActiveFeaturesItem::InboundTransfersAch,
-                    "intra_stripe_flows" => TreasuryFinancialAccountActiveFeaturesItem::IntraStripeFlows,
-                    "outbound_payments.ach" => TreasuryFinancialAccountActiveFeaturesItem::OutboundPaymentsAch,
-                    "outbound_payments.us_domestic_wire" => {
-                        TreasuryFinancialAccountActiveFeaturesItem::OutboundPaymentsUsDomesticWire
-                    }
-                    "outbound_transfers.ach" => TreasuryFinancialAccountActiveFeaturesItem::OutboundTransfersAch,
-                    "outbound_transfers.us_domestic_wire" => {
-                        TreasuryFinancialAccountActiveFeaturesItem::OutboundTransfersUsDomesticWire
-                    }
-                    "remote_deposit_capture" => TreasuryFinancialAccountActiveFeaturesItem::RemoteDepositCapture,
-                    other => TreasuryFinancialAccountActiveFeaturesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryFinancialAccountActiveFeaturesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryFinancialAccountActiveFeaturesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryFinancialAccountActiveFeaturesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "card_issuing" => TreasuryFinancialAccountActiveFeaturesItem::CardIssuing,
+            "deposit_insurance" => TreasuryFinancialAccountActiveFeaturesItem::DepositInsurance,
+            "financial_addresses.aba" => TreasuryFinancialAccountActiveFeaturesItem::FinancialAddressesAba,
+            "financial_addresses.aba.forwarding" => {
+                TreasuryFinancialAccountActiveFeaturesItem::FinancialAddressesAbaForwarding
+            }
+            "inbound_transfers.ach" => TreasuryFinancialAccountActiveFeaturesItem::InboundTransfersAch,
+            "intra_stripe_flows" => TreasuryFinancialAccountActiveFeaturesItem::IntraStripeFlows,
+            "outbound_payments.ach" => TreasuryFinancialAccountActiveFeaturesItem::OutboundPaymentsAch,
+            "outbound_payments.us_domestic_wire" => {
+                TreasuryFinancialAccountActiveFeaturesItem::OutboundPaymentsUsDomesticWire
+            }
+            "outbound_transfers.ach" => TreasuryFinancialAccountActiveFeaturesItem::OutboundTransfersAch,
+            "outbound_transfers.us_domestic_wire" => {
+                TreasuryFinancialAccountActiveFeaturesItem::OutboundTransfersUsDomesticWire
+            }
+            "remote_deposit_capture" => TreasuryFinancialAccountActiveFeaturesItem::RemoteDepositCapture,
+            other => TreasuryFinancialAccountActiveFeaturesItem::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryFinancialAccountFeatures {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card_issuing: Option<crate::treasury::TreasuryFinancialAccountsResourceToggleSettings>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub deposit_insurance: Option<crate::treasury::TreasuryFinancialAccountsResourceToggleSettings>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub financial_addresses: Option<crate::treasury::TreasuryFinancialAccountsResourceFinancialAddressesFeatures>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub inbound_transfers: Option<crate::treasury::TreasuryFinancialAccountsResourceInboundTransfers>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub intra_stripe_flows: Option<crate::treasury::TreasuryFinancialAccountsResourceToggleSettings>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::treasury::TreasuryFinancialAccountFeaturesObject,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub outbound_payments: Option<crate::treasury::TreasuryFinancialAccountsResourceOutboundPayments>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub outbound_transfers: Option<crate::treasury::TreasuryFinancialAccountsResourceOutboundTransfers>,
 }
 
@@ -5016,38 +4249,20 @@ impl Default for TreasuryFinancialAccountFeaturesObject {
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryFinancialAccountFeaturesObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryFinancialAccountFeaturesObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "treasury.financial_account_features" => {
-                        TreasuryFinancialAccountFeaturesObject::TreasuryFinancialAccountFeatures
-                    }
-                    other => TreasuryFinancialAccountFeaturesObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryFinancialAccountFeaturesObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryFinancialAccountFeaturesObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryFinancialAccountFeaturesObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "treasury.financial_account_features" => {
+                TreasuryFinancialAccountFeaturesObject::TreasuryFinancialAccountFeatures
+            }
+            other => TreasuryFinancialAccountFeaturesObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5078,36 +4293,18 @@ impl Default for TreasuryFinancialAccountObject {
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryFinancialAccountObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryFinancialAccountObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "treasury.financial_account" => TreasuryFinancialAccountObject::TreasuryFinancialAccount,
-                    other => TreasuryFinancialAccountObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryFinancialAccountObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryFinancialAccountObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryFinancialAccountObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "treasury.financial_account" => TreasuryFinancialAccountObject::TreasuryFinancialAccount,
+            other => TreasuryFinancialAccountObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5140,71 +4337,55 @@ impl Default for TreasuryFinancialAccountStatus {
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryFinancialAccountStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryFinancialAccountStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "closed" => TreasuryFinancialAccountStatus::Closed,
-                    "open" => TreasuryFinancialAccountStatus::Open,
-                    other => TreasuryFinancialAccountStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryFinancialAccountStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryFinancialAccountStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryFinancialAccountStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "closed" => TreasuryFinancialAccountStatus::Closed,
+            "open" => TreasuryFinancialAccountStatus::Open,
+            other => TreasuryFinancialAccountStatus::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryFinancialAccountsResourceAbaRecord {
     #[doc = "The name of the person or business that owns the bank account."]
-    #[serde(default)]
+    #[json(default)]
     pub account_holder_name: String,
     #[doc = "The account number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_number: Option<String>,
     #[doc = "The last four characters of the account number."]
-    #[serde(default)]
+    #[json(default)]
     pub account_number_last4: String,
     #[doc = "Name of the bank."]
-    #[serde(default)]
+    #[json(default)]
     pub bank_name: String,
     #[doc = "Routing number for the account."]
-    #[serde(default)]
+    #[json(default)]
     pub routing_number: String,
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryFinancialAccountsResourceAbaToggleSettings {
     #[doc = "Whether the FinancialAccount should have the Feature."]
-    #[serde(default)]
+    #[json(default)]
     pub requested: bool,
     #[doc = "Whether the Feature is operational."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::treasury::TreasuryFinancialAccountsResourceAbaToggleSettingsStatus,
     #[doc = "Additional details; includes at least one entry when the status is not `active`."]
-    #[serde(default)]
+    #[json(default)]
     pub status_details: Vec<crate::treasury::TreasuryFinancialAccountsResourceTogglesSettingStatusDetails>,
 }
 
@@ -5239,60 +4420,44 @@ impl Default for TreasuryFinancialAccountsResourceAbaToggleSettingsStatus {
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryFinancialAccountsResourceAbaToggleSettingsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryFinancialAccountsResourceAbaToggleSettingsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => TreasuryFinancialAccountsResourceAbaToggleSettingsStatus::Active,
-                    "pending" => TreasuryFinancialAccountsResourceAbaToggleSettingsStatus::Pending,
-                    "restricted" => TreasuryFinancialAccountsResourceAbaToggleSettingsStatus::Restricted,
-                    other => TreasuryFinancialAccountsResourceAbaToggleSettingsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryFinancialAccountsResourceAbaToggleSettingsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryFinancialAccountsResourceAbaToggleSettingsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryFinancialAccountsResourceAbaToggleSettingsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => TreasuryFinancialAccountsResourceAbaToggleSettingsStatus::Active,
+            "pending" => TreasuryFinancialAccountsResourceAbaToggleSettingsStatus::Pending,
+            "restricted" => TreasuryFinancialAccountsResourceAbaToggleSettingsStatus::Restricted,
+            other => TreasuryFinancialAccountsResourceAbaToggleSettingsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryFinancialAccountsResourceBalance {
     #[doc = "Funds the user can spend right now."]
-    #[serde(default)]
+    #[json(default)]
     pub cash: std::collections::HashMap<String, i64>,
     #[doc = "Funds not spendable yet, but will become available at a later time."]
-    #[serde(default)]
+    #[json(default)]
     pub inbound_pending: std::collections::HashMap<String, i64>,
     #[doc = "Funds in the account, but not spendable because they are being held for pending outbound flows."]
-    #[serde(default)]
+    #[json(default)]
     pub outbound_pending: std::collections::HashMap<String, i64>,
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryFinancialAccountsResourceClosedStatusDetails {
     #[doc = "The array that contains reasons for a FinancialAccount closure."]
-    #[serde(default)]
+    #[json(default)]
     pub reasons: Vec<crate::treasury::TreasuryFinancialAccountsResourceClosedStatusDetailsReasonsItem>,
 }
 
@@ -5320,60 +4485,37 @@ impl TreasuryFinancialAccountsResourceClosedStatusDetailsReasonsItem {
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryFinancialAccountsResourceClosedStatusDetailsReasonsItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryFinancialAccountsResourceClosedStatusDetailsReasonsItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account_rejected" => {
-                        TreasuryFinancialAccountsResourceClosedStatusDetailsReasonsItem::AccountRejected
-                    }
-                    "closed_by_platform" => {
-                        TreasuryFinancialAccountsResourceClosedStatusDetailsReasonsItem::ClosedByPlatform
-                    }
-                    "other" => TreasuryFinancialAccountsResourceClosedStatusDetailsReasonsItem::Other,
-                    other => {
-                        TreasuryFinancialAccountsResourceClosedStatusDetailsReasonsItem::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryFinancialAccountsResourceClosedStatusDetailsReasonsItem::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for TreasuryFinancialAccountsResourceClosedStatusDetailsReasonsItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryFinancialAccountsResourceClosedStatusDetailsReasonsItem::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account_rejected" => TreasuryFinancialAccountsResourceClosedStatusDetailsReasonsItem::AccountRejected,
+            "closed_by_platform" => TreasuryFinancialAccountsResourceClosedStatusDetailsReasonsItem::ClosedByPlatform,
+            "other" => TreasuryFinancialAccountsResourceClosedStatusDetailsReasonsItem::Other,
+            other => TreasuryFinancialAccountsResourceClosedStatusDetailsReasonsItem::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryFinancialAccountsResourceFinancialAddress {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub aba: Option<crate::treasury::TreasuryFinancialAccountsResourceAbaRecord>,
     #[doc = "The list of networks that the address supports"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub supported_networks:
         Option<Vec<crate::treasury::TreasuryFinancialAccountsResourceFinancialAddressSupportedNetworksItem>>,
     #[doc = "The type of financial address"]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::treasury::TreasuryFinancialAccountsResourceFinancialAddressType,
 }
 
@@ -5403,44 +4545,24 @@ impl TreasuryFinancialAccountsResourceFinancialAddressSupportedNetworksItem {
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryFinancialAccountsResourceFinancialAddressSupportedNetworksItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryFinancialAccountsResourceFinancialAddressSupportedNetworksItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ach" => TreasuryFinancialAccountsResourceFinancialAddressSupportedNetworksItem::Ach,
-                    "rtp" => TreasuryFinancialAccountsResourceFinancialAddressSupportedNetworksItem::Rtp,
-                    "us_domestic_wire" => {
-                        TreasuryFinancialAccountsResourceFinancialAddressSupportedNetworksItem::UsDomesticWire
-                    }
-                    other => TreasuryFinancialAccountsResourceFinancialAddressSupportedNetworksItem::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryFinancialAccountsResourceFinancialAddressSupportedNetworksItem::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for TreasuryFinancialAccountsResourceFinancialAddressSupportedNetworksItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryFinancialAccountsResourceFinancialAddressSupportedNetworksItem::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ach" => TreasuryFinancialAccountsResourceFinancialAddressSupportedNetworksItem::Ach,
+            "rtp" => TreasuryFinancialAccountsResourceFinancialAddressSupportedNetworksItem::Rtp,
+            "us_domestic_wire" => {
+                TreasuryFinancialAccountsResourceFinancialAddressSupportedNetworksItem::UsDomesticWire
+            }
+            other => TreasuryFinancialAccountsResourceFinancialAddressSupportedNetworksItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5471,107 +4593,96 @@ impl Default for TreasuryFinancialAccountsResourceFinancialAddressType {
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryFinancialAccountsResourceFinancialAddressType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryFinancialAccountsResourceFinancialAddressType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "aba" => TreasuryFinancialAccountsResourceFinancialAddressType::Aba,
-                    other => TreasuryFinancialAccountsResourceFinancialAddressType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryFinancialAccountsResourceFinancialAddressType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryFinancialAccountsResourceFinancialAddressType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryFinancialAccountsResourceFinancialAddressType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "aba" => TreasuryFinancialAccountsResourceFinancialAddressType::Aba,
+            other => TreasuryFinancialAccountsResourceFinancialAddressType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryFinancialAccountsResourceFinancialAddressesFeatures {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub aba: Option<crate::treasury::TreasuryFinancialAccountsResourceAbaToggleSettings>,
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryFinancialAccountsResourceInboundAchToggleSettings {
     #[doc = "Whether the FinancialAccount should have the Feature."]
-    #[serde(default)]
+    #[json(default)]
     pub requested: bool,
     #[doc = "Whether the Feature is operational."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::treasury::TreasuryFinancialAccountsResourceAbaToggleSettingsStatus,
     #[doc = "Additional details; includes at least one entry when the status is not `active`."]
-    #[serde(default)]
+    #[json(default)]
     pub status_details: Vec<crate::treasury::TreasuryFinancialAccountsResourceTogglesSettingStatusDetails>,
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryFinancialAccountsResourceInboundTransfers {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ach: Option<crate::treasury::TreasuryFinancialAccountsResourceInboundAchToggleSettings>,
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryFinancialAccountsResourceOutboundAchToggleSettings {
     #[doc = "Whether the FinancialAccount should have the Feature."]
-    #[serde(default)]
+    #[json(default)]
     pub requested: bool,
     #[doc = "Whether the Feature is operational."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::treasury::TreasuryFinancialAccountsResourceAbaToggleSettingsStatus,
     #[doc = "Additional details; includes at least one entry when the status is not `active`."]
-    #[serde(default)]
+    #[json(default)]
     pub status_details: Vec<crate::treasury::TreasuryFinancialAccountsResourceTogglesSettingStatusDetails>,
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryFinancialAccountsResourceOutboundPayments {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ach: Option<crate::treasury::TreasuryFinancialAccountsResourceOutboundAchToggleSettings>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us_domestic_wire: Option<crate::treasury::TreasuryFinancialAccountsResourceToggleSettings>,
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryFinancialAccountsResourceOutboundTransfers {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ach: Option<crate::treasury::TreasuryFinancialAccountsResourceOutboundAchToggleSettings>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us_domestic_wire: Option<crate::treasury::TreasuryFinancialAccountsResourceToggleSettings>,
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryFinancialAccountsResourcePlatformRestrictions {
     #[doc = "Restricts all inbound money movement."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub inbound_flows: Option<crate::treasury::TreasuryFinancialAccountsResourcePlatformRestrictionsInboundFlows>,
     #[doc = "Restricts all outbound money movement."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub outbound_flows: Option<crate::treasury::TreasuryFinancialAccountsResourcePlatformRestrictionsInboundFlows>,
 }
 
@@ -5597,77 +4708,60 @@ impl TreasuryFinancialAccountsResourcePlatformRestrictionsInboundFlows {
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryFinancialAccountsResourcePlatformRestrictionsInboundFlows {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryFinancialAccountsResourcePlatformRestrictionsInboundFlows;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "restricted" => TreasuryFinancialAccountsResourcePlatformRestrictionsInboundFlows::Restricted,
-                    "unrestricted" => TreasuryFinancialAccountsResourcePlatformRestrictionsInboundFlows::Unrestricted,
-                    other => {
-                        TreasuryFinancialAccountsResourcePlatformRestrictionsInboundFlows::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryFinancialAccountsResourcePlatformRestrictionsInboundFlows::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for TreasuryFinancialAccountsResourcePlatformRestrictionsInboundFlows {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryFinancialAccountsResourcePlatformRestrictionsInboundFlows::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "restricted" => TreasuryFinancialAccountsResourcePlatformRestrictionsInboundFlows::Restricted,
+            "unrestricted" => TreasuryFinancialAccountsResourcePlatformRestrictionsInboundFlows::Unrestricted,
+            other => TreasuryFinancialAccountsResourcePlatformRestrictionsInboundFlows::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryFinancialAccountsResourceStatusDetails {
     #[doc = "Details related to the closure of this FinancialAccount"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub closed: Option<crate::treasury::TreasuryFinancialAccountsResourceClosedStatusDetails>,
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryFinancialAccountsResourceToggleSettings {
     #[doc = "Whether the FinancialAccount should have the Feature."]
-    #[serde(default)]
+    #[json(default)]
     pub requested: bool,
     #[doc = "Whether the Feature is operational."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::treasury::TreasuryFinancialAccountsResourceAbaToggleSettingsStatus,
     #[doc = "Additional details; includes at least one entry when the status is not `active`."]
-    #[serde(default)]
+    #[json(default)]
     pub status_details: Vec<crate::treasury::TreasuryFinancialAccountsResourceTogglesSettingStatusDetails>,
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryFinancialAccountsResourceTogglesSettingStatusDetails {
     #[doc = "Represents the reason why the status is `pending` or `restricted`."]
-    #[serde(default)]
+    #[json(default)]
     pub code: crate::treasury::TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode,
     #[doc = "Represents what the user should do, if anything, to activate the Feature."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub resolution: Option<crate::treasury::TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsResolution>,
     #[doc = "The `platform_restrictions` that are restricting this Feature."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub restriction: Option<crate::treasury::TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsRestriction>,
 }
 
@@ -5726,46 +4820,40 @@ impl Default for TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCod
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "activating" => TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::Activating,
-                    "capability_not_requested" => TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::CapabilityNotRequested,
-                    "financial_account_closed" => TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::FinancialAccountClosed,
-                    "rejected_other" => TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::RejectedOther,
-                    "rejected_unsupported_business" => TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::RejectedUnsupportedBusiness,
-                    "requirements_past_due" => TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::RequirementsPastDue,
-                    "requirements_pending_verification" => TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::RequirementsPendingVerification,
-                    "restricted_by_platform" => TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::RestrictedByPlatform,
-                    "restricted_other" => TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::RestrictedOther,
-                    other => TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "activating" => TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::Activating,
+            "capability_not_requested" => {
+                TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::CapabilityNotRequested
+            }
+            "financial_account_closed" => {
+                TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::FinancialAccountClosed
+            }
+            "rejected_other" => TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::RejectedOther,
+            "rejected_unsupported_business" => {
+                TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::RejectedUnsupportedBusiness
+            }
+            "requirements_past_due" => {
+                TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::RequirementsPastDue
+            }
+            "requirements_pending_verification" => {
+                TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::RequirementsPendingVerification
+            }
+            "restricted_by_platform" => {
+                TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::RestrictedByPlatform
+            }
+            "restricted_other" => TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::RestrictedOther,
+            other => TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsCode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5797,48 +4885,26 @@ impl TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsResolution {
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsResolution {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsResolution;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "contact_stripe" => {
-                        TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsResolution::ContactStripe
-                    }
-                    "provide_information" => {
-                        TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsResolution::ProvideInformation
-                    }
-                    "remove_restriction" => {
-                        TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsResolution::RemoveRestriction
-                    }
-                    other => TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsResolution::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsResolution::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsResolution {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsResolution::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "contact_stripe" => TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsResolution::ContactStripe,
+            "provide_information" => {
+                TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsResolution::ProvideInformation
+            }
+            "remove_restriction" => {
+                TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsResolution::RemoveRestriction
+            }
+            other => TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsResolution::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5864,107 +4930,86 @@ impl TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsRestriction {
 }
 
 #[cfg(any(feature = "events", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsRestriction {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsRestriction;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "inbound_flows" => {
-                        TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsRestriction::InboundFlows
-                    }
-                    "outbound_flows" => {
-                        TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsRestriction::OutboundFlows
-                    }
-                    other => TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsRestriction::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsRestriction::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsRestriction {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsRestriction::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "inbound_flows" => TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsRestriction::InboundFlows,
+            "outbound_flows" => TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsRestriction::OutboundFlows,
+            other => {
+                TreasuryFinancialAccountsResourceTogglesSettingStatusDetailsRestriction::Unknown(other.to_string())
+            }
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryInboundTransfer {
     #[doc = "Amount (in cents) transferred."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Returns `true` if the InboundTransfer is able to be canceled."]
-    #[serde(default)]
+    #[json(default)]
     pub cancelable: bool,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "Details about this InboundTransfer's failure."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub failure_details: Option<crate::treasury::TreasuryInboundTransfersResourceFailureDetails>,
     #[doc = "The FinancialAccount that received the funds."]
-    #[serde(default)]
+    #[json(default)]
     pub financial_account: String,
     #[doc = "A [hosted transaction receipt](https://docs.stripe.com/treasury/moving-money/regulatory-receipts) URL that is provide..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hosted_regulatory_receipt_url: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub linked_flows: Option<crate::treasury::TreasuryInboundTransfersResourceInboundTransferResourceLinkedFlows>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::treasury::TreasuryInboundTransferObject,
     #[doc = "The origin payment method to be debited for an InboundTransfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub origin_payment_method: Option<String>,
     #[doc = "Details about the PaymentMethod for an InboundTransfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub origin_payment_method_details: Option<crate::treasury::InboundTransfers>,
     #[doc = "Returns `true` if the funds for an InboundTransfer were returned after the InboundTransfer went to the `succeeded` st..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub returned: Option<bool>,
     #[doc = "Statement descriptor shown when funds are debited from the source."]
-    #[serde(default)]
+    #[json(default)]
     pub statement_descriptor: String,
     #[doc = "Status of the InboundTransfer: `processing`, `succeeded`, `failed`, and `canceled`."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::treasury::TreasuryInboundTransferStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status_transitions:
         Option<crate::treasury::TreasuryInboundTransfersResourceInboundTransferResourceStatusTransitions>,
     #[doc = "The Transaction associated with this object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transaction: Option<crate::Expandable<crate::treasury::TreasuryTransaction>>,
 }
 
@@ -6002,36 +5047,18 @@ impl Default for TreasuryInboundTransferObject {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryInboundTransferObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryInboundTransferObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "treasury.inbound_transfer" => TreasuryInboundTransferObject::TreasuryInboundTransfer,
-                    other => TreasuryInboundTransferObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryInboundTransferObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryInboundTransferObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryInboundTransferObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "treasury.inbound_transfer" => TreasuryInboundTransferObject::TreasuryInboundTransfer,
+            other => TreasuryInboundTransferObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6068,47 +5095,30 @@ impl Default for TreasuryInboundTransferStatus {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryInboundTransferStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryInboundTransferStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "canceled" => TreasuryInboundTransferStatus::Canceled,
-                    "failed" => TreasuryInboundTransferStatus::Failed,
-                    "processing" => TreasuryInboundTransferStatus::Processing,
-                    "succeeded" => TreasuryInboundTransferStatus::Succeeded,
-                    other => TreasuryInboundTransferStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryInboundTransferStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryInboundTransferStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryInboundTransferStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "canceled" => TreasuryInboundTransferStatus::Canceled,
+            "failed" => TreasuryInboundTransferStatus::Failed,
+            "processing" => TreasuryInboundTransferStatus::Processing,
+            "succeeded" => TreasuryInboundTransferStatus::Succeeded,
+            other => TreasuryInboundTransferStatus::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryInboundTransfersResourceFailureDetails {
     #[doc = "Reason for the failure."]
-    #[serde(default)]
+    #[json(default)]
     pub code: crate::treasury::TreasuryInboundTransfersResourceFailureDetailsCode,
 }
 
@@ -6169,155 +5179,134 @@ impl Default for TreasuryInboundTransfersResourceFailureDetailsCode {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryInboundTransfersResourceFailureDetailsCode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryInboundTransfersResourceFailureDetailsCode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account_closed" => TreasuryInboundTransfersResourceFailureDetailsCode::AccountClosed,
-                    "account_frozen" => TreasuryInboundTransfersResourceFailureDetailsCode::AccountFrozen,
-                    "bank_account_restricted" => {
-                        TreasuryInboundTransfersResourceFailureDetailsCode::BankAccountRestricted
-                    }
-                    "bank_ownership_changed" => {
-                        TreasuryInboundTransfersResourceFailureDetailsCode::BankOwnershipChanged
-                    }
-                    "debit_not_authorized" => TreasuryInboundTransfersResourceFailureDetailsCode::DebitNotAuthorized,
-                    "incorrect_account_holder_address" => {
-                        TreasuryInboundTransfersResourceFailureDetailsCode::IncorrectAccountHolderAddress
-                    }
-                    "incorrect_account_holder_name" => {
-                        TreasuryInboundTransfersResourceFailureDetailsCode::IncorrectAccountHolderName
-                    }
-                    "incorrect_account_holder_tax_id" => {
-                        TreasuryInboundTransfersResourceFailureDetailsCode::IncorrectAccountHolderTaxId
-                    }
-                    "insufficient_funds" => TreasuryInboundTransfersResourceFailureDetailsCode::InsufficientFunds,
-                    "invalid_account_number" => {
-                        TreasuryInboundTransfersResourceFailureDetailsCode::InvalidAccountNumber
-                    }
-                    "invalid_currency" => TreasuryInboundTransfersResourceFailureDetailsCode::InvalidCurrency,
-                    "no_account" => TreasuryInboundTransfersResourceFailureDetailsCode::NoAccount,
-                    "other" => TreasuryInboundTransfersResourceFailureDetailsCode::Other,
-                    other => TreasuryInboundTransfersResourceFailureDetailsCode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryInboundTransfersResourceFailureDetailsCode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryInboundTransfersResourceFailureDetailsCode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryInboundTransfersResourceFailureDetailsCode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account_closed" => TreasuryInboundTransfersResourceFailureDetailsCode::AccountClosed,
+            "account_frozen" => TreasuryInboundTransfersResourceFailureDetailsCode::AccountFrozen,
+            "bank_account_restricted" => TreasuryInboundTransfersResourceFailureDetailsCode::BankAccountRestricted,
+            "bank_ownership_changed" => TreasuryInboundTransfersResourceFailureDetailsCode::BankOwnershipChanged,
+            "debit_not_authorized" => TreasuryInboundTransfersResourceFailureDetailsCode::DebitNotAuthorized,
+            "incorrect_account_holder_address" => {
+                TreasuryInboundTransfersResourceFailureDetailsCode::IncorrectAccountHolderAddress
+            }
+            "incorrect_account_holder_name" => {
+                TreasuryInboundTransfersResourceFailureDetailsCode::IncorrectAccountHolderName
+            }
+            "incorrect_account_holder_tax_id" => {
+                TreasuryInboundTransfersResourceFailureDetailsCode::IncorrectAccountHolderTaxId
+            }
+            "insufficient_funds" => TreasuryInboundTransfersResourceFailureDetailsCode::InsufficientFunds,
+            "invalid_account_number" => TreasuryInboundTransfersResourceFailureDetailsCode::InvalidAccountNumber,
+            "invalid_currency" => TreasuryInboundTransfersResourceFailureDetailsCode::InvalidCurrency,
+            "no_account" => TreasuryInboundTransfersResourceFailureDetailsCode::NoAccount,
+            "other" => TreasuryInboundTransfersResourceFailureDetailsCode::Other,
+            other => TreasuryInboundTransfersResourceFailureDetailsCode::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryInboundTransfersResourceInboundTransferResourceLinkedFlows {
     #[doc = "If funds for this flow were returned after the flow went to the `succeeded` state, this field contains a reference to..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub received_debit: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryInboundTransfersResourceInboundTransferResourceStatusTransitions {
     #[doc = "Timestamp describing when an InboundTransfer changed status to `canceled`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub canceled_at: Option<i64>,
     #[doc = "Timestamp describing when an InboundTransfer changed status to `failed`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub failed_at: Option<i64>,
     #[doc = "Timestamp describing when an InboundTransfer changed status to `succeeded`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub succeeded_at: Option<i64>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryOutboundPayment {
     #[doc = "Amount (in cents) transferred."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Returns `true` if the object can be canceled, and `false` otherwise."]
-    #[serde(default)]
+    #[json(default)]
     pub cancelable: bool,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "ID of the [customer](https://docs.stripe.com/api/customers) to whom an OutboundPayment is sent."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<String>,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "The PaymentMethod via which an OutboundPayment is sent."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub destination_payment_method: Option<String>,
     #[doc = "Details about the PaymentMethod for an OutboundPayment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub destination_payment_method_details: Option<crate::treasury::OutboundPaymentsPaymentMethodDetails>,
     #[doc = "Details about the end user."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub end_user_details:
         Option<crate::treasury::TreasuryOutboundPaymentsResourceOutboundPaymentResourceEndUserDetails>,
     #[doc = "The date when funds are expected to arrive in the destination account."]
-    #[serde(default)]
+    #[json(default)]
     pub expected_arrival_date: i64,
     #[doc = "The FinancialAccount that funds were pulled from."]
-    #[serde(default)]
+    #[json(default)]
     pub financial_account: String,
     #[doc = "A [hosted transaction receipt](https://docs.stripe.com/treasury/moving-money/regulatory-receipts) URL that is provide..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hosted_regulatory_receipt_url: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::treasury::TreasuryOutboundPaymentObject,
     #[doc = "Details about a returned OutboundPayment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub returned_details: Option<crate::treasury::TreasuryOutboundPaymentsResourceReturnedStatus>,
     #[doc = "The description that appears on the receiving end for an OutboundPayment (for example, bank statement for external ba..."]
-    #[serde(default)]
+    #[json(default)]
     pub statement_descriptor: String,
     #[doc = "Current status of the OutboundPayment: `processing`, `failed`, `posted`, `returned`, `canceled`."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::treasury::TreasuryOutboundPaymentStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status_transitions:
         Option<crate::treasury::TreasuryOutboundPaymentsResourceOutboundPaymentResourceStatusTransitions>,
     #[doc = "Details about network-specific tracking information if available."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tracking_details:
         Option<crate::treasury::TreasuryOutboundPaymentsResourceOutboundPaymentResourceTrackingDetails>,
     #[doc = "The Transaction associated with this object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transaction: Option<crate::Expandable<crate::treasury::TreasuryTransaction>>,
 }
 
@@ -6355,36 +5344,18 @@ impl Default for TreasuryOutboundPaymentObject {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryOutboundPaymentObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryOutboundPaymentObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "treasury.outbound_payment" => TreasuryOutboundPaymentObject::TreasuryOutboundPayment,
-                    other => TreasuryOutboundPaymentObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryOutboundPaymentObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryOutboundPaymentObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryOutboundPaymentObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "treasury.outbound_payment" => TreasuryOutboundPaymentObject::TreasuryOutboundPayment,
+            other => TreasuryOutboundPaymentObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6423,99 +5394,86 @@ impl Default for TreasuryOutboundPaymentStatus {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryOutboundPaymentStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryOutboundPaymentStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "canceled" => TreasuryOutboundPaymentStatus::Canceled,
-                    "failed" => TreasuryOutboundPaymentStatus::Failed,
-                    "posted" => TreasuryOutboundPaymentStatus::Posted,
-                    "processing" => TreasuryOutboundPaymentStatus::Processing,
-                    "returned" => TreasuryOutboundPaymentStatus::Returned,
-                    other => TreasuryOutboundPaymentStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryOutboundPaymentStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryOutboundPaymentStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryOutboundPaymentStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "canceled" => TreasuryOutboundPaymentStatus::Canceled,
+            "failed" => TreasuryOutboundPaymentStatus::Failed,
+            "posted" => TreasuryOutboundPaymentStatus::Posted,
+            "processing" => TreasuryOutboundPaymentStatus::Processing,
+            "returned" => TreasuryOutboundPaymentStatus::Returned,
+            other => TreasuryOutboundPaymentStatus::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryOutboundPaymentsResourceAchTrackingDetails {
     #[doc = "ACH trace ID of the OutboundPayment for payments sent over the `ach` network."]
-    #[serde(default)]
+    #[json(default)]
     pub trace_id: String,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryOutboundPaymentsResourceOutboundPaymentResourceEndUserDetails {
     #[doc = "IP address of the user initiating the OutboundPayment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ip_address: Option<String>,
     #[doc = "`true` if the OutboundPayment creation request is being made on behalf of an end user by a platform."]
-    #[serde(default)]
+    #[json(default)]
     pub present: bool,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryOutboundPaymentsResourceOutboundPaymentResourceStatusTransitions {
     #[doc = "Timestamp describing when an OutboundPayment changed status to `canceled`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub canceled_at: Option<i64>,
     #[doc = "Timestamp describing when an OutboundPayment changed status to `failed`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub failed_at: Option<i64>,
     #[doc = "Timestamp describing when an OutboundPayment changed status to `posted`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub posted_at: Option<i64>,
     #[doc = "Timestamp describing when an OutboundPayment changed status to `returned`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub returned_at: Option<i64>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryOutboundPaymentsResourceOutboundPaymentResourceTrackingDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ach: Option<crate::treasury::TreasuryOutboundPaymentsResourceAchTrackingDetails>,
     #[doc = "The US bank account network used to send funds."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::treasury::OutboundPaymentsPaymentMethodDetailsUsBankAccountNetwork,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us_domestic_wire: Option<crate::treasury::TreasuryOutboundPaymentsResourceUsDomesticWireTrackingDetails>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryOutboundPaymentsResourceReturnedStatus {
     #[doc = "Reason for the return."]
-    #[serde(default)]
+    #[json(default)]
     pub code: crate::treasury::TreasuryOutboundPaymentsResourceReturnedStatusCode,
     #[doc = "The Transaction associated with this object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transaction: Option<crate::Expandable<crate::treasury::TreasuryTransaction>>,
 }
 
@@ -6566,131 +5524,109 @@ impl Default for TreasuryOutboundPaymentsResourceReturnedStatusCode {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryOutboundPaymentsResourceReturnedStatusCode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryOutboundPaymentsResourceReturnedStatusCode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account_closed" => TreasuryOutboundPaymentsResourceReturnedStatusCode::AccountClosed,
-                    "account_frozen" => TreasuryOutboundPaymentsResourceReturnedStatusCode::AccountFrozen,
-                    "bank_account_restricted" => {
-                        TreasuryOutboundPaymentsResourceReturnedStatusCode::BankAccountRestricted
-                    }
-                    "bank_ownership_changed" => {
-                        TreasuryOutboundPaymentsResourceReturnedStatusCode::BankOwnershipChanged
-                    }
-                    "declined" => TreasuryOutboundPaymentsResourceReturnedStatusCode::Declined,
-                    "incorrect_account_holder_name" => {
-                        TreasuryOutboundPaymentsResourceReturnedStatusCode::IncorrectAccountHolderName
-                    }
-                    "invalid_account_number" => {
-                        TreasuryOutboundPaymentsResourceReturnedStatusCode::InvalidAccountNumber
-                    }
-                    "invalid_currency" => TreasuryOutboundPaymentsResourceReturnedStatusCode::InvalidCurrency,
-                    "no_account" => TreasuryOutboundPaymentsResourceReturnedStatusCode::NoAccount,
-                    "other" => TreasuryOutboundPaymentsResourceReturnedStatusCode::Other,
-                    other => TreasuryOutboundPaymentsResourceReturnedStatusCode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryOutboundPaymentsResourceReturnedStatusCode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryOutboundPaymentsResourceReturnedStatusCode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryOutboundPaymentsResourceReturnedStatusCode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account_closed" => TreasuryOutboundPaymentsResourceReturnedStatusCode::AccountClosed,
+            "account_frozen" => TreasuryOutboundPaymentsResourceReturnedStatusCode::AccountFrozen,
+            "bank_account_restricted" => TreasuryOutboundPaymentsResourceReturnedStatusCode::BankAccountRestricted,
+            "bank_ownership_changed" => TreasuryOutboundPaymentsResourceReturnedStatusCode::BankOwnershipChanged,
+            "declined" => TreasuryOutboundPaymentsResourceReturnedStatusCode::Declined,
+            "incorrect_account_holder_name" => {
+                TreasuryOutboundPaymentsResourceReturnedStatusCode::IncorrectAccountHolderName
+            }
+            "invalid_account_number" => TreasuryOutboundPaymentsResourceReturnedStatusCode::InvalidAccountNumber,
+            "invalid_currency" => TreasuryOutboundPaymentsResourceReturnedStatusCode::InvalidCurrency,
+            "no_account" => TreasuryOutboundPaymentsResourceReturnedStatusCode::NoAccount,
+            "other" => TreasuryOutboundPaymentsResourceReturnedStatusCode::Other,
+            other => TreasuryOutboundPaymentsResourceReturnedStatusCode::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryOutboundPaymentsResourceUsDomesticWireTrackingDetails {
     #[doc = "CHIPS System Sequence Number (SSN) of the OutboundPayment for payments sent over the `us_domestic_wire` network."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub chips: Option<String>,
     #[doc = "IMAD of the OutboundPayment for payments sent over the `us_domestic_wire` network."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub imad: Option<String>,
     #[doc = "OMAD of the OutboundPayment for payments sent over the `us_domestic_wire` network."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub omad: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryOutboundTransfer {
     #[doc = "Amount (in cents) transferred."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Returns `true` if the object can be canceled, and `false` otherwise."]
-    #[serde(default)]
+    #[json(default)]
     pub cancelable: bool,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "The PaymentMethod used as the payment instrument for an OutboundTransfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub destination_payment_method: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub destination_payment_method_details: Option<crate::treasury::OutboundTransfersPaymentMethodDetails>,
     #[doc = "The date when funds are expected to arrive in the destination account."]
-    #[serde(default)]
+    #[json(default)]
     pub expected_arrival_date: i64,
     #[doc = "The FinancialAccount that funds were pulled from."]
-    #[serde(default)]
+    #[json(default)]
     pub financial_account: String,
     #[doc = "A [hosted transaction receipt](https://docs.stripe.com/treasury/moving-money/regulatory-receipts) URL that is provide..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hosted_regulatory_receipt_url: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::treasury::TreasuryOutboundTransferObject,
     #[doc = "Details about a returned OutboundTransfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub returned_details: Option<crate::treasury::TreasuryOutboundTransfersResourceReturnedDetails>,
     #[doc = "Information about the OutboundTransfer to be sent to the recipient account."]
-    #[serde(default)]
+    #[json(default)]
     pub statement_descriptor: String,
     #[doc = "Current status of the OutboundTransfer: `processing`, `failed`, `canceled`, `posted`, `returned`."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::treasury::TreasuryOutboundPaymentStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status_transitions: Option<crate::treasury::TreasuryOutboundTransfersResourceStatusTransitions>,
     #[doc = "Details about network-specific tracking information if available."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tracking_details:
         Option<crate::treasury::TreasuryOutboundTransfersResourceOutboundTransferResourceTrackingDetails>,
     #[doc = "The Transaction associated with this object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transaction: Option<crate::Expandable<crate::treasury::TreasuryTransaction>>,
 }
 
@@ -6728,150 +5664,138 @@ impl Default for TreasuryOutboundTransferObject {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryOutboundTransferObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryOutboundTransferObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "treasury.outbound_transfer" => TreasuryOutboundTransferObject::TreasuryOutboundTransfer,
-                    other => TreasuryOutboundTransferObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryOutboundTransferObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryOutboundTransferObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryOutboundTransferObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "treasury.outbound_transfer" => TreasuryOutboundTransferObject::TreasuryOutboundTransfer,
+            other => TreasuryOutboundTransferObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryOutboundTransfersResourceAchTrackingDetails {
     #[doc = "ACH trace ID of the OutboundTransfer for transfers sent over the `ach` network."]
-    #[serde(default)]
+    #[json(default)]
     pub trace_id: String,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryOutboundTransfersResourceOutboundTransferResourceTrackingDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ach: Option<crate::treasury::TreasuryOutboundTransfersResourceAchTrackingDetails>,
     #[doc = "The US bank account network used to send funds."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::treasury::OutboundPaymentsPaymentMethodDetailsUsBankAccountNetwork,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us_domestic_wire: Option<crate::treasury::TreasuryOutboundTransfersResourceUsDomesticWireTrackingDetails>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryOutboundTransfersResourceReturnedDetails {
     #[doc = "Reason for the return."]
-    #[serde(default)]
+    #[json(default)]
     pub code: crate::treasury::TreasuryOutboundPaymentsResourceReturnedStatusCode,
     #[doc = "The Transaction associated with this object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transaction: Option<crate::Expandable<crate::treasury::TreasuryTransaction>>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryOutboundTransfersResourceStatusTransitions {
     #[doc = "Timestamp describing when an OutboundTransfer changed status to `canceled`"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub canceled_at: Option<i64>,
     #[doc = "Timestamp describing when an OutboundTransfer changed status to `failed`"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub failed_at: Option<i64>,
     #[doc = "Timestamp describing when an OutboundTransfer changed status to `posted`"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub posted_at: Option<i64>,
     #[doc = "Timestamp describing when an OutboundTransfer changed status to `returned`"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub returned_at: Option<i64>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryOutboundTransfersResourceUsDomesticWireTrackingDetails {
     #[doc = "CHIPS System Sequence Number (SSN) of the OutboundTransfer for transfers sent over the `us_domestic_wire` network."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub chips: Option<String>,
     #[doc = "IMAD of the OutboundTransfer for transfers sent over the `us_domestic_wire` network."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub imad: Option<String>,
     #[doc = "OMAD of the OutboundTransfer for transfers sent over the `us_domestic_wire` network."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub omad: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryReceivedCredit {
     #[doc = "Amount (in cents) transferred."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default)]
+    #[json(default)]
     pub description: String,
     #[doc = "Reason for the failure."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub failure_code: Option<crate::treasury::TreasuryReceivedCreditFailureCode>,
     #[doc = "The FinancialAccount that received the funds."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub financial_account: Option<String>,
     #[doc = "A [hosted transaction receipt](https://docs.stripe.com/treasury/moving-money/regulatory-receipts) URL that is provide..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hosted_regulatory_receipt_url: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub initiating_payment_method_details:
         Option<crate::treasury::TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetails>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub linked_flows: Option<crate::treasury::TreasuryReceivedCreditsResourceLinkedFlows>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "The rails used to send the funds."]
-    #[serde(default)]
+    #[json(default)]
     pub network: crate::treasury::TreasuryReceivedCreditNetwork,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::treasury::TreasuryReceivedCreditObject,
     #[doc = "Details describing when a ReceivedCredit may be reversed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reversal_details: Option<crate::treasury::TreasuryReceivedCreditsResourceReversalDetails>,
     #[doc = "Status of the ReceivedCredit."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::treasury::TreasuryReceivedCreditStatus,
     #[doc = "The Transaction associated with this object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transaction: Option<crate::Expandable<crate::treasury::TreasuryTransaction>>,
 }
 
@@ -6908,39 +5832,21 @@ impl TreasuryReceivedCreditFailureCode {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryReceivedCreditFailureCode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryReceivedCreditFailureCode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account_closed" => TreasuryReceivedCreditFailureCode::AccountClosed,
-                    "account_frozen" => TreasuryReceivedCreditFailureCode::AccountFrozen,
-                    "international_transaction" => TreasuryReceivedCreditFailureCode::InternationalTransaction,
-                    "other" => TreasuryReceivedCreditFailureCode::Other,
-                    other => TreasuryReceivedCreditFailureCode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryReceivedCreditFailureCode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryReceivedCreditFailureCode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryReceivedCreditFailureCode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account_closed" => TreasuryReceivedCreditFailureCode::AccountClosed,
+            "account_frozen" => TreasuryReceivedCreditFailureCode::AccountFrozen,
+            "international_transaction" => TreasuryReceivedCreditFailureCode::InternationalTransaction,
+            "other" => TreasuryReceivedCreditFailureCode::Other,
+            other => TreasuryReceivedCreditFailureCode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6979,40 +5885,22 @@ impl Default for TreasuryReceivedCreditNetwork {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryReceivedCreditNetwork {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryReceivedCreditNetwork;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ach" => TreasuryReceivedCreditNetwork::Ach,
-                    "card" => TreasuryReceivedCreditNetwork::Card,
-                    "rtp" => TreasuryReceivedCreditNetwork::Rtp,
-                    "stripe" => TreasuryReceivedCreditNetwork::Stripe,
-                    "us_domestic_wire" => TreasuryReceivedCreditNetwork::UsDomesticWire,
-                    other => TreasuryReceivedCreditNetwork::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryReceivedCreditNetwork::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryReceivedCreditNetwork {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryReceivedCreditNetwork::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ach" => TreasuryReceivedCreditNetwork::Ach,
+            "card" => TreasuryReceivedCreditNetwork::Card,
+            "rtp" => TreasuryReceivedCreditNetwork::Rtp,
+            "stripe" => TreasuryReceivedCreditNetwork::Stripe,
+            "us_domestic_wire" => TreasuryReceivedCreditNetwork::UsDomesticWire,
+            other => TreasuryReceivedCreditNetwork::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7043,36 +5931,18 @@ impl Default for TreasuryReceivedCreditObject {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryReceivedCreditObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryReceivedCreditObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "treasury.received_credit" => TreasuryReceivedCreditObject::TreasuryReceivedCredit,
-                    other => TreasuryReceivedCreditObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryReceivedCreditObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryReceivedCreditObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryReceivedCreditObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "treasury.received_credit" => TreasuryReceivedCreditObject::TreasuryReceivedCredit,
+            other => TreasuryReceivedCreditObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7105,71 +5975,55 @@ impl Default for TreasuryReceivedCreditStatus {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryReceivedCreditStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryReceivedCreditStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "failed" => TreasuryReceivedCreditStatus::Failed,
-                    "succeeded" => TreasuryReceivedCreditStatus::Succeeded,
-                    other => TreasuryReceivedCreditStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryReceivedCreditStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryReceivedCreditStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryReceivedCreditStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "failed" => TreasuryReceivedCreditStatus::Failed,
+            "succeeded" => TreasuryReceivedCreditStatus::Succeeded,
+            other => TreasuryReceivedCreditStatus::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryReceivedCreditsResourceLinkedFlows {
     #[doc = "The CreditReversal created as a result of this ReceivedCredit being reversed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub credit_reversal: Option<String>,
     #[doc = "Set if the ReceivedCredit was created due to an [Issuing Authorization](https://docs.stripe.com/api#issuing_authoriza..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuing_authorization: Option<String>,
     #[doc = "Set if the ReceivedCredit is also viewable as an [Issuing transaction](https://docs.stripe.com/api#issuing_transactio..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuing_transaction: Option<String>,
     #[doc = "ID of the source flow."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub source_flow: Option<String>,
     #[doc = "The expandable object of the source flow."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub source_flow_details: Option<crate::treasury::TreasuryReceivedCreditsResourceSourceFlowsDetails>,
     #[doc = "The type of flow that originated the ReceivedCredit (for example, `outbound_payment`)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub source_flow_type: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryReceivedCreditsResourceReversalDetails {
     #[doc = "Time before which a ReceivedCredit can be reversed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub deadline: Option<i64>,
     #[doc = "Set if a ReceivedCredit cannot be reversed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub restricted_reason: Option<crate::treasury::TreasuryReceivedCreditsResourceReversalDetailsRestrictedReason>,
 }
 
@@ -7203,64 +6057,43 @@ impl TreasuryReceivedCreditsResourceReversalDetailsRestrictedReason {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryReceivedCreditsResourceReversalDetailsRestrictedReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryReceivedCreditsResourceReversalDetailsRestrictedReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "already_reversed" => {
-                        TreasuryReceivedCreditsResourceReversalDetailsRestrictedReason::AlreadyReversed
-                    }
-                    "deadline_passed" => TreasuryReceivedCreditsResourceReversalDetailsRestrictedReason::DeadlinePassed,
-                    "network_restricted" => {
-                        TreasuryReceivedCreditsResourceReversalDetailsRestrictedReason::NetworkRestricted
-                    }
-                    "other" => TreasuryReceivedCreditsResourceReversalDetailsRestrictedReason::Other,
-                    "source_flow_restricted" => {
-                        TreasuryReceivedCreditsResourceReversalDetailsRestrictedReason::SourceFlowRestricted
-                    }
-                    other => TreasuryReceivedCreditsResourceReversalDetailsRestrictedReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryReceivedCreditsResourceReversalDetailsRestrictedReason::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for TreasuryReceivedCreditsResourceReversalDetailsRestrictedReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryReceivedCreditsResourceReversalDetailsRestrictedReason::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "already_reversed" => TreasuryReceivedCreditsResourceReversalDetailsRestrictedReason::AlreadyReversed,
+            "deadline_passed" => TreasuryReceivedCreditsResourceReversalDetailsRestrictedReason::DeadlinePassed,
+            "network_restricted" => TreasuryReceivedCreditsResourceReversalDetailsRestrictedReason::NetworkRestricted,
+            "other" => TreasuryReceivedCreditsResourceReversalDetailsRestrictedReason::Other,
+            "source_flow_restricted" => {
+                TreasuryReceivedCreditsResourceReversalDetailsRestrictedReason::SourceFlowRestricted
+            }
+            other => TreasuryReceivedCreditsResourceReversalDetailsRestrictedReason::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryReceivedCreditsResourceSourceFlowsDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub credit_reversal: Option<crate::treasury::TreasuryCreditReversal>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub outbound_payment: Option<crate::treasury::TreasuryOutboundPayment>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub outbound_transfer: Option<crate::treasury::TreasuryOutboundTransfer>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payout: Option<crate::payouts::Payout>,
     #[doc = "The type of the source flow that originated the ReceivedCredit."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::treasury::TreasuryReceivedCreditsResourceSourceFlowsDetailsType,
 }
 
@@ -7299,100 +6132,84 @@ impl Default for TreasuryReceivedCreditsResourceSourceFlowsDetailsType {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryReceivedCreditsResourceSourceFlowsDetailsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryReceivedCreditsResourceSourceFlowsDetailsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "credit_reversal" => TreasuryReceivedCreditsResourceSourceFlowsDetailsType::CreditReversal,
-                    "other" => TreasuryReceivedCreditsResourceSourceFlowsDetailsType::Other,
-                    "outbound_payment" => TreasuryReceivedCreditsResourceSourceFlowsDetailsType::OutboundPayment,
-                    "outbound_transfer" => TreasuryReceivedCreditsResourceSourceFlowsDetailsType::OutboundTransfer,
-                    "payout" => TreasuryReceivedCreditsResourceSourceFlowsDetailsType::Payout,
-                    other => TreasuryReceivedCreditsResourceSourceFlowsDetailsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryReceivedCreditsResourceSourceFlowsDetailsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryReceivedCreditsResourceSourceFlowsDetailsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryReceivedCreditsResourceSourceFlowsDetailsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "credit_reversal" => TreasuryReceivedCreditsResourceSourceFlowsDetailsType::CreditReversal,
+            "other" => TreasuryReceivedCreditsResourceSourceFlowsDetailsType::Other,
+            "outbound_payment" => TreasuryReceivedCreditsResourceSourceFlowsDetailsType::OutboundPayment,
+            "outbound_transfer" => TreasuryReceivedCreditsResourceSourceFlowsDetailsType::OutboundTransfer,
+            "payout" => TreasuryReceivedCreditsResourceSourceFlowsDetailsType::Payout,
+            other => TreasuryReceivedCreditsResourceSourceFlowsDetailsType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryReceivedCreditsResourceStatusTransitions {
     #[doc = "Timestamp describing when the CreditReversal changed status to `posted`"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub posted_at: Option<i64>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryReceivedDebit {
     #[doc = "Amount (in cents) transferred."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default)]
+    #[json(default)]
     pub description: String,
     #[doc = "Reason for the failure."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub failure_code: Option<crate::treasury::TreasuryReceivedDebitFailureCode>,
     #[doc = "The FinancialAccount that funds were pulled from."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub financial_account: Option<String>,
     #[doc = "A [hosted transaction receipt](https://docs.stripe.com/treasury/moving-money/regulatory-receipts) URL that is provide..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hosted_regulatory_receipt_url: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub initiating_payment_method_details:
         Option<crate::treasury::TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetails>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub linked_flows: Option<crate::treasury::TreasuryReceivedDebitsResourceLinkedFlows>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "The network used for the ReceivedDebit."]
-    #[serde(default)]
+    #[json(default)]
     pub network: crate::treasury::TreasuryReceivedDebitNetwork,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::treasury::TreasuryReceivedDebitObject,
     #[doc = "Details describing when a ReceivedDebit might be reversed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reversal_details: Option<crate::treasury::TreasuryReceivedDebitsResourceReversalDetails>,
     #[doc = "Status of the ReceivedDebit."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::treasury::TreasuryReceivedCreditStatus,
     #[doc = "The Transaction associated with this object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transaction: Option<crate::Expandable<crate::treasury::TreasuryTransaction>>,
 }
 
@@ -7431,40 +6248,22 @@ impl TreasuryReceivedDebitFailureCode {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryReceivedDebitFailureCode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryReceivedDebitFailureCode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account_closed" => TreasuryReceivedDebitFailureCode::AccountClosed,
-                    "account_frozen" => TreasuryReceivedDebitFailureCode::AccountFrozen,
-                    "insufficient_funds" => TreasuryReceivedDebitFailureCode::InsufficientFunds,
-                    "international_transaction" => TreasuryReceivedDebitFailureCode::InternationalTransaction,
-                    "other" => TreasuryReceivedDebitFailureCode::Other,
-                    other => TreasuryReceivedDebitFailureCode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryReceivedDebitFailureCode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryReceivedDebitFailureCode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryReceivedDebitFailureCode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account_closed" => TreasuryReceivedDebitFailureCode::AccountClosed,
+            "account_frozen" => TreasuryReceivedDebitFailureCode::AccountFrozen,
+            "insufficient_funds" => TreasuryReceivedDebitFailureCode::InsufficientFunds,
+            "international_transaction" => TreasuryReceivedDebitFailureCode::InternationalTransaction,
+            "other" => TreasuryReceivedDebitFailureCode::Other,
+            other => TreasuryReceivedDebitFailureCode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7499,38 +6298,20 @@ impl Default for TreasuryReceivedDebitNetwork {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryReceivedDebitNetwork {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryReceivedDebitNetwork;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ach" => TreasuryReceivedDebitNetwork::Ach,
-                    "card" => TreasuryReceivedDebitNetwork::Card,
-                    "stripe" => TreasuryReceivedDebitNetwork::Stripe,
-                    other => TreasuryReceivedDebitNetwork::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryReceivedDebitNetwork::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryReceivedDebitNetwork {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryReceivedDebitNetwork::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ach" => TreasuryReceivedDebitNetwork::Ach,
+            "card" => TreasuryReceivedDebitNetwork::Card,
+            "stripe" => TreasuryReceivedDebitNetwork::Stripe,
+            other => TreasuryReceivedDebitNetwork::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7561,121 +6342,109 @@ impl Default for TreasuryReceivedDebitObject {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryReceivedDebitObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryReceivedDebitObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "treasury.received_debit" => TreasuryReceivedDebitObject::TreasuryReceivedDebit,
-                    other => TreasuryReceivedDebitObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryReceivedDebitObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryReceivedDebitObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryReceivedDebitObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "treasury.received_debit" => TreasuryReceivedDebitObject::TreasuryReceivedDebit,
+            other => TreasuryReceivedDebitObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryReceivedDebitsResourceDebitReversalLinkedFlows {
     #[doc = "Set if there is an Issuing dispute associated with the DebitReversal."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuing_dispute: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryReceivedDebitsResourceLinkedFlows {
     #[doc = "The DebitReversal created as a result of this ReceivedDebit being reversed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub debit_reversal: Option<String>,
     #[doc = "Set if the ReceivedDebit is associated with an InboundTransfer's return of funds."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub inbound_transfer: Option<String>,
     #[doc = "Set if the ReceivedDebit was created due to an [Issuing Authorization](https://docs.stripe.com/api#issuing_authorizat..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuing_authorization: Option<String>,
     #[doc = "Set if the ReceivedDebit is also viewable as an [Issuing Dispute](https://docs.stripe.com/api#issuing_disputes) object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuing_transaction: Option<String>,
     #[doc = "Set if the ReceivedDebit was created due to a [Payout](https://docs.stripe.com/api#payouts) object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payout: Option<String>,
     #[doc = "Set if the ReceivedDebit was created due to a [Topup](https://docs.stripe.com/api#topups) object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub topup: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryReceivedDebitsResourceReversalDetails {
     #[doc = "Time before which a ReceivedDebit can be reversed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub deadline: Option<i64>,
     #[doc = "Set if a ReceivedDebit can't be reversed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub restricted_reason: Option<crate::treasury::TreasuryReceivedCreditsResourceReversalDetailsRestrictedReason>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryReceivedDebitsResourceStatusTransitions {
     #[doc = "Timestamp describing when the DebitReversal changed status to `completed`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub completed_at: Option<i64>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasurySharedResourceBillingDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<crate::common::Address>,
     #[doc = "Email address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[doc = "Full name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetails {
     #[doc = "Set when `type` is `balance`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub balance: Option<
         crate::treasury::TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsBalance,
     >,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billing_details: Option<crate::treasury::TreasurySharedResourceBillingDetails>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub financial_account: Option<crate::treasury::ReceivedPaymentMethodDetailsFinancialAccount>,
     #[doc = "Set when `type` is `issuing_card`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuing_card: Option<String>,
     #[doc = "Polymorphic type matching the originating money movement's source."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::treasury::TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsType,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us_bank_account: Option<crate::treasury::TreasurySharedResourceInitiatingPaymentMethodDetailsUsBankAccount>,
 }
 
@@ -7703,42 +6472,30 @@ impl TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethod
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsBalance
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsBalance;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsBalance::Unknown(
+                    String::new(),
+                ),
+            );
+        }
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "payments" => {
+                TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsBalance::Payments
             }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "payments" => TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsBalance::Payments,
-                    other => TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsBalance::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsBalance::Unknown(
-                        String::new(),
-                    ),
+            other => {
+                TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsBalance::Unknown(
+                    other.to_string(),
                 )
             }
-        }
-        deserializer.deserialize_any(EnumVisitor)
+        })
     }
 }
 
@@ -7777,108 +6534,102 @@ impl Default for TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingP
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsType
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "balance" => TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsType::Balance,
-                    "financial_account" => TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsType::FinancialAccount,
-                    "issuing_card" => TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsType::IssuingCard,
-                    "stripe" => TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsType::Stripe,
-                    "us_bank_account" => TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsType::UsBankAccount,
-                    other => TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsType::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsType::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "balance" => {
+                TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsType::Balance
+            }
+            "financial_account" => {
+                TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsType::FinancialAccount
+            }
+            "issuing_card" => {
+                TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsType::IssuingCard
+            }
+            "stripe" => TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsType::Stripe,
+            "us_bank_account" => {
+                TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsType::UsBankAccount
+            }
+            other => TreasurySharedResourceInitiatingPaymentMethodDetailsInitiatingPaymentMethodDetailsType::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasurySharedResourceInitiatingPaymentMethodDetailsUsBankAccount {
     #[doc = "Bank name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_name: Option<String>,
     #[doc = "The last four digits of the bank account number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last4: Option<String>,
     #[doc = "The routing number for the bank account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub routing_number: Option<String>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryTransaction {
     #[doc = "Amount (in cents) transferred."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub balance_impact: Option<crate::treasury::TreasuryTransactionsResourceBalanceImpact>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default)]
+    #[json(default)]
     pub description: String,
     #[doc = "A list of TransactionEntries that are part of this Transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub entries: Option<crate::List<crate::treasury::TreasuryTransactionEntry>>,
     #[doc = "The FinancialAccount associated with this object."]
-    #[serde(default)]
+    #[json(default)]
     pub financial_account: String,
     #[doc = "ID of the flow that created the Transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub flow: Option<String>,
     #[doc = "Details of the flow that created the Transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub flow_details: Option<crate::treasury::TreasuryTransactionsResourceFlowDetails>,
     #[doc = "Type of the flow that created the Transaction."]
-    #[serde(default)]
+    #[json(default)]
     pub flow_type: crate::treasury::TreasuryTransactionFlowType,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::treasury::TreasuryTransactionObject,
     #[doc = "Status of the Transaction."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::treasury::TreasuryTransactionStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status_transitions:
         Option<crate::treasury::TreasuryTransactionsResourceAbstractTransactionResourceStatusTransitions>,
 }
@@ -7891,45 +6642,46 @@ impl crate::PagedItem for TreasuryTransaction {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryTransactionEntry {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub balance_impact: Option<crate::treasury::TreasuryTransactionsResourceBalanceImpact>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "When the TransactionEntry will impact the FinancialAccount's balance."]
-    #[serde(default)]
+    #[json(default)]
     pub effective_at: i64,
     #[doc = "The FinancialAccount associated with this object."]
-    #[serde(default)]
+    #[json(default)]
     pub financial_account: String,
     #[doc = "Token of the flow associated with the TransactionEntry."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub flow: Option<String>,
     #[doc = "Details of the flow associated with the TransactionEntry."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub flow_details: Option<crate::treasury::TreasuryTransactionsResourceFlowDetails>,
     #[doc = "Type of the flow associated with the TransactionEntry."]
-    #[serde(default)]
+    #[json(default)]
     pub flow_type: crate::treasury::TreasuryTransactionFlowType,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::treasury::TreasuryTransactionEntryObject,
     #[doc = "The Transaction associated with this object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transaction: Option<crate::Expandable<crate::treasury::TreasuryTransaction>>,
     #[doc = "The specific money movement that generated the TransactionEntry."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::treasury::TreasuryTransactionEntryType,
 }
 
@@ -7967,36 +6719,18 @@ impl Default for TreasuryTransactionEntryObject {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryTransactionEntryObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryTransactionEntryObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "treasury.transaction_entry" => TreasuryTransactionEntryObject::TreasuryTransactionEntry,
-                    other => TreasuryTransactionEntryObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryTransactionEntryObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryTransactionEntryObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryTransactionEntryObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "treasury.transaction_entry" => TreasuryTransactionEntryObject::TreasuryTransactionEntry,
+            other => TreasuryTransactionEntryObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8065,55 +6799,37 @@ impl Default for TreasuryTransactionEntryType {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryTransactionEntryType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryTransactionEntryType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "credit_reversal" => TreasuryTransactionEntryType::CreditReversal,
-                    "credit_reversal_posting" => TreasuryTransactionEntryType::CreditReversalPosting,
-                    "debit_reversal" => TreasuryTransactionEntryType::DebitReversal,
-                    "inbound_transfer" => TreasuryTransactionEntryType::InboundTransfer,
-                    "inbound_transfer_return" => TreasuryTransactionEntryType::InboundTransferReturn,
-                    "issuing_authorization_hold" => TreasuryTransactionEntryType::IssuingAuthorizationHold,
-                    "issuing_authorization_release" => TreasuryTransactionEntryType::IssuingAuthorizationRelease,
-                    "other" => TreasuryTransactionEntryType::Other,
-                    "outbound_payment" => TreasuryTransactionEntryType::OutboundPayment,
-                    "outbound_payment_cancellation" => TreasuryTransactionEntryType::OutboundPaymentCancellation,
-                    "outbound_payment_failure" => TreasuryTransactionEntryType::OutboundPaymentFailure,
-                    "outbound_payment_posting" => TreasuryTransactionEntryType::OutboundPaymentPosting,
-                    "outbound_payment_return" => TreasuryTransactionEntryType::OutboundPaymentReturn,
-                    "outbound_transfer" => TreasuryTransactionEntryType::OutboundTransfer,
-                    "outbound_transfer_cancellation" => TreasuryTransactionEntryType::OutboundTransferCancellation,
-                    "outbound_transfer_failure" => TreasuryTransactionEntryType::OutboundTransferFailure,
-                    "outbound_transfer_posting" => TreasuryTransactionEntryType::OutboundTransferPosting,
-                    "outbound_transfer_return" => TreasuryTransactionEntryType::OutboundTransferReturn,
-                    "received_credit" => TreasuryTransactionEntryType::ReceivedCredit,
-                    "received_debit" => TreasuryTransactionEntryType::ReceivedDebit,
-                    other => TreasuryTransactionEntryType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryTransactionEntryType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryTransactionEntryType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryTransactionEntryType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "credit_reversal" => TreasuryTransactionEntryType::CreditReversal,
+            "credit_reversal_posting" => TreasuryTransactionEntryType::CreditReversalPosting,
+            "debit_reversal" => TreasuryTransactionEntryType::DebitReversal,
+            "inbound_transfer" => TreasuryTransactionEntryType::InboundTransfer,
+            "inbound_transfer_return" => TreasuryTransactionEntryType::InboundTransferReturn,
+            "issuing_authorization_hold" => TreasuryTransactionEntryType::IssuingAuthorizationHold,
+            "issuing_authorization_release" => TreasuryTransactionEntryType::IssuingAuthorizationRelease,
+            "other" => TreasuryTransactionEntryType::Other,
+            "outbound_payment" => TreasuryTransactionEntryType::OutboundPayment,
+            "outbound_payment_cancellation" => TreasuryTransactionEntryType::OutboundPaymentCancellation,
+            "outbound_payment_failure" => TreasuryTransactionEntryType::OutboundPaymentFailure,
+            "outbound_payment_posting" => TreasuryTransactionEntryType::OutboundPaymentPosting,
+            "outbound_payment_return" => TreasuryTransactionEntryType::OutboundPaymentReturn,
+            "outbound_transfer" => TreasuryTransactionEntryType::OutboundTransfer,
+            "outbound_transfer_cancellation" => TreasuryTransactionEntryType::OutboundTransferCancellation,
+            "outbound_transfer_failure" => TreasuryTransactionEntryType::OutboundTransferFailure,
+            "outbound_transfer_posting" => TreasuryTransactionEntryType::OutboundTransferPosting,
+            "outbound_transfer_return" => TreasuryTransactionEntryType::OutboundTransferReturn,
+            "received_credit" => TreasuryTransactionEntryType::ReceivedCredit,
+            "received_debit" => TreasuryTransactionEntryType::ReceivedDebit,
+            other => TreasuryTransactionEntryType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8160,44 +6876,26 @@ impl Default for TreasuryTransactionFlowType {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryTransactionFlowType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryTransactionFlowType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "credit_reversal" => TreasuryTransactionFlowType::CreditReversal,
-                    "debit_reversal" => TreasuryTransactionFlowType::DebitReversal,
-                    "inbound_transfer" => TreasuryTransactionFlowType::InboundTransfer,
-                    "issuing_authorization" => TreasuryTransactionFlowType::IssuingAuthorization,
-                    "other" => TreasuryTransactionFlowType::Other,
-                    "outbound_payment" => TreasuryTransactionFlowType::OutboundPayment,
-                    "outbound_transfer" => TreasuryTransactionFlowType::OutboundTransfer,
-                    "received_credit" => TreasuryTransactionFlowType::ReceivedCredit,
-                    "received_debit" => TreasuryTransactionFlowType::ReceivedDebit,
-                    other => TreasuryTransactionFlowType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryTransactionFlowType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryTransactionFlowType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryTransactionFlowType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "credit_reversal" => TreasuryTransactionFlowType::CreditReversal,
+            "debit_reversal" => TreasuryTransactionFlowType::DebitReversal,
+            "inbound_transfer" => TreasuryTransactionFlowType::InboundTransfer,
+            "issuing_authorization" => TreasuryTransactionFlowType::IssuingAuthorization,
+            "other" => TreasuryTransactionFlowType::Other,
+            "outbound_payment" => TreasuryTransactionFlowType::OutboundPayment,
+            "outbound_transfer" => TreasuryTransactionFlowType::OutboundTransfer,
+            "received_credit" => TreasuryTransactionFlowType::ReceivedCredit,
+            "received_debit" => TreasuryTransactionFlowType::ReceivedDebit,
+            other => TreasuryTransactionFlowType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8228,36 +6926,18 @@ impl Default for TreasuryTransactionObject {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryTransactionObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryTransactionObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "treasury.transaction" => TreasuryTransactionObject::TreasuryTransaction,
-                    other => TreasuryTransactionObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryTransactionObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryTransactionObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryTransactionObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "treasury.transaction" => TreasuryTransactionObject::TreasuryTransaction,
+            other => TreasuryTransactionObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8292,87 +6972,72 @@ impl Default for TreasuryTransactionStatus {
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-impl<'de> serde::Deserialize<'de> for TreasuryTransactionStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TreasuryTransactionStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "open" => TreasuryTransactionStatus::Open,
-                    "posted" => TreasuryTransactionStatus::Posted,
-                    "void" => TreasuryTransactionStatus::Void,
-                    other => TreasuryTransactionStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TreasuryTransactionStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TreasuryTransactionStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TreasuryTransactionStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "open" => TreasuryTransactionStatus::Open,
+            "posted" => TreasuryTransactionStatus::Posted,
+            "void" => TreasuryTransactionStatus::Void,
+            other => TreasuryTransactionStatus::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryTransactionsResourceAbstractTransactionResourceStatusTransitions {
     #[doc = "Timestamp describing when the Transaction changed status to `posted`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub posted_at: Option<i64>,
     #[doc = "Timestamp describing when the Transaction changed status to `void`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub void_at: Option<i64>,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryTransactionsResourceBalanceImpact {
     #[doc = "The change made to funds the user can spend right now."]
-    #[serde(default)]
+    #[json(default)]
     pub cash: i64,
     #[doc = "The change made to funds that are not spendable yet, but will become available at a later time."]
-    #[serde(default)]
+    #[json(default)]
     pub inbound_pending: i64,
     #[doc = "The change made to funds in the account, but not spendable because they are being held for pending outbound flows."]
-    #[serde(default)]
+    #[json(default)]
     pub outbound_pending: i64,
 }
 
 #[cfg(any(feature = "events", feature = "test_helpers", feature = "treasury"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TreasuryTransactionsResourceFlowDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub credit_reversal: Option<crate::treasury::TreasuryCreditReversal>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub debit_reversal: Option<crate::treasury::TreasuryDebitReversal>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub inbound_transfer: Option<crate::treasury::TreasuryInboundTransfer>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuing_authorization: Option<crate::issuing::IssuingAuthorization>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub outbound_payment: Option<crate::treasury::TreasuryOutboundPayment>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub outbound_transfer: Option<crate::treasury::TreasuryOutboundTransfer>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub received_credit: Option<crate::treasury::TreasuryReceivedCredit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub received_debit: Option<crate::treasury::TreasuryReceivedDebit>,
     #[doc = "Type of the flow that created the Transaction."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::treasury::TreasuryTransactionFlowType,
 }
 
@@ -8388,7 +7053,7 @@ pub struct UpdateTreasuryFinancialAccountParams {
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "The nickname for the FinancialAccount."]
-    pub nickname: Option<serde_json::Value>,
+    pub nickname: Option<json::OwnedValue>,
     #[doc = "The set of functionalities that the platform can restrict on the FinancialAccount."]
     pub platform_restrictions: Option<crate::treasury::UpdateTreasuryFinancialAccountParamsPlatformRestrictions>,
 }
@@ -8584,39 +7249,21 @@ impl UpdateTreasuryFinancialAccountParamsForwardingSettingsType {
 }
 
 #[cfg(feature = "treasury")]
-impl<'de> serde::Deserialize<'de> for UpdateTreasuryFinancialAccountParamsForwardingSettingsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = UpdateTreasuryFinancialAccountParamsForwardingSettingsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "financial_account" => UpdateTreasuryFinancialAccountParamsForwardingSettingsType::FinancialAccount,
-                    "payment_method" => UpdateTreasuryFinancialAccountParamsForwardingSettingsType::PaymentMethod,
-                    other => UpdateTreasuryFinancialAccountParamsForwardingSettingsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(UpdateTreasuryFinancialAccountParamsForwardingSettingsType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for UpdateTreasuryFinancialAccountParamsForwardingSettingsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(UpdateTreasuryFinancialAccountParamsForwardingSettingsType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "financial_account" => UpdateTreasuryFinancialAccountParamsForwardingSettingsType::FinancialAccount,
+            "payment_method" => UpdateTreasuryFinancialAccountParamsForwardingSettingsType::PaymentMethod,
+            other => UpdateTreasuryFinancialAccountParamsForwardingSettingsType::Unknown(other.to_string()),
+        })
     }
 }
 

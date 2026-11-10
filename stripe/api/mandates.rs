@@ -68,36 +68,37 @@ impl crate::params::FormEncode for GetMandateParams {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Mandate {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_acceptance: Option<crate::customers::CustomerAcceptance>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub multi_use: Option<crate::mandates::MandateMultiUse>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::mandates::MandateObject,
     #[doc = "The account (if any) that the mandate is intended for."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub on_behalf_of: Option<String>,
     #[doc = "ID of the payment method associated with this mandate."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method: Option<crate::Expandable<crate::payment_methods::PaymentMethod>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_details: Option<crate::mandates::MandatePaymentMethodDetails>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub single_use: Option<crate::mandates::MandateSingleUse>,
     #[doc = "The mandate status indicates whether or not you can use it to initiate a payment."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::mandates::MandateStatus,
     #[doc = "The type of the mandate."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::mandates::MandateType,
 }
 
@@ -197,19 +198,20 @@ impl crate::PagedItem for Mandate {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandateAcssDebit {
     #[doc = "List of Stripe products where this mandate can be selected automatically."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_for: Option<Vec<crate::mandates::MandateAcssDebitDefaultForItem>>,
     #[doc = "Description of the interval."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub interval_description: Option<String>,
     #[doc = "Payment schedule for the mandate."]
-    #[serde(default)]
+    #[json(default)]
     pub payment_schedule: crate::mandates::MandateAcssDebitPaymentSchedule,
     #[doc = "Transaction type of the mandate."]
-    #[serde(default)]
+    #[json(default)]
     pub transaction_type: crate::mandates::MandateAcssDebitTransactionType,
 }
 
@@ -367,37 +369,19 @@ impl MandateAcssDebitDefaultForItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for MandateAcssDebitDefaultForItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = MandateAcssDebitDefaultForItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "invoice" => MandateAcssDebitDefaultForItem::Invoice,
-                    "subscription" => MandateAcssDebitDefaultForItem::Subscription,
-                    other => MandateAcssDebitDefaultForItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(MandateAcssDebitDefaultForItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for MandateAcssDebitDefaultForItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(MandateAcssDebitDefaultForItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "invoice" => MandateAcssDebitDefaultForItem::Invoice,
+            "subscription" => MandateAcssDebitDefaultForItem::Subscription,
+            other => MandateAcssDebitDefaultForItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -608,38 +592,20 @@ impl Default for MandateAcssDebitPaymentSchedule {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for MandateAcssDebitPaymentSchedule {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = MandateAcssDebitPaymentSchedule;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "combined" => MandateAcssDebitPaymentSchedule::Combined,
-                    "interval" => MandateAcssDebitPaymentSchedule::Interval,
-                    "sporadic" => MandateAcssDebitPaymentSchedule::Sporadic,
-                    other => MandateAcssDebitPaymentSchedule::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(MandateAcssDebitPaymentSchedule::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for MandateAcssDebitPaymentSchedule {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(MandateAcssDebitPaymentSchedule::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "combined" => MandateAcssDebitPaymentSchedule::Combined,
+            "interval" => MandateAcssDebitPaymentSchedule::Interval,
+            "sporadic" => MandateAcssDebitPaymentSchedule::Sporadic,
+            other => MandateAcssDebitPaymentSchedule::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -848,37 +814,19 @@ impl Default for MandateAcssDebitTransactionType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for MandateAcssDebitTransactionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = MandateAcssDebitTransactionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "business" => MandateAcssDebitTransactionType::Business,
-                    "personal" => MandateAcssDebitTransactionType::Personal,
-                    other => MandateAcssDebitTransactionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(MandateAcssDebitTransactionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for MandateAcssDebitTransactionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(MandateAcssDebitTransactionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "business" => MandateAcssDebitTransactionType::Business,
+            "personal" => MandateAcssDebitTransactionType::Personal,
+            other => MandateAcssDebitTransactionType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -927,7 +875,8 @@ impl<'de> serde::Deserialize<'de> for MandateAcssDebitTransactionType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandateAmazonPay {}
 
 #[cfg(any(
@@ -975,10 +924,11 @@ pub struct MandateAmazonPay {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandateAuBecsDebit {
     #[doc = "The URL of the mandate."]
-    #[serde(default)]
+    #[json(default)]
     pub url: String,
 }
 
@@ -1027,25 +977,26 @@ pub struct MandateAuBecsDebit {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandateBacsDebit {
     #[doc = "The display name for the account on this mandate."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
     #[doc = "The status of the mandate on the Bacs network."]
-    #[serde(default)]
+    #[json(default)]
     pub network_status: crate::mandates::MandateBacsDebitNetworkStatus,
     #[doc = "The unique reference identifying the mandate on the Bacs network."]
-    #[serde(default)]
+    #[json(default)]
     pub reference: String,
     #[doc = "When the mandate is revoked on the Bacs network this field displays the reason for the revocation."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub revocation_reason: Option<crate::mandates::MandateBacsDebitRevocationReason>,
     #[doc = "The service user number for the account on this mandate."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub service_user_number: Option<String>,
     #[doc = "The URL that will contain the mandate that the customer has signed."]
-    #[serde(default)]
+    #[json(default)]
     pub url: String,
 }
 
@@ -1258,39 +1209,21 @@ impl Default for MandateBacsDebitNetworkStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for MandateBacsDebitNetworkStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = MandateBacsDebitNetworkStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "accepted" => MandateBacsDebitNetworkStatus::Accepted,
-                    "pending" => MandateBacsDebitNetworkStatus::Pending,
-                    "refused" => MandateBacsDebitNetworkStatus::Refused,
-                    "revoked" => MandateBacsDebitNetworkStatus::Revoked,
-                    other => MandateBacsDebitNetworkStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(MandateBacsDebitNetworkStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for MandateBacsDebitNetworkStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(MandateBacsDebitNetworkStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "accepted" => MandateBacsDebitNetworkStatus::Accepted,
+            "pending" => MandateBacsDebitNetworkStatus::Pending,
+            "refused" => MandateBacsDebitNetworkStatus::Refused,
+            "revoked" => MandateBacsDebitNetworkStatus::Revoked,
+            other => MandateBacsDebitNetworkStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1454,40 +1387,22 @@ impl MandateBacsDebitRevocationReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for MandateBacsDebitRevocationReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = MandateBacsDebitRevocationReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account_closed" => MandateBacsDebitRevocationReason::AccountClosed,
-                    "bank_account_restricted" => MandateBacsDebitRevocationReason::BankAccountRestricted,
-                    "bank_ownership_changed" => MandateBacsDebitRevocationReason::BankOwnershipChanged,
-                    "could_not_process" => MandateBacsDebitRevocationReason::CouldNotProcess,
-                    "debit_not_authorized" => MandateBacsDebitRevocationReason::DebitNotAuthorized,
-                    other => MandateBacsDebitRevocationReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(MandateBacsDebitRevocationReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for MandateBacsDebitRevocationReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(MandateBacsDebitRevocationReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account_closed" => MandateBacsDebitRevocationReason::AccountClosed,
+            "bank_account_restricted" => MandateBacsDebitRevocationReason::BankAccountRestricted,
+            "bank_ownership_changed" => MandateBacsDebitRevocationReason::BankOwnershipChanged,
+            "could_not_process" => MandateBacsDebitRevocationReason::CouldNotProcess,
+            "debit_not_authorized" => MandateBacsDebitRevocationReason::DebitNotAuthorized,
+            other => MandateBacsDebitRevocationReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1536,13 +1451,14 @@ impl<'de> serde::Deserialize<'de> for MandateBacsDebitRevocationReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandateBlik {
     #[doc = "Date at which the mandate expires."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<i64>,
     #[doc = "Type of the mandate."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::mandates::MandateBlikType,
 }
 
@@ -1749,36 +1665,18 @@ impl Default for MandateBlikType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for MandateBlikType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = MandateBlikType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "off_session" => MandateBlikType::OffSession,
-                    other => MandateBlikType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(MandateBlikType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for MandateBlikType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(MandateBlikType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "off_session" => MandateBlikType::OffSession,
+            other => MandateBlikType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1827,7 +1725,8 @@ impl<'de> serde::Deserialize<'de> for MandateBlikType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandateCashapp {}
 
 #[cfg(any(
@@ -1875,7 +1774,8 @@ pub struct MandateCashapp {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandateKakaoPay {}
 
 #[cfg(any(
@@ -1923,7 +1823,8 @@ pub struct MandateKakaoPay {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandateKlarna {}
 
 #[cfg(any(
@@ -1971,7 +1872,8 @@ pub struct MandateKlarna {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandateKrCard {}
 
 #[cfg(any(
@@ -2019,7 +1921,8 @@ pub struct MandateKrCard {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandateLink {}
 
 #[cfg(any(
@@ -2067,13 +1970,14 @@ pub struct MandateLink {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandateMultiUse {
     #[doc = "The amount of the payment on a multi use mandate."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
     #[doc = "The currency of the payment on a multi use mandate."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
 }
 
@@ -2122,7 +2026,8 @@ pub struct MandateMultiUse {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandateNaverPay {}
 
 #[cfg(any(
@@ -2170,7 +2075,8 @@ pub struct MandateNaverPay {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandateNzBankAccount {}
 
 #[cfg(any(
@@ -2376,36 +2282,18 @@ impl Default for MandateObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for MandateObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = MandateObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "mandate" => MandateObject::Mandate,
-                    other => MandateObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(MandateObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for MandateObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(MandateObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "mandate" => MandateObject::Mandate,
+            other => MandateObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2415,28 +2303,29 @@ impl<'de> serde::Deserialize<'de> for MandateObject {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandateOptionsPayto {
     #[doc = "Amount that will be collected."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
     #[doc = "The type of amount that will be collected."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_type: Option<crate::mandates::MandateOptionsPaytoAmountType>,
     #[doc = "Date, in YYYY-MM-DD format, after which payments will not be collected."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub end_date: Option<String>,
     #[doc = "The periodicity at which payments will be collected."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_schedule: Option<crate::mandates::MandateOptionsPaytoPaymentSchedule>,
     #[doc = "The number of payments that will be made during a payment period."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payments_per_period: Option<i64>,
     #[doc = "The purpose for which payments are made."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub purpose: Option<crate::mandates::MandateOptionsPaytoPurpose>,
     #[doc = "Date, in YYYY-MM-DD format, from which payments will be collected."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub start_date: Option<String>,
 }
 
@@ -2645,37 +2534,19 @@ impl Default for MandateOptionsPaytoAmountType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for MandateOptionsPaytoAmountType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = MandateOptionsPaytoAmountType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "fixed" => MandateOptionsPaytoAmountType::Fixed,
-                    "maximum" => MandateOptionsPaytoAmountType::Maximum,
-                    other => MandateOptionsPaytoAmountType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(MandateOptionsPaytoAmountType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for MandateOptionsPaytoAmountType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(MandateOptionsPaytoAmountType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "fixed" => MandateOptionsPaytoAmountType::Fixed,
+            "maximum" => MandateOptionsPaytoAmountType::Maximum,
+            other => MandateOptionsPaytoAmountType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2896,43 +2767,25 @@ impl Default for MandateOptionsPaytoPaymentSchedule {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for MandateOptionsPaytoPaymentSchedule {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = MandateOptionsPaytoPaymentSchedule;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "adhoc" => MandateOptionsPaytoPaymentSchedule::Adhoc,
-                    "annual" => MandateOptionsPaytoPaymentSchedule::Annual,
-                    "daily" => MandateOptionsPaytoPaymentSchedule::Daily,
-                    "fortnightly" => MandateOptionsPaytoPaymentSchedule::Fortnightly,
-                    "monthly" => MandateOptionsPaytoPaymentSchedule::Monthly,
-                    "quarterly" => MandateOptionsPaytoPaymentSchedule::Quarterly,
-                    "semi_annual" => MandateOptionsPaytoPaymentSchedule::SemiAnnual,
-                    "weekly" => MandateOptionsPaytoPaymentSchedule::Weekly,
-                    other => MandateOptionsPaytoPaymentSchedule::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(MandateOptionsPaytoPaymentSchedule::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for MandateOptionsPaytoPaymentSchedule {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(MandateOptionsPaytoPaymentSchedule::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "adhoc" => MandateOptionsPaytoPaymentSchedule::Adhoc,
+            "annual" => MandateOptionsPaytoPaymentSchedule::Annual,
+            "daily" => MandateOptionsPaytoPaymentSchedule::Daily,
+            "fortnightly" => MandateOptionsPaytoPaymentSchedule::Fortnightly,
+            "monthly" => MandateOptionsPaytoPaymentSchedule::Monthly,
+            "quarterly" => MandateOptionsPaytoPaymentSchedule::Quarterly,
+            "semi_annual" => MandateOptionsPaytoPaymentSchedule::SemiAnnual,
+            "weekly" => MandateOptionsPaytoPaymentSchedule::Weekly,
+            other => MandateOptionsPaytoPaymentSchedule::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3108,46 +2961,28 @@ impl MandateOptionsPaytoPurpose {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for MandateOptionsPaytoPurpose {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = MandateOptionsPaytoPurpose;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "dependant_support" => MandateOptionsPaytoPurpose::DependantSupport,
-                    "government" => MandateOptionsPaytoPurpose::Government,
-                    "loan" => MandateOptionsPaytoPurpose::Loan,
-                    "mortgage" => MandateOptionsPaytoPurpose::Mortgage,
-                    "other" => MandateOptionsPaytoPurpose::Other,
-                    "pension" => MandateOptionsPaytoPurpose::Pension,
-                    "personal" => MandateOptionsPaytoPurpose::Personal,
-                    "retail" => MandateOptionsPaytoPurpose::Retail,
-                    "salary" => MandateOptionsPaytoPurpose::Salary,
-                    "tax" => MandateOptionsPaytoPurpose::Tax,
-                    "utility" => MandateOptionsPaytoPurpose::Utility,
-                    other => MandateOptionsPaytoPurpose::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(MandateOptionsPaytoPurpose::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for MandateOptionsPaytoPurpose {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(MandateOptionsPaytoPurpose::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "dependant_support" => MandateOptionsPaytoPurpose::DependantSupport,
+            "government" => MandateOptionsPaytoPurpose::Government,
+            "loan" => MandateOptionsPaytoPurpose::Loan,
+            "mortgage" => MandateOptionsPaytoPurpose::Mortgage,
+            "other" => MandateOptionsPaytoPurpose::Other,
+            "pension" => MandateOptionsPaytoPurpose::Pension,
+            "personal" => MandateOptionsPaytoPurpose::Personal,
+            "retail" => MandateOptionsPaytoPurpose::Retail,
+            "salary" => MandateOptionsPaytoPurpose::Salary,
+            "tax" => MandateOptionsPaytoPurpose::Tax,
+            "utility" => MandateOptionsPaytoPurpose::Utility,
+            other => MandateOptionsPaytoPurpose::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3157,19 +2992,20 @@ impl<'de> serde::Deserialize<'de> for MandateOptionsPaytoPurpose {
     feature = "customers",
     feature = "events"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandateOptionsUpi {
     #[doc = "Amount to be charged for future payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
     #[doc = "One of `fixed` or `maximum`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_type: Option<crate::mandates::MandateOptionsPaytoAmountType>,
     #[doc = "A description of the mandate or subscription that is meant to be displayed to the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "End date of the mandate or subscription."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub end_date: Option<i64>,
 }
 
@@ -3218,52 +3054,53 @@ pub struct MandateOptionsUpi {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandatePaymentMethodDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub acss_debit: Option<crate::mandates::MandateAcssDebit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amazon_pay: Option<crate::mandates::MandateAmazonPay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub au_becs_debit: Option<crate::mandates::MandateAuBecsDebit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bacs_debit: Option<crate::mandates::MandateBacsDebit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub blik: Option<crate::mandates::MandateBlik>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::payment_methods::CardMandatePaymentMethodDetails>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cashapp: Option<crate::mandates::MandateCashapp>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub kakao_pay: Option<crate::mandates::MandateKakaoPay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub klarna: Option<crate::mandates::MandateKlarna>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub kr_card: Option<crate::mandates::MandateKrCard>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub link: Option<crate::mandates::MandateLink>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub naver_pay: Option<crate::mandates::MandateNaverPay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub nz_bank_account: Option<crate::mandates::MandateNzBankAccount>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paypal: Option<crate::mandates::MandatePaypal>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payto: Option<crate::mandates::MandatePayto>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pix: Option<crate::mandates::MandatePix>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub revolut_pay: Option<crate::mandates::MandateRevolutPay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sepa_debit: Option<crate::mandates::MandateSepaDebit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub twint: Option<crate::mandates::MandateTwint>,
     #[doc = "This mandate corresponds with a specific payment method type."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub upi: Option<crate::mandates::MandateUpi>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us_bank_account: Option<crate::mandates::MandateUsBankAccount>,
 }
 
@@ -3312,13 +3149,14 @@ pub struct MandatePaymentMethodDetails {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandatePaypal {
     #[doc = "The PayPal Billing Agreement ID (BAID)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billing_agreement_id: Option<String>,
     #[doc = "PayPal account PayerID."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payer_id: Option<String>,
 }
 
@@ -3367,28 +3205,29 @@ pub struct MandatePaypal {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandatePayto {
     #[doc = "Amount that will be collected."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
     #[doc = "The type of amount that will be collected."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_type: crate::mandates::MandateOptionsPaytoAmountType,
     #[doc = "Date, in YYYY-MM-DD format, after which payments will not be collected."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub end_date: Option<String>,
     #[doc = "The periodicity at which payments will be collected."]
-    #[serde(default)]
+    #[json(default)]
     pub payment_schedule: crate::mandates::MandateOptionsPaytoPaymentSchedule,
     #[doc = "The number of payments that will be made during a payment period."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payments_per_period: Option<i64>,
     #[doc = "The purpose for which payments are made."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub purpose: Option<crate::mandates::MandateOptionsPaytoPurpose>,
     #[doc = "Date, in YYYY-MM-DD format, from which payments will be collected."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub start_date: Option<String>,
 }
 
@@ -3437,25 +3276,26 @@ pub struct MandatePayto {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandatePix {
     #[doc = "Determines if the amount includes the IOF tax."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_includes_iof: Option<crate::mandates::MandatePixAmountIncludesIof>,
     #[doc = "Type of amount."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_type: Option<crate::mandates::MandateOptionsPaytoAmountType>,
     #[doc = "Date when the mandate expires and no further payments will be charged, in `YYYY-MM-DD`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub end_date: Option<String>,
     #[doc = "Schedule at which the future payments will be charged."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_schedule: Option<crate::mandates::MandatePixPaymentSchedule>,
     #[doc = "Subscription name displayed to buyers in their bank app."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     #[doc = "Start date of the mandate, in `YYYY-MM-DD`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub start_date: Option<String>,
 }
 
@@ -3613,37 +3453,19 @@ impl MandatePixAmountIncludesIof {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for MandatePixAmountIncludesIof {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = MandatePixAmountIncludesIof;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => MandatePixAmountIncludesIof::Always,
-                    "never" => MandatePixAmountIncludesIof::Never,
-                    other => MandatePixAmountIncludesIof::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(MandatePixAmountIncludesIof::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for MandatePixAmountIncludesIof {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(MandatePixAmountIncludesIof::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => MandatePixAmountIncludesIof::Always,
+            "never" => MandatePixAmountIncludesIof::Never,
+            other => MandatePixAmountIncludesIof::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3807,40 +3629,22 @@ impl MandatePixPaymentSchedule {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for MandatePixPaymentSchedule {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = MandatePixPaymentSchedule;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "halfyearly" => MandatePixPaymentSchedule::Halfyearly,
-                    "monthly" => MandatePixPaymentSchedule::Monthly,
-                    "quarterly" => MandatePixPaymentSchedule::Quarterly,
-                    "weekly" => MandatePixPaymentSchedule::Weekly,
-                    "yearly" => MandatePixPaymentSchedule::Yearly,
-                    other => MandatePixPaymentSchedule::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(MandatePixPaymentSchedule::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for MandatePixPaymentSchedule {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(MandatePixPaymentSchedule::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "halfyearly" => MandatePixPaymentSchedule::Halfyearly,
+            "monthly" => MandatePixPaymentSchedule::Monthly,
+            "quarterly" => MandatePixPaymentSchedule::Quarterly,
+            "weekly" => MandatePixPaymentSchedule::Weekly,
+            "yearly" => MandatePixPaymentSchedule::Yearly,
+            other => MandatePixPaymentSchedule::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3889,7 +3693,8 @@ impl<'de> serde::Deserialize<'de> for MandatePixPaymentSchedule {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandateRevolutPay {}
 
 #[cfg(any(
@@ -3937,13 +3742,14 @@ pub struct MandateRevolutPay {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandateSepaDebit {
     #[doc = "The unique reference of the mandate."]
-    #[serde(default)]
+    #[json(default)]
     pub reference: String,
     #[doc = "The URL of the mandate."]
-    #[serde(default)]
+    #[json(default)]
     pub url: String,
 }
 
@@ -3992,13 +3798,14 @@ pub struct MandateSepaDebit {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandateSingleUse {
     #[doc = "The amount of the payment on a single use mandate."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "The currency of the payment on a single use mandate."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
 }
 
@@ -4209,38 +4016,20 @@ impl Default for MandateStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for MandateStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = MandateStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => MandateStatus::Active,
-                    "inactive" => MandateStatus::Inactive,
-                    "pending" => MandateStatus::Pending,
-                    other => MandateStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(MandateStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for MandateStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(MandateStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => MandateStatus::Active,
+            "inactive" => MandateStatus::Inactive,
+            "pending" => MandateStatus::Pending,
+            other => MandateStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4289,7 +4078,8 @@ impl<'de> serde::Deserialize<'de> for MandateStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandateTwint {}
 
 #[cfg(any(
@@ -4497,37 +4287,19 @@ impl Default for MandateType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for MandateType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = MandateType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "multi_use" => MandateType::MultiUse,
-                    "single_use" => MandateType::SingleUse,
-                    other => MandateType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(MandateType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for MandateType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(MandateType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "multi_use" => MandateType::MultiUse,
+            "single_use" => MandateType::SingleUse,
+            other => MandateType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4576,19 +4348,20 @@ impl<'de> serde::Deserialize<'de> for MandateType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandateUpi {
     #[doc = "Amount to be charged for future payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
     #[doc = "One of `fixed` or `maximum`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_type: Option<crate::mandates::MandateOptionsPaytoAmountType>,
     #[doc = "A description of the mandate or subscription that is meant to be displayed to the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "End date of the mandate or subscription."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub end_date: Option<i64>,
 }
 
@@ -4637,10 +4410,11 @@ pub struct MandateUpi {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MandateUsBankAccount {
     #[doc = "Mandate collection method"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub collection_method: Option<crate::mandates::MandateUsBankAccountCollectionMethod>,
 }
 
@@ -4796,36 +4570,18 @@ impl MandateUsBankAccountCollectionMethod {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for MandateUsBankAccountCollectionMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = MandateUsBankAccountCollectionMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "paper" => MandateUsBankAccountCollectionMethod::Paper,
-                    other => MandateUsBankAccountCollectionMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(MandateUsBankAccountCollectionMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for MandateUsBankAccountCollectionMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(MandateUsBankAccountCollectionMethod::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "paper" => MandateUsBankAccountCollectionMethod::Paper,
+            other => MandateUsBankAccountCollectionMethod::Unknown(other.to_string()),
+        })
     }
 }
 

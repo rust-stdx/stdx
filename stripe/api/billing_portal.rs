@@ -9,46 +9,47 @@
 #![allow(non_camel_case_types)]
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingPortalConfiguration {
     #[doc = "Whether the configuration is active and can be used to create portal sessions."]
-    #[serde(default)]
+    #[json(default)]
     pub active: bool,
     #[doc = "ID of the Connect Application that created the configuration."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application: Option<crate::Expandable<crate::billing_portal::BillingPortalConfigurationApplicationExpanded>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub business_profile: Option<crate::billing_portal::PortalBusinessProfile>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "The default URL to redirect customers to when they click on the portal's link to return to your website."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_return_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub features: Option<crate::billing_portal::PortalFeatures>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "Whether the configuration is the default."]
-    #[serde(default)]
+    #[json(default)]
     pub is_default: bool,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub login_page: Option<crate::billing_portal::PortalLoginPage>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "The name of the configuration."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::billing_portal::BillingPortalConfigurationObject,
     #[doc = "Time at which the object was last updated."]
-    #[serde(default)]
+    #[json(default)]
     pub updated: i64,
 }
 
@@ -65,20 +66,18 @@ pub enum BillingPortalConfigurationApplicationExpanded {
     /// Expanded `application`.
     Application(Box<crate::common::Application>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for BillingPortalConfigurationApplicationExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for BillingPortalConfigurationApplicationExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
             "application" => BillingPortalConfigurationApplicationExpanded::Application(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
+                json::from_slice_owned(&json::to_vec(&value))?,
             )),
             _ => BillingPortalConfigurationApplicationExpanded::Other(value),
         })
@@ -112,77 +111,60 @@ impl Default for BillingPortalConfigurationObject {
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for BillingPortalConfigurationObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingPortalConfigurationObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "billing_portal.configuration" => BillingPortalConfigurationObject::BillingPortalConfiguration,
-                    other => BillingPortalConfigurationObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingPortalConfigurationObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingPortalConfigurationObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingPortalConfigurationObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "billing_portal.configuration" => BillingPortalConfigurationObject::BillingPortalConfiguration,
+            other => BillingPortalConfigurationObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingPortalSession {
     #[doc = "The configuration used by this session, describing the features available."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub configuration: Option<crate::Expandable<crate::billing_portal::BillingPortalConfiguration>>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "The ID of the customer for this session."]
-    #[serde(default)]
+    #[json(default)]
     pub customer: String,
     #[doc = "The ID of the account for this session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_account: Option<String>,
     #[doc = "Information about a specific flow for the customer to go through."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub flow: Option<crate::billing_portal::PortalFlowsFlow>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "The IETF language tag of the locale Customer Portal is displayed in."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub locale: Option<crate::billing_portal::BillingPortalSessionLocale>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::billing_portal::BillingPortalSessionObject,
     #[doc = "The account for which the session was created on behalf of."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub on_behalf_of: Option<String>,
     #[doc = "The URL to redirect customers to when they click on the portal's link to return to your website."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub return_url: Option<String>,
     #[doc = "The short-lived URL of the session that gives customers access to the customer portal."]
-    #[serde(default)]
+    #[json(default)]
     pub url: String,
 }
 
@@ -305,82 +287,64 @@ impl BillingPortalSessionLocale {
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for BillingPortalSessionLocale {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingPortalSessionLocale;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => BillingPortalSessionLocale::Auto,
-                    "bg" => BillingPortalSessionLocale::Bg,
-                    "cs" => BillingPortalSessionLocale::Cs,
-                    "da" => BillingPortalSessionLocale::Da,
-                    "de" => BillingPortalSessionLocale::De,
-                    "el" => BillingPortalSessionLocale::El,
-                    "en" => BillingPortalSessionLocale::En,
-                    "en-AU" => BillingPortalSessionLocale::EnAU,
-                    "en-CA" => BillingPortalSessionLocale::EnCA,
-                    "en-GB" => BillingPortalSessionLocale::EnGB,
-                    "en-IE" => BillingPortalSessionLocale::EnIE,
-                    "en-IN" => BillingPortalSessionLocale::EnIN,
-                    "en-NZ" => BillingPortalSessionLocale::EnNZ,
-                    "en-SG" => BillingPortalSessionLocale::EnSG,
-                    "es" => BillingPortalSessionLocale::Es,
-                    "es-419" => BillingPortalSessionLocale::Es419,
-                    "et" => BillingPortalSessionLocale::Et,
-                    "fi" => BillingPortalSessionLocale::Fi,
-                    "fil" => BillingPortalSessionLocale::Fil,
-                    "fr" => BillingPortalSessionLocale::Fr,
-                    "fr-CA" => BillingPortalSessionLocale::FrCA,
-                    "hr" => BillingPortalSessionLocale::Hr,
-                    "hu" => BillingPortalSessionLocale::Hu,
-                    "id" => BillingPortalSessionLocale::Id,
-                    "it" => BillingPortalSessionLocale::It,
-                    "ja" => BillingPortalSessionLocale::Ja,
-                    "ko" => BillingPortalSessionLocale::Ko,
-                    "lt" => BillingPortalSessionLocale::Lt,
-                    "lv" => BillingPortalSessionLocale::Lv,
-                    "ms" => BillingPortalSessionLocale::Ms,
-                    "mt" => BillingPortalSessionLocale::Mt,
-                    "nb" => BillingPortalSessionLocale::Nb,
-                    "nl" => BillingPortalSessionLocale::Nl,
-                    "pl" => BillingPortalSessionLocale::Pl,
-                    "pt" => BillingPortalSessionLocale::Pt,
-                    "pt-BR" => BillingPortalSessionLocale::PtBR,
-                    "ro" => BillingPortalSessionLocale::Ro,
-                    "ru" => BillingPortalSessionLocale::Ru,
-                    "sk" => BillingPortalSessionLocale::Sk,
-                    "sl" => BillingPortalSessionLocale::Sl,
-                    "sv" => BillingPortalSessionLocale::Sv,
-                    "th" => BillingPortalSessionLocale::Th,
-                    "tr" => BillingPortalSessionLocale::Tr,
-                    "vi" => BillingPortalSessionLocale::Vi,
-                    "zh" => BillingPortalSessionLocale::Zh,
-                    "zh-HK" => BillingPortalSessionLocale::ZhHK,
-                    "zh-TW" => BillingPortalSessionLocale::ZhTW,
-                    other => BillingPortalSessionLocale::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingPortalSessionLocale::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingPortalSessionLocale {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingPortalSessionLocale::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => BillingPortalSessionLocale::Auto,
+            "bg" => BillingPortalSessionLocale::Bg,
+            "cs" => BillingPortalSessionLocale::Cs,
+            "da" => BillingPortalSessionLocale::Da,
+            "de" => BillingPortalSessionLocale::De,
+            "el" => BillingPortalSessionLocale::El,
+            "en" => BillingPortalSessionLocale::En,
+            "en-AU" => BillingPortalSessionLocale::EnAU,
+            "en-CA" => BillingPortalSessionLocale::EnCA,
+            "en-GB" => BillingPortalSessionLocale::EnGB,
+            "en-IE" => BillingPortalSessionLocale::EnIE,
+            "en-IN" => BillingPortalSessionLocale::EnIN,
+            "en-NZ" => BillingPortalSessionLocale::EnNZ,
+            "en-SG" => BillingPortalSessionLocale::EnSG,
+            "es" => BillingPortalSessionLocale::Es,
+            "es-419" => BillingPortalSessionLocale::Es419,
+            "et" => BillingPortalSessionLocale::Et,
+            "fi" => BillingPortalSessionLocale::Fi,
+            "fil" => BillingPortalSessionLocale::Fil,
+            "fr" => BillingPortalSessionLocale::Fr,
+            "fr-CA" => BillingPortalSessionLocale::FrCA,
+            "hr" => BillingPortalSessionLocale::Hr,
+            "hu" => BillingPortalSessionLocale::Hu,
+            "id" => BillingPortalSessionLocale::Id,
+            "it" => BillingPortalSessionLocale::It,
+            "ja" => BillingPortalSessionLocale::Ja,
+            "ko" => BillingPortalSessionLocale::Ko,
+            "lt" => BillingPortalSessionLocale::Lt,
+            "lv" => BillingPortalSessionLocale::Lv,
+            "ms" => BillingPortalSessionLocale::Ms,
+            "mt" => BillingPortalSessionLocale::Mt,
+            "nb" => BillingPortalSessionLocale::Nb,
+            "nl" => BillingPortalSessionLocale::Nl,
+            "pl" => BillingPortalSessionLocale::Pl,
+            "pt" => BillingPortalSessionLocale::Pt,
+            "pt-BR" => BillingPortalSessionLocale::PtBR,
+            "ro" => BillingPortalSessionLocale::Ro,
+            "ru" => BillingPortalSessionLocale::Ru,
+            "sk" => BillingPortalSessionLocale::Sk,
+            "sl" => BillingPortalSessionLocale::Sl,
+            "sv" => BillingPortalSessionLocale::Sv,
+            "th" => BillingPortalSessionLocale::Th,
+            "tr" => BillingPortalSessionLocale::Tr,
+            "vi" => BillingPortalSessionLocale::Vi,
+            "zh" => BillingPortalSessionLocale::Zh,
+            "zh-HK" => BillingPortalSessionLocale::ZhHK,
+            "zh-TW" => BillingPortalSessionLocale::ZhTW,
+            other => BillingPortalSessionLocale::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -411,36 +375,18 @@ impl Default for BillingPortalSessionObject {
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for BillingPortalSessionObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingPortalSessionObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "billing_portal.session" => BillingPortalSessionObject::BillingPortalSession,
-                    other => BillingPortalSessionObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingPortalSessionObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingPortalSessionObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingPortalSessionObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "billing_portal.session" => BillingPortalSessionObject::BillingPortalSession,
+            other => BillingPortalSessionObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -450,7 +396,7 @@ pub struct CreateBillingPortalConfigurationParams {
     #[doc = "The business information shown to customers in the portal."]
     pub business_profile: Option<crate::billing_portal::CreateBillingPortalConfigurationParamsBusinessProfile>,
     #[doc = "The default URL to redirect customers to when they click on the portal's link to return to your website."]
-    pub default_return_url: Option<serde_json::Value>,
+    pub default_return_url: Option<json::OwnedValue>,
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "Information about the features available in the portal."]
@@ -460,7 +406,7 @@ pub struct CreateBillingPortalConfigurationParams {
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "The name of the configuration."]
-    pub name: Option<serde_json::Value>,
+    pub name: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "billing_portal")]
@@ -484,7 +430,7 @@ impl crate::params::FormEncode for CreateBillingPortalConfigurationParams {
 #[derive(Debug, Clone, Default)]
 pub struct CreateBillingPortalConfigurationParamsBusinessProfile {
     #[doc = "The messaging shown to customers in the portal."]
-    pub headline: Option<serde_json::Value>,
+    pub headline: Option<json::OwnedValue>,
     #[doc = "A link to the business’s publicly available privacy policy."]
     pub privacy_policy_url: Option<String>,
     #[doc = "A link to the business’s publicly available terms of service."]
@@ -532,7 +478,7 @@ impl crate::params::FormEncode for CreateBillingPortalConfigurationParamsFeature
 #[derive(Debug, Clone, Default)]
 pub struct CreateBillingPortalConfigurationParamsFeaturesCustomerUpdate {
     #[doc = "The types of customer updates that are supported."]
-    pub allowed_updates: Option<serde_json::Value>,
+    pub allowed_updates: Option<json::OwnedValue>,
     #[doc = "Whether the feature is enabled."]
     pub enabled: bool,
 }
@@ -564,7 +510,7 @@ pub struct CreateBillingPortalConfigurationParamsFeaturesPaymentMethodUpdate {
     #[doc = "Whether the feature is enabled."]
     pub enabled: bool,
     #[doc = "The [Payment Method Configuration](/api/payment_method_configurations) to use for this portal session."]
-    pub payment_method_configuration: Option<serde_json::Value>,
+    pub payment_method_configuration: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "billing_portal")]
@@ -607,9 +553,9 @@ pub struct CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelCance
     #[doc = "Whether the feature is enabled."]
     pub enabled: bool,
     #[doc = "The IDs of custom feedback options to use for this cancellation reason."]
-    pub feedback_options: Option<serde_json::Value>,
+    pub feedback_options: Option<json::OwnedValue>,
     #[doc = "Which cancellation reasons will be given as options to the customer."]
-    pub options: serde_json::Value,
+    pub options: json::OwnedValue,
 }
 
 #[cfg(feature = "billing_portal")]
@@ -641,43 +587,21 @@ impl CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelMode {
 }
 
 #[cfg(feature = "billing_portal")]
-impl<'de> serde::Deserialize<'de> for CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelMode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelMode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "at_period_end" => {
-                        CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelMode::AtPeriodEnd
-                    }
-                    "immediately" => CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelMode::Immediately,
-                    other => {
-                        CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelMode::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelMode::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelMode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelMode::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "at_period_end" => CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelMode::AtPeriodEnd,
+            "immediately" => CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelMode::Immediately,
+            other => CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelMode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -716,44 +640,30 @@ impl CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelProrationBe
 }
 
 #[cfg(feature = "billing_portal")]
-impl<'de> serde::Deserialize<'de>
-    for CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelProrationBehavior
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelProrationBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always_invoice" => CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelProrationBehavior::AlwaysInvoice,
-                    "create_prorations" => CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelProrationBehavior::CreateProrations,
-                    "none" => CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelProrationBehavior::None,
-                    other => CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelProrationBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelProrationBehavior::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelProrationBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelProrationBehavior::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always_invoice" => {
+                CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelProrationBehavior::AlwaysInvoice
+            }
+            "create_prorations" => {
+                CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelProrationBehavior::CreateProrations
+            }
+            "none" => CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelProrationBehavior::None,
+            other => CreateBillingPortalConfigurationParamsFeaturesSubscriptionCancelProrationBehavior::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -772,11 +682,11 @@ pub struct CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdate {
         crate::billing_portal::CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateBillingCycleAnchor,
     >,
     #[doc = "The types of subscription updates that are supported."]
-    pub default_allowed_updates: Option<serde_json::Value>,
+    pub default_allowed_updates: Option<json::OwnedValue>,
     #[doc = "Whether the feature is enabled."]
     pub enabled: bool,
     #[doc = "The list of up to 10 products that support subscription updates."]
-    pub products: Option<serde_json::Value>,
+    pub products: Option<json::OwnedValue>,
     #[doc = "Determines how to handle prorations resulting from subscription updates."]
     pub proration_behavior: Option<
         crate::billing_portal::CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateProrationBehavior,
@@ -826,49 +736,27 @@ impl CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateBillingCycl
 }
 
 #[cfg(feature = "billing_portal")]
-impl<'de> serde::Deserialize<'de>
-    for CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateBillingCycleAnchor
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateBillingCycleAnchor;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "now" => CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateBillingCycleAnchor::Now,
-                    "unchanged" => {
-                        CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateBillingCycleAnchor::Unchanged
-                    }
-                    other => {
-                        CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateBillingCycleAnchor::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateBillingCycleAnchor::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateBillingCycleAnchor {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateBillingCycleAnchor::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "now" => CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateBillingCycleAnchor::Now,
+            "unchanged" => {
+                CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateBillingCycleAnchor::Unchanged
+            }
+            other => CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateBillingCycleAnchor::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -939,40 +827,21 @@ impl CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateScheduleAtP
 }
 
 #[cfg(feature = "billing_portal")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateScheduleAtPeriodEndConditionsItemType
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value =
-                CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateScheduleAtPeriodEndConditionsItemType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "decreasing_item_amount" => CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateScheduleAtPeriodEndConditionsItemType::DecreasingItemAmount,
-                    "shortening_interval" => CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateScheduleAtPeriodEndConditionsItemType::ShorteningInterval,
-                    other => CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateScheduleAtPeriodEndConditionsItemType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateScheduleAtPeriodEndConditionsItemType::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateScheduleAtPeriodEndConditionsItemType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "decreasing_item_amount" => CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateScheduleAtPeriodEndConditionsItemType::DecreasingItemAmount,
+            "shortening_interval" => CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateScheduleAtPeriodEndConditionsItemType::ShorteningInterval,
+            other => CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateScheduleAtPeriodEndConditionsItemType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1013,43 +882,31 @@ impl CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateTrialUpdate
 }
 
 #[cfg(feature = "billing_portal")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateTrialUpdateBehavior
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateTrialUpdateBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "continue_trial" => CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateTrialUpdateBehavior::ContinueTrial,
-                    "end_trial" => CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateTrialUpdateBehavior::EndTrial,
-                    other => CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateTrialUpdateBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateTrialUpdateBehavior::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateTrialUpdateBehavior::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "continue_trial" => {
+                CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateTrialUpdateBehavior::ContinueTrial
+            }
+            "end_trial" => {
+                CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateTrialUpdateBehavior::EndTrial
+            }
+            other => CreateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateTrialUpdateBehavior::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -1201,42 +1058,22 @@ impl CreateBillingPortalSessionParamsFlowDataAfterCompletionType {
 }
 
 #[cfg(feature = "billing_portal")]
-impl<'de> serde::Deserialize<'de> for CreateBillingPortalSessionParamsFlowDataAfterCompletionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateBillingPortalSessionParamsFlowDataAfterCompletionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "hosted_confirmation" => {
-                        CreateBillingPortalSessionParamsFlowDataAfterCompletionType::HostedConfirmation
-                    }
-                    "portal_homepage" => CreateBillingPortalSessionParamsFlowDataAfterCompletionType::PortalHomepage,
-                    "redirect" => CreateBillingPortalSessionParamsFlowDataAfterCompletionType::Redirect,
-                    other => CreateBillingPortalSessionParamsFlowDataAfterCompletionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateBillingPortalSessionParamsFlowDataAfterCompletionType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateBillingPortalSessionParamsFlowDataAfterCompletionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateBillingPortalSessionParamsFlowDataAfterCompletionType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "hosted_confirmation" => CreateBillingPortalSessionParamsFlowDataAfterCompletionType::HostedConfirmation,
+            "portal_homepage" => CreateBillingPortalSessionParamsFlowDataAfterCompletionType::PortalHomepage,
+            "redirect" => CreateBillingPortalSessionParamsFlowDataAfterCompletionType::Redirect,
+            other => CreateBillingPortalSessionParamsFlowDataAfterCompletionType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1316,40 +1153,20 @@ impl CreateBillingPortalSessionParamsFlowDataSubscriptionCancelRetentionType {
 }
 
 #[cfg(feature = "billing_portal")]
-impl<'de> serde::Deserialize<'de> for CreateBillingPortalSessionParamsFlowDataSubscriptionCancelRetentionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateBillingPortalSessionParamsFlowDataSubscriptionCancelRetentionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "coupon_offer" => {
-                        CreateBillingPortalSessionParamsFlowDataSubscriptionCancelRetentionType::CouponOffer
-                    }
-                    other => CreateBillingPortalSessionParamsFlowDataSubscriptionCancelRetentionType::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateBillingPortalSessionParamsFlowDataSubscriptionCancelRetentionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateBillingPortalSessionParamsFlowDataSubscriptionCancelRetentionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateBillingPortalSessionParamsFlowDataSubscriptionCancelRetentionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "coupon_offer" => CreateBillingPortalSessionParamsFlowDataSubscriptionCancelRetentionType::CouponOffer,
+            other => {
+                CreateBillingPortalSessionParamsFlowDataSubscriptionCancelRetentionType::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -1467,42 +1284,22 @@ impl CreateBillingPortalSessionParamsFlowDataType {
 }
 
 #[cfg(feature = "billing_portal")]
-impl<'de> serde::Deserialize<'de> for CreateBillingPortalSessionParamsFlowDataType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateBillingPortalSessionParamsFlowDataType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "customer_update" => CreateBillingPortalSessionParamsFlowDataType::CustomerUpdate,
-                    "payment_method_update" => CreateBillingPortalSessionParamsFlowDataType::PaymentMethodUpdate,
-                    "subscription_cancel" => CreateBillingPortalSessionParamsFlowDataType::SubscriptionCancel,
-                    "subscription_update" => CreateBillingPortalSessionParamsFlowDataType::SubscriptionUpdate,
-                    "subscription_update_confirm" => {
-                        CreateBillingPortalSessionParamsFlowDataType::SubscriptionUpdateConfirm
-                    }
-                    other => CreateBillingPortalSessionParamsFlowDataType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateBillingPortalSessionParamsFlowDataType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateBillingPortalSessionParamsFlowDataType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateBillingPortalSessionParamsFlowDataType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "customer_update" => CreateBillingPortalSessionParamsFlowDataType::CustomerUpdate,
+            "payment_method_update" => CreateBillingPortalSessionParamsFlowDataType::PaymentMethodUpdate,
+            "subscription_cancel" => CreateBillingPortalSessionParamsFlowDataType::SubscriptionCancel,
+            "subscription_update" => CreateBillingPortalSessionParamsFlowDataType::SubscriptionUpdate,
+            "subscription_update_confirm" => CreateBillingPortalSessionParamsFlowDataType::SubscriptionUpdateConfirm,
+            other => CreateBillingPortalSessionParamsFlowDataType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1625,82 +1422,64 @@ impl CreateBillingPortalSessionParamsLocale {
 }
 
 #[cfg(feature = "billing_portal")]
-impl<'de> serde::Deserialize<'de> for CreateBillingPortalSessionParamsLocale {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateBillingPortalSessionParamsLocale;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "auto" => CreateBillingPortalSessionParamsLocale::Auto,
-                    "bg" => CreateBillingPortalSessionParamsLocale::Bg,
-                    "cs" => CreateBillingPortalSessionParamsLocale::Cs,
-                    "da" => CreateBillingPortalSessionParamsLocale::Da,
-                    "de" => CreateBillingPortalSessionParamsLocale::De,
-                    "el" => CreateBillingPortalSessionParamsLocale::El,
-                    "en" => CreateBillingPortalSessionParamsLocale::En,
-                    "en-AU" => CreateBillingPortalSessionParamsLocale::EnAU,
-                    "en-CA" => CreateBillingPortalSessionParamsLocale::EnCA,
-                    "en-GB" => CreateBillingPortalSessionParamsLocale::EnGB,
-                    "en-IE" => CreateBillingPortalSessionParamsLocale::EnIE,
-                    "en-IN" => CreateBillingPortalSessionParamsLocale::EnIN,
-                    "en-NZ" => CreateBillingPortalSessionParamsLocale::EnNZ,
-                    "en-SG" => CreateBillingPortalSessionParamsLocale::EnSG,
-                    "es" => CreateBillingPortalSessionParamsLocale::Es,
-                    "es-419" => CreateBillingPortalSessionParamsLocale::Es419,
-                    "et" => CreateBillingPortalSessionParamsLocale::Et,
-                    "fi" => CreateBillingPortalSessionParamsLocale::Fi,
-                    "fil" => CreateBillingPortalSessionParamsLocale::Fil,
-                    "fr" => CreateBillingPortalSessionParamsLocale::Fr,
-                    "fr-CA" => CreateBillingPortalSessionParamsLocale::FrCA,
-                    "hr" => CreateBillingPortalSessionParamsLocale::Hr,
-                    "hu" => CreateBillingPortalSessionParamsLocale::Hu,
-                    "id" => CreateBillingPortalSessionParamsLocale::Id,
-                    "it" => CreateBillingPortalSessionParamsLocale::It,
-                    "ja" => CreateBillingPortalSessionParamsLocale::Ja,
-                    "ko" => CreateBillingPortalSessionParamsLocale::Ko,
-                    "lt" => CreateBillingPortalSessionParamsLocale::Lt,
-                    "lv" => CreateBillingPortalSessionParamsLocale::Lv,
-                    "ms" => CreateBillingPortalSessionParamsLocale::Ms,
-                    "mt" => CreateBillingPortalSessionParamsLocale::Mt,
-                    "nb" => CreateBillingPortalSessionParamsLocale::Nb,
-                    "nl" => CreateBillingPortalSessionParamsLocale::Nl,
-                    "pl" => CreateBillingPortalSessionParamsLocale::Pl,
-                    "pt" => CreateBillingPortalSessionParamsLocale::Pt,
-                    "pt-BR" => CreateBillingPortalSessionParamsLocale::PtBR,
-                    "ro" => CreateBillingPortalSessionParamsLocale::Ro,
-                    "ru" => CreateBillingPortalSessionParamsLocale::Ru,
-                    "sk" => CreateBillingPortalSessionParamsLocale::Sk,
-                    "sl" => CreateBillingPortalSessionParamsLocale::Sl,
-                    "sv" => CreateBillingPortalSessionParamsLocale::Sv,
-                    "th" => CreateBillingPortalSessionParamsLocale::Th,
-                    "tr" => CreateBillingPortalSessionParamsLocale::Tr,
-                    "vi" => CreateBillingPortalSessionParamsLocale::Vi,
-                    "zh" => CreateBillingPortalSessionParamsLocale::Zh,
-                    "zh-HK" => CreateBillingPortalSessionParamsLocale::ZhHK,
-                    "zh-TW" => CreateBillingPortalSessionParamsLocale::ZhTW,
-                    other => CreateBillingPortalSessionParamsLocale::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateBillingPortalSessionParamsLocale::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateBillingPortalSessionParamsLocale {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateBillingPortalSessionParamsLocale::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "auto" => CreateBillingPortalSessionParamsLocale::Auto,
+            "bg" => CreateBillingPortalSessionParamsLocale::Bg,
+            "cs" => CreateBillingPortalSessionParamsLocale::Cs,
+            "da" => CreateBillingPortalSessionParamsLocale::Da,
+            "de" => CreateBillingPortalSessionParamsLocale::De,
+            "el" => CreateBillingPortalSessionParamsLocale::El,
+            "en" => CreateBillingPortalSessionParamsLocale::En,
+            "en-AU" => CreateBillingPortalSessionParamsLocale::EnAU,
+            "en-CA" => CreateBillingPortalSessionParamsLocale::EnCA,
+            "en-GB" => CreateBillingPortalSessionParamsLocale::EnGB,
+            "en-IE" => CreateBillingPortalSessionParamsLocale::EnIE,
+            "en-IN" => CreateBillingPortalSessionParamsLocale::EnIN,
+            "en-NZ" => CreateBillingPortalSessionParamsLocale::EnNZ,
+            "en-SG" => CreateBillingPortalSessionParamsLocale::EnSG,
+            "es" => CreateBillingPortalSessionParamsLocale::Es,
+            "es-419" => CreateBillingPortalSessionParamsLocale::Es419,
+            "et" => CreateBillingPortalSessionParamsLocale::Et,
+            "fi" => CreateBillingPortalSessionParamsLocale::Fi,
+            "fil" => CreateBillingPortalSessionParamsLocale::Fil,
+            "fr" => CreateBillingPortalSessionParamsLocale::Fr,
+            "fr-CA" => CreateBillingPortalSessionParamsLocale::FrCA,
+            "hr" => CreateBillingPortalSessionParamsLocale::Hr,
+            "hu" => CreateBillingPortalSessionParamsLocale::Hu,
+            "id" => CreateBillingPortalSessionParamsLocale::Id,
+            "it" => CreateBillingPortalSessionParamsLocale::It,
+            "ja" => CreateBillingPortalSessionParamsLocale::Ja,
+            "ko" => CreateBillingPortalSessionParamsLocale::Ko,
+            "lt" => CreateBillingPortalSessionParamsLocale::Lt,
+            "lv" => CreateBillingPortalSessionParamsLocale::Lv,
+            "ms" => CreateBillingPortalSessionParamsLocale::Ms,
+            "mt" => CreateBillingPortalSessionParamsLocale::Mt,
+            "nb" => CreateBillingPortalSessionParamsLocale::Nb,
+            "nl" => CreateBillingPortalSessionParamsLocale::Nl,
+            "pl" => CreateBillingPortalSessionParamsLocale::Pl,
+            "pt" => CreateBillingPortalSessionParamsLocale::Pt,
+            "pt-BR" => CreateBillingPortalSessionParamsLocale::PtBR,
+            "ro" => CreateBillingPortalSessionParamsLocale::Ro,
+            "ru" => CreateBillingPortalSessionParamsLocale::Ru,
+            "sk" => CreateBillingPortalSessionParamsLocale::Sk,
+            "sl" => CreateBillingPortalSessionParamsLocale::Sl,
+            "sv" => CreateBillingPortalSessionParamsLocale::Sv,
+            "th" => CreateBillingPortalSessionParamsLocale::Th,
+            "tr" => CreateBillingPortalSessionParamsLocale::Tr,
+            "vi" => CreateBillingPortalSessionParamsLocale::Vi,
+            "zh" => CreateBillingPortalSessionParamsLocale::Zh,
+            "zh-HK" => CreateBillingPortalSessionParamsLocale::ZhHK,
+            "zh-TW" => CreateBillingPortalSessionParamsLocale::ZhTW,
+            other => CreateBillingPortalSessionParamsLocale::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1752,27 +1531,29 @@ impl crate::params::FormEncode for ListBillingPortalConfigurationsParams {
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalBusinessProfile {
     #[doc = "The messaging shown to customers in the portal."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub headline: Option<String>,
     #[doc = "A link to the business’s publicly available privacy policy."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub privacy_policy_url: Option<String>,
     #[doc = "A link to the business’s publicly available terms of service."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub terms_of_service_url: Option<String>,
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalCustomerUpdate {
     #[doc = "The types of customer updates that are supported."]
-    #[serde(default)]
+    #[json(default)]
     pub allowed_updates: Vec<crate::billing_portal::PortalCustomerUpdateAllowedUpdatesItem>,
     #[doc = "Whether the feature is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
 }
 
@@ -1806,116 +1587,104 @@ impl PortalCustomerUpdateAllowedUpdatesItem {
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for PortalCustomerUpdateAllowedUpdatesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PortalCustomerUpdateAllowedUpdatesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "address" => PortalCustomerUpdateAllowedUpdatesItem::Address,
-                    "email" => PortalCustomerUpdateAllowedUpdatesItem::Email,
-                    "name" => PortalCustomerUpdateAllowedUpdatesItem::Name,
-                    "phone" => PortalCustomerUpdateAllowedUpdatesItem::Phone,
-                    "shipping" => PortalCustomerUpdateAllowedUpdatesItem::Shipping,
-                    "tax_id" => PortalCustomerUpdateAllowedUpdatesItem::TaxId,
-                    other => PortalCustomerUpdateAllowedUpdatesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PortalCustomerUpdateAllowedUpdatesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PortalCustomerUpdateAllowedUpdatesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PortalCustomerUpdateAllowedUpdatesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "address" => PortalCustomerUpdateAllowedUpdatesItem::Address,
+            "email" => PortalCustomerUpdateAllowedUpdatesItem::Email,
+            "name" => PortalCustomerUpdateAllowedUpdatesItem::Name,
+            "phone" => PortalCustomerUpdateAllowedUpdatesItem::Phone,
+            "shipping" => PortalCustomerUpdateAllowedUpdatesItem::Shipping,
+            "tax_id" => PortalCustomerUpdateAllowedUpdatesItem::TaxId,
+            other => PortalCustomerUpdateAllowedUpdatesItem::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalFeatures {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_update: Option<crate::billing_portal::PortalCustomerUpdate>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice_history: Option<crate::billing_portal::PortalInvoiceList>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_update: Option<crate::billing_portal::PortalPaymentMethodUpdate>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription_cancel: Option<crate::billing_portal::PortalSubscriptionCancel>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription_update: Option<crate::billing_portal::PortalSubscriptionUpdate>,
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalFlowsAfterCompletionHostedConfirmation {
     #[doc = "A custom message to display to the customer after the flow is completed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub custom_message: Option<String>,
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalFlowsAfterCompletionRedirect {
     #[doc = "The URL the customer will be redirected to after the flow is completed."]
-    #[serde(default)]
+    #[json(default)]
     pub return_url: String,
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalFlowsCouponOffer {
     #[doc = "The ID of the coupon to be offered."]
-    #[serde(default)]
+    #[json(default)]
     pub coupon: String,
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalFlowsFlow {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub after_completion: Option<crate::billing_portal::PortalFlowsFlowAfterCompletion>,
     #[doc = "Configuration when `flow.type=customer_update`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_update: Option<crate::billing_portal::PortalFlowsFlowCustomerUpdate>,
     #[doc = "Configuration when `flow.type=subscription_cancel`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription_cancel: Option<crate::billing_portal::PortalFlowsFlowSubscriptionCancel>,
     #[doc = "Configuration when `flow.type=subscription_update`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription_update: Option<crate::billing_portal::PortalFlowsFlowSubscriptionUpdate>,
     #[doc = "Configuration when `flow.type=subscription_update_confirm`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription_update_confirm: Option<crate::billing_portal::PortalFlowsFlowSubscriptionUpdateConfirm>,
     #[doc = "Type of flow that the customer will go through."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::billing_portal::PortalFlowsFlowType,
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalFlowsFlowAfterCompletion {
     #[doc = "Configuration when `after_completion.type=hosted_confirmation`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hosted_confirmation: Option<crate::billing_portal::PortalFlowsAfterCompletionHostedConfirmation>,
     #[doc = "Configuration when `after_completion.type=redirect`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub redirect: Option<crate::billing_portal::PortalFlowsAfterCompletionRedirect>,
     #[doc = "The specified type of behavior after the flow is completed."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::billing_portal::PortalFlowsFlowAfterCompletionType,
 }
 
@@ -1950,75 +1719,61 @@ impl Default for PortalFlowsFlowAfterCompletionType {
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for PortalFlowsFlowAfterCompletionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PortalFlowsFlowAfterCompletionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "hosted_confirmation" => PortalFlowsFlowAfterCompletionType::HostedConfirmation,
-                    "portal_homepage" => PortalFlowsFlowAfterCompletionType::PortalHomepage,
-                    "redirect" => PortalFlowsFlowAfterCompletionType::Redirect,
-                    other => PortalFlowsFlowAfterCompletionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PortalFlowsFlowAfterCompletionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PortalFlowsFlowAfterCompletionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PortalFlowsFlowAfterCompletionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "hosted_confirmation" => PortalFlowsFlowAfterCompletionType::HostedConfirmation,
+            "portal_homepage" => PortalFlowsFlowAfterCompletionType::PortalHomepage,
+            "redirect" => PortalFlowsFlowAfterCompletionType::Redirect,
+            other => PortalFlowsFlowAfterCompletionType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalFlowsFlowCustomerUpdate {}
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalFlowsFlowSubscriptionCancel {
     #[doc = "Specify a retention strategy to be used in the cancellation flow."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub retention: Option<crate::billing_portal::PortalFlowsRetention>,
     #[doc = "The ID of the subscription to be canceled."]
-    #[serde(default)]
+    #[json(default)]
     pub subscription: String,
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalFlowsFlowSubscriptionUpdate {
     #[doc = "The ID of the subscription to be updated."]
-    #[serde(default)]
+    #[json(default)]
     pub subscription: String,
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalFlowsFlowSubscriptionUpdateConfirm {
     #[doc = "The coupon or promotion code to apply to this subscription update."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub discounts: Option<Vec<crate::billing_portal::PortalFlowsSubscriptionUpdateConfirmDiscount>>,
     #[doc = "The [subscription item](https://docs.stripe.com/api/subscription_items) to be updated through this flow."]
-    #[serde(default)]
+    #[json(default)]
     pub items: Vec<crate::billing_portal::PortalFlowsSubscriptionUpdateConfirmItem>,
     #[doc = "The ID of the subscription to be updated."]
-    #[serde(default)]
+    #[json(default)]
     pub subscription: String,
 }
 
@@ -2057,51 +1812,34 @@ impl Default for PortalFlowsFlowType {
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for PortalFlowsFlowType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PortalFlowsFlowType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "customer_update" => PortalFlowsFlowType::CustomerUpdate,
-                    "payment_method_update" => PortalFlowsFlowType::PaymentMethodUpdate,
-                    "subscription_cancel" => PortalFlowsFlowType::SubscriptionCancel,
-                    "subscription_update" => PortalFlowsFlowType::SubscriptionUpdate,
-                    "subscription_update_confirm" => PortalFlowsFlowType::SubscriptionUpdateConfirm,
-                    other => PortalFlowsFlowType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PortalFlowsFlowType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PortalFlowsFlowType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PortalFlowsFlowType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "customer_update" => PortalFlowsFlowType::CustomerUpdate,
+            "payment_method_update" => PortalFlowsFlowType::PaymentMethodUpdate,
+            "subscription_cancel" => PortalFlowsFlowType::SubscriptionCancel,
+            "subscription_update" => PortalFlowsFlowType::SubscriptionUpdate,
+            "subscription_update_confirm" => PortalFlowsFlowType::SubscriptionUpdateConfirm,
+            other => PortalFlowsFlowType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalFlowsRetention {
     #[doc = "Configuration when `retention.type=coupon_offer`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub coupon_offer: Option<crate::billing_portal::PortalFlowsCouponOffer>,
     #[doc = "Type of retention strategy that will be used."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::billing_portal::PortalFlowsRetentionType,
 }
 
@@ -2132,107 +1870,96 @@ impl Default for PortalFlowsRetentionType {
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for PortalFlowsRetentionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PortalFlowsRetentionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "coupon_offer" => PortalFlowsRetentionType::CouponOffer,
-                    other => PortalFlowsRetentionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PortalFlowsRetentionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PortalFlowsRetentionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PortalFlowsRetentionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "coupon_offer" => PortalFlowsRetentionType::CouponOffer,
+            other => PortalFlowsRetentionType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalFlowsSubscriptionUpdateConfirmDiscount {
     #[doc = "The ID of the coupon to apply to this subscription update."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub coupon: Option<String>,
     #[doc = "The ID of a promotion code to apply to this subscription update."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub promotion_code: Option<String>,
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalFlowsSubscriptionUpdateConfirmItem {
     #[doc = "The ID of the [subscription item](https://docs.stripe.com/api/subscriptions/object#subscription_object-items-data-id)..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     #[doc = "The price the customer should subscribe to through this flow."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub price: Option<String>,
     #[doc = "[Quantity](https://docs.stripe.com/subscriptions/quantities) for this item that the customer should subscribe to thro..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub quantity: Option<i64>,
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalInvoiceList {
     #[doc = "Whether the feature is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalLoginPage {
     #[doc = "If `true`, a shareable `url` will be generated that will take your customers to a hosted login page for the customer ..."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "A shareable URL to the hosted portal login page."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalPaymentMethodUpdate {
     #[doc = "Whether the feature is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "The [Payment Method Configuration](/api/payment_method_configurations) to use for this portal session."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_configuration: Option<String>,
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalResourceScheduleUpdateAtPeriodEnd {
     #[doc = "List of conditions."]
-    #[serde(default)]
+    #[json(default)]
     pub conditions: Vec<crate::billing_portal::PortalResourceScheduleUpdateAtPeriodEndCondition>,
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalResourceScheduleUpdateAtPeriodEndCondition {
     #[doc = "The type of condition."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::billing_portal::PortalResourceScheduleUpdateAtPeriodEndConditionType,
 }
 
@@ -2265,55 +1992,36 @@ impl Default for PortalResourceScheduleUpdateAtPeriodEndConditionType {
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for PortalResourceScheduleUpdateAtPeriodEndConditionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PortalResourceScheduleUpdateAtPeriodEndConditionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "decreasing_item_amount" => {
-                        PortalResourceScheduleUpdateAtPeriodEndConditionType::DecreasingItemAmount
-                    }
-                    "shortening_interval" => PortalResourceScheduleUpdateAtPeriodEndConditionType::ShorteningInterval,
-                    other => PortalResourceScheduleUpdateAtPeriodEndConditionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PortalResourceScheduleUpdateAtPeriodEndConditionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PortalResourceScheduleUpdateAtPeriodEndConditionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PortalResourceScheduleUpdateAtPeriodEndConditionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "decreasing_item_amount" => PortalResourceScheduleUpdateAtPeriodEndConditionType::DecreasingItemAmount,
+            "shortening_interval" => PortalResourceScheduleUpdateAtPeriodEndConditionType::ShorteningInterval,
+            other => PortalResourceScheduleUpdateAtPeriodEndConditionType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalSubscriptionCancel {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cancellation_reason: Option<crate::billing_portal::PortalSubscriptionCancellationReason>,
     #[doc = "Whether the feature is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "Whether to cancel subscriptions immediately or at the end of the billing period."]
-    #[serde(default)]
+    #[json(default)]
     pub mode: crate::billing_portal::PortalSubscriptionCancelMode,
     #[doc = "Whether to create prorations when canceling subscriptions."]
-    #[serde(default)]
+    #[json(default)]
     pub proration_behavior: crate::billing_portal::PortalSubscriptionCancelProrationBehavior,
 }
 
@@ -2346,37 +2054,19 @@ impl Default for PortalSubscriptionCancelMode {
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for PortalSubscriptionCancelMode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PortalSubscriptionCancelMode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "at_period_end" => PortalSubscriptionCancelMode::AtPeriodEnd,
-                    "immediately" => PortalSubscriptionCancelMode::Immediately,
-                    other => PortalSubscriptionCancelMode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PortalSubscriptionCancelMode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PortalSubscriptionCancelMode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PortalSubscriptionCancelMode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "at_period_end" => PortalSubscriptionCancelMode::AtPeriodEnd,
+            "immediately" => PortalSubscriptionCancelMode::Immediately,
+            other => PortalSubscriptionCancelMode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2411,52 +2101,35 @@ impl Default for PortalSubscriptionCancelProrationBehavior {
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for PortalSubscriptionCancelProrationBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PortalSubscriptionCancelProrationBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always_invoice" => PortalSubscriptionCancelProrationBehavior::AlwaysInvoice,
-                    "create_prorations" => PortalSubscriptionCancelProrationBehavior::CreateProrations,
-                    "none" => PortalSubscriptionCancelProrationBehavior::None,
-                    other => PortalSubscriptionCancelProrationBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PortalSubscriptionCancelProrationBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PortalSubscriptionCancelProrationBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PortalSubscriptionCancelProrationBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always_invoice" => PortalSubscriptionCancelProrationBehavior::AlwaysInvoice,
+            "create_prorations" => PortalSubscriptionCancelProrationBehavior::CreateProrations,
+            "none" => PortalSubscriptionCancelProrationBehavior::None,
+            other => PortalSubscriptionCancelProrationBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalSubscriptionCancellationReason {
     #[doc = "Whether the feature is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "The IDs of custom feedback options configured for this cancellation reason."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub feedback_options: Option<Vec<crate::Expandable<crate::billing::BillingFeedbackOption>>>,
     #[doc = "Which cancellation reasons will be given as options to the customer."]
-    #[serde(default)]
+    #[json(default)]
     pub options: Vec<crate::billing_portal::PortalSubscriptionCancellationReasonOptionsItem>,
 }
 
@@ -2494,68 +2167,51 @@ impl PortalSubscriptionCancellationReasonOptionsItem {
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for PortalSubscriptionCancellationReasonOptionsItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PortalSubscriptionCancellationReasonOptionsItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "customer_service" => PortalSubscriptionCancellationReasonOptionsItem::CustomerService,
-                    "low_quality" => PortalSubscriptionCancellationReasonOptionsItem::LowQuality,
-                    "missing_features" => PortalSubscriptionCancellationReasonOptionsItem::MissingFeatures,
-                    "other" => PortalSubscriptionCancellationReasonOptionsItem::Other,
-                    "switched_service" => PortalSubscriptionCancellationReasonOptionsItem::SwitchedService,
-                    "too_complex" => PortalSubscriptionCancellationReasonOptionsItem::TooComplex,
-                    "too_expensive" => PortalSubscriptionCancellationReasonOptionsItem::TooExpensive,
-                    "unused" => PortalSubscriptionCancellationReasonOptionsItem::Unused,
-                    other => PortalSubscriptionCancellationReasonOptionsItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PortalSubscriptionCancellationReasonOptionsItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PortalSubscriptionCancellationReasonOptionsItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PortalSubscriptionCancellationReasonOptionsItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "customer_service" => PortalSubscriptionCancellationReasonOptionsItem::CustomerService,
+            "low_quality" => PortalSubscriptionCancellationReasonOptionsItem::LowQuality,
+            "missing_features" => PortalSubscriptionCancellationReasonOptionsItem::MissingFeatures,
+            "other" => PortalSubscriptionCancellationReasonOptionsItem::Other,
+            "switched_service" => PortalSubscriptionCancellationReasonOptionsItem::SwitchedService,
+            "too_complex" => PortalSubscriptionCancellationReasonOptionsItem::TooComplex,
+            "too_expensive" => PortalSubscriptionCancellationReasonOptionsItem::TooExpensive,
+            "unused" => PortalSubscriptionCancellationReasonOptionsItem::Unused,
+            other => PortalSubscriptionCancellationReasonOptionsItem::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalSubscriptionUpdate {
     #[doc = "Determines the value to use for the billing cycle anchor on subscription updates."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billing_cycle_anchor: Option<crate::billing_portal::PortalSubscriptionUpdateBillingCycleAnchor>,
     #[doc = "The types of subscription updates that are supported for items listed in the `products` attribute."]
-    #[serde(default)]
+    #[json(default)]
     pub default_allowed_updates: Vec<crate::billing_portal::PortalSubscriptionUpdateDefaultAllowedUpdatesItem>,
     #[doc = "Whether the feature is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "The list of up to 10 products that support subscription updates."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub products: Option<Vec<crate::billing_portal::PortalSubscriptionUpdateProduct>>,
     #[doc = "Determines how to handle prorations resulting from subscription updates."]
-    #[serde(default)]
+    #[json(default)]
     pub proration_behavior: crate::billing_portal::PortalSubscriptionCancelProrationBehavior,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub schedule_at_period_end: Option<crate::billing_portal::PortalResourceScheduleUpdateAtPeriodEnd>,
     #[doc = "Determines how handle updates to trialing subscriptions."]
-    #[serde(default)]
+    #[json(default)]
     pub trial_update_behavior: crate::billing_portal::PortalSubscriptionUpdateTrialUpdateBehavior,
 }
 
@@ -2581,37 +2237,19 @@ impl PortalSubscriptionUpdateBillingCycleAnchor {
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for PortalSubscriptionUpdateBillingCycleAnchor {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PortalSubscriptionUpdateBillingCycleAnchor;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "now" => PortalSubscriptionUpdateBillingCycleAnchor::Now,
-                    "unchanged" => PortalSubscriptionUpdateBillingCycleAnchor::Unchanged,
-                    other => PortalSubscriptionUpdateBillingCycleAnchor::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PortalSubscriptionUpdateBillingCycleAnchor::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PortalSubscriptionUpdateBillingCycleAnchor {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PortalSubscriptionUpdateBillingCycleAnchor::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "now" => PortalSubscriptionUpdateBillingCycleAnchor::Now,
+            "unchanged" => PortalSubscriptionUpdateBillingCycleAnchor::Unchanged,
+            other => PortalSubscriptionUpdateBillingCycleAnchor::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2639,65 +2277,49 @@ impl PortalSubscriptionUpdateDefaultAllowedUpdatesItem {
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for PortalSubscriptionUpdateDefaultAllowedUpdatesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PortalSubscriptionUpdateDefaultAllowedUpdatesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "price" => PortalSubscriptionUpdateDefaultAllowedUpdatesItem::Price,
-                    "promotion_code" => PortalSubscriptionUpdateDefaultAllowedUpdatesItem::PromotionCode,
-                    "quantity" => PortalSubscriptionUpdateDefaultAllowedUpdatesItem::Quantity,
-                    other => PortalSubscriptionUpdateDefaultAllowedUpdatesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PortalSubscriptionUpdateDefaultAllowedUpdatesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PortalSubscriptionUpdateDefaultAllowedUpdatesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PortalSubscriptionUpdateDefaultAllowedUpdatesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "price" => PortalSubscriptionUpdateDefaultAllowedUpdatesItem::Price,
+            "promotion_code" => PortalSubscriptionUpdateDefaultAllowedUpdatesItem::PromotionCode,
+            "quantity" => PortalSubscriptionUpdateDefaultAllowedUpdatesItem::Quantity,
+            other => PortalSubscriptionUpdateDefaultAllowedUpdatesItem::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalSubscriptionUpdateProduct {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub adjustable_quantity: Option<crate::billing_portal::PortalSubscriptionUpdateProductAdjustableQuantity>,
     #[doc = "The list of price IDs which, when subscribed to, a subscription can be updated."]
-    #[serde(default)]
+    #[json(default)]
     pub prices: Vec<String>,
     #[doc = "The product ID."]
-    #[serde(default)]
+    #[json(default)]
     pub product: String,
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PortalSubscriptionUpdateProductAdjustableQuantity {
     #[doc = "If true, the quantity can be adjusted to any non-negative integer."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "The maximum quantity that can be set for the product."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub maximum: Option<i64>,
     #[doc = "The minimum quantity that can be set for the product."]
-    #[serde(default)]
+    #[json(default)]
     pub minimum: i64,
 }
 
@@ -2730,37 +2352,19 @@ impl Default for PortalSubscriptionUpdateTrialUpdateBehavior {
 }
 
 #[cfg(any(feature = "billing_portal", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for PortalSubscriptionUpdateTrialUpdateBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PortalSubscriptionUpdateTrialUpdateBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "continue_trial" => PortalSubscriptionUpdateTrialUpdateBehavior::ContinueTrial,
-                    "end_trial" => PortalSubscriptionUpdateTrialUpdateBehavior::EndTrial,
-                    other => PortalSubscriptionUpdateTrialUpdateBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PortalSubscriptionUpdateTrialUpdateBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PortalSubscriptionUpdateTrialUpdateBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PortalSubscriptionUpdateTrialUpdateBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "continue_trial" => PortalSubscriptionUpdateTrialUpdateBehavior::ContinueTrial,
+            "end_trial" => PortalSubscriptionUpdateTrialUpdateBehavior::EndTrial,
+            other => PortalSubscriptionUpdateTrialUpdateBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2772,7 +2376,7 @@ pub struct UpdateBillingPortalConfigurationParams {
     #[doc = "The business information shown to customers in the portal."]
     pub business_profile: Option<crate::billing_portal::UpdateBillingPortalConfigurationParamsBusinessProfile>,
     #[doc = "The default URL to redirect customers to when they click on the portal's link to return to your website."]
-    pub default_return_url: Option<serde_json::Value>,
+    pub default_return_url: Option<json::OwnedValue>,
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "Information about the features available in the portal."]
@@ -2782,7 +2386,7 @@ pub struct UpdateBillingPortalConfigurationParams {
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "The name of the configuration."]
-    pub name: Option<serde_json::Value>,
+    pub name: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "billing_portal")]
@@ -2807,11 +2411,11 @@ impl crate::params::FormEncode for UpdateBillingPortalConfigurationParams {
 #[derive(Debug, Clone, Default)]
 pub struct UpdateBillingPortalConfigurationParamsBusinessProfile {
     #[doc = "The messaging shown to customers in the portal."]
-    pub headline: Option<serde_json::Value>,
+    pub headline: Option<json::OwnedValue>,
     #[doc = "A link to the business’s publicly available privacy policy."]
-    pub privacy_policy_url: Option<serde_json::Value>,
+    pub privacy_policy_url: Option<json::OwnedValue>,
     #[doc = "A link to the business’s publicly available terms of service."]
-    pub terms_of_service_url: Option<serde_json::Value>,
+    pub terms_of_service_url: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "billing_portal")]
@@ -2854,7 +2458,7 @@ impl crate::params::FormEncode for UpdateBillingPortalConfigurationParamsFeature
 #[derive(Debug, Clone, Default)]
 pub struct UpdateBillingPortalConfigurationParamsFeaturesCustomerUpdate {
     #[doc = "The types of customer updates that are supported."]
-    pub allowed_updates: Option<serde_json::Value>,
+    pub allowed_updates: Option<json::OwnedValue>,
     #[doc = "Whether the feature is enabled."]
     pub enabled: Option<bool>,
 }
@@ -2907,9 +2511,9 @@ pub struct UpdateBillingPortalConfigurationParamsFeaturesSubscriptionCancelCance
     #[doc = "Whether the feature is enabled."]
     pub enabled: bool,
     #[doc = "The IDs of custom feedback options to use for this cancellation reason."]
-    pub feedback_options: Option<serde_json::Value>,
+    pub feedback_options: Option<json::OwnedValue>,
     #[doc = "Which cancellation reasons will be given as options to the customer."]
-    pub options: Option<serde_json::Value>,
+    pub options: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "billing_portal")]
@@ -2935,11 +2539,11 @@ pub struct UpdateBillingPortalConfigurationParamsFeaturesSubscriptionUpdate {
         crate::billing_portal::UpdateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateBillingCycleAnchor,
     >,
     #[doc = "The types of subscription updates that are supported."]
-    pub default_allowed_updates: Option<serde_json::Value>,
+    pub default_allowed_updates: Option<json::OwnedValue>,
     #[doc = "Whether the feature is enabled."]
     pub enabled: Option<bool>,
     #[doc = "The list of up to 10 products that support subscription updates."]
-    pub products: Option<serde_json::Value>,
+    pub products: Option<json::OwnedValue>,
     #[doc = "Determines how to handle prorations resulting from subscription updates."]
     pub proration_behavior: Option<
         crate::billing_portal::UpdateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateProrationBehavior,
@@ -2977,7 +2581,7 @@ pub type UpdateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateProrati
 #[derive(Debug, Clone, Default)]
 pub struct UpdateBillingPortalConfigurationParamsFeaturesSubscriptionUpdateScheduleAtPeriodEnd {
     #[doc = "List of conditions."]
-    pub conditions: Option<serde_json::Value>,
+    pub conditions: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "billing_portal")]

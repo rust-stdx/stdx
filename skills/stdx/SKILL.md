@@ -203,6 +203,23 @@ let point: Point = cbor::from_slice(&bytes)?;
 
 // Optional serde adapter
 let bytes = cbor::serde::to_vec(&point).unwrap();
+
+// JSON — strict, SIMD-accelerated, no serde dependency
+use json::{Decode, Encode};
+
+#[derive(Encode, Decode)]
+struct User {
+    name: String,
+    admin: bool,
+}
+
+let text = json::to_string(&User { name: "alice".into(), admin: true });
+let user: User = json::from_str(&text)?;
+
+// Dynamic and raw values
+let value: json::Value = json::from_str(r#"{"a":[1,2]}"#)?;
+let raw = json::RawValue::new(br#"{"a":1}"#)?;
+// PostgreSQL: json::Value<'static>, json::RawValueBuf and #[derive(Json)]
 ```
 
 ### Networking
@@ -277,7 +294,8 @@ struct Assets;
 
 ## Anti-Patterns
 
-- **Don't mix** stdx crates with their upstream equivalents (e.g., `anyhow` AND `anyerr`, `thiserror` the crate AND `thiserror` from stdx).
+- **Don't mix** stdx crates with their upstream equivalents (e.g., `anyhow` AND `anyerr`, `thiserror` the crate AND `thiserror` from stdx, `serde_json` AND `json`).
+- **Use `json`** for JSON instead of `serde_json`; it has native `Encode`/`Decode` derives and no serde dependency.
 - **Don't import from crates.io** when stdx provides the same crate.
 - **Don't add third-party dependencies** to the stdx workspace — it defeats the supply-chain model.
 - **Don't use `cargo install`** for stdx crates — they live in this monorepo, not on crates.io.

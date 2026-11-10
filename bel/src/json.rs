@@ -31,33 +31,32 @@ impl Value {
     /// let value = program.execute(&Context::default()).unwrap();
     /// let result = value.json().unwrap();
     ///
-    /// assert_eq!(result, serde_json::Value::Null);
+    /// assert_eq!(result, json::Value::Null);
     /// ```
-    pub fn json(&self) -> Result<serde_json::Value, ConvertToJsonError<'_>> {
+    pub fn json(&self) -> Result<json::Value<'static>, ConvertToJsonError<'_>> {
+        use std::borrow::Cow;
+
         Ok(match *self {
-            Value::List(ref vec) => {
-                serde_json::Value::Array(vec.iter().map(|v| v.json()).collect::<Result<Vec<_>, _>>()?)
-            }
+            Value::List(ref vec) => json::Value::Array(vec.iter().map(|v| v.json()).collect::<Result<Vec<_>, _>>()?),
             Value::Map(ref map) => {
-                let mut obj = serde_json::Map::new();
+                let mut obj = json::Map::new();
                 for (k, v) in map.map.iter() {
-                    obj.insert(k.to_string(), v.json()?);
+                    obj.push(Cow::Owned(k.to_string()), v.json()?);
                 }
-                serde_json::Value::Object(obj)
+                json::Value::Object(obj)
             }
             Value::Int(i) => i.into(),
-            // Value::UInt(u) => u.into(),
             Value::Float(f) => f.into(),
             Value::String(ref s) => s.to_string().into(),
             Value::Bool(b) => b.into(),
             Value::Bytes(ref b) => base64::encode(b.as_slice(), base64::Alphabet::Standard).into(),
-            Value::Null => serde_json::Value::Null,
+            Value::Null => json::Value::Null,
             #[cfg(feature = "time")]
             Value::Timestamp(ref dt) => dt.to_string().into(),
             #[cfg(feature = "time")]
-            Value::Duration(ref v) => serde_json::Value::Number(serde_json::Number::from(
-                v.num_nanoseconds().ok_or(ConvertToJsonError::DurationOverflow(v))?,
-            )),
+            Value::Duration(ref v) => {
+                json::Value::from(v.num_nanoseconds().ok_or(ConvertToJsonError::DurationOverflow(v))?)
+            }
             _ => return Err(ConvertToJsonError::Value(self)),
         })
     }
@@ -67,7 +66,7 @@ impl Value {
 mod tests {
     use std::collections::HashMap;
 
-    use serde_json::json;
+    use json::json;
 
     #[cfg(feature = "time")]
     use crate::duration::Duration;

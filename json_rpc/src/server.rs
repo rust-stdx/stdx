@@ -1,12 +1,11 @@
 use std::{collections::HashMap, future::Future, marker::PhantomData, pin::Pin, sync::Arc};
 
-use serde::{Serialize, Serializer, de::DeserializeOwned};
-use serde_json::value::RawValue;
+use json::{DecodeOwned, Encode, RawValueBuf, Write};
 
 use crate::{Error, ErrorCode, Id, Request, RequestMessage, Response};
 
 trait MethodHandler<C>: Send + Sync {
-    fn call(&self, ctx: C, params: &RawValue) -> Pin<Box<dyn Future<Output = Result<Box<RawValue>, Error>> + Send>>;
+    fn call(&self, ctx: C, params: &RawValueBuf) -> Pin<Box<dyn Future<Output = Result<RawValueBuf, Error>> + Send>>;
 }
 
 struct MethodHandlerImpl<C, H, P, R, E, F> {
@@ -17,8 +16,8 @@ struct MethodHandlerImpl<C, H, P, R, E, F> {
 impl<C, P, R, E, F, H> MethodHandler<C> for MethodHandlerImpl<C, H, P, R, E, F>
 where
     C: Send + 'static,
-    P: DeserializeOwned + Send,
-    R: Serialize + Send,
+    P: DecodeOwned + Send,
+    R: Encode + Send,
     E: Into<Error> + Send,
     F: Future<Output = Result<R, E>> + Send + 'static,
     H: Fn(C, P) -> F + Send + Sync,
@@ -26,9 +25,9 @@ where
     fn call(
         &self,
         ctx: C,
-        raw_params: &RawValue,
-    ) -> Pin<Box<dyn Future<Output = Result<Box<RawValue>, Error>> + Send>> {
-        let params: P = match serde_json::from_str(raw_params.get()) {
+        raw_params: &RawValueBuf,
+    ) -> Pin<Box<dyn Future<Output = Result<RawValueBuf, Error>> + Send>> {
+        let params: P = match P::decode_owned(raw_params.as_bytes()) {
             Ok(p) => p,
             Err(e) => {
                 return Box::pin(async move { Err(Error::invalid_params(e.to_string())) });
@@ -37,7 +36,7 @@ where
         let fut = (self.handler)(ctx, params);
         Box::pin(async move {
             match fut.await {
-                Ok(result) => serde_json::value::to_raw_value(&result)
+                Ok(result) => RawValueBuf::try_from_slice(&json::to_vec(&result))
                     .map_err(|e| Error::new(ErrorCode::INTERNAL_ERROR, e.to_string())),
                 Err(e) => Err(e.into()),
             }
@@ -57,11 +56,11 @@ pub enum ResponseMessage {
     Batch(Vec<Response>),
 }
 
-impl Serialize for ResponseMessage {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+impl Encode for ResponseMessage {
+    fn encode<W: Write>(&self, encoder: &mut json::Encoder<W>) -> core::result::Result<(), W::Error> {
         match self {
-            Self::Single(resp) => resp.serialize(serializer),
-            Self::Batch(resps) => resps.serialize(serializer),
+            Self::Single(resp) => resp.encode(encoder),
+            Self::Batch(resps) => resps.encode(encoder),
         }
     }
 }
@@ -118,7 +117,7 @@ impl Default for ServerConfig {
 pub struct Server<C> {
     config: ServerConfig,
     methods: HashMap<String, Arc<dyn MethodHandler<C>>>,
-    empty_params: Box<RawValue>,
+    empty_params: RawValueBuf,
 }
 
 impl<C: Send + Sync + 'static> Server<C> {
@@ -129,7 +128,7 @@ impl<C: Send + Sync + 'static> Server<C> {
         Self {
             config,
             methods: HashMap::new(),
-            empty_params: RawValue::from_string("{}".to_owned()).expect("{} is valid JSON"),
+            empty_params: RawValueBuf::try_from_slice(b"{}").expect("{} is valid JSON"),
         }
     }
 
@@ -142,8 +141,8 @@ impl<C: Send + Sync + 'static> Server<C> {
         method: impl Into<String>,
         handler: impl Fn(C, P) -> F + Send + Sync + 'static,
     ) where
-        P: DeserializeOwned + Send + 'static,
-        R: Serialize + Send + 'static,
+        P: DecodeOwned + Send + 'static,
+        R: Encode + Send + 'static,
         E: Into<Error> + Send + 'static,
         F: Future<Output = Result<R, E>> + Send + 'static,
     {
@@ -184,12 +183,12 @@ impl<C: Send + Sync + 'static> Server<C> {
     async fn handle_single(&self, ctx: C, req: Request) -> Option<ResponseMessage> {
         let Some(id) = req.id.into_id() else {
             let _ = self
-                .dispatch(ctx, &req.method, req.params.as_deref().unwrap_or(&self.empty_params))
+                .dispatch(ctx, &req.method, req.params.as_ref().unwrap_or(&self.empty_params))
                 .await;
             return None;
         };
 
-        let params = req.params.as_deref().unwrap_or(&self.empty_params);
+        let params = req.params.as_ref().unwrap_or(&self.empty_params);
         match self.dispatch(ctx, &req.method, params).await {
             Ok(result) => Some(ResponseMessage::Single(Response::Success {
                 result,
@@ -218,12 +217,12 @@ impl<C: Send + Sync + 'static> Server<C> {
         for req in entries {
             let Some(id) = req.id.into_id() else {
                 let _ = self
-                    .dispatch(ctx.clone(), &req.method, req.params.as_deref().unwrap_or(&self.empty_params))
+                    .dispatch(ctx.clone(), &req.method, req.params.as_ref().unwrap_or(&self.empty_params))
                     .await;
                 continue;
             };
 
-            let params = req.params.as_deref().unwrap_or(&self.empty_params);
+            let params = req.params.as_ref().unwrap_or(&self.empty_params);
             match self.dispatch(ctx.clone(), &req.method, params).await {
                 Ok(result) => responses.push(Response::Success {
                     result,
@@ -243,7 +242,7 @@ impl<C: Send + Sync + 'static> Server<C> {
         }
     }
 
-    async fn dispatch(&self, ctx: C, method: &str, params: &RawValue) -> Result<Box<RawValue>, Error> {
+    async fn dispatch(&self, ctx: C, method: &str, params: &RawValueBuf) -> Result<RawValueBuf, Error> {
         let callback = self
             .methods
             .get(method)
@@ -261,7 +260,7 @@ mod tests {
         Request {
             jsonrpc: "2.0".into(),
             method: method.into(),
-            params: params.map(|s| RawValue::from_string(s.to_owned()).unwrap()),
+            params: params.map(|s| RawValueBuf::try_from_slice(s.as_bytes()).unwrap()),
             id: RequestId(id.map(Id::Number)),
         }
     }
@@ -280,7 +279,7 @@ mod tests {
                 id,
             }) => {
                 assert_eq!(id, Id::Number(1));
-                let v: i64 = serde_json::from_str(result.get()).unwrap();
+                let v: i64 = json::from_slice(result.as_bytes()).unwrap();
                 assert_eq!(v, 7);
             }
             other => panic!("expected success response, got {other:?}"),
@@ -411,7 +410,7 @@ mod tests {
     //         42,
     //         {"jsonrpc":"2.0","method":"add","params":[3,4],"id":2}
     //     ]"#;
-    //     let message: RequestMessage = serde_json::from_str(json).unwrap();
+    //     let message: RequestMessage = json::from_str(json).unwrap();
     //     let message = server.handle((), message).await.unwrap();
 
     //     match message {
@@ -442,9 +441,9 @@ mod tests {
     fn test_response_message_to_json_single() {
         let resp = Response::success(Id::Number(1), 42).unwrap();
         let message = ResponseMessage::Single(resp);
-        let json = serde_json::to_string(&message).unwrap();
-        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-        assert_eq!(v["result"], serde_json::json!(42));
+        let json = json::to_string(&message);
+        let v: json::Value = json::from_str(&json).unwrap();
+        assert_eq!(v["result"], json::json!(42));
     }
 
     #[test]
@@ -454,9 +453,9 @@ mod tests {
             Response::success(Id::Number(2), 20).unwrap(),
         ];
         let message = ResponseMessage::Batch(resps);
-        let json = serde_json::to_string(&message).unwrap();
-        let v: serde_json::Value = serde_json::from_str(&json).unwrap();
-        assert!(v.is_array());
+        let json = json::to_string(&message);
+        let v: json::Value = json::from_str(&json).unwrap();
+        assert!(v.as_array().is_some());
         assert_eq!(v.as_array().unwrap().len(), 2);
     }
 
@@ -480,7 +479,7 @@ mod tests {
             ResponseMessage::Single(Response::Success {
                 result, ..
             }) => {
-                let v: i64 = serde_json::from_str(result.get()).unwrap();
+                let v: i64 = json::from_slice(result.as_bytes()).unwrap();
                 assert_eq!(v, 105);
             }
             other => panic!("expected success, got {other:?}"),

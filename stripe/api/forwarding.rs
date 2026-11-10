@@ -71,40 +71,22 @@ impl CreateForwardingRequestParamsReplacementsItem {
 }
 
 #[cfg(feature = "forwarding")]
-impl<'de> serde::Deserialize<'de> for CreateForwardingRequestParamsReplacementsItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateForwardingRequestParamsReplacementsItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "card_cvc" => CreateForwardingRequestParamsReplacementsItem::CardCvc,
-                    "card_expiry" => CreateForwardingRequestParamsReplacementsItem::CardExpiry,
-                    "card_number" => CreateForwardingRequestParamsReplacementsItem::CardNumber,
-                    "cardholder_name" => CreateForwardingRequestParamsReplacementsItem::CardholderName,
-                    "request_signature" => CreateForwardingRequestParamsReplacementsItem::RequestSignature,
-                    other => CreateForwardingRequestParamsReplacementsItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateForwardingRequestParamsReplacementsItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateForwardingRequestParamsReplacementsItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateForwardingRequestParamsReplacementsItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "card_cvc" => CreateForwardingRequestParamsReplacementsItem::CardCvc,
+            "card_expiry" => CreateForwardingRequestParamsReplacementsItem::CardExpiry,
+            "card_number" => CreateForwardingRequestParamsReplacementsItem::CardNumber,
+            "cardholder_name" => CreateForwardingRequestParamsReplacementsItem::CardholderName,
+            "request_signature" => CreateForwardingRequestParamsReplacementsItem::RequestSignature,
+            other => CreateForwardingRequestParamsReplacementsItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -154,27 +136,29 @@ impl crate::params::FormEncode for CreateForwardingRequestParamsRequestHeadersIt
 }
 
 #[cfg(feature = "forwarding")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ForwardedRequestContext {
     #[doc = "The time it took in milliseconds for the destination endpoint to respond."]
-    #[serde(default)]
+    #[json(default)]
     pub destination_duration: i64,
     #[doc = "The IP address of the destination."]
-    #[serde(default)]
+    #[json(default)]
     pub destination_ip_address: String,
 }
 
 #[cfg(feature = "forwarding")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ForwardedRequestDetails {
     #[doc = "The body payload to send to the destination endpoint."]
-    #[serde(default)]
+    #[json(default)]
     pub body: String,
     #[doc = "The headers to include in the forwarded request."]
-    #[serde(default)]
+    #[json(default)]
     pub headers: Vec<crate::forwarding::ForwardedRequestHeader>,
     #[doc = "The HTTP method used to call the destination endpoint."]
-    #[serde(default)]
+    #[json(default)]
     pub http_method: crate::forwarding::ForwardedRequestDetailsHttpMethod,
 }
 
@@ -205,99 +189,84 @@ impl Default for ForwardedRequestDetailsHttpMethod {
 }
 
 #[cfg(feature = "forwarding")]
-impl<'de> serde::Deserialize<'de> for ForwardedRequestDetailsHttpMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ForwardedRequestDetailsHttpMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "POST" => ForwardedRequestDetailsHttpMethod::POST,
-                    other => ForwardedRequestDetailsHttpMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ForwardedRequestDetailsHttpMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ForwardedRequestDetailsHttpMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ForwardedRequestDetailsHttpMethod::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "POST" => ForwardedRequestDetailsHttpMethod::POST,
+            other => ForwardedRequestDetailsHttpMethod::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "forwarding")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ForwardedRequestHeader {
     #[doc = "The header name."]
-    #[serde(default)]
+    #[json(default)]
     pub name: String,
     #[doc = "The header value."]
-    #[serde(default)]
+    #[json(default)]
     pub value: String,
 }
 
 #[cfg(feature = "forwarding")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ForwardedResponseDetails {
     #[doc = "The response body from the destination endpoint to Stripe."]
-    #[serde(default)]
+    #[json(default)]
     pub body: String,
     #[doc = "HTTP headers that the destination endpoint returned."]
-    #[serde(default)]
+    #[json(default)]
     pub headers: Vec<crate::forwarding::ForwardedRequestHeader>,
     #[doc = "The HTTP status code that the destination endpoint returned."]
-    #[serde(default)]
+    #[json(default)]
     pub status: i64,
 }
 
 #[cfg(feature = "forwarding")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ForwardingRequest {
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::forwarding::ForwardingRequestObject,
     #[doc = "The PaymentMethod to insert into the forwarded request."]
-    #[serde(default)]
+    #[json(default)]
     pub payment_method: String,
     #[doc = "The field kinds to be replaced in the forwarded request."]
-    #[serde(default)]
+    #[json(default)]
     pub replacements: Vec<crate::forwarding::ForwardingRequestReplacementsItem>,
     #[doc = "Context about the request from Stripe's servers to the destination endpoint."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub request_context: Option<crate::forwarding::ForwardedRequestContext>,
     #[doc = "The request that was sent to the destination endpoint."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub request_details: Option<crate::forwarding::ForwardedRequestDetails>,
     #[doc = "The response that the destination endpoint returned to us."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub response_details: Option<crate::forwarding::ForwardedResponseDetails>,
     #[doc = "The destination URL for the forwarded request."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 }
 
@@ -335,36 +304,18 @@ impl Default for ForwardingRequestObject {
 }
 
 #[cfg(feature = "forwarding")]
-impl<'de> serde::Deserialize<'de> for ForwardingRequestObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ForwardingRequestObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "forwarding.request" => ForwardingRequestObject::ForwardingRequest,
-                    other => ForwardingRequestObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ForwardingRequestObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ForwardingRequestObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ForwardingRequestObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "forwarding.request" => ForwardingRequestObject::ForwardingRequest,
+            other => ForwardingRequestObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -396,40 +347,22 @@ impl ForwardingRequestReplacementsItem {
 }
 
 #[cfg(feature = "forwarding")]
-impl<'de> serde::Deserialize<'de> for ForwardingRequestReplacementsItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ForwardingRequestReplacementsItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "card_cvc" => ForwardingRequestReplacementsItem::CardCvc,
-                    "card_expiry" => ForwardingRequestReplacementsItem::CardExpiry,
-                    "card_number" => ForwardingRequestReplacementsItem::CardNumber,
-                    "cardholder_name" => ForwardingRequestReplacementsItem::CardholderName,
-                    "request_signature" => ForwardingRequestReplacementsItem::RequestSignature,
-                    other => ForwardingRequestReplacementsItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ForwardingRequestReplacementsItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ForwardingRequestReplacementsItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ForwardingRequestReplacementsItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "card_cvc" => ForwardingRequestReplacementsItem::CardCvc,
+            "card_expiry" => ForwardingRequestReplacementsItem::CardExpiry,
+            "card_number" => ForwardingRequestReplacementsItem::CardNumber,
+            "cardholder_name" => ForwardingRequestReplacementsItem::CardholderName,
+            "request_signature" => ForwardingRequestReplacementsItem::RequestSignature,
+            other => ForwardingRequestReplacementsItem::Unknown(other.to_string()),
+        })
     }
 }
 

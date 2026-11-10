@@ -38,6 +38,8 @@ members = [
     "html_escape",
     "indexmap",
     "ipnetwork",
+    "json",
+    "json/json_derive",
     "json_rpc",
     "jwt",
     "landlock",
@@ -85,6 +87,7 @@ members = [
     "utf8",
     "uuid",
     "xxhash",
+    "zmij",
     "zeroize",
     "zeroize/zeroize_derive",
 ]
@@ -140,6 +143,7 @@ hex = { path = "hex", default-features = false }
 hyper = { version = "1", features = ["full"] }
 indexmap = { path = "indexmap" }
 js-sys = "0.3"
+json = { path = "json" }
 libc = "0.2"
 memchr = { version = "2", default-features = false }
 nom = "8"
@@ -148,8 +152,10 @@ paste = { git = "https://github.com/dtolnay/paste", rev = "6a302522990cbfd9de4e0
 quick-xml = { version = "0.42", features = ["serialize"] }
 rand = "0.10"
 regex = { version = "1" }
-reqwest = { version = "0.13", default-features = false, features = ["gzip", "http2", "json", "rustls-no-provider"] }
+reqwest = { version = "0.13", default-features = false, features = ["gzip", "http2", "rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["std"] }
+ryu = { path = "ryu" }
+zmij = { path = "zmij" }
 tokio-rustls = { version = "0.26", default-features = false, features = ["logging"] }
 serde = { version = "1", default-features = false }
 serde_core = { version = "1", default-features = false }

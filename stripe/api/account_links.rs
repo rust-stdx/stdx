@@ -9,19 +9,20 @@
 #![allow(non_camel_case_types)]
 
 #[cfg(feature = "account_links")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountLink {
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "The timestamp at which this account link will expire."]
-    #[serde(default)]
+    #[json(default)]
     pub expires_at: i64,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::account_links::AccountLinkObject,
     #[doc = "The URL for the account link."]
-    #[serde(default)]
+    #[json(default)]
     pub url: String,
 }
 
@@ -52,36 +53,18 @@ impl Default for AccountLinkObject {
 }
 
 #[cfg(feature = "account_links")]
-impl<'de> serde::Deserialize<'de> for AccountLinkObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AccountLinkObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account_link" => AccountLinkObject::AccountLink,
-                    other => AccountLinkObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AccountLinkObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AccountLinkObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AccountLinkObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account_link" => AccountLinkObject::AccountLink,
+            other => AccountLinkObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -141,37 +124,19 @@ impl CreateAccountLinkParamsCollect {
 }
 
 #[cfg(feature = "account_links")]
-impl<'de> serde::Deserialize<'de> for CreateAccountLinkParamsCollect {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateAccountLinkParamsCollect;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "currently_due" => CreateAccountLinkParamsCollect::CurrentlyDue,
-                    "eventually_due" => CreateAccountLinkParamsCollect::EventuallyDue,
-                    other => CreateAccountLinkParamsCollect::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateAccountLinkParamsCollect::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateAccountLinkParamsCollect {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateAccountLinkParamsCollect::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "currently_due" => CreateAccountLinkParamsCollect::CurrentlyDue,
+            "eventually_due" => CreateAccountLinkParamsCollect::EventuallyDue,
+            other => CreateAccountLinkParamsCollect::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -224,39 +189,21 @@ impl CreateAccountLinkParamsCollectionOptionsFutureRequirements {
 }
 
 #[cfg(feature = "account_links")]
-impl<'de> serde::Deserialize<'de> for CreateAccountLinkParamsCollectionOptionsFutureRequirements {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateAccountLinkParamsCollectionOptionsFutureRequirements;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "include" => CreateAccountLinkParamsCollectionOptionsFutureRequirements::Include,
-                    "omit" => CreateAccountLinkParamsCollectionOptionsFutureRequirements::Omit,
-                    other => CreateAccountLinkParamsCollectionOptionsFutureRequirements::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateAccountLinkParamsCollectionOptionsFutureRequirements::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateAccountLinkParamsCollectionOptionsFutureRequirements {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateAccountLinkParamsCollectionOptionsFutureRequirements::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "include" => CreateAccountLinkParamsCollectionOptionsFutureRequirements::Include,
+            "omit" => CreateAccountLinkParamsCollectionOptionsFutureRequirements::Omit,
+            other => CreateAccountLinkParamsCollectionOptionsFutureRequirements::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -289,37 +236,19 @@ impl CreateAccountLinkParamsType {
 }
 
 #[cfg(feature = "account_links")]
-impl<'de> serde::Deserialize<'de> for CreateAccountLinkParamsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateAccountLinkParamsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account_onboarding" => CreateAccountLinkParamsType::AccountOnboarding,
-                    "account_update" => CreateAccountLinkParamsType::AccountUpdate,
-                    other => CreateAccountLinkParamsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateAccountLinkParamsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateAccountLinkParamsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateAccountLinkParamsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account_onboarding" => CreateAccountLinkParamsType::AccountOnboarding,
+            "account_update" => CreateAccountLinkParamsType::AccountUpdate,
+            other => CreateAccountLinkParamsType::Unknown(other.to_string()),
+        })
     }
 }
 

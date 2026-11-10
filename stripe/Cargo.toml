@@ -161,8 +161,7 @@ crypto = { path = "../crypto" }
 crypto_rustls = { path = "../crypto_rustls", optional = true }
 futures-util = { workspace = true, default-features = false, features = ["std"] }
 reqwest = { workspace = true, optional = true, features = ["stream"] }
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
+json = { workspace = true, features = ["derive"] }
 tokio = { version = "1", optional = true, features = ["time"] }
 uuid = { path = "../uuid" }
 zeroize = { path = "../zeroize" }
@@ -170,8 +169,6 @@ zeroize = { path = "../zeroize" }
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
 crypto = { path = "../crypto" }
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
 stripe_codegen = { path = "codegen" }
 # Only the runtime pieces the tests need: a current-thread runtime and the
 # `#[tokio::test]` attribute.

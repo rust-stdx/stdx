@@ -3,10 +3,10 @@
 mod common;
 
 use common::MockClient;
-use serde::Deserialize;
+use json::Decode;
 use stripe::PagedItem;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Decode)]
 struct Customer {
     id: String,
 }

@@ -1,0 +1,22 @@
+[package]
+name = "zmij"
+version = "1.0.23"
+authors = ["David Tolnay <dtolnay@gmail.com>"]
+categories = ["value-formatting", "no-std", "no-std::no-alloc"]
+description = "A double-to-string conversion algorithm based on Schubfach and xjb"
+documentation = "https://docs.rs/zmij"
+edition.workspace = true
+rust-version.workspace = true
+keywords = ["float"]
+license = "MIT"
+
+[lints]
+workspace = true
+
+[lib]
+path = "zmij.rs"
+doc-scrape-examples = false
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+rustdoc-args = ["--generate-link-to-definition"]

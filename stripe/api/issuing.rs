@@ -62,7 +62,7 @@ pub struct CreateIssuingCardParams {
     #[doc = "If `replacement_for` is specified, this should indicate why that card is being replaced."]
     pub replacement_reason: Option<crate::issuing::CreateIssuingCardParamsReplacementReason>,
     #[doc = "The second line to print on the card."]
-    pub second_line: Option<serde_json::Value>,
+    pub second_line: Option<json::OwnedValue>,
     #[doc = "The address where the card will be shipped."]
     pub shipping: Option<crate::issuing::CreateIssuingCardParamsShipping>,
     #[doc = "Rules that control spending for this card."]
@@ -169,39 +169,21 @@ impl CreateIssuingCardParamsReplacementReason {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for CreateIssuingCardParamsReplacementReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateIssuingCardParamsReplacementReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "damaged" => CreateIssuingCardParamsReplacementReason::Damaged,
-                    "expired" => CreateIssuingCardParamsReplacementReason::Expired,
-                    "lost" => CreateIssuingCardParamsReplacementReason::Lost,
-                    "stolen" => CreateIssuingCardParamsReplacementReason::Stolen,
-                    other => CreateIssuingCardParamsReplacementReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateIssuingCardParamsReplacementReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateIssuingCardParamsReplacementReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateIssuingCardParamsReplacementReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "damaged" => CreateIssuingCardParamsReplacementReason::Damaged,
+            "expired" => CreateIssuingCardParamsReplacementReason::Expired,
+            "lost" => CreateIssuingCardParamsReplacementReason::Lost,
+            "stolen" => CreateIssuingCardParamsReplacementReason::Stolen,
+            other => CreateIssuingCardParamsReplacementReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -293,40 +275,22 @@ impl CreateIssuingCardParamsShippingAddressValidationMode {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for CreateIssuingCardParamsShippingAddressValidationMode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateIssuingCardParamsShippingAddressValidationMode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "disabled" => CreateIssuingCardParamsShippingAddressValidationMode::Disabled,
-                    "normalization_only" => CreateIssuingCardParamsShippingAddressValidationMode::NormalizationOnly,
-                    "validation_and_normalization" => {
-                        CreateIssuingCardParamsShippingAddressValidationMode::ValidationAndNormalization
-                    }
-                    other => CreateIssuingCardParamsShippingAddressValidationMode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateIssuingCardParamsShippingAddressValidationMode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateIssuingCardParamsShippingAddressValidationMode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateIssuingCardParamsShippingAddressValidationMode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "disabled" => CreateIssuingCardParamsShippingAddressValidationMode::Disabled,
+            "normalization_only" => CreateIssuingCardParamsShippingAddressValidationMode::NormalizationOnly,
+            "validation_and_normalization" => {
+                CreateIssuingCardParamsShippingAddressValidationMode::ValidationAndNormalization
+            }
+            other => CreateIssuingCardParamsShippingAddressValidationMode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -375,38 +339,20 @@ impl CreateIssuingCardParamsShippingService {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for CreateIssuingCardParamsShippingService {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateIssuingCardParamsShippingService;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "express" => CreateIssuingCardParamsShippingService::Express,
-                    "priority" => CreateIssuingCardParamsShippingService::Priority,
-                    "standard" => CreateIssuingCardParamsShippingService::Standard,
-                    other => CreateIssuingCardParamsShippingService::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateIssuingCardParamsShippingService::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateIssuingCardParamsShippingService {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateIssuingCardParamsShippingService::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "express" => CreateIssuingCardParamsShippingService::Express,
+            "priority" => CreateIssuingCardParamsShippingService::Priority,
+            "standard" => CreateIssuingCardParamsShippingService::Standard,
+            other => CreateIssuingCardParamsShippingService::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -439,37 +385,19 @@ impl CreateIssuingCardParamsShippingType {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for CreateIssuingCardParamsShippingType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateIssuingCardParamsShippingType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "bulk" => CreateIssuingCardParamsShippingType::Bulk,
-                    "individual" => CreateIssuingCardParamsShippingType::Individual,
-                    other => CreateIssuingCardParamsShippingType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateIssuingCardParamsShippingType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateIssuingCardParamsShippingType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateIssuingCardParamsShippingType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "bulk" => CreateIssuingCardParamsShippingType::Bulk,
+            "individual" => CreateIssuingCardParamsShippingType::Individual,
+            other => CreateIssuingCardParamsShippingType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -754,7 +682,7 @@ pub struct CreateIssuingCardholderParamsIndividualCardIssuingUserTermsAcceptance
     #[doc = "The IP address from which the cardholder accepted the Authorized User Terms."]
     pub ip: Option<String>,
     #[doc = "The user agent of the browser from which the cardholder accepted the Authorized User Terms."]
-    pub user_agent: Option<serde_json::Value>,
+    pub user_agent: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "issuing")]
@@ -844,40 +772,22 @@ impl CreateIssuingCardholderParamsPreferredLocalesItem {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for CreateIssuingCardholderParamsPreferredLocalesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateIssuingCardholderParamsPreferredLocalesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "de" => CreateIssuingCardholderParamsPreferredLocalesItem::De,
-                    "en" => CreateIssuingCardholderParamsPreferredLocalesItem::En,
-                    "es" => CreateIssuingCardholderParamsPreferredLocalesItem::Es,
-                    "fr" => CreateIssuingCardholderParamsPreferredLocalesItem::Fr,
-                    "it" => CreateIssuingCardholderParamsPreferredLocalesItem::It,
-                    other => CreateIssuingCardholderParamsPreferredLocalesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateIssuingCardholderParamsPreferredLocalesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateIssuingCardholderParamsPreferredLocalesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateIssuingCardholderParamsPreferredLocalesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "de" => CreateIssuingCardholderParamsPreferredLocalesItem::De,
+            "en" => CreateIssuingCardholderParamsPreferredLocalesItem::En,
+            "es" => CreateIssuingCardholderParamsPreferredLocalesItem::Es,
+            "fr" => CreateIssuingCardholderParamsPreferredLocalesItem::Fr,
+            "it" => CreateIssuingCardholderParamsPreferredLocalesItem::It,
+            other => CreateIssuingCardholderParamsPreferredLocalesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -969,41 +879,21 @@ impl CreateIssuingCardholderParamsSpendingControlsAllowedCardPresencesItem {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for CreateIssuingCardholderParamsSpendingControlsAllowedCardPresencesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateIssuingCardholderParamsSpendingControlsAllowedCardPresencesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "not_present" => CreateIssuingCardholderParamsSpendingControlsAllowedCardPresencesItem::NotPresent,
-                    "present" => CreateIssuingCardholderParamsSpendingControlsAllowedCardPresencesItem::Present,
-                    other => CreateIssuingCardholderParamsSpendingControlsAllowedCardPresencesItem::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateIssuingCardholderParamsSpendingControlsAllowedCardPresencesItem::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateIssuingCardholderParamsSpendingControlsAllowedCardPresencesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateIssuingCardholderParamsSpendingControlsAllowedCardPresencesItem::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "not_present" => CreateIssuingCardholderParamsSpendingControlsAllowedCardPresencesItem::NotPresent,
+            "present" => CreateIssuingCardholderParamsSpendingControlsAllowedCardPresencesItem::Present,
+            other => CreateIssuingCardholderParamsSpendingControlsAllowedCardPresencesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1622,332 +1512,314 @@ impl CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ac_refrigeration_repair" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AcRefrigerationRepair,
-                    "accounting_bookkeeping_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AccountingBookkeepingServices,
-                    "advertising_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AdvertisingServices,
-                    "agricultural_cooperative" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AgriculturalCooperative,
-                    "airlines_air_carriers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AirlinesAirCarriers,
-                    "airports_flying_fields" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AirportsFlyingFields,
-                    "ambulance_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AmbulanceServices,
-                    "amusement_parks_carnivals" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AmusementParksCarnivals,
-                    "antique_reproductions" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AntiqueReproductions,
-                    "antique_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AntiqueShops,
-                    "aquariums" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Aquariums,
-                    "architectural_surveying_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ArchitecturalSurveyingServices,
-                    "art_dealers_and_galleries" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ArtDealersAndGalleries,
-                    "artists_supply_and_craft_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ArtistsSupplyAndCraftShops,
-                    "auto_and_home_supply_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AutoAndHomeSupplyStores,
-                    "auto_body_repair_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AutoBodyRepairShops,
-                    "auto_paint_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AutoPaintShops,
-                    "auto_service_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AutoServiceShops,
-                    "automated_cash_disburse" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AutomatedCashDisburse,
-                    "automated_fuel_dispensers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AutomatedFuelDispensers,
-                    "automobile_associations" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AutomobileAssociations,
-                    "automotive_parts_and_accessories_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AutomotivePartsAndAccessoriesStores,
-                    "automotive_tire_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AutomotiveTireStores,
-                    "bail_and_bond_payments" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BailAndBondPayments,
-                    "bakeries" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Bakeries,
-                    "bands_orchestras" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BandsOrchestras,
-                    "barber_and_beauty_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BarberAndBeautyShops,
-                    "betting_casino_gambling" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BettingCasinoGambling,
-                    "bicycle_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BicycleShops,
-                    "billiard_pool_establishments" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BilliardPoolEstablishments,
-                    "boat_dealers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BoatDealers,
-                    "boat_rentals_and_leases" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BoatRentalsAndLeases,
-                    "book_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BookStores,
-                    "books_periodicals_and_newspapers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BooksPeriodicalsAndNewspapers,
-                    "bowling_alleys" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BowlingAlleys,
-                    "bus_lines" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BusLines,
-                    "business_secretarial_schools" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BusinessSecretarialSchools,
-                    "buying_shopping_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BuyingShoppingServices,
-                    "cable_satellite_and_other_pay_television_and_radio" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CableSatelliteAndOtherPayTelevisionAndRadio,
-                    "camera_and_photographic_supply_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CameraAndPhotographicSupplyStores,
-                    "candy_nut_and_confectionery_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CandyNutAndConfectioneryStores,
-                    "car_and_truck_dealers_new_used" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CarAndTruckDealersNewUsed,
-                    "car_and_truck_dealers_used_only" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CarAndTruckDealersUsedOnly,
-                    "car_rental_agencies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CarRentalAgencies,
-                    "car_washes" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CarWashes,
-                    "carpentry_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CarpentryServices,
-                    "carpet_upholstery_cleaning" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CarpetUpholsteryCleaning,
-                    "caterers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Caterers,
-                    "charitable_and_social_service_organizations_fundraising" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CharitableAndSocialServiceOrganizationsFundraising,
-                    "chemicals_and_allied_products" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ChemicalsAndAlliedProducts,
-                    "child_care_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ChildCareServices,
-                    "childrens_and_infants_wear_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ChildrensAndInfantsWearStores,
-                    "chiropodists_podiatrists" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ChiropodistsPodiatrists,
-                    "chiropractors" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Chiropractors,
-                    "cigar_stores_and_stands" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CigarStoresAndStands,
-                    "civic_social_fraternal_associations" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CivicSocialFraternalAssociations,
-                    "cleaning_and_maintenance" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CleaningAndMaintenance,
-                    "clothing_rental" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ClothingRental,
-                    "colleges_universities" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CollegesUniversities,
-                    "commercial_equipment" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CommercialEquipment,
-                    "commercial_footwear" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CommercialFootwear,
-                    "commercial_photography_art_and_graphics" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CommercialPhotographyArtAndGraphics,
-                    "commuter_transport_and_ferries" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CommuterTransportAndFerries,
-                    "computer_network_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ComputerNetworkServices,
-                    "computer_programming" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ComputerProgramming,
-                    "computer_repair" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ComputerRepair,
-                    "computer_software_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ComputerSoftwareStores,
-                    "computers_peripherals_and_software" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ComputersPeripheralsAndSoftware,
-                    "concrete_work_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ConcreteWorkServices,
-                    "construction_materials" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ConstructionMaterials,
-                    "consulting_public_relations" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ConsultingPublicRelations,
-                    "correspondence_schools" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CorrespondenceSchools,
-                    "cosmetic_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CosmeticStores,
-                    "counseling_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CounselingServices,
-                    "country_clubs" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CountryClubs,
-                    "courier_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CourierServices,
-                    "court_costs" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CourtCosts,
-                    "credit_reporting_agencies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CreditReportingAgencies,
-                    "cruise_lines" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CruiseLines,
-                    "dairy_products_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DairyProductsStores,
-                    "dance_hall_studios_schools" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DanceHallStudiosSchools,
-                    "dating_escort_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DatingEscortServices,
-                    "dentists_orthodontists" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DentistsOrthodontists,
-                    "department_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DepartmentStores,
-                    "detective_agencies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DetectiveAgencies,
-                    "digital_goods_applications" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DigitalGoodsApplications,
-                    "digital_goods_games" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DigitalGoodsGames,
-                    "digital_goods_large_volume" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DigitalGoodsLargeVolume,
-                    "digital_goods_media" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DigitalGoodsMedia,
-                    "direct_marketing_catalog_merchant" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DirectMarketingCatalogMerchant,
-                    "direct_marketing_combination_catalog_and_retail_merchant" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DirectMarketingCombinationCatalogAndRetailMerchant,
-                    "direct_marketing_inbound_telemarketing" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DirectMarketingInboundTelemarketing,
-                    "direct_marketing_insurance_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DirectMarketingInsuranceServices,
-                    "direct_marketing_other" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DirectMarketingOther,
-                    "direct_marketing_outbound_telemarketing" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DirectMarketingOutboundTelemarketing,
-                    "direct_marketing_subscription" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DirectMarketingSubscription,
-                    "direct_marketing_travel" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DirectMarketingTravel,
-                    "discount_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DiscountStores,
-                    "doctors" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Doctors,
-                    "door_to_door_sales" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DoorToDoorSales,
-                    "drapery_window_covering_and_upholstery_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DraperyWindowCoveringAndUpholsteryStores,
-                    "drinking_places" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DrinkingPlaces,
-                    "drug_stores_and_pharmacies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DrugStoresAndPharmacies,
-                    "drugs_drug_proprietaries_and_druggist_sundries" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DrugsDrugProprietariesAndDruggistSundries,
-                    "dry_cleaners" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DryCleaners,
-                    "durable_goods" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DurableGoods,
-                    "duty_free_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DutyFreeStores,
-                    "eating_places_restaurants" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::EatingPlacesRestaurants,
-                    "educational_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::EducationalServices,
-                    "electric_razor_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ElectricRazorStores,
-                    "electric_vehicle_charging" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ElectricVehicleCharging,
-                    "electrical_parts_and_equipment" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ElectricalPartsAndEquipment,
-                    "electrical_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ElectricalServices,
-                    "electronics_repair_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ElectronicsRepairShops,
-                    "electronics_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ElectronicsStores,
-                    "elementary_secondary_schools" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ElementarySecondarySchools,
-                    "emergency_services_gcas_visa_use_only" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::EmergencyServicesGcasVisaUseOnly,
-                    "employment_temp_agencies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::EmploymentTempAgencies,
-                    "equipment_rental" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::EquipmentRental,
-                    "exterminating_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ExterminatingServices,
-                    "family_clothing_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FamilyClothingStores,
-                    "fast_food_restaurants" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FastFoodRestaurants,
-                    "financial_institutions" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FinancialInstitutions,
-                    "fines_government_administrative_entities" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FinesGovernmentAdministrativeEntities,
-                    "fireplace_fireplace_screens_and_accessories_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FireplaceFireplaceScreensAndAccessoriesStores,
-                    "floor_covering_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FloorCoveringStores,
-                    "florists" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Florists,
-                    "florists_supplies_nursery_stock_and_flowers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FloristsSuppliesNurseryStockAndFlowers,
-                    "freezer_and_locker_meat_provisioners" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FreezerAndLockerMeatProvisioners,
-                    "fuel_dealers_non_automotive" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FuelDealersNonAutomotive,
-                    "funeral_services_crematories" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FuneralServicesCrematories,
-                    "furniture_home_furnishings_and_equipment_stores_except_appliances" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FurnitureHomeFurnishingsAndEquipmentStoresExceptAppliances,
-                    "furniture_repair_refinishing" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FurnitureRepairRefinishing,
-                    "furriers_and_fur_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FurriersAndFurShops,
-                    "general_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GeneralServices,
-                    "gift_card_novelty_and_souvenir_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GiftCardNoveltyAndSouvenirShops,
-                    "glass_paint_and_wallpaper_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GlassPaintAndWallpaperStores,
-                    "glassware_crystal_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GlasswareCrystalStores,
-                    "golf_courses_public" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GolfCoursesPublic,
-                    "government_licensed_horse_dog_racing_us_region_only" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GovernmentLicensedHorseDogRacingUsRegionOnly,
-                    "government_licensed_online_casions_online_gambling_us_region_only" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GovernmentLicensedOnlineCasionsOnlineGamblingUsRegionOnly,
-                    "government_owned_lotteries_non_us_region" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GovernmentOwnedLotteriesNonUsRegion,
-                    "government_owned_lotteries_us_region_only" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GovernmentOwnedLotteriesUsRegionOnly,
-                    "government_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GovernmentServices,
-                    "grocery_stores_supermarkets" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GroceryStoresSupermarkets,
-                    "hardware_equipment_and_supplies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::HardwareEquipmentAndSupplies,
-                    "hardware_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::HardwareStores,
-                    "health_and_beauty_spas" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::HealthAndBeautySpas,
-                    "hearing_aids_sales_and_supplies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::HearingAidsSalesAndSupplies,
-                    "heating_plumbing_a_c" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::HeatingPlumbingAC,
-                    "hobby_toy_and_game_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::HobbyToyAndGameShops,
-                    "home_supply_warehouse_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::HomeSupplyWarehouseStores,
-                    "hospitals" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Hospitals,
-                    "hotels_motels_and_resorts" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::HotelsMotelsAndResorts,
-                    "household_appliance_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::HouseholdApplianceStores,
-                    "industrial_supplies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::IndustrialSupplies,
-                    "information_retrieval_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::InformationRetrievalServices,
-                    "insurance_default" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::InsuranceDefault,
-                    "insurance_underwriting_premiums" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::InsuranceUnderwritingPremiums,
-                    "intra_company_purchases" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::IntraCompanyPurchases,
-                    "jewelry_stores_watches_clocks_and_silverware_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::JewelryStoresWatchesClocksAndSilverwareStores,
-                    "landscaping_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::LandscapingServices,
-                    "laundries" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Laundries,
-                    "laundry_cleaning_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::LaundryCleaningServices,
-                    "legal_services_attorneys" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::LegalServicesAttorneys,
-                    "luggage_and_leather_goods_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::LuggageAndLeatherGoodsStores,
-                    "lumber_building_materials_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::LumberBuildingMaterialsStores,
-                    "manual_cash_disburse" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ManualCashDisburse,
-                    "marinas_service_and_supplies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MarinasServiceAndSupplies,
-                    "marketplaces" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Marketplaces,
-                    "masonry_stonework_and_plaster" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MasonryStoneworkAndPlaster,
-                    "massage_parlors" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MassageParlors,
-                    "medical_and_dental_labs" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MedicalAndDentalLabs,
-                    "medical_dental_ophthalmic_and_hospital_equipment_and_supplies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MedicalDentalOphthalmicAndHospitalEquipmentAndSupplies,
-                    "medical_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MedicalServices,
-                    "membership_organizations" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MembershipOrganizations,
-                    "mens_and_boys_clothing_and_accessories_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MensAndBoysClothingAndAccessoriesStores,
-                    "mens_womens_clothing_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MensWomensClothingStores,
-                    "metal_service_centers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MetalServiceCenters,
-                    "miscellaneous" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Miscellaneous,
-                    "miscellaneous_apparel_and_accessory_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousApparelAndAccessoryShops,
-                    "miscellaneous_auto_dealers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousAutoDealers,
-                    "miscellaneous_business_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousBusinessServices,
-                    "miscellaneous_food_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousFoodStores,
-                    "miscellaneous_general_merchandise" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousGeneralMerchandise,
-                    "miscellaneous_general_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousGeneralServices,
-                    "miscellaneous_home_furnishing_specialty_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousHomeFurnishingSpecialtyStores,
-                    "miscellaneous_publishing_and_printing" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousPublishingAndPrinting,
-                    "miscellaneous_recreation_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousRecreationServices,
-                    "miscellaneous_repair_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousRepairShops,
-                    "miscellaneous_specialty_retail" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousSpecialtyRetail,
-                    "mobile_home_dealers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MobileHomeDealers,
-                    "motion_picture_theaters" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MotionPictureTheaters,
-                    "motor_freight_carriers_and_trucking" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MotorFreightCarriersAndTrucking,
-                    "motor_homes_dealers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MotorHomesDealers,
-                    "motor_vehicle_supplies_and_new_parts" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MotorVehicleSuppliesAndNewParts,
-                    "motorcycle_shops_and_dealers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MotorcycleShopsAndDealers,
-                    "motorcycle_shops_dealers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MotorcycleShopsDealers,
-                    "music_stores_musical_instruments_pianos_and_sheet_music" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MusicStoresMusicalInstrumentsPianosAndSheetMusic,
-                    "news_dealers_and_newsstands" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::NewsDealersAndNewsstands,
-                    "non_fi_money_orders" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::NonFiMoneyOrders,
-                    "non_fi_stored_value_card_purchase_load" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::NonFiStoredValueCardPurchaseLoad,
-                    "nondurable_goods" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::NondurableGoods,
-                    "nurseries_lawn_and_garden_supply_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::NurseriesLawnAndGardenSupplyStores,
-                    "nursing_personal_care" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::NursingPersonalCare,
-                    "office_and_commercial_furniture" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::OfficeAndCommercialFurniture,
-                    "opticians_eyeglasses" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::OpticiansEyeglasses,
-                    "optometrists_ophthalmologist" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::OptometristsOphthalmologist,
-                    "orthopedic_goods_prosthetic_devices" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::OrthopedicGoodsProstheticDevices,
-                    "osteopaths" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Osteopaths,
-                    "package_stores_beer_wine_and_liquor" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PackageStoresBeerWineAndLiquor,
-                    "paints_varnishes_and_supplies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PaintsVarnishesAndSupplies,
-                    "parking_lots_garages" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ParkingLotsGarages,
-                    "passenger_railways" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PassengerRailways,
-                    "pawn_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PawnShops,
-                    "pet_shops_pet_food_and_supplies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PetShopsPetFoodAndSupplies,
-                    "petroleum_and_petroleum_products" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PetroleumAndPetroleumProducts,
-                    "photo_developing" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PhotoDeveloping,
-                    "photographic_photocopy_microfilm_equipment_and_supplies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PhotographicPhotocopyMicrofilmEquipmentAndSupplies,
-                    "photographic_studios" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PhotographicStudios,
-                    "picture_video_production" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PictureVideoProduction,
-                    "piece_goods_notions_and_other_dry_goods" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PieceGoodsNotionsAndOtherDryGoods,
-                    "plumbing_heating_equipment_and_supplies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PlumbingHeatingEquipmentAndSupplies,
-                    "political_organizations" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PoliticalOrganizations,
-                    "postal_services_government_only" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PostalServicesGovernmentOnly,
-                    "precious_stones_and_metals_watches_and_jewelry" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PreciousStonesAndMetalsWatchesAndJewelry,
-                    "professional_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ProfessionalServices,
-                    "public_warehousing_and_storage" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PublicWarehousingAndStorage,
-                    "quick_copy_repro_and_blueprint" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::QuickCopyReproAndBlueprint,
-                    "railroads" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Railroads,
-                    "real_estate_agents_and_managers_rentals" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::RealEstateAgentsAndManagersRentals,
-                    "record_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::RecordStores,
-                    "recreational_vehicle_rentals" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::RecreationalVehicleRentals,
-                    "religious_goods_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ReligiousGoodsStores,
-                    "religious_organizations" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ReligiousOrganizations,
-                    "roofing_siding_sheet_metal" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::RoofingSidingSheetMetal,
-                    "secretarial_support_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SecretarialSupportServices,
-                    "security_brokers_dealers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SecurityBrokersDealers,
-                    "service_stations" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ServiceStations,
-                    "sewing_needlework_fabric_and_piece_goods_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SewingNeedleworkFabricAndPieceGoodsStores,
-                    "shoe_repair_hat_cleaning" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ShoeRepairHatCleaning,
-                    "shoe_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ShoeStores,
-                    "small_appliance_repair" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SmallApplianceRepair,
-                    "snowmobile_dealers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SnowmobileDealers,
-                    "special_trade_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SpecialTradeServices,
-                    "specialty_cleaning" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SpecialtyCleaning,
-                    "sporting_goods_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SportingGoodsStores,
-                    "sporting_recreation_camps" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SportingRecreationCamps,
-                    "sports_and_riding_apparel_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SportsAndRidingApparelStores,
-                    "sports_clubs_fields" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SportsClubsFields,
-                    "stamp_and_coin_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::StampAndCoinStores,
-                    "stationary_office_supplies_printing_and_writing_paper" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::StationaryOfficeSuppliesPrintingAndWritingPaper,
-                    "stationery_stores_office_and_school_supply_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::StationeryStoresOfficeAndSchoolSupplyStores,
-                    "swimming_pools_sales" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SwimmingPoolsSales,
-                    "t_ui_travel_germany" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TUiTravelGermany,
-                    "tailors_alterations" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TailorsAlterations,
-                    "tax_payments_government_agencies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TaxPaymentsGovernmentAgencies,
-                    "tax_preparation_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TaxPreparationServices,
-                    "taxicabs_limousines" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TaxicabsLimousines,
-                    "telecommunication_equipment_and_telephone_sales" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TelecommunicationEquipmentAndTelephoneSales,
-                    "telecommunication_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TelecommunicationServices,
-                    "telegraph_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TelegraphServices,
-                    "tent_and_awning_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TentAndAwningShops,
-                    "testing_laboratories" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TestingLaboratories,
-                    "theatrical_ticket_agencies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TheatricalTicketAgencies,
-                    "timeshares" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Timeshares,
-                    "tire_retreading_and_repair" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TireRetreadingAndRepair,
-                    "tolls_bridge_fees" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TollsBridgeFees,
-                    "tourist_attractions_and_exhibits" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TouristAttractionsAndExhibits,
-                    "towing_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TowingServices,
-                    "trailer_parks_campgrounds" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TrailerParksCampgrounds,
-                    "transportation_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TransportationServices,
-                    "travel_agencies_tour_operators" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TravelAgenciesTourOperators,
-                    "truck_stop_iteration" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TruckStopIteration,
-                    "truck_utility_trailer_rentals" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TruckUtilityTrailerRentals,
-                    "typesetting_plate_making_and_related_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TypesettingPlateMakingAndRelatedServices,
-                    "typewriter_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TypewriterStores,
-                    "u_s_federal_government_agencies_or_departments" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::USFederalGovernmentAgenciesOrDepartments,
-                    "uniforms_commercial_clothing" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::UniformsCommercialClothing,
-                    "used_merchandise_and_secondhand_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::UsedMerchandiseAndSecondhandStores,
-                    "utilities" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Utilities,
-                    "variety_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::VarietyStores,
-                    "veterinary_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::VeterinaryServices,
-                    "video_amusement_game_supplies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::VideoAmusementGameSupplies,
-                    "video_game_arcades" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::VideoGameArcades,
-                    "video_tape_rental_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::VideoTapeRentalStores,
-                    "vocational_trade_schools" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::VocationalTradeSchools,
-                    "watch_jewelry_repair" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::WatchJewelryRepair,
-                    "welding_repair" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::WeldingRepair,
-                    "wholesale_clubs" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::WholesaleClubs,
-                    "wig_and_toupee_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::WigAndToupeeStores,
-                    "wires_money_orders" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::WiresMoneyOrders,
-                    "womens_accessory_and_specialty_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::WomensAccessoryAndSpecialtyShops,
-                    "womens_ready_to_wear_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::WomensReadyToWearStores,
-                    "wrecking_and_salvage_yards" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::WreckingAndSalvageYards,
-                    other => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ac_refrigeration_repair" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AcRefrigerationRepair,
+            "accounting_bookkeeping_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AccountingBookkeepingServices,
+            "advertising_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AdvertisingServices,
+            "agricultural_cooperative" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AgriculturalCooperative,
+            "airlines_air_carriers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AirlinesAirCarriers,
+            "airports_flying_fields" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AirportsFlyingFields,
+            "ambulance_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AmbulanceServices,
+            "amusement_parks_carnivals" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AmusementParksCarnivals,
+            "antique_reproductions" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AntiqueReproductions,
+            "antique_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AntiqueShops,
+            "aquariums" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Aquariums,
+            "architectural_surveying_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ArchitecturalSurveyingServices,
+            "art_dealers_and_galleries" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ArtDealersAndGalleries,
+            "artists_supply_and_craft_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ArtistsSupplyAndCraftShops,
+            "auto_and_home_supply_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AutoAndHomeSupplyStores,
+            "auto_body_repair_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AutoBodyRepairShops,
+            "auto_paint_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AutoPaintShops,
+            "auto_service_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AutoServiceShops,
+            "automated_cash_disburse" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AutomatedCashDisburse,
+            "automated_fuel_dispensers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AutomatedFuelDispensers,
+            "automobile_associations" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AutomobileAssociations,
+            "automotive_parts_and_accessories_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AutomotivePartsAndAccessoriesStores,
+            "automotive_tire_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::AutomotiveTireStores,
+            "bail_and_bond_payments" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BailAndBondPayments,
+            "bakeries" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Bakeries,
+            "bands_orchestras" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BandsOrchestras,
+            "barber_and_beauty_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BarberAndBeautyShops,
+            "betting_casino_gambling" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BettingCasinoGambling,
+            "bicycle_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BicycleShops,
+            "billiard_pool_establishments" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BilliardPoolEstablishments,
+            "boat_dealers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BoatDealers,
+            "boat_rentals_and_leases" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BoatRentalsAndLeases,
+            "book_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BookStores,
+            "books_periodicals_and_newspapers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BooksPeriodicalsAndNewspapers,
+            "bowling_alleys" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BowlingAlleys,
+            "bus_lines" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BusLines,
+            "business_secretarial_schools" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BusinessSecretarialSchools,
+            "buying_shopping_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::BuyingShoppingServices,
+            "cable_satellite_and_other_pay_television_and_radio" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CableSatelliteAndOtherPayTelevisionAndRadio,
+            "camera_and_photographic_supply_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CameraAndPhotographicSupplyStores,
+            "candy_nut_and_confectionery_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CandyNutAndConfectioneryStores,
+            "car_and_truck_dealers_new_used" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CarAndTruckDealersNewUsed,
+            "car_and_truck_dealers_used_only" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CarAndTruckDealersUsedOnly,
+            "car_rental_agencies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CarRentalAgencies,
+            "car_washes" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CarWashes,
+            "carpentry_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CarpentryServices,
+            "carpet_upholstery_cleaning" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CarpetUpholsteryCleaning,
+            "caterers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Caterers,
+            "charitable_and_social_service_organizations_fundraising" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CharitableAndSocialServiceOrganizationsFundraising,
+            "chemicals_and_allied_products" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ChemicalsAndAlliedProducts,
+            "child_care_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ChildCareServices,
+            "childrens_and_infants_wear_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ChildrensAndInfantsWearStores,
+            "chiropodists_podiatrists" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ChiropodistsPodiatrists,
+            "chiropractors" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Chiropractors,
+            "cigar_stores_and_stands" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CigarStoresAndStands,
+            "civic_social_fraternal_associations" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CivicSocialFraternalAssociations,
+            "cleaning_and_maintenance" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CleaningAndMaintenance,
+            "clothing_rental" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ClothingRental,
+            "colleges_universities" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CollegesUniversities,
+            "commercial_equipment" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CommercialEquipment,
+            "commercial_footwear" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CommercialFootwear,
+            "commercial_photography_art_and_graphics" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CommercialPhotographyArtAndGraphics,
+            "commuter_transport_and_ferries" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CommuterTransportAndFerries,
+            "computer_network_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ComputerNetworkServices,
+            "computer_programming" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ComputerProgramming,
+            "computer_repair" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ComputerRepair,
+            "computer_software_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ComputerSoftwareStores,
+            "computers_peripherals_and_software" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ComputersPeripheralsAndSoftware,
+            "concrete_work_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ConcreteWorkServices,
+            "construction_materials" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ConstructionMaterials,
+            "consulting_public_relations" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ConsultingPublicRelations,
+            "correspondence_schools" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CorrespondenceSchools,
+            "cosmetic_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CosmeticStores,
+            "counseling_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CounselingServices,
+            "country_clubs" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CountryClubs,
+            "courier_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CourierServices,
+            "court_costs" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CourtCosts,
+            "credit_reporting_agencies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CreditReportingAgencies,
+            "cruise_lines" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::CruiseLines,
+            "dairy_products_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DairyProductsStores,
+            "dance_hall_studios_schools" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DanceHallStudiosSchools,
+            "dating_escort_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DatingEscortServices,
+            "dentists_orthodontists" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DentistsOrthodontists,
+            "department_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DepartmentStores,
+            "detective_agencies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DetectiveAgencies,
+            "digital_goods_applications" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DigitalGoodsApplications,
+            "digital_goods_games" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DigitalGoodsGames,
+            "digital_goods_large_volume" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DigitalGoodsLargeVolume,
+            "digital_goods_media" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DigitalGoodsMedia,
+            "direct_marketing_catalog_merchant" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DirectMarketingCatalogMerchant,
+            "direct_marketing_combination_catalog_and_retail_merchant" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DirectMarketingCombinationCatalogAndRetailMerchant,
+            "direct_marketing_inbound_telemarketing" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DirectMarketingInboundTelemarketing,
+            "direct_marketing_insurance_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DirectMarketingInsuranceServices,
+            "direct_marketing_other" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DirectMarketingOther,
+            "direct_marketing_outbound_telemarketing" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DirectMarketingOutboundTelemarketing,
+            "direct_marketing_subscription" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DirectMarketingSubscription,
+            "direct_marketing_travel" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DirectMarketingTravel,
+            "discount_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DiscountStores,
+            "doctors" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Doctors,
+            "door_to_door_sales" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DoorToDoorSales,
+            "drapery_window_covering_and_upholstery_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DraperyWindowCoveringAndUpholsteryStores,
+            "drinking_places" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DrinkingPlaces,
+            "drug_stores_and_pharmacies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DrugStoresAndPharmacies,
+            "drugs_drug_proprietaries_and_druggist_sundries" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DrugsDrugProprietariesAndDruggistSundries,
+            "dry_cleaners" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DryCleaners,
+            "durable_goods" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DurableGoods,
+            "duty_free_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::DutyFreeStores,
+            "eating_places_restaurants" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::EatingPlacesRestaurants,
+            "educational_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::EducationalServices,
+            "electric_razor_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ElectricRazorStores,
+            "electric_vehicle_charging" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ElectricVehicleCharging,
+            "electrical_parts_and_equipment" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ElectricalPartsAndEquipment,
+            "electrical_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ElectricalServices,
+            "electronics_repair_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ElectronicsRepairShops,
+            "electronics_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ElectronicsStores,
+            "elementary_secondary_schools" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ElementarySecondarySchools,
+            "emergency_services_gcas_visa_use_only" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::EmergencyServicesGcasVisaUseOnly,
+            "employment_temp_agencies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::EmploymentTempAgencies,
+            "equipment_rental" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::EquipmentRental,
+            "exterminating_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ExterminatingServices,
+            "family_clothing_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FamilyClothingStores,
+            "fast_food_restaurants" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FastFoodRestaurants,
+            "financial_institutions" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FinancialInstitutions,
+            "fines_government_administrative_entities" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FinesGovernmentAdministrativeEntities,
+            "fireplace_fireplace_screens_and_accessories_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FireplaceFireplaceScreensAndAccessoriesStores,
+            "floor_covering_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FloorCoveringStores,
+            "florists" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Florists,
+            "florists_supplies_nursery_stock_and_flowers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FloristsSuppliesNurseryStockAndFlowers,
+            "freezer_and_locker_meat_provisioners" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FreezerAndLockerMeatProvisioners,
+            "fuel_dealers_non_automotive" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FuelDealersNonAutomotive,
+            "funeral_services_crematories" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FuneralServicesCrematories,
+            "furniture_home_furnishings_and_equipment_stores_except_appliances" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FurnitureHomeFurnishingsAndEquipmentStoresExceptAppliances,
+            "furniture_repair_refinishing" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FurnitureRepairRefinishing,
+            "furriers_and_fur_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::FurriersAndFurShops,
+            "general_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GeneralServices,
+            "gift_card_novelty_and_souvenir_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GiftCardNoveltyAndSouvenirShops,
+            "glass_paint_and_wallpaper_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GlassPaintAndWallpaperStores,
+            "glassware_crystal_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GlasswareCrystalStores,
+            "golf_courses_public" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GolfCoursesPublic,
+            "government_licensed_horse_dog_racing_us_region_only" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GovernmentLicensedHorseDogRacingUsRegionOnly,
+            "government_licensed_online_casions_online_gambling_us_region_only" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GovernmentLicensedOnlineCasionsOnlineGamblingUsRegionOnly,
+            "government_owned_lotteries_non_us_region" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GovernmentOwnedLotteriesNonUsRegion,
+            "government_owned_lotteries_us_region_only" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GovernmentOwnedLotteriesUsRegionOnly,
+            "government_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GovernmentServices,
+            "grocery_stores_supermarkets" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::GroceryStoresSupermarkets,
+            "hardware_equipment_and_supplies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::HardwareEquipmentAndSupplies,
+            "hardware_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::HardwareStores,
+            "health_and_beauty_spas" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::HealthAndBeautySpas,
+            "hearing_aids_sales_and_supplies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::HearingAidsSalesAndSupplies,
+            "heating_plumbing_a_c" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::HeatingPlumbingAC,
+            "hobby_toy_and_game_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::HobbyToyAndGameShops,
+            "home_supply_warehouse_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::HomeSupplyWarehouseStores,
+            "hospitals" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Hospitals,
+            "hotels_motels_and_resorts" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::HotelsMotelsAndResorts,
+            "household_appliance_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::HouseholdApplianceStores,
+            "industrial_supplies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::IndustrialSupplies,
+            "information_retrieval_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::InformationRetrievalServices,
+            "insurance_default" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::InsuranceDefault,
+            "insurance_underwriting_premiums" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::InsuranceUnderwritingPremiums,
+            "intra_company_purchases" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::IntraCompanyPurchases,
+            "jewelry_stores_watches_clocks_and_silverware_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::JewelryStoresWatchesClocksAndSilverwareStores,
+            "landscaping_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::LandscapingServices,
+            "laundries" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Laundries,
+            "laundry_cleaning_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::LaundryCleaningServices,
+            "legal_services_attorneys" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::LegalServicesAttorneys,
+            "luggage_and_leather_goods_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::LuggageAndLeatherGoodsStores,
+            "lumber_building_materials_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::LumberBuildingMaterialsStores,
+            "manual_cash_disburse" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ManualCashDisburse,
+            "marinas_service_and_supplies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MarinasServiceAndSupplies,
+            "marketplaces" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Marketplaces,
+            "masonry_stonework_and_plaster" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MasonryStoneworkAndPlaster,
+            "massage_parlors" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MassageParlors,
+            "medical_and_dental_labs" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MedicalAndDentalLabs,
+            "medical_dental_ophthalmic_and_hospital_equipment_and_supplies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MedicalDentalOphthalmicAndHospitalEquipmentAndSupplies,
+            "medical_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MedicalServices,
+            "membership_organizations" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MembershipOrganizations,
+            "mens_and_boys_clothing_and_accessories_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MensAndBoysClothingAndAccessoriesStores,
+            "mens_womens_clothing_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MensWomensClothingStores,
+            "metal_service_centers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MetalServiceCenters,
+            "miscellaneous" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Miscellaneous,
+            "miscellaneous_apparel_and_accessory_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousApparelAndAccessoryShops,
+            "miscellaneous_auto_dealers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousAutoDealers,
+            "miscellaneous_business_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousBusinessServices,
+            "miscellaneous_food_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousFoodStores,
+            "miscellaneous_general_merchandise" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousGeneralMerchandise,
+            "miscellaneous_general_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousGeneralServices,
+            "miscellaneous_home_furnishing_specialty_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousHomeFurnishingSpecialtyStores,
+            "miscellaneous_publishing_and_printing" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousPublishingAndPrinting,
+            "miscellaneous_recreation_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousRecreationServices,
+            "miscellaneous_repair_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousRepairShops,
+            "miscellaneous_specialty_retail" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MiscellaneousSpecialtyRetail,
+            "mobile_home_dealers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MobileHomeDealers,
+            "motion_picture_theaters" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MotionPictureTheaters,
+            "motor_freight_carriers_and_trucking" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MotorFreightCarriersAndTrucking,
+            "motor_homes_dealers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MotorHomesDealers,
+            "motor_vehicle_supplies_and_new_parts" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MotorVehicleSuppliesAndNewParts,
+            "motorcycle_shops_and_dealers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MotorcycleShopsAndDealers,
+            "motorcycle_shops_dealers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MotorcycleShopsDealers,
+            "music_stores_musical_instruments_pianos_and_sheet_music" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::MusicStoresMusicalInstrumentsPianosAndSheetMusic,
+            "news_dealers_and_newsstands" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::NewsDealersAndNewsstands,
+            "non_fi_money_orders" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::NonFiMoneyOrders,
+            "non_fi_stored_value_card_purchase_load" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::NonFiStoredValueCardPurchaseLoad,
+            "nondurable_goods" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::NondurableGoods,
+            "nurseries_lawn_and_garden_supply_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::NurseriesLawnAndGardenSupplyStores,
+            "nursing_personal_care" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::NursingPersonalCare,
+            "office_and_commercial_furniture" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::OfficeAndCommercialFurniture,
+            "opticians_eyeglasses" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::OpticiansEyeglasses,
+            "optometrists_ophthalmologist" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::OptometristsOphthalmologist,
+            "orthopedic_goods_prosthetic_devices" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::OrthopedicGoodsProstheticDevices,
+            "osteopaths" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Osteopaths,
+            "package_stores_beer_wine_and_liquor" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PackageStoresBeerWineAndLiquor,
+            "paints_varnishes_and_supplies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PaintsVarnishesAndSupplies,
+            "parking_lots_garages" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ParkingLotsGarages,
+            "passenger_railways" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PassengerRailways,
+            "pawn_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PawnShops,
+            "pet_shops_pet_food_and_supplies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PetShopsPetFoodAndSupplies,
+            "petroleum_and_petroleum_products" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PetroleumAndPetroleumProducts,
+            "photo_developing" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PhotoDeveloping,
+            "photographic_photocopy_microfilm_equipment_and_supplies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PhotographicPhotocopyMicrofilmEquipmentAndSupplies,
+            "photographic_studios" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PhotographicStudios,
+            "picture_video_production" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PictureVideoProduction,
+            "piece_goods_notions_and_other_dry_goods" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PieceGoodsNotionsAndOtherDryGoods,
+            "plumbing_heating_equipment_and_supplies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PlumbingHeatingEquipmentAndSupplies,
+            "political_organizations" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PoliticalOrganizations,
+            "postal_services_government_only" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PostalServicesGovernmentOnly,
+            "precious_stones_and_metals_watches_and_jewelry" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PreciousStonesAndMetalsWatchesAndJewelry,
+            "professional_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ProfessionalServices,
+            "public_warehousing_and_storage" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::PublicWarehousingAndStorage,
+            "quick_copy_repro_and_blueprint" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::QuickCopyReproAndBlueprint,
+            "railroads" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Railroads,
+            "real_estate_agents_and_managers_rentals" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::RealEstateAgentsAndManagersRentals,
+            "record_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::RecordStores,
+            "recreational_vehicle_rentals" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::RecreationalVehicleRentals,
+            "religious_goods_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ReligiousGoodsStores,
+            "religious_organizations" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ReligiousOrganizations,
+            "roofing_siding_sheet_metal" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::RoofingSidingSheetMetal,
+            "secretarial_support_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SecretarialSupportServices,
+            "security_brokers_dealers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SecurityBrokersDealers,
+            "service_stations" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ServiceStations,
+            "sewing_needlework_fabric_and_piece_goods_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SewingNeedleworkFabricAndPieceGoodsStores,
+            "shoe_repair_hat_cleaning" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ShoeRepairHatCleaning,
+            "shoe_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::ShoeStores,
+            "small_appliance_repair" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SmallApplianceRepair,
+            "snowmobile_dealers" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SnowmobileDealers,
+            "special_trade_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SpecialTradeServices,
+            "specialty_cleaning" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SpecialtyCleaning,
+            "sporting_goods_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SportingGoodsStores,
+            "sporting_recreation_camps" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SportingRecreationCamps,
+            "sports_and_riding_apparel_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SportsAndRidingApparelStores,
+            "sports_clubs_fields" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SportsClubsFields,
+            "stamp_and_coin_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::StampAndCoinStores,
+            "stationary_office_supplies_printing_and_writing_paper" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::StationaryOfficeSuppliesPrintingAndWritingPaper,
+            "stationery_stores_office_and_school_supply_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::StationeryStoresOfficeAndSchoolSupplyStores,
+            "swimming_pools_sales" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::SwimmingPoolsSales,
+            "t_ui_travel_germany" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TUiTravelGermany,
+            "tailors_alterations" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TailorsAlterations,
+            "tax_payments_government_agencies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TaxPaymentsGovernmentAgencies,
+            "tax_preparation_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TaxPreparationServices,
+            "taxicabs_limousines" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TaxicabsLimousines,
+            "telecommunication_equipment_and_telephone_sales" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TelecommunicationEquipmentAndTelephoneSales,
+            "telecommunication_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TelecommunicationServices,
+            "telegraph_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TelegraphServices,
+            "tent_and_awning_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TentAndAwningShops,
+            "testing_laboratories" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TestingLaboratories,
+            "theatrical_ticket_agencies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TheatricalTicketAgencies,
+            "timeshares" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Timeshares,
+            "tire_retreading_and_repair" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TireRetreadingAndRepair,
+            "tolls_bridge_fees" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TollsBridgeFees,
+            "tourist_attractions_and_exhibits" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TouristAttractionsAndExhibits,
+            "towing_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TowingServices,
+            "trailer_parks_campgrounds" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TrailerParksCampgrounds,
+            "transportation_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TransportationServices,
+            "travel_agencies_tour_operators" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TravelAgenciesTourOperators,
+            "truck_stop_iteration" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TruckStopIteration,
+            "truck_utility_trailer_rentals" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TruckUtilityTrailerRentals,
+            "typesetting_plate_making_and_related_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TypesettingPlateMakingAndRelatedServices,
+            "typewriter_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::TypewriterStores,
+            "u_s_federal_government_agencies_or_departments" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::USFederalGovernmentAgenciesOrDepartments,
+            "uniforms_commercial_clothing" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::UniformsCommercialClothing,
+            "used_merchandise_and_secondhand_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::UsedMerchandiseAndSecondhandStores,
+            "utilities" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Utilities,
+            "variety_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::VarietyStores,
+            "veterinary_services" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::VeterinaryServices,
+            "video_amusement_game_supplies" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::VideoAmusementGameSupplies,
+            "video_game_arcades" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::VideoGameArcades,
+            "video_tape_rental_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::VideoTapeRentalStores,
+            "vocational_trade_schools" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::VocationalTradeSchools,
+            "watch_jewelry_repair" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::WatchJewelryRepair,
+            "welding_repair" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::WeldingRepair,
+            "wholesale_clubs" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::WholesaleClubs,
+            "wig_and_toupee_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::WigAndToupeeStores,
+            "wires_money_orders" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::WiresMoneyOrders,
+            "womens_accessory_and_specialty_shops" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::WomensAccessoryAndSpecialtyShops,
+            "womens_ready_to_wear_stores" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::WomensReadyToWearStores,
+            "wrecking_and_salvage_yards" => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::WreckingAndSalvageYards,
+            other => CreateIssuingCardholderParamsSpendingControlsAllowedCategoriesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2027,45 +1899,27 @@ impl CreateIssuingCardholderParamsSpendingControlsSpendingLimitsItemInterval {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for CreateIssuingCardholderParamsSpendingControlsSpendingLimitsItemInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateIssuingCardholderParamsSpendingControlsSpendingLimitsItemInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "all_time" => CreateIssuingCardholderParamsSpendingControlsSpendingLimitsItemInterval::AllTime,
-                    "daily" => CreateIssuingCardholderParamsSpendingControlsSpendingLimitsItemInterval::Daily,
-                    "monthly" => CreateIssuingCardholderParamsSpendingControlsSpendingLimitsItemInterval::Monthly,
-                    "per_authorization" => {
-                        CreateIssuingCardholderParamsSpendingControlsSpendingLimitsItemInterval::PerAuthorization
-                    }
-                    "weekly" => CreateIssuingCardholderParamsSpendingControlsSpendingLimitsItemInterval::Weekly,
-                    "yearly" => CreateIssuingCardholderParamsSpendingControlsSpendingLimitsItemInterval::Yearly,
-                    other => CreateIssuingCardholderParamsSpendingControlsSpendingLimitsItemInterval::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateIssuingCardholderParamsSpendingControlsSpendingLimitsItemInterval::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateIssuingCardholderParamsSpendingControlsSpendingLimitsItemInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateIssuingCardholderParamsSpendingControlsSpendingLimitsItemInterval::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "all_time" => CreateIssuingCardholderParamsSpendingControlsSpendingLimitsItemInterval::AllTime,
+            "daily" => CreateIssuingCardholderParamsSpendingControlsSpendingLimitsItemInterval::Daily,
+            "monthly" => CreateIssuingCardholderParamsSpendingControlsSpendingLimitsItemInterval::Monthly,
+            "per_authorization" => {
+                CreateIssuingCardholderParamsSpendingControlsSpendingLimitsItemInterval::PerAuthorization
+            }
+            "weekly" => CreateIssuingCardholderParamsSpendingControlsSpendingLimitsItemInterval::Weekly,
+            "yearly" => CreateIssuingCardholderParamsSpendingControlsSpendingLimitsItemInterval::Yearly,
+            other => {
+                CreateIssuingCardholderParamsSpendingControlsSpendingLimitsItemInterval::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -2098,37 +1952,19 @@ impl CreateIssuingCardholderParamsStatus {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for CreateIssuingCardholderParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateIssuingCardholderParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => CreateIssuingCardholderParamsStatus::Active,
-                    "inactive" => CreateIssuingCardholderParamsStatus::Inactive,
-                    other => CreateIssuingCardholderParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateIssuingCardholderParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateIssuingCardholderParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateIssuingCardholderParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => CreateIssuingCardholderParamsStatus::Active,
+            "inactive" => CreateIssuingCardholderParamsStatus::Inactive,
+            other => CreateIssuingCardholderParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2220,25 +2056,25 @@ impl crate::params::FormEncode for CreateIssuingDisputeParamsEvidence {
 #[derive(Debug, Clone, Default)]
 pub struct CreateIssuingDisputeParamsEvidenceCanceled {
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Additional documentation supporting the dispute."]
-    pub additional_documentation: Option<serde_json::Value>,
+    pub additional_documentation: Option<json::OwnedValue>,
     #[doc = "Date when order was canceled."]
-    pub canceled_at: Option<serde_json::Value>,
+    pub canceled_at: Option<json::OwnedValue>,
     #[doc = "Whether the cardholder was provided with a cancellation policy."]
-    pub cancellation_policy_provided: Option<serde_json::Value>,
+    pub cancellation_policy_provided: Option<json::OwnedValue>,
     #[doc = "Reason for canceling the order."]
-    pub cancellation_reason: Option<serde_json::Value>,
+    pub cancellation_reason: Option<json::OwnedValue>,
     #[doc = "Date when the cardholder expected to receive the product."]
-    pub expected_at: Option<serde_json::Value>,
+    pub expected_at: Option<json::OwnedValue>,
     #[doc = "Explanation of why the cardholder is disputing this transaction."]
-    pub explanation: Option<serde_json::Value>,
+    pub explanation: Option<json::OwnedValue>,
     #[doc = "Description of the merchandise or service that was purchased."]
-    pub product_description: Option<serde_json::Value>,
+    pub product_description: Option<json::OwnedValue>,
     #[doc = "Whether the product was a merchandise or service."]
     pub product_type: Option<crate::issuing::CreateIssuingDisputeParamsEvidenceCanceledProductType>,
     #[doc = "Result of cardholder's attempt to return the product."]
     pub return_status: Option<crate::issuing::CreateIssuingDisputeParamsEvidenceCanceledReturnStatus>,
     #[doc = "Date when the product was returned or attempted to be returned."]
-    pub returned_at: Option<serde_json::Value>,
+    pub returned_at: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "issuing")]
@@ -2273,38 +2109,20 @@ impl CreateIssuingDisputeParamsEvidenceCanceledProductType {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for CreateIssuingDisputeParamsEvidenceCanceledProductType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateIssuingDisputeParamsEvidenceCanceledProductType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreateIssuingDisputeParamsEvidenceCanceledProductType::Unnamed,
-                    "merchandise" => CreateIssuingDisputeParamsEvidenceCanceledProductType::Merchandise,
-                    "service" => CreateIssuingDisputeParamsEvidenceCanceledProductType::Service,
-                    other => CreateIssuingDisputeParamsEvidenceCanceledProductType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateIssuingDisputeParamsEvidenceCanceledProductType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateIssuingDisputeParamsEvidenceCanceledProductType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateIssuingDisputeParamsEvidenceCanceledProductType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreateIssuingDisputeParamsEvidenceCanceledProductType::Unnamed,
+            "merchandise" => CreateIssuingDisputeParamsEvidenceCanceledProductType::Merchandise,
+            "service" => CreateIssuingDisputeParamsEvidenceCanceledProductType::Service,
+            other => CreateIssuingDisputeParamsEvidenceCanceledProductType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2339,38 +2157,20 @@ impl CreateIssuingDisputeParamsEvidenceCanceledReturnStatus {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for CreateIssuingDisputeParamsEvidenceCanceledReturnStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateIssuingDisputeParamsEvidenceCanceledReturnStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreateIssuingDisputeParamsEvidenceCanceledReturnStatus::Unnamed,
-                    "merchant_rejected" => CreateIssuingDisputeParamsEvidenceCanceledReturnStatus::MerchantRejected,
-                    "successful" => CreateIssuingDisputeParamsEvidenceCanceledReturnStatus::Successful,
-                    other => CreateIssuingDisputeParamsEvidenceCanceledReturnStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateIssuingDisputeParamsEvidenceCanceledReturnStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateIssuingDisputeParamsEvidenceCanceledReturnStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateIssuingDisputeParamsEvidenceCanceledReturnStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreateIssuingDisputeParamsEvidenceCanceledReturnStatus::Unnamed,
+            "merchant_rejected" => CreateIssuingDisputeParamsEvidenceCanceledReturnStatus::MerchantRejected,
+            "successful" => CreateIssuingDisputeParamsEvidenceCanceledReturnStatus::Successful,
+            other => CreateIssuingDisputeParamsEvidenceCanceledReturnStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2385,15 +2185,15 @@ impl crate::params::FormEncode for CreateIssuingDisputeParamsEvidenceCanceledRet
 #[derive(Debug, Clone, Default)]
 pub struct CreateIssuingDisputeParamsEvidenceDuplicate {
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Additional documentation supporting the dispute."]
-    pub additional_documentation: Option<serde_json::Value>,
+    pub additional_documentation: Option<json::OwnedValue>,
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Copy of the card statement showing that the produ..."]
-    pub card_statement: Option<serde_json::Value>,
+    pub card_statement: Option<json::OwnedValue>,
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Copy of the receipt showing that the product had ..."]
-    pub cash_receipt: Option<serde_json::Value>,
+    pub cash_receipt: Option<json::OwnedValue>,
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Image of the front and back of the check that was..."]
-    pub check_image: Option<serde_json::Value>,
+    pub check_image: Option<json::OwnedValue>,
     #[doc = "Explanation of why the cardholder is disputing this transaction."]
-    pub explanation: Option<serde_json::Value>,
+    pub explanation: Option<json::OwnedValue>,
     #[doc = "Transaction (e.g., ipi_...) that the disputed transaction is a duplicate of."]
     pub original_transaction: Option<String>,
 }
@@ -2409,9 +2209,9 @@ impl crate::params::FormEncode for CreateIssuingDisputeParamsEvidenceDuplicate {
 #[derive(Debug, Clone, Default)]
 pub struct CreateIssuingDisputeParamsEvidenceFraudulent {
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Additional documentation supporting the dispute."]
-    pub additional_documentation: Option<serde_json::Value>,
+    pub additional_documentation: Option<json::OwnedValue>,
     #[doc = "Explanation of why the cardholder is disputing this transaction."]
-    pub explanation: Option<serde_json::Value>,
+    pub explanation: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "issuing")]
@@ -2425,17 +2225,17 @@ impl crate::params::FormEncode for CreateIssuingDisputeParamsEvidenceFraudulent 
 #[derive(Debug, Clone, Default)]
 pub struct CreateIssuingDisputeParamsEvidenceMerchandiseNotAsDescribed {
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Additional documentation supporting the dispute."]
-    pub additional_documentation: Option<serde_json::Value>,
+    pub additional_documentation: Option<json::OwnedValue>,
     #[doc = "Explanation of why the cardholder is disputing this transaction."]
-    pub explanation: Option<serde_json::Value>,
+    pub explanation: Option<json::OwnedValue>,
     #[doc = "Date when the product was received."]
-    pub received_at: Option<serde_json::Value>,
+    pub received_at: Option<json::OwnedValue>,
     #[doc = "Description of the cardholder's attempt to return the product."]
-    pub return_description: Option<serde_json::Value>,
+    pub return_description: Option<json::OwnedValue>,
     #[doc = "Result of cardholder's attempt to return the product."]
     pub return_status: Option<crate::issuing::CreateIssuingDisputeParamsEvidenceMerchandiseNotAsDescribedReturnStatus>,
     #[doc = "Date when the product was returned or attempted to be returned."]
-    pub returned_at: Option<serde_json::Value>,
+    pub returned_at: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "issuing")]
@@ -2457,13 +2257,13 @@ pub type CreateIssuingDisputeParamsEvidenceNoValidAuthorization =
 #[derive(Debug, Clone, Default)]
 pub struct CreateIssuingDisputeParamsEvidenceNotReceived {
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Additional documentation supporting the dispute."]
-    pub additional_documentation: Option<serde_json::Value>,
+    pub additional_documentation: Option<json::OwnedValue>,
     #[doc = "Date when the cardholder expected to receive the product."]
-    pub expected_at: Option<serde_json::Value>,
+    pub expected_at: Option<json::OwnedValue>,
     #[doc = "Explanation of why the cardholder is disputing this transaction."]
-    pub explanation: Option<serde_json::Value>,
+    pub explanation: Option<json::OwnedValue>,
     #[doc = "Description of the merchandise or service that was purchased."]
-    pub product_description: Option<serde_json::Value>,
+    pub product_description: Option<json::OwnedValue>,
     #[doc = "Whether the product was a merchandise or service."]
     pub product_type: Option<crate::issuing::CreateIssuingDisputeParamsEvidenceNotReceivedProductType>,
 }
@@ -2483,11 +2283,11 @@ pub type CreateIssuingDisputeParamsEvidenceNotReceivedProductType =
 #[derive(Debug, Clone, Default)]
 pub struct CreateIssuingDisputeParamsEvidenceOther {
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Additional documentation supporting the dispute."]
-    pub additional_documentation: Option<serde_json::Value>,
+    pub additional_documentation: Option<json::OwnedValue>,
     #[doc = "Explanation of why the cardholder is disputing this transaction."]
-    pub explanation: Option<serde_json::Value>,
+    pub explanation: Option<json::OwnedValue>,
     #[doc = "Description of the merchandise or service that was purchased."]
-    pub product_description: Option<serde_json::Value>,
+    pub product_description: Option<json::OwnedValue>,
     #[doc = "Whether the product was a merchandise or service."]
     pub product_type: Option<crate::issuing::CreateIssuingDisputeParamsEvidenceOtherProductType>,
 }
@@ -2537,45 +2337,25 @@ impl CreateIssuingDisputeParamsEvidenceReason {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for CreateIssuingDisputeParamsEvidenceReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateIssuingDisputeParamsEvidenceReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "canceled" => CreateIssuingDisputeParamsEvidenceReason::Canceled,
-                    "duplicate" => CreateIssuingDisputeParamsEvidenceReason::Duplicate,
-                    "fraudulent" => CreateIssuingDisputeParamsEvidenceReason::Fraudulent,
-                    "merchandise_not_as_described" => {
-                        CreateIssuingDisputeParamsEvidenceReason::MerchandiseNotAsDescribed
-                    }
-                    "no_valid_authorization" => CreateIssuingDisputeParamsEvidenceReason::NoValidAuthorization,
-                    "not_received" => CreateIssuingDisputeParamsEvidenceReason::NotReceived,
-                    "other" => CreateIssuingDisputeParamsEvidenceReason::Other,
-                    "service_not_as_described" => CreateIssuingDisputeParamsEvidenceReason::ServiceNotAsDescribed,
-                    other => CreateIssuingDisputeParamsEvidenceReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateIssuingDisputeParamsEvidenceReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateIssuingDisputeParamsEvidenceReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateIssuingDisputeParamsEvidenceReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "canceled" => CreateIssuingDisputeParamsEvidenceReason::Canceled,
+            "duplicate" => CreateIssuingDisputeParamsEvidenceReason::Duplicate,
+            "fraudulent" => CreateIssuingDisputeParamsEvidenceReason::Fraudulent,
+            "merchandise_not_as_described" => CreateIssuingDisputeParamsEvidenceReason::MerchandiseNotAsDescribed,
+            "no_valid_authorization" => CreateIssuingDisputeParamsEvidenceReason::NoValidAuthorization,
+            "not_received" => CreateIssuingDisputeParamsEvidenceReason::NotReceived,
+            "other" => CreateIssuingDisputeParamsEvidenceReason::Other,
+            "service_not_as_described" => CreateIssuingDisputeParamsEvidenceReason::ServiceNotAsDescribed,
+            other => CreateIssuingDisputeParamsEvidenceReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2590,15 +2370,15 @@ impl crate::params::FormEncode for CreateIssuingDisputeParamsEvidenceReason {
 #[derive(Debug, Clone, Default)]
 pub struct CreateIssuingDisputeParamsEvidenceServiceNotAsDescribed {
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Additional documentation supporting the dispute."]
-    pub additional_documentation: Option<serde_json::Value>,
+    pub additional_documentation: Option<json::OwnedValue>,
     #[doc = "Date when order was canceled."]
-    pub canceled_at: Option<serde_json::Value>,
+    pub canceled_at: Option<json::OwnedValue>,
     #[doc = "Reason for canceling the order."]
-    pub cancellation_reason: Option<serde_json::Value>,
+    pub cancellation_reason: Option<json::OwnedValue>,
     #[doc = "Explanation of why the cardholder is disputing this transaction."]
-    pub explanation: Option<serde_json::Value>,
+    pub explanation: Option<json::OwnedValue>,
     #[doc = "Date when the product was received."]
-    pub received_at: Option<serde_json::Value>,
+    pub received_at: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "issuing")]
@@ -2670,13 +2450,13 @@ impl crate::params::FormEncode for CreateIssuingPersonalizationDesignParams {
 #[derive(Debug, Clone, Default)]
 pub struct CreateIssuingPersonalizationDesignParamsCarrierText {
     #[doc = "The footer body text of the carrier letter."]
-    pub footer_body: Option<serde_json::Value>,
+    pub footer_body: Option<json::OwnedValue>,
     #[doc = "The footer title text of the carrier letter."]
-    pub footer_title: Option<serde_json::Value>,
+    pub footer_title: Option<json::OwnedValue>,
     #[doc = "The header body text of the carrier letter."]
-    pub header_body: Option<serde_json::Value>,
+    pub header_body: Option<json::OwnedValue>,
     #[doc = "The header title text of the carrier letter."]
-    pub header_title: Option<serde_json::Value>,
+    pub header_title: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "issuing")]
@@ -2784,22 +2564,23 @@ pub type GetIssuingTransactionParams = crate::issuing::GetIssuingAuthorizationPa
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct InternalCard {
     #[doc = "Brand of the card used in the transaction"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub brand: Option<String>,
     #[doc = "Two-letter ISO code representing the country of the card"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[doc = "Two digit number representing the card's expiration month"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub exp_month: Option<i64>,
     #[doc = "Two digit number representing the card's expiration year"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub exp_year: Option<i64>,
     #[doc = "The last 4 digits of the card"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last4: Option<String>,
 }
 
@@ -2848,94 +2629,95 @@ pub struct InternalCard {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingAuthorization {
     #[doc = "The total amount that was authorized or rejected."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Detailed breakdown of amount components."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_details: Option<crate::issuing::IssuingAuthorizationAmountDetails>,
     #[doc = "Whether the authorization has been approved."]
-    #[serde(default)]
+    #[json(default)]
     pub approved: bool,
     #[doc = "How the card details were provided."]
-    #[serde(default)]
+    #[json(default)]
     pub authorization_method: crate::issuing::IssuingAuthorizationAuthorizationMethod,
     #[doc = "List of balance transactions associated with this authorization."]
-    #[serde(default)]
+    #[json(default)]
     pub balance_transactions: Vec<crate::balance_transactions::BalanceTransaction>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::issuing::IssuingCard>,
     #[doc = "Whether the card was present at the point of sale for the authorization."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card_presence: Option<crate::issuing::IssuingAuthorizationCardPresence>,
     #[doc = "The cardholder to whom this authorization belongs."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cardholder: Option<crate::Expandable<crate::issuing::IssuingCardholder>>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "The currency of the cardholder."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "Fleet-specific information for authorizations using Fleet cards."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fleet: Option<crate::issuing::IssuingAuthorizationFleetData>,
     #[doc = "Fraud challenges sent to the cardholder, if this authorization was declined for fraud risk reasons."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fraud_challenges: Option<Vec<crate::issuing::IssuingAuthorizationFraudChallenge>>,
     #[doc = "Information about fuel that was purchased with this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fuel: Option<crate::issuing::IssuingAuthorizationFuelData>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "The total amount that was authorized or rejected."]
-    #[serde(default)]
+    #[json(default)]
     pub merchant_amount: i64,
     #[doc = "The local currency that was presented to the cardholder for the authorization."]
-    #[serde(default)]
+    #[json(default)]
     pub merchant_currency: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub merchant_data: Option<crate::issuing::IssuingAuthorizationMerchantData>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "Details about the authorization, such as identifiers, set by the card network."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub network_data: Option<crate::issuing::IssuingAuthorizationNetworkData>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::issuing::IssuingAuthorizationObject,
     #[doc = "The pending authorization request."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pending_request: Option<crate::issuing::IssuingAuthorizationPendingRequest>,
     #[doc = "History of every time a `pending_request` authorization was approved/declined, either by you directly or by Stripe (e.g."]
-    #[serde(default)]
+    #[json(default)]
     pub request_history: Vec<crate::issuing::IssuingAuthorizationRequest>,
     #[doc = "The current status of the authorization in its lifecycle."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::issuing::IssuingAuthorizationStatus,
     #[doc = "[Token](https://docs.stripe.com/api/issuing/tokens/object) object used for this authorization."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub token: Option<crate::Expandable<crate::issuing::IssuingToken>>,
     #[doc = "List of [transactions](https://docs.stripe.com/api/issuing/transactions) associated with this authorization."]
-    #[serde(default)]
+    #[json(default)]
     pub transactions: Vec<crate::issuing::IssuingTransaction>,
     #[doc = "[Treasury](https://docs.stripe.com/api/treasury) details related to this authorization if it was created on a [Financ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub treasury: Option<crate::issuing::IssuingAuthorizationTreasury>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verification_data: Option<crate::issuing::IssuingAuthorizationVerificationData>,
     #[doc = "Whether the authorization bypassed fraud risk checks because the cardholder has previously completed a fraud challeng..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verified_by_fraud_challenge: Option<bool>,
     #[doc = "The digital wallet used for this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub wallet: Option<String>,
 }
 
@@ -3035,13 +2817,14 @@ impl crate::PagedItem for IssuingAuthorization {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingAuthorizationAmountDetails {
     #[doc = "The fee charged by the ATM for the cash withdrawal."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub atm_fee: Option<i64>,
     #[doc = "The amount of cash requested by the cardholder."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cashback_amount: Option<i64>,
 }
 
@@ -3090,13 +2873,14 @@ pub struct IssuingAuthorizationAmountDetails {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingAuthorizationAuthenticationExemption {
     #[doc = "The entity that requested the exemption, either the acquiring merchant or the Issuing user."]
-    #[serde(default)]
+    #[json(default)]
     pub claimed_by: crate::issuing::IssuingAuthorizationAuthenticationExemptionClaimedBy,
     #[doc = "The specific exemption claimed for this authorization."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::issuing::IssuingAuthorizationAuthenticationExemptionType,
 }
 
@@ -3305,37 +3089,19 @@ impl Default for IssuingAuthorizationAuthenticationExemptionClaimedBy {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingAuthorizationAuthenticationExemptionClaimedBy {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingAuthorizationAuthenticationExemptionClaimedBy;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "acquirer" => IssuingAuthorizationAuthenticationExemptionClaimedBy::Acquirer,
-                    "issuer" => IssuingAuthorizationAuthenticationExemptionClaimedBy::Issuer,
-                    other => IssuingAuthorizationAuthenticationExemptionClaimedBy::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingAuthorizationAuthenticationExemptionClaimedBy::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingAuthorizationAuthenticationExemptionClaimedBy {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingAuthorizationAuthenticationExemptionClaimedBy::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "acquirer" => IssuingAuthorizationAuthenticationExemptionClaimedBy::Acquirer,
+            "issuer" => IssuingAuthorizationAuthenticationExemptionClaimedBy::Issuer,
+            other => IssuingAuthorizationAuthenticationExemptionClaimedBy::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3546,40 +3312,20 @@ impl Default for IssuingAuthorizationAuthenticationExemptionType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingAuthorizationAuthenticationExemptionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingAuthorizationAuthenticationExemptionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "low_value_transaction" => IssuingAuthorizationAuthenticationExemptionType::LowValueTransaction,
-                    "transaction_risk_analysis" => {
-                        IssuingAuthorizationAuthenticationExemptionType::TransactionRiskAnalysis
-                    }
-                    "unknown" => IssuingAuthorizationAuthenticationExemptionType::UnknownValue,
-                    other => IssuingAuthorizationAuthenticationExemptionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingAuthorizationAuthenticationExemptionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingAuthorizationAuthenticationExemptionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingAuthorizationAuthenticationExemptionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "low_value_transaction" => IssuingAuthorizationAuthenticationExemptionType::LowValueTransaction,
+            "transaction_risk_analysis" => IssuingAuthorizationAuthenticationExemptionType::TransactionRiskAnalysis,
+            "unknown" => IssuingAuthorizationAuthenticationExemptionType::UnknownValue,
+            other => IssuingAuthorizationAuthenticationExemptionType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3794,40 +3540,22 @@ impl Default for IssuingAuthorizationAuthorizationMethod {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingAuthorizationAuthorizationMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingAuthorizationAuthorizationMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "chip" => IssuingAuthorizationAuthorizationMethod::Chip,
-                    "contactless" => IssuingAuthorizationAuthorizationMethod::Contactless,
-                    "keyed_in" => IssuingAuthorizationAuthorizationMethod::KeyedIn,
-                    "online" => IssuingAuthorizationAuthorizationMethod::Online,
-                    "swipe" => IssuingAuthorizationAuthorizationMethod::Swipe,
-                    other => IssuingAuthorizationAuthorizationMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingAuthorizationAuthorizationMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingAuthorizationAuthorizationMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingAuthorizationAuthorizationMethod::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "chip" => IssuingAuthorizationAuthorizationMethod::Chip,
+            "contactless" => IssuingAuthorizationAuthorizationMethod::Contactless,
+            "keyed_in" => IssuingAuthorizationAuthorizationMethod::KeyedIn,
+            "online" => IssuingAuthorizationAuthorizationMethod::Online,
+            "swipe" => IssuingAuthorizationAuthorizationMethod::Swipe,
+            other => IssuingAuthorizationAuthorizationMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3985,37 +3713,19 @@ impl IssuingAuthorizationCardPresence {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingAuthorizationCardPresence {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingAuthorizationCardPresence;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "not_present" => IssuingAuthorizationCardPresence::NotPresent,
-                    "present" => IssuingAuthorizationCardPresence::Present,
-                    other => IssuingAuthorizationCardPresence::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingAuthorizationCardPresence::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingAuthorizationCardPresence {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingAuthorizationCardPresence::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "not_present" => IssuingAuthorizationCardPresence::NotPresent,
+            "present" => IssuingAuthorizationCardPresence::Present,
+            other => IssuingAuthorizationCardPresence::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4064,25 +3774,26 @@ impl<'de> serde::Deserialize<'de> for IssuingAuthorizationCardPresence {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingAuthorizationFleetCardholderPromptData {
     #[doc = "[Deprecated] An alphanumeric ID, though typical point of sales only support numeric entry."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub alphanumeric_id: Option<String>,
     #[doc = "Driver ID."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub driver_id: Option<String>,
     #[doc = "Odometer reading."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub odometer: Option<i64>,
     #[doc = "An alphanumeric ID."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unspecified_id: Option<String>,
     #[doc = "User ID."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub user_id: Option<String>,
     #[doc = "Vehicle number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub vehicle_number: Option<String>,
 }
 
@@ -4131,19 +3842,20 @@ pub struct IssuingAuthorizationFleetCardholderPromptData {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingAuthorizationFleetData {
     #[doc = "Answers to prompts presented to the cardholder at the point of sale."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cardholder_prompt_data: Option<crate::issuing::IssuingAuthorizationFleetCardholderPromptData>,
     #[doc = "The type of purchase."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub purchase_type: Option<crate::issuing::IssuingAuthorizationFleetDataPurchaseType>,
     #[doc = "More information about the total amount."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reported_breakdown: Option<crate::issuing::IssuingAuthorizationFleetReportedBreakdown>,
     #[doc = "The type of fuel service."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub service_type: Option<crate::issuing::IssuingAuthorizationFleetDataServiceType>,
 }
 
@@ -4303,38 +4015,20 @@ impl IssuingAuthorizationFleetDataPurchaseType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingAuthorizationFleetDataPurchaseType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingAuthorizationFleetDataPurchaseType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "fuel_and_non_fuel_purchase" => IssuingAuthorizationFleetDataPurchaseType::FuelAndNonFuelPurchase,
-                    "fuel_purchase" => IssuingAuthorizationFleetDataPurchaseType::FuelPurchase,
-                    "non_fuel_purchase" => IssuingAuthorizationFleetDataPurchaseType::NonFuelPurchase,
-                    other => IssuingAuthorizationFleetDataPurchaseType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingAuthorizationFleetDataPurchaseType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingAuthorizationFleetDataPurchaseType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingAuthorizationFleetDataPurchaseType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "fuel_and_non_fuel_purchase" => IssuingAuthorizationFleetDataPurchaseType::FuelAndNonFuelPurchase,
+            "fuel_purchase" => IssuingAuthorizationFleetDataPurchaseType::FuelPurchase,
+            "non_fuel_purchase" => IssuingAuthorizationFleetDataPurchaseType::NonFuelPurchase,
+            other => IssuingAuthorizationFleetDataPurchaseType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4494,38 +4188,20 @@ impl IssuingAuthorizationFleetDataServiceType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingAuthorizationFleetDataServiceType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingAuthorizationFleetDataServiceType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "full_service" => IssuingAuthorizationFleetDataServiceType::FullService,
-                    "non_fuel_transaction" => IssuingAuthorizationFleetDataServiceType::NonFuelTransaction,
-                    "self_service" => IssuingAuthorizationFleetDataServiceType::SelfService,
-                    other => IssuingAuthorizationFleetDataServiceType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingAuthorizationFleetDataServiceType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingAuthorizationFleetDataServiceType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingAuthorizationFleetDataServiceType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "full_service" => IssuingAuthorizationFleetDataServiceType::FullService,
+            "non_fuel_transaction" => IssuingAuthorizationFleetDataServiceType::NonFuelTransaction,
+            "self_service" => IssuingAuthorizationFleetDataServiceType::SelfService,
+            other => IssuingAuthorizationFleetDataServiceType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4574,10 +4250,11 @@ impl<'de> serde::Deserialize<'de> for IssuingAuthorizationFleetDataServiceType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingAuthorizationFleetFuelPriceData {
     #[doc = "Gross fuel amount that should equal Fuel Quantity multiplied by Fuel Unit Cost, inclusive of taxes."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub gross_amount_decimal: Option<String>,
 }
 
@@ -4626,10 +4303,11 @@ pub struct IssuingAuthorizationFleetFuelPriceData {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingAuthorizationFleetNonFuelPriceData {
     #[doc = "Gross non-fuel amount that should equal the sum of the line items, inclusive of taxes."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub gross_amount_decimal: Option<String>,
 }
 
@@ -4678,16 +4356,17 @@ pub struct IssuingAuthorizationFleetNonFuelPriceData {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingAuthorizationFleetReportedBreakdown {
     #[doc = "Breakdown of fuel portion of the purchase."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fuel: Option<crate::issuing::IssuingAuthorizationFleetFuelPriceData>,
     #[doc = "Breakdown of non-fuel portion of the purchase."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub non_fuel: Option<crate::issuing::IssuingAuthorizationFleetNonFuelPriceData>,
     #[doc = "Information about tax included in this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax: Option<crate::issuing::IssuingAuthorizationFleetTaxData>,
 }
 
@@ -4736,13 +4415,14 @@ pub struct IssuingAuthorizationFleetReportedBreakdown {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingAuthorizationFleetTaxData {
     #[doc = "Amount of state or provincial Sales Tax included in the transaction amount."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub local_amount_decimal: Option<String>,
     #[doc = "Amount of national Sales Tax or VAT included in the transaction amount."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub national_amount_decimal: Option<String>,
 }
 
@@ -4791,16 +4471,17 @@ pub struct IssuingAuthorizationFleetTaxData {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingAuthorizationFraudChallenge {
     #[doc = "The method by which the fraud challenge was delivered to the cardholder."]
-    #[serde(default)]
+    #[json(default)]
     pub channel: crate::issuing::IssuingAuthorizationFraudChallengeChannel,
     #[doc = "The status of the fraud challenge."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::issuing::IssuingAuthorizationFraudChallengeStatus,
     #[doc = "If the challenge is not deliverable, the reason why."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub undeliverable_reason: Option<crate::issuing::IssuingAuthorizationFraudChallengeUndeliverableReason>,
 }
 
@@ -5007,36 +4688,18 @@ impl Default for IssuingAuthorizationFraudChallengeChannel {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingAuthorizationFraudChallengeChannel {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingAuthorizationFraudChallengeChannel;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "sms" => IssuingAuthorizationFraudChallengeChannel::Sms,
-                    other => IssuingAuthorizationFraudChallengeChannel::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingAuthorizationFraudChallengeChannel::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingAuthorizationFraudChallengeChannel {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingAuthorizationFraudChallengeChannel::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "sms" => IssuingAuthorizationFraudChallengeChannel::Sms,
+            other => IssuingAuthorizationFraudChallengeChannel::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5251,40 +4914,22 @@ impl Default for IssuingAuthorizationFraudChallengeStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingAuthorizationFraudChallengeStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingAuthorizationFraudChallengeStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "expired" => IssuingAuthorizationFraudChallengeStatus::Expired,
-                    "pending" => IssuingAuthorizationFraudChallengeStatus::Pending,
-                    "rejected" => IssuingAuthorizationFraudChallengeStatus::Rejected,
-                    "undeliverable" => IssuingAuthorizationFraudChallengeStatus::Undeliverable,
-                    "verified" => IssuingAuthorizationFraudChallengeStatus::Verified,
-                    other => IssuingAuthorizationFraudChallengeStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingAuthorizationFraudChallengeStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingAuthorizationFraudChallengeStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingAuthorizationFraudChallengeStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "expired" => IssuingAuthorizationFraudChallengeStatus::Expired,
+            "pending" => IssuingAuthorizationFraudChallengeStatus::Pending,
+            "rejected" => IssuingAuthorizationFraudChallengeStatus::Rejected,
+            "undeliverable" => IssuingAuthorizationFraudChallengeStatus::Undeliverable,
+            "verified" => IssuingAuthorizationFraudChallengeStatus::Verified,
+            other => IssuingAuthorizationFraudChallengeStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5442,39 +5087,19 @@ impl IssuingAuthorizationFraudChallengeUndeliverableReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingAuthorizationFraudChallengeUndeliverableReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingAuthorizationFraudChallengeUndeliverableReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "no_phone_number" => IssuingAuthorizationFraudChallengeUndeliverableReason::NoPhoneNumber,
-                    "unsupported_phone_number" => {
-                        IssuingAuthorizationFraudChallengeUndeliverableReason::UnsupportedPhoneNumber
-                    }
-                    other => IssuingAuthorizationFraudChallengeUndeliverableReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingAuthorizationFraudChallengeUndeliverableReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingAuthorizationFraudChallengeUndeliverableReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingAuthorizationFraudChallengeUndeliverableReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "no_phone_number" => IssuingAuthorizationFraudChallengeUndeliverableReason::NoPhoneNumber,
+            "unsupported_phone_number" => IssuingAuthorizationFraudChallengeUndeliverableReason::UnsupportedPhoneNumber,
+            other => IssuingAuthorizationFraudChallengeUndeliverableReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5523,22 +5148,23 @@ impl<'de> serde::Deserialize<'de> for IssuingAuthorizationFraudChallengeUndelive
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingAuthorizationFuelData {
     #[doc = "[Conexxus Payment System Product Code](https://www.conexxus.org/conexxus-payment-system-product-codes) identifying th..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub industry_product_code: Option<String>,
     #[doc = "The quantity of `unit`s of fuel that was dispensed, represented as a decimal string with at most 12 decimal places."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub quantity_decimal: Option<String>,
     #[doc = "The type of fuel that was purchased."]
-    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    #[json(rename = "type", default, skip_serializing_if = "Option::is_none")]
     pub r#type: Option<crate::issuing::IssuingAuthorizationFuelDataType>,
     #[doc = "The units for `quantity_decimal`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unit: Option<crate::issuing::IssuingAuthorizationFuelDataUnit>,
     #[doc = "The cost in cents per each unit of fuel, represented as a decimal string with at most 12 decimal places."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unit_cost_decimal: Option<String>,
 }
 
@@ -5702,40 +5328,22 @@ impl IssuingAuthorizationFuelDataType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingAuthorizationFuelDataType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingAuthorizationFuelDataType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "diesel" => IssuingAuthorizationFuelDataType::Diesel,
-                    "other" => IssuingAuthorizationFuelDataType::Other,
-                    "unleaded_plus" => IssuingAuthorizationFuelDataType::UnleadedPlus,
-                    "unleaded_regular" => IssuingAuthorizationFuelDataType::UnleadedRegular,
-                    "unleaded_super" => IssuingAuthorizationFuelDataType::UnleadedSuper,
-                    other => IssuingAuthorizationFuelDataType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingAuthorizationFuelDataType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingAuthorizationFuelDataType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingAuthorizationFuelDataType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "diesel" => IssuingAuthorizationFuelDataType::Diesel,
+            "other" => IssuingAuthorizationFuelDataType::Other,
+            "unleaded_plus" => IssuingAuthorizationFuelDataType::UnleadedPlus,
+            "unleaded_regular" => IssuingAuthorizationFuelDataType::UnleadedRegular,
+            "unleaded_super" => IssuingAuthorizationFuelDataType::UnleadedSuper,
+            other => IssuingAuthorizationFuelDataType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5905,43 +5513,25 @@ impl IssuingAuthorizationFuelDataUnit {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingAuthorizationFuelDataUnit {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingAuthorizationFuelDataUnit;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "charging_minute" => IssuingAuthorizationFuelDataUnit::ChargingMinute,
-                    "imperial_gallon" => IssuingAuthorizationFuelDataUnit::ImperialGallon,
-                    "kilogram" => IssuingAuthorizationFuelDataUnit::Kilogram,
-                    "kilowatt_hour" => IssuingAuthorizationFuelDataUnit::KilowattHour,
-                    "liter" => IssuingAuthorizationFuelDataUnit::Liter,
-                    "other" => IssuingAuthorizationFuelDataUnit::Other,
-                    "pound" => IssuingAuthorizationFuelDataUnit::Pound,
-                    "us_gallon" => IssuingAuthorizationFuelDataUnit::UsGallon,
-                    other => IssuingAuthorizationFuelDataUnit::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingAuthorizationFuelDataUnit::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingAuthorizationFuelDataUnit {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingAuthorizationFuelDataUnit::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "charging_minute" => IssuingAuthorizationFuelDataUnit::ChargingMinute,
+            "imperial_gallon" => IssuingAuthorizationFuelDataUnit::ImperialGallon,
+            "kilogram" => IssuingAuthorizationFuelDataUnit::Kilogram,
+            "kilowatt_hour" => IssuingAuthorizationFuelDataUnit::KilowattHour,
+            "liter" => IssuingAuthorizationFuelDataUnit::Liter,
+            "other" => IssuingAuthorizationFuelDataUnit::Other,
+            "pound" => IssuingAuthorizationFuelDataUnit::Pound,
+            "us_gallon" => IssuingAuthorizationFuelDataUnit::UsGallon,
+            other => IssuingAuthorizationFuelDataUnit::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5990,40 +5580,41 @@ impl<'de> serde::Deserialize<'de> for IssuingAuthorizationFuelDataUnit {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingAuthorizationMerchantData {
     #[doc = "A categorization of the seller's type of business."]
-    #[serde(default)]
+    #[json(default)]
     pub category: String,
     #[doc = "The merchant category code for the seller’s business"]
-    #[serde(default)]
+    #[json(default)]
     pub category_code: String,
     #[doc = "City where the seller is located"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
     #[doc = "Country where the seller is located"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[doc = "Name of the seller"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[doc = "Identifier assigned to the seller by the card network."]
-    #[serde(default)]
+    #[json(default)]
     pub network_id: String,
     #[doc = "Postal code where the seller is located"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub postal_code: Option<String>,
     #[doc = "State where the seller is located"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
     #[doc = "The seller's tax identification number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_id: Option<String>,
     #[doc = "An ID assigned by the seller to the location of the sale."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub terminal_id: Option<String>,
     #[doc = "URL provided by the merchant on a 3DS request"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 }
 
@@ -6072,16 +5663,17 @@ pub struct IssuingAuthorizationMerchantData {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingAuthorizationNetworkData {
     #[doc = "Identifier assigned to the acquirer by the card network."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub acquiring_institution_id: Option<String>,
     #[doc = "The System Trace Audit Number (STAN) is a 6-digit identifier assigned by the acquirer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub system_trace_audit_number: Option<String>,
     #[doc = "Unique identifier for the authorization assigned by the card network used to match subsequent messages, disputes, and..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transaction_id: Option<String>,
 }
 
@@ -6288,36 +5880,18 @@ impl Default for IssuingAuthorizationObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingAuthorizationObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingAuthorizationObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "issuing.authorization" => IssuingAuthorizationObject::IssuingAuthorization,
-                    other => IssuingAuthorizationObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingAuthorizationObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingAuthorizationObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingAuthorizationObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "issuing.authorization" => IssuingAuthorizationObject::IssuingAuthorization,
+            other => IssuingAuthorizationObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6366,28 +5940,29 @@ impl<'de> serde::Deserialize<'de> for IssuingAuthorizationObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingAuthorizationPendingRequest {
     #[doc = "The additional amount Stripe will hold if the authorization is approved, in the card's [currency](https://docs.stripe..."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Detailed breakdown of amount components."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_details: Option<crate::issuing::IssuingAuthorizationAmountDetails>,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "If set `true`, you may provide [amount](https://docs.stripe.com/api/issuing/authorizations/approve#approve_issuing_au..."]
-    #[serde(default)]
+    #[json(default)]
     pub is_amount_controllable: bool,
     #[doc = "The amount the merchant is requesting to be authorized in the `merchant_currency`."]
-    #[serde(default)]
+    #[json(default)]
     pub merchant_amount: i64,
     #[doc = "The local currency the merchant is requesting to authorize."]
-    #[serde(default)]
+    #[json(default)]
     pub merchant_currency: String,
     #[doc = "The card network's estimate of the likelihood that an authorization is fraudulent."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub network_risk_score: Option<i64>,
 }
 
@@ -6436,43 +6011,44 @@ pub struct IssuingAuthorizationPendingRequest {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingAuthorizationRequest {
     #[doc = "The `pending_request.amount` at the time of the request, presented in your card's currency and in the [smallest curre..."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Detailed breakdown of amount components."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_details: Option<crate::issuing::IssuingAuthorizationAmountDetails>,
     #[doc = "Whether this request was approved."]
-    #[serde(default)]
+    #[json(default)]
     pub approved: bool,
     #[doc = "A code created by Stripe which is shared with the merchant to validate the authorization."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub authorization_code: Option<String>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "The `pending_request.merchant_amount` at the time of the request, presented in the `merchant_currency` and in the [sm..."]
-    #[serde(default)]
+    #[json(default)]
     pub merchant_amount: i64,
     #[doc = "The currency that was collected by the merchant and presented to the cardholder for the authorization."]
-    #[serde(default)]
+    #[json(default)]
     pub merchant_currency: String,
     #[doc = "The card network's estimate of the likelihood that an authorization is fraudulent."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub network_risk_score: Option<i64>,
     #[doc = "When an authorization is approved or declined by you or by Stripe, this field provides additional detail on the reaso..."]
-    #[serde(default)]
+    #[json(default)]
     pub reason: crate::issuing::IssuingAuthorizationRequestReason,
     #[doc = "If the `request_history.reason` is `webhook_error` because the direct webhook response is invalid (for example, parsi..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reason_message: Option<String>,
     #[doc = "Time when the card network received an authorization request from the acquirer in UTC."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub requested_at: Option<i64>,
 }
 
@@ -6719,58 +6295,38 @@ impl Default for IssuingAuthorizationRequestReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingAuthorizationRequestReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingAuthorizationRequestReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account_disabled" => IssuingAuthorizationRequestReason::AccountDisabled,
-                    "card_active" => IssuingAuthorizationRequestReason::CardActive,
-                    "card_canceled" => IssuingAuthorizationRequestReason::CardCanceled,
-                    "card_expired" => IssuingAuthorizationRequestReason::CardExpired,
-                    "card_inactive" => IssuingAuthorizationRequestReason::CardInactive,
-                    "cardholder_blocked" => IssuingAuthorizationRequestReason::CardholderBlocked,
-                    "cardholder_inactive" => IssuingAuthorizationRequestReason::CardholderInactive,
-                    "cardholder_verification_required" => {
-                        IssuingAuthorizationRequestReason::CardholderVerificationRequired
-                    }
-                    "insecure_authorization_method" => IssuingAuthorizationRequestReason::InsecureAuthorizationMethod,
-                    "insufficient_funds" => IssuingAuthorizationRequestReason::InsufficientFunds,
-                    "network_fallback" => IssuingAuthorizationRequestReason::NetworkFallback,
-                    "not_allowed" => IssuingAuthorizationRequestReason::NotAllowed,
-                    "pin_blocked" => IssuingAuthorizationRequestReason::PinBlocked,
-                    "spending_controls" => IssuingAuthorizationRequestReason::SpendingControls,
-                    "stripe_internal_error" => IssuingAuthorizationRequestReason::StripeInternalError,
-                    "suspected_fraud" => IssuingAuthorizationRequestReason::SuspectedFraud,
-                    "verification_failed" => IssuingAuthorizationRequestReason::VerificationFailed,
-                    "webhook_approved" => IssuingAuthorizationRequestReason::WebhookApproved,
-                    "webhook_declined" => IssuingAuthorizationRequestReason::WebhookDeclined,
-                    "webhook_error" => IssuingAuthorizationRequestReason::WebhookError,
-                    "webhook_timeout" => IssuingAuthorizationRequestReason::WebhookTimeout,
-                    other => IssuingAuthorizationRequestReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingAuthorizationRequestReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingAuthorizationRequestReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingAuthorizationRequestReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account_disabled" => IssuingAuthorizationRequestReason::AccountDisabled,
+            "card_active" => IssuingAuthorizationRequestReason::CardActive,
+            "card_canceled" => IssuingAuthorizationRequestReason::CardCanceled,
+            "card_expired" => IssuingAuthorizationRequestReason::CardExpired,
+            "card_inactive" => IssuingAuthorizationRequestReason::CardInactive,
+            "cardholder_blocked" => IssuingAuthorizationRequestReason::CardholderBlocked,
+            "cardholder_inactive" => IssuingAuthorizationRequestReason::CardholderInactive,
+            "cardholder_verification_required" => IssuingAuthorizationRequestReason::CardholderVerificationRequired,
+            "insecure_authorization_method" => IssuingAuthorizationRequestReason::InsecureAuthorizationMethod,
+            "insufficient_funds" => IssuingAuthorizationRequestReason::InsufficientFunds,
+            "network_fallback" => IssuingAuthorizationRequestReason::NetworkFallback,
+            "not_allowed" => IssuingAuthorizationRequestReason::NotAllowed,
+            "pin_blocked" => IssuingAuthorizationRequestReason::PinBlocked,
+            "spending_controls" => IssuingAuthorizationRequestReason::SpendingControls,
+            "stripe_internal_error" => IssuingAuthorizationRequestReason::StripeInternalError,
+            "suspected_fraud" => IssuingAuthorizationRequestReason::SuspectedFraud,
+            "verification_failed" => IssuingAuthorizationRequestReason::VerificationFailed,
+            "webhook_approved" => IssuingAuthorizationRequestReason::WebhookApproved,
+            "webhook_declined" => IssuingAuthorizationRequestReason::WebhookDeclined,
+            "webhook_error" => IssuingAuthorizationRequestReason::WebhookError,
+            "webhook_timeout" => IssuingAuthorizationRequestReason::WebhookTimeout,
+            other => IssuingAuthorizationRequestReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6983,39 +6539,21 @@ impl Default for IssuingAuthorizationStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingAuthorizationStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingAuthorizationStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "closed" => IssuingAuthorizationStatus::Closed,
-                    "expired" => IssuingAuthorizationStatus::Expired,
-                    "pending" => IssuingAuthorizationStatus::Pending,
-                    "reversed" => IssuingAuthorizationStatus::Reversed,
-                    other => IssuingAuthorizationStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingAuthorizationStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingAuthorizationStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingAuthorizationStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "closed" => IssuingAuthorizationStatus::Closed,
+            "expired" => IssuingAuthorizationStatus::Expired,
+            "pending" => IssuingAuthorizationStatus::Pending,
+            "reversed" => IssuingAuthorizationStatus::Reversed,
+            other => IssuingAuthorizationStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7064,10 +6602,11 @@ impl<'de> serde::Deserialize<'de> for IssuingAuthorizationStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingAuthorizationThreeDSecure {
     #[doc = "The outcome of the 3D Secure authentication request."]
-    #[serde(default)]
+    #[json(default)]
     pub result: crate::issuing::IssuingAuthorizationThreeDSecureResult,
 }
 
@@ -7280,39 +6819,21 @@ impl Default for IssuingAuthorizationThreeDSecureResult {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingAuthorizationThreeDSecureResult {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingAuthorizationThreeDSecureResult;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "attempt_acknowledged" => IssuingAuthorizationThreeDSecureResult::AttemptAcknowledged,
-                    "authenticated" => IssuingAuthorizationThreeDSecureResult::Authenticated,
-                    "failed" => IssuingAuthorizationThreeDSecureResult::Failed,
-                    "required" => IssuingAuthorizationThreeDSecureResult::Required,
-                    other => IssuingAuthorizationThreeDSecureResult::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingAuthorizationThreeDSecureResult::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingAuthorizationThreeDSecureResult {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingAuthorizationThreeDSecureResult::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "attempt_acknowledged" => IssuingAuthorizationThreeDSecureResult::AttemptAcknowledged,
+            "authenticated" => IssuingAuthorizationThreeDSecureResult::Authenticated,
+            "failed" => IssuingAuthorizationThreeDSecureResult::Failed,
+            "required" => IssuingAuthorizationThreeDSecureResult::Required,
+            other => IssuingAuthorizationThreeDSecureResult::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7361,16 +6882,17 @@ impl<'de> serde::Deserialize<'de> for IssuingAuthorizationThreeDSecureResult {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingAuthorizationTreasury {
     #[doc = "The array of [ReceivedCredits](https://docs.stripe.com/api/treasury/received_credits) associated with this authorization"]
-    #[serde(default)]
+    #[json(default)]
     pub received_credits: Vec<String>,
     #[doc = "The array of [ReceivedDebits](https://docs.stripe.com/api/treasury/received_debits) associated with this authorization"]
-    #[serde(default)]
+    #[json(default)]
     pub received_debits: Vec<String>,
     #[doc = "The Treasury [Transaction](https://docs.stripe.com/api/treasury/transactions) associated with this authorization"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transaction: Option<String>,
 }
 
@@ -7419,28 +6941,29 @@ pub struct IssuingAuthorizationTreasury {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingAuthorizationVerificationData {
     #[doc = "Whether the cardholder provided an address first line and if it matched the cardholder’s `billing.address.line1`."]
-    #[serde(default)]
+    #[json(default)]
     pub address_line1_check: crate::issuing::IssuingAuthorizationVerificationDataAddressLine1Check,
     #[doc = "Whether the cardholder provided a postal code and if it matched the cardholder’s `billing.address.postal_code`."]
-    #[serde(default)]
+    #[json(default)]
     pub address_postal_code_check: crate::issuing::IssuingAuthorizationVerificationDataAddressLine1Check,
     #[doc = "The exemption applied to this authorization."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub authentication_exemption: Option<crate::issuing::IssuingAuthorizationAuthenticationExemption>,
     #[doc = "Whether the cardholder provided a CVC and if it matched Stripe’s record."]
-    #[serde(default)]
+    #[json(default)]
     pub cvc_check: crate::issuing::IssuingAuthorizationVerificationDataAddressLine1Check,
     #[doc = "Whether the cardholder provided an expiry date and if it matched Stripe’s record."]
-    #[serde(default)]
+    #[json(default)]
     pub expiry_check: crate::issuing::IssuingAuthorizationVerificationDataAddressLine1Check,
     #[doc = "The postal code submitted as part of the authorization used for postal code verification."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub postal_code: Option<String>,
     #[doc = "3D Secure details."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub three_d_secure: Option<crate::issuing::IssuingAuthorizationThreeDSecure>,
 }
 
@@ -7651,38 +7174,20 @@ impl Default for IssuingAuthorizationVerificationDataAddressLine1Check {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingAuthorizationVerificationDataAddressLine1Check {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingAuthorizationVerificationDataAddressLine1Check;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "match" => IssuingAuthorizationVerificationDataAddressLine1Check::Match,
-                    "mismatch" => IssuingAuthorizationVerificationDataAddressLine1Check::Mismatch,
-                    "not_provided" => IssuingAuthorizationVerificationDataAddressLine1Check::NotProvided,
-                    other => IssuingAuthorizationVerificationDataAddressLine1Check::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingAuthorizationVerificationDataAddressLine1Check::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingAuthorizationVerificationDataAddressLine1Check {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingAuthorizationVerificationDataAddressLine1Check::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "match" => IssuingAuthorizationVerificationDataAddressLine1Check::Match,
+            "mismatch" => IssuingAuthorizationVerificationDataAddressLine1Check::Mismatch,
+            "not_provided" => IssuingAuthorizationVerificationDataAddressLine1Check::NotProvided,
+            other => IssuingAuthorizationVerificationDataAddressLine1Check::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7731,86 +7236,87 @@ impl<'de> serde::Deserialize<'de> for IssuingAuthorizationVerificationDataAddres
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCard {
     #[doc = "The brand of the card."]
-    #[serde(default)]
+    #[json(default)]
     pub brand: String,
     #[doc = "The reason why the card was canceled."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cancellation_reason: Option<crate::issuing::IssuingCardCancellationReason>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cardholder: Option<crate::issuing::IssuingCardholder>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "The card's CVC."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cvc: Option<String>,
     #[doc = "The expiration month of the card."]
-    #[serde(default)]
+    #[json(default)]
     pub exp_month: i64,
     #[doc = "The expiration year of the card."]
-    #[serde(default)]
+    #[json(default)]
     pub exp_year: i64,
     #[doc = "The financial account this card is attached to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub financial_account: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The last 4 digits of the card number."]
-    #[serde(default)]
+    #[json(default)]
     pub last4: String,
     #[doc = "Stripe’s assessment of whether this card’s details have been compromised."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub latest_fraud_warning: Option<crate::issuing::IssuingCardFraudWarning>,
     #[doc = "Rules that control the lifecycle of this card, such as automatic cancellation."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub lifecycle_controls: Option<crate::issuing::IssuingCardLifecycleControls>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "The full unredacted card number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub number: Option<String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::issuing::IssuingCardObject,
     #[doc = "The personalization design object belonging to this card."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub personalization_design: Option<crate::Expandable<crate::issuing::IssuingPersonalizationDesign>>,
     #[doc = "The latest card that replaces this card, if any."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub replaced_by: Option<crate::Expandable<crate::issuing::IssuingCard>>,
     #[doc = "The card this card replaces, if any."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub replacement_for: Option<crate::Expandable<crate::issuing::IssuingCard>>,
     #[doc = "The reason why the previous card needed to be replaced."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub replacement_reason: Option<crate::issuing::IssuingCardReplacementReason>,
     #[doc = "Text separate from cardholder name, printed on the card."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub second_line: Option<String>,
     #[doc = "Where and how the card will be shipped."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping: Option<crate::issuing::IssuingCardShipping>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub spending_controls: Option<crate::issuing::IssuingCardAuthorizationControls>,
     #[doc = "Whether authorizations can be approved on this card."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::issuing::IssuingCardStatus,
     #[doc = "The type of the card."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::issuing::IssuingCardType,
     #[doc = "Information relating to digital wallets (like Apple Pay and Google Pay)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub wallets: Option<crate::issuing::IssuingCardWallets>,
 }
 
@@ -7910,13 +7416,14 @@ impl crate::PagedItem for IssuingCard {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardApplePay {
     #[doc = "Apple Pay Eligibility"]
-    #[serde(default)]
+    #[json(default)]
     pub eligible: bool,
     #[doc = "Reason the card is ineligible for Apple Pay"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ineligible_reason: Option<crate::issuing::IssuingCardApplePayIneligibleReason>,
 }
 
@@ -8076,38 +7583,20 @@ impl IssuingCardApplePayIneligibleReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingCardApplePayIneligibleReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingCardApplePayIneligibleReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "missing_agreement" => IssuingCardApplePayIneligibleReason::MissingAgreement,
-                    "missing_cardholder_contact" => IssuingCardApplePayIneligibleReason::MissingCardholderContact,
-                    "unsupported_region" => IssuingCardApplePayIneligibleReason::UnsupportedRegion,
-                    other => IssuingCardApplePayIneligibleReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingCardApplePayIneligibleReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingCardApplePayIneligibleReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingCardApplePayIneligibleReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "missing_agreement" => IssuingCardApplePayIneligibleReason::MissingAgreement,
+            "missing_cardholder_contact" => IssuingCardApplePayIneligibleReason::MissingCardholderContact,
+            "unsupported_region" => IssuingCardApplePayIneligibleReason::UnsupportedRegion,
+            other => IssuingCardApplePayIneligibleReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8156,31 +7645,32 @@ impl<'de> serde::Deserialize<'de> for IssuingCardApplePayIneligibleReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardAuthorizationControls {
     #[doc = "Array of card presence statuses from which authorizations will be allowed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub allowed_card_presences: Option<Vec<crate::issuing::IssuingAuthorizationCardPresence>>,
     #[doc = "Array of strings containing [categories](https://docs.stripe.com/api#issuing_authorization_object-merchant_data-categ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub allowed_categories: Option<Vec<crate::issuing::IssuingCardAuthorizationControlsAllowedCategoriesItem>>,
     #[doc = "Array of strings containing representing countries from which authorizations will be allowed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub allowed_merchant_countries: Option<Vec<String>>,
     #[doc = "Array of card presence statuses from which authorizations will be declined."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub blocked_card_presences: Option<Vec<crate::issuing::IssuingAuthorizationCardPresence>>,
     #[doc = "Array of strings containing [categories](https://docs.stripe.com/api#issuing_authorization_object-merchant_data-categ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub blocked_categories: Option<Vec<crate::issuing::IssuingCardAuthorizationControlsAllowedCategoriesItem>>,
     #[doc = "Array of strings containing representing countries from which authorizations will be declined."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub blocked_merchant_countries: Option<Vec<String>>,
     #[doc = "Limit spending with amount-based rules that apply across any cards this card replaced (i.e., its `replacement_for` ca..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub spending_limits: Option<Vec<crate::issuing::IssuingCardSpendingLimit>>,
     #[doc = "Currency of the amounts within `spending_limits`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub spending_limits_currency: Option<String>,
 }
 
@@ -8924,330 +8414,312 @@ impl IssuingCardAuthorizationControlsAllowedCategoriesItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingCardAuthorizationControlsAllowedCategoriesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingCardAuthorizationControlsAllowedCategoriesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ac_refrigeration_repair" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AcRefrigerationRepair,
-                    "accounting_bookkeeping_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AccountingBookkeepingServices,
-                    "advertising_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AdvertisingServices,
-                    "agricultural_cooperative" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AgriculturalCooperative,
-                    "airlines_air_carriers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AirlinesAirCarriers,
-                    "airports_flying_fields" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AirportsFlyingFields,
-                    "ambulance_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AmbulanceServices,
-                    "amusement_parks_carnivals" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AmusementParksCarnivals,
-                    "antique_reproductions" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AntiqueReproductions,
-                    "antique_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AntiqueShops,
-                    "aquariums" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Aquariums,
-                    "architectural_surveying_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ArchitecturalSurveyingServices,
-                    "art_dealers_and_galleries" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ArtDealersAndGalleries,
-                    "artists_supply_and_craft_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ArtistsSupplyAndCraftShops,
-                    "auto_and_home_supply_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AutoAndHomeSupplyStores,
-                    "auto_body_repair_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AutoBodyRepairShops,
-                    "auto_paint_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AutoPaintShops,
-                    "auto_service_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AutoServiceShops,
-                    "automated_cash_disburse" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AutomatedCashDisburse,
-                    "automated_fuel_dispensers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AutomatedFuelDispensers,
-                    "automobile_associations" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AutomobileAssociations,
-                    "automotive_parts_and_accessories_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AutomotivePartsAndAccessoriesStores,
-                    "automotive_tire_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AutomotiveTireStores,
-                    "bail_and_bond_payments" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BailAndBondPayments,
-                    "bakeries" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Bakeries,
-                    "bands_orchestras" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BandsOrchestras,
-                    "barber_and_beauty_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BarberAndBeautyShops,
-                    "betting_casino_gambling" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BettingCasinoGambling,
-                    "bicycle_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BicycleShops,
-                    "billiard_pool_establishments" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BilliardPoolEstablishments,
-                    "boat_dealers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BoatDealers,
-                    "boat_rentals_and_leases" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BoatRentalsAndLeases,
-                    "book_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BookStores,
-                    "books_periodicals_and_newspapers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BooksPeriodicalsAndNewspapers,
-                    "bowling_alleys" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BowlingAlleys,
-                    "bus_lines" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BusLines,
-                    "business_secretarial_schools" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BusinessSecretarialSchools,
-                    "buying_shopping_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BuyingShoppingServices,
-                    "cable_satellite_and_other_pay_television_and_radio" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CableSatelliteAndOtherPayTelevisionAndRadio,
-                    "camera_and_photographic_supply_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CameraAndPhotographicSupplyStores,
-                    "candy_nut_and_confectionery_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CandyNutAndConfectioneryStores,
-                    "car_and_truck_dealers_new_used" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CarAndTruckDealersNewUsed,
-                    "car_and_truck_dealers_used_only" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CarAndTruckDealersUsedOnly,
-                    "car_rental_agencies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CarRentalAgencies,
-                    "car_washes" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CarWashes,
-                    "carpentry_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CarpentryServices,
-                    "carpet_upholstery_cleaning" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CarpetUpholsteryCleaning,
-                    "caterers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Caterers,
-                    "charitable_and_social_service_organizations_fundraising" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CharitableAndSocialServiceOrganizationsFundraising,
-                    "chemicals_and_allied_products" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ChemicalsAndAlliedProducts,
-                    "child_care_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ChildCareServices,
-                    "childrens_and_infants_wear_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ChildrensAndInfantsWearStores,
-                    "chiropodists_podiatrists" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ChiropodistsPodiatrists,
-                    "chiropractors" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Chiropractors,
-                    "cigar_stores_and_stands" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CigarStoresAndStands,
-                    "civic_social_fraternal_associations" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CivicSocialFraternalAssociations,
-                    "cleaning_and_maintenance" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CleaningAndMaintenance,
-                    "clothing_rental" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ClothingRental,
-                    "colleges_universities" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CollegesUniversities,
-                    "commercial_equipment" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CommercialEquipment,
-                    "commercial_footwear" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CommercialFootwear,
-                    "commercial_photography_art_and_graphics" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CommercialPhotographyArtAndGraphics,
-                    "commuter_transport_and_ferries" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CommuterTransportAndFerries,
-                    "computer_network_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ComputerNetworkServices,
-                    "computer_programming" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ComputerProgramming,
-                    "computer_repair" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ComputerRepair,
-                    "computer_software_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ComputerSoftwareStores,
-                    "computers_peripherals_and_software" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ComputersPeripheralsAndSoftware,
-                    "concrete_work_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ConcreteWorkServices,
-                    "construction_materials" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ConstructionMaterials,
-                    "consulting_public_relations" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ConsultingPublicRelations,
-                    "correspondence_schools" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CorrespondenceSchools,
-                    "cosmetic_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CosmeticStores,
-                    "counseling_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CounselingServices,
-                    "country_clubs" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CountryClubs,
-                    "courier_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CourierServices,
-                    "court_costs" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CourtCosts,
-                    "credit_reporting_agencies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CreditReportingAgencies,
-                    "cruise_lines" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CruiseLines,
-                    "dairy_products_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DairyProductsStores,
-                    "dance_hall_studios_schools" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DanceHallStudiosSchools,
-                    "dating_escort_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DatingEscortServices,
-                    "dentists_orthodontists" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DentistsOrthodontists,
-                    "department_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DepartmentStores,
-                    "detective_agencies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DetectiveAgencies,
-                    "digital_goods_applications" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DigitalGoodsApplications,
-                    "digital_goods_games" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DigitalGoodsGames,
-                    "digital_goods_large_volume" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DigitalGoodsLargeVolume,
-                    "digital_goods_media" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DigitalGoodsMedia,
-                    "direct_marketing_catalog_merchant" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DirectMarketingCatalogMerchant,
-                    "direct_marketing_combination_catalog_and_retail_merchant" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DirectMarketingCombinationCatalogAndRetailMerchant,
-                    "direct_marketing_inbound_telemarketing" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DirectMarketingInboundTelemarketing,
-                    "direct_marketing_insurance_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DirectMarketingInsuranceServices,
-                    "direct_marketing_other" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DirectMarketingOther,
-                    "direct_marketing_outbound_telemarketing" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DirectMarketingOutboundTelemarketing,
-                    "direct_marketing_subscription" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DirectMarketingSubscription,
-                    "direct_marketing_travel" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DirectMarketingTravel,
-                    "discount_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DiscountStores,
-                    "doctors" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Doctors,
-                    "door_to_door_sales" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DoorToDoorSales,
-                    "drapery_window_covering_and_upholstery_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DraperyWindowCoveringAndUpholsteryStores,
-                    "drinking_places" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DrinkingPlaces,
-                    "drug_stores_and_pharmacies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DrugStoresAndPharmacies,
-                    "drugs_drug_proprietaries_and_druggist_sundries" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DrugsDrugProprietariesAndDruggistSundries,
-                    "dry_cleaners" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DryCleaners,
-                    "durable_goods" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DurableGoods,
-                    "duty_free_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DutyFreeStores,
-                    "eating_places_restaurants" => IssuingCardAuthorizationControlsAllowedCategoriesItem::EatingPlacesRestaurants,
-                    "educational_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::EducationalServices,
-                    "electric_razor_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ElectricRazorStores,
-                    "electric_vehicle_charging" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ElectricVehicleCharging,
-                    "electrical_parts_and_equipment" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ElectricalPartsAndEquipment,
-                    "electrical_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ElectricalServices,
-                    "electronics_repair_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ElectronicsRepairShops,
-                    "electronics_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ElectronicsStores,
-                    "elementary_secondary_schools" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ElementarySecondarySchools,
-                    "emergency_services_gcas_visa_use_only" => IssuingCardAuthorizationControlsAllowedCategoriesItem::EmergencyServicesGcasVisaUseOnly,
-                    "employment_temp_agencies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::EmploymentTempAgencies,
-                    "equipment_rental" => IssuingCardAuthorizationControlsAllowedCategoriesItem::EquipmentRental,
-                    "exterminating_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ExterminatingServices,
-                    "family_clothing_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FamilyClothingStores,
-                    "fast_food_restaurants" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FastFoodRestaurants,
-                    "financial_institutions" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FinancialInstitutions,
-                    "fines_government_administrative_entities" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FinesGovernmentAdministrativeEntities,
-                    "fireplace_fireplace_screens_and_accessories_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FireplaceFireplaceScreensAndAccessoriesStores,
-                    "floor_covering_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FloorCoveringStores,
-                    "florists" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Florists,
-                    "florists_supplies_nursery_stock_and_flowers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FloristsSuppliesNurseryStockAndFlowers,
-                    "freezer_and_locker_meat_provisioners" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FreezerAndLockerMeatProvisioners,
-                    "fuel_dealers_non_automotive" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FuelDealersNonAutomotive,
-                    "funeral_services_crematories" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FuneralServicesCrematories,
-                    "furniture_home_furnishings_and_equipment_stores_except_appliances" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FurnitureHomeFurnishingsAndEquipmentStoresExceptAppliances,
-                    "furniture_repair_refinishing" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FurnitureRepairRefinishing,
-                    "furriers_and_fur_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FurriersAndFurShops,
-                    "general_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GeneralServices,
-                    "gift_card_novelty_and_souvenir_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GiftCardNoveltyAndSouvenirShops,
-                    "glass_paint_and_wallpaper_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GlassPaintAndWallpaperStores,
-                    "glassware_crystal_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GlasswareCrystalStores,
-                    "golf_courses_public" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GolfCoursesPublic,
-                    "government_licensed_horse_dog_racing_us_region_only" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GovernmentLicensedHorseDogRacingUsRegionOnly,
-                    "government_licensed_online_casions_online_gambling_us_region_only" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GovernmentLicensedOnlineCasionsOnlineGamblingUsRegionOnly,
-                    "government_owned_lotteries_non_us_region" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GovernmentOwnedLotteriesNonUsRegion,
-                    "government_owned_lotteries_us_region_only" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GovernmentOwnedLotteriesUsRegionOnly,
-                    "government_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GovernmentServices,
-                    "grocery_stores_supermarkets" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GroceryStoresSupermarkets,
-                    "hardware_equipment_and_supplies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::HardwareEquipmentAndSupplies,
-                    "hardware_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::HardwareStores,
-                    "health_and_beauty_spas" => IssuingCardAuthorizationControlsAllowedCategoriesItem::HealthAndBeautySpas,
-                    "hearing_aids_sales_and_supplies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::HearingAidsSalesAndSupplies,
-                    "heating_plumbing_a_c" => IssuingCardAuthorizationControlsAllowedCategoriesItem::HeatingPlumbingAC,
-                    "hobby_toy_and_game_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::HobbyToyAndGameShops,
-                    "home_supply_warehouse_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::HomeSupplyWarehouseStores,
-                    "hospitals" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Hospitals,
-                    "hotels_motels_and_resorts" => IssuingCardAuthorizationControlsAllowedCategoriesItem::HotelsMotelsAndResorts,
-                    "household_appliance_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::HouseholdApplianceStores,
-                    "industrial_supplies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::IndustrialSupplies,
-                    "information_retrieval_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::InformationRetrievalServices,
-                    "insurance_default" => IssuingCardAuthorizationControlsAllowedCategoriesItem::InsuranceDefault,
-                    "insurance_underwriting_premiums" => IssuingCardAuthorizationControlsAllowedCategoriesItem::InsuranceUnderwritingPremiums,
-                    "intra_company_purchases" => IssuingCardAuthorizationControlsAllowedCategoriesItem::IntraCompanyPurchases,
-                    "jewelry_stores_watches_clocks_and_silverware_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::JewelryStoresWatchesClocksAndSilverwareStores,
-                    "landscaping_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::LandscapingServices,
-                    "laundries" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Laundries,
-                    "laundry_cleaning_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::LaundryCleaningServices,
-                    "legal_services_attorneys" => IssuingCardAuthorizationControlsAllowedCategoriesItem::LegalServicesAttorneys,
-                    "luggage_and_leather_goods_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::LuggageAndLeatherGoodsStores,
-                    "lumber_building_materials_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::LumberBuildingMaterialsStores,
-                    "manual_cash_disburse" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ManualCashDisburse,
-                    "marinas_service_and_supplies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MarinasServiceAndSupplies,
-                    "marketplaces" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Marketplaces,
-                    "masonry_stonework_and_plaster" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MasonryStoneworkAndPlaster,
-                    "massage_parlors" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MassageParlors,
-                    "medical_and_dental_labs" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MedicalAndDentalLabs,
-                    "medical_dental_ophthalmic_and_hospital_equipment_and_supplies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MedicalDentalOphthalmicAndHospitalEquipmentAndSupplies,
-                    "medical_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MedicalServices,
-                    "membership_organizations" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MembershipOrganizations,
-                    "mens_and_boys_clothing_and_accessories_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MensAndBoysClothingAndAccessoriesStores,
-                    "mens_womens_clothing_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MensWomensClothingStores,
-                    "metal_service_centers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MetalServiceCenters,
-                    "miscellaneous" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Miscellaneous,
-                    "miscellaneous_apparel_and_accessory_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousApparelAndAccessoryShops,
-                    "miscellaneous_auto_dealers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousAutoDealers,
-                    "miscellaneous_business_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousBusinessServices,
-                    "miscellaneous_food_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousFoodStores,
-                    "miscellaneous_general_merchandise" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousGeneralMerchandise,
-                    "miscellaneous_general_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousGeneralServices,
-                    "miscellaneous_home_furnishing_specialty_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousHomeFurnishingSpecialtyStores,
-                    "miscellaneous_publishing_and_printing" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousPublishingAndPrinting,
-                    "miscellaneous_recreation_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousRecreationServices,
-                    "miscellaneous_repair_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousRepairShops,
-                    "miscellaneous_specialty_retail" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousSpecialtyRetail,
-                    "mobile_home_dealers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MobileHomeDealers,
-                    "motion_picture_theaters" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MotionPictureTheaters,
-                    "motor_freight_carriers_and_trucking" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MotorFreightCarriersAndTrucking,
-                    "motor_homes_dealers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MotorHomesDealers,
-                    "motor_vehicle_supplies_and_new_parts" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MotorVehicleSuppliesAndNewParts,
-                    "motorcycle_shops_and_dealers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MotorcycleShopsAndDealers,
-                    "motorcycle_shops_dealers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MotorcycleShopsDealers,
-                    "music_stores_musical_instruments_pianos_and_sheet_music" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MusicStoresMusicalInstrumentsPianosAndSheetMusic,
-                    "news_dealers_and_newsstands" => IssuingCardAuthorizationControlsAllowedCategoriesItem::NewsDealersAndNewsstands,
-                    "non_fi_money_orders" => IssuingCardAuthorizationControlsAllowedCategoriesItem::NonFiMoneyOrders,
-                    "non_fi_stored_value_card_purchase_load" => IssuingCardAuthorizationControlsAllowedCategoriesItem::NonFiStoredValueCardPurchaseLoad,
-                    "nondurable_goods" => IssuingCardAuthorizationControlsAllowedCategoriesItem::NondurableGoods,
-                    "nurseries_lawn_and_garden_supply_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::NurseriesLawnAndGardenSupplyStores,
-                    "nursing_personal_care" => IssuingCardAuthorizationControlsAllowedCategoriesItem::NursingPersonalCare,
-                    "office_and_commercial_furniture" => IssuingCardAuthorizationControlsAllowedCategoriesItem::OfficeAndCommercialFurniture,
-                    "opticians_eyeglasses" => IssuingCardAuthorizationControlsAllowedCategoriesItem::OpticiansEyeglasses,
-                    "optometrists_ophthalmologist" => IssuingCardAuthorizationControlsAllowedCategoriesItem::OptometristsOphthalmologist,
-                    "orthopedic_goods_prosthetic_devices" => IssuingCardAuthorizationControlsAllowedCategoriesItem::OrthopedicGoodsProstheticDevices,
-                    "osteopaths" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Osteopaths,
-                    "package_stores_beer_wine_and_liquor" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PackageStoresBeerWineAndLiquor,
-                    "paints_varnishes_and_supplies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PaintsVarnishesAndSupplies,
-                    "parking_lots_garages" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ParkingLotsGarages,
-                    "passenger_railways" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PassengerRailways,
-                    "pawn_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PawnShops,
-                    "pet_shops_pet_food_and_supplies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PetShopsPetFoodAndSupplies,
-                    "petroleum_and_petroleum_products" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PetroleumAndPetroleumProducts,
-                    "photo_developing" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PhotoDeveloping,
-                    "photographic_photocopy_microfilm_equipment_and_supplies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PhotographicPhotocopyMicrofilmEquipmentAndSupplies,
-                    "photographic_studios" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PhotographicStudios,
-                    "picture_video_production" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PictureVideoProduction,
-                    "piece_goods_notions_and_other_dry_goods" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PieceGoodsNotionsAndOtherDryGoods,
-                    "plumbing_heating_equipment_and_supplies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PlumbingHeatingEquipmentAndSupplies,
-                    "political_organizations" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PoliticalOrganizations,
-                    "postal_services_government_only" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PostalServicesGovernmentOnly,
-                    "precious_stones_and_metals_watches_and_jewelry" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PreciousStonesAndMetalsWatchesAndJewelry,
-                    "professional_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ProfessionalServices,
-                    "public_warehousing_and_storage" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PublicWarehousingAndStorage,
-                    "quick_copy_repro_and_blueprint" => IssuingCardAuthorizationControlsAllowedCategoriesItem::QuickCopyReproAndBlueprint,
-                    "railroads" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Railroads,
-                    "real_estate_agents_and_managers_rentals" => IssuingCardAuthorizationControlsAllowedCategoriesItem::RealEstateAgentsAndManagersRentals,
-                    "record_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::RecordStores,
-                    "recreational_vehicle_rentals" => IssuingCardAuthorizationControlsAllowedCategoriesItem::RecreationalVehicleRentals,
-                    "religious_goods_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ReligiousGoodsStores,
-                    "religious_organizations" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ReligiousOrganizations,
-                    "roofing_siding_sheet_metal" => IssuingCardAuthorizationControlsAllowedCategoriesItem::RoofingSidingSheetMetal,
-                    "secretarial_support_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SecretarialSupportServices,
-                    "security_brokers_dealers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SecurityBrokersDealers,
-                    "service_stations" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ServiceStations,
-                    "sewing_needlework_fabric_and_piece_goods_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SewingNeedleworkFabricAndPieceGoodsStores,
-                    "shoe_repair_hat_cleaning" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ShoeRepairHatCleaning,
-                    "shoe_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ShoeStores,
-                    "small_appliance_repair" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SmallApplianceRepair,
-                    "snowmobile_dealers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SnowmobileDealers,
-                    "special_trade_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SpecialTradeServices,
-                    "specialty_cleaning" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SpecialtyCleaning,
-                    "sporting_goods_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SportingGoodsStores,
-                    "sporting_recreation_camps" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SportingRecreationCamps,
-                    "sports_and_riding_apparel_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SportsAndRidingApparelStores,
-                    "sports_clubs_fields" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SportsClubsFields,
-                    "stamp_and_coin_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::StampAndCoinStores,
-                    "stationary_office_supplies_printing_and_writing_paper" => IssuingCardAuthorizationControlsAllowedCategoriesItem::StationaryOfficeSuppliesPrintingAndWritingPaper,
-                    "stationery_stores_office_and_school_supply_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::StationeryStoresOfficeAndSchoolSupplyStores,
-                    "swimming_pools_sales" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SwimmingPoolsSales,
-                    "t_ui_travel_germany" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TUiTravelGermany,
-                    "tailors_alterations" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TailorsAlterations,
-                    "tax_payments_government_agencies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TaxPaymentsGovernmentAgencies,
-                    "tax_preparation_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TaxPreparationServices,
-                    "taxicabs_limousines" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TaxicabsLimousines,
-                    "telecommunication_equipment_and_telephone_sales" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TelecommunicationEquipmentAndTelephoneSales,
-                    "telecommunication_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TelecommunicationServices,
-                    "telegraph_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TelegraphServices,
-                    "tent_and_awning_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TentAndAwningShops,
-                    "testing_laboratories" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TestingLaboratories,
-                    "theatrical_ticket_agencies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TheatricalTicketAgencies,
-                    "timeshares" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Timeshares,
-                    "tire_retreading_and_repair" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TireRetreadingAndRepair,
-                    "tolls_bridge_fees" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TollsBridgeFees,
-                    "tourist_attractions_and_exhibits" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TouristAttractionsAndExhibits,
-                    "towing_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TowingServices,
-                    "trailer_parks_campgrounds" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TrailerParksCampgrounds,
-                    "transportation_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TransportationServices,
-                    "travel_agencies_tour_operators" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TravelAgenciesTourOperators,
-                    "truck_stop_iteration" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TruckStopIteration,
-                    "truck_utility_trailer_rentals" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TruckUtilityTrailerRentals,
-                    "typesetting_plate_making_and_related_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TypesettingPlateMakingAndRelatedServices,
-                    "typewriter_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TypewriterStores,
-                    "u_s_federal_government_agencies_or_departments" => IssuingCardAuthorizationControlsAllowedCategoriesItem::USFederalGovernmentAgenciesOrDepartments,
-                    "uniforms_commercial_clothing" => IssuingCardAuthorizationControlsAllowedCategoriesItem::UniformsCommercialClothing,
-                    "used_merchandise_and_secondhand_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::UsedMerchandiseAndSecondhandStores,
-                    "utilities" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Utilities,
-                    "variety_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::VarietyStores,
-                    "veterinary_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::VeterinaryServices,
-                    "video_amusement_game_supplies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::VideoAmusementGameSupplies,
-                    "video_game_arcades" => IssuingCardAuthorizationControlsAllowedCategoriesItem::VideoGameArcades,
-                    "video_tape_rental_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::VideoTapeRentalStores,
-                    "vocational_trade_schools" => IssuingCardAuthorizationControlsAllowedCategoriesItem::VocationalTradeSchools,
-                    "watch_jewelry_repair" => IssuingCardAuthorizationControlsAllowedCategoriesItem::WatchJewelryRepair,
-                    "welding_repair" => IssuingCardAuthorizationControlsAllowedCategoriesItem::WeldingRepair,
-                    "wholesale_clubs" => IssuingCardAuthorizationControlsAllowedCategoriesItem::WholesaleClubs,
-                    "wig_and_toupee_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::WigAndToupeeStores,
-                    "wires_money_orders" => IssuingCardAuthorizationControlsAllowedCategoriesItem::WiresMoneyOrders,
-                    "womens_accessory_and_specialty_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::WomensAccessoryAndSpecialtyShops,
-                    "womens_ready_to_wear_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::WomensReadyToWearStores,
-                    "wrecking_and_salvage_yards" => IssuingCardAuthorizationControlsAllowedCategoriesItem::WreckingAndSalvageYards,
-                    other => IssuingCardAuthorizationControlsAllowedCategoriesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingCardAuthorizationControlsAllowedCategoriesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingCardAuthorizationControlsAllowedCategoriesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingCardAuthorizationControlsAllowedCategoriesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ac_refrigeration_repair" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AcRefrigerationRepair,
+            "accounting_bookkeeping_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AccountingBookkeepingServices,
+            "advertising_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AdvertisingServices,
+            "agricultural_cooperative" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AgriculturalCooperative,
+            "airlines_air_carriers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AirlinesAirCarriers,
+            "airports_flying_fields" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AirportsFlyingFields,
+            "ambulance_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AmbulanceServices,
+            "amusement_parks_carnivals" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AmusementParksCarnivals,
+            "antique_reproductions" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AntiqueReproductions,
+            "antique_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AntiqueShops,
+            "aquariums" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Aquariums,
+            "architectural_surveying_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ArchitecturalSurveyingServices,
+            "art_dealers_and_galleries" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ArtDealersAndGalleries,
+            "artists_supply_and_craft_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ArtistsSupplyAndCraftShops,
+            "auto_and_home_supply_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AutoAndHomeSupplyStores,
+            "auto_body_repair_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AutoBodyRepairShops,
+            "auto_paint_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AutoPaintShops,
+            "auto_service_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AutoServiceShops,
+            "automated_cash_disburse" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AutomatedCashDisburse,
+            "automated_fuel_dispensers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AutomatedFuelDispensers,
+            "automobile_associations" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AutomobileAssociations,
+            "automotive_parts_and_accessories_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AutomotivePartsAndAccessoriesStores,
+            "automotive_tire_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::AutomotiveTireStores,
+            "bail_and_bond_payments" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BailAndBondPayments,
+            "bakeries" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Bakeries,
+            "bands_orchestras" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BandsOrchestras,
+            "barber_and_beauty_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BarberAndBeautyShops,
+            "betting_casino_gambling" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BettingCasinoGambling,
+            "bicycle_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BicycleShops,
+            "billiard_pool_establishments" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BilliardPoolEstablishments,
+            "boat_dealers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BoatDealers,
+            "boat_rentals_and_leases" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BoatRentalsAndLeases,
+            "book_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BookStores,
+            "books_periodicals_and_newspapers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BooksPeriodicalsAndNewspapers,
+            "bowling_alleys" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BowlingAlleys,
+            "bus_lines" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BusLines,
+            "business_secretarial_schools" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BusinessSecretarialSchools,
+            "buying_shopping_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::BuyingShoppingServices,
+            "cable_satellite_and_other_pay_television_and_radio" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CableSatelliteAndOtherPayTelevisionAndRadio,
+            "camera_and_photographic_supply_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CameraAndPhotographicSupplyStores,
+            "candy_nut_and_confectionery_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CandyNutAndConfectioneryStores,
+            "car_and_truck_dealers_new_used" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CarAndTruckDealersNewUsed,
+            "car_and_truck_dealers_used_only" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CarAndTruckDealersUsedOnly,
+            "car_rental_agencies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CarRentalAgencies,
+            "car_washes" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CarWashes,
+            "carpentry_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CarpentryServices,
+            "carpet_upholstery_cleaning" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CarpetUpholsteryCleaning,
+            "caterers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Caterers,
+            "charitable_and_social_service_organizations_fundraising" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CharitableAndSocialServiceOrganizationsFundraising,
+            "chemicals_and_allied_products" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ChemicalsAndAlliedProducts,
+            "child_care_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ChildCareServices,
+            "childrens_and_infants_wear_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ChildrensAndInfantsWearStores,
+            "chiropodists_podiatrists" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ChiropodistsPodiatrists,
+            "chiropractors" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Chiropractors,
+            "cigar_stores_and_stands" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CigarStoresAndStands,
+            "civic_social_fraternal_associations" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CivicSocialFraternalAssociations,
+            "cleaning_and_maintenance" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CleaningAndMaintenance,
+            "clothing_rental" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ClothingRental,
+            "colleges_universities" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CollegesUniversities,
+            "commercial_equipment" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CommercialEquipment,
+            "commercial_footwear" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CommercialFootwear,
+            "commercial_photography_art_and_graphics" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CommercialPhotographyArtAndGraphics,
+            "commuter_transport_and_ferries" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CommuterTransportAndFerries,
+            "computer_network_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ComputerNetworkServices,
+            "computer_programming" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ComputerProgramming,
+            "computer_repair" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ComputerRepair,
+            "computer_software_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ComputerSoftwareStores,
+            "computers_peripherals_and_software" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ComputersPeripheralsAndSoftware,
+            "concrete_work_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ConcreteWorkServices,
+            "construction_materials" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ConstructionMaterials,
+            "consulting_public_relations" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ConsultingPublicRelations,
+            "correspondence_schools" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CorrespondenceSchools,
+            "cosmetic_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CosmeticStores,
+            "counseling_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CounselingServices,
+            "country_clubs" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CountryClubs,
+            "courier_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CourierServices,
+            "court_costs" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CourtCosts,
+            "credit_reporting_agencies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CreditReportingAgencies,
+            "cruise_lines" => IssuingCardAuthorizationControlsAllowedCategoriesItem::CruiseLines,
+            "dairy_products_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DairyProductsStores,
+            "dance_hall_studios_schools" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DanceHallStudiosSchools,
+            "dating_escort_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DatingEscortServices,
+            "dentists_orthodontists" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DentistsOrthodontists,
+            "department_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DepartmentStores,
+            "detective_agencies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DetectiveAgencies,
+            "digital_goods_applications" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DigitalGoodsApplications,
+            "digital_goods_games" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DigitalGoodsGames,
+            "digital_goods_large_volume" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DigitalGoodsLargeVolume,
+            "digital_goods_media" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DigitalGoodsMedia,
+            "direct_marketing_catalog_merchant" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DirectMarketingCatalogMerchant,
+            "direct_marketing_combination_catalog_and_retail_merchant" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DirectMarketingCombinationCatalogAndRetailMerchant,
+            "direct_marketing_inbound_telemarketing" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DirectMarketingInboundTelemarketing,
+            "direct_marketing_insurance_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DirectMarketingInsuranceServices,
+            "direct_marketing_other" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DirectMarketingOther,
+            "direct_marketing_outbound_telemarketing" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DirectMarketingOutboundTelemarketing,
+            "direct_marketing_subscription" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DirectMarketingSubscription,
+            "direct_marketing_travel" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DirectMarketingTravel,
+            "discount_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DiscountStores,
+            "doctors" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Doctors,
+            "door_to_door_sales" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DoorToDoorSales,
+            "drapery_window_covering_and_upholstery_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DraperyWindowCoveringAndUpholsteryStores,
+            "drinking_places" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DrinkingPlaces,
+            "drug_stores_and_pharmacies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DrugStoresAndPharmacies,
+            "drugs_drug_proprietaries_and_druggist_sundries" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DrugsDrugProprietariesAndDruggistSundries,
+            "dry_cleaners" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DryCleaners,
+            "durable_goods" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DurableGoods,
+            "duty_free_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::DutyFreeStores,
+            "eating_places_restaurants" => IssuingCardAuthorizationControlsAllowedCategoriesItem::EatingPlacesRestaurants,
+            "educational_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::EducationalServices,
+            "electric_razor_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ElectricRazorStores,
+            "electric_vehicle_charging" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ElectricVehicleCharging,
+            "electrical_parts_and_equipment" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ElectricalPartsAndEquipment,
+            "electrical_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ElectricalServices,
+            "electronics_repair_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ElectronicsRepairShops,
+            "electronics_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ElectronicsStores,
+            "elementary_secondary_schools" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ElementarySecondarySchools,
+            "emergency_services_gcas_visa_use_only" => IssuingCardAuthorizationControlsAllowedCategoriesItem::EmergencyServicesGcasVisaUseOnly,
+            "employment_temp_agencies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::EmploymentTempAgencies,
+            "equipment_rental" => IssuingCardAuthorizationControlsAllowedCategoriesItem::EquipmentRental,
+            "exterminating_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ExterminatingServices,
+            "family_clothing_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FamilyClothingStores,
+            "fast_food_restaurants" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FastFoodRestaurants,
+            "financial_institutions" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FinancialInstitutions,
+            "fines_government_administrative_entities" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FinesGovernmentAdministrativeEntities,
+            "fireplace_fireplace_screens_and_accessories_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FireplaceFireplaceScreensAndAccessoriesStores,
+            "floor_covering_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FloorCoveringStores,
+            "florists" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Florists,
+            "florists_supplies_nursery_stock_and_flowers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FloristsSuppliesNurseryStockAndFlowers,
+            "freezer_and_locker_meat_provisioners" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FreezerAndLockerMeatProvisioners,
+            "fuel_dealers_non_automotive" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FuelDealersNonAutomotive,
+            "funeral_services_crematories" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FuneralServicesCrematories,
+            "furniture_home_furnishings_and_equipment_stores_except_appliances" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FurnitureHomeFurnishingsAndEquipmentStoresExceptAppliances,
+            "furniture_repair_refinishing" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FurnitureRepairRefinishing,
+            "furriers_and_fur_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::FurriersAndFurShops,
+            "general_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GeneralServices,
+            "gift_card_novelty_and_souvenir_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GiftCardNoveltyAndSouvenirShops,
+            "glass_paint_and_wallpaper_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GlassPaintAndWallpaperStores,
+            "glassware_crystal_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GlasswareCrystalStores,
+            "golf_courses_public" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GolfCoursesPublic,
+            "government_licensed_horse_dog_racing_us_region_only" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GovernmentLicensedHorseDogRacingUsRegionOnly,
+            "government_licensed_online_casions_online_gambling_us_region_only" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GovernmentLicensedOnlineCasionsOnlineGamblingUsRegionOnly,
+            "government_owned_lotteries_non_us_region" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GovernmentOwnedLotteriesNonUsRegion,
+            "government_owned_lotteries_us_region_only" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GovernmentOwnedLotteriesUsRegionOnly,
+            "government_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GovernmentServices,
+            "grocery_stores_supermarkets" => IssuingCardAuthorizationControlsAllowedCategoriesItem::GroceryStoresSupermarkets,
+            "hardware_equipment_and_supplies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::HardwareEquipmentAndSupplies,
+            "hardware_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::HardwareStores,
+            "health_and_beauty_spas" => IssuingCardAuthorizationControlsAllowedCategoriesItem::HealthAndBeautySpas,
+            "hearing_aids_sales_and_supplies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::HearingAidsSalesAndSupplies,
+            "heating_plumbing_a_c" => IssuingCardAuthorizationControlsAllowedCategoriesItem::HeatingPlumbingAC,
+            "hobby_toy_and_game_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::HobbyToyAndGameShops,
+            "home_supply_warehouse_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::HomeSupplyWarehouseStores,
+            "hospitals" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Hospitals,
+            "hotels_motels_and_resorts" => IssuingCardAuthorizationControlsAllowedCategoriesItem::HotelsMotelsAndResorts,
+            "household_appliance_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::HouseholdApplianceStores,
+            "industrial_supplies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::IndustrialSupplies,
+            "information_retrieval_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::InformationRetrievalServices,
+            "insurance_default" => IssuingCardAuthorizationControlsAllowedCategoriesItem::InsuranceDefault,
+            "insurance_underwriting_premiums" => IssuingCardAuthorizationControlsAllowedCategoriesItem::InsuranceUnderwritingPremiums,
+            "intra_company_purchases" => IssuingCardAuthorizationControlsAllowedCategoriesItem::IntraCompanyPurchases,
+            "jewelry_stores_watches_clocks_and_silverware_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::JewelryStoresWatchesClocksAndSilverwareStores,
+            "landscaping_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::LandscapingServices,
+            "laundries" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Laundries,
+            "laundry_cleaning_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::LaundryCleaningServices,
+            "legal_services_attorneys" => IssuingCardAuthorizationControlsAllowedCategoriesItem::LegalServicesAttorneys,
+            "luggage_and_leather_goods_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::LuggageAndLeatherGoodsStores,
+            "lumber_building_materials_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::LumberBuildingMaterialsStores,
+            "manual_cash_disburse" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ManualCashDisburse,
+            "marinas_service_and_supplies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MarinasServiceAndSupplies,
+            "marketplaces" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Marketplaces,
+            "masonry_stonework_and_plaster" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MasonryStoneworkAndPlaster,
+            "massage_parlors" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MassageParlors,
+            "medical_and_dental_labs" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MedicalAndDentalLabs,
+            "medical_dental_ophthalmic_and_hospital_equipment_and_supplies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MedicalDentalOphthalmicAndHospitalEquipmentAndSupplies,
+            "medical_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MedicalServices,
+            "membership_organizations" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MembershipOrganizations,
+            "mens_and_boys_clothing_and_accessories_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MensAndBoysClothingAndAccessoriesStores,
+            "mens_womens_clothing_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MensWomensClothingStores,
+            "metal_service_centers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MetalServiceCenters,
+            "miscellaneous" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Miscellaneous,
+            "miscellaneous_apparel_and_accessory_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousApparelAndAccessoryShops,
+            "miscellaneous_auto_dealers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousAutoDealers,
+            "miscellaneous_business_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousBusinessServices,
+            "miscellaneous_food_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousFoodStores,
+            "miscellaneous_general_merchandise" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousGeneralMerchandise,
+            "miscellaneous_general_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousGeneralServices,
+            "miscellaneous_home_furnishing_specialty_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousHomeFurnishingSpecialtyStores,
+            "miscellaneous_publishing_and_printing" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousPublishingAndPrinting,
+            "miscellaneous_recreation_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousRecreationServices,
+            "miscellaneous_repair_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousRepairShops,
+            "miscellaneous_specialty_retail" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MiscellaneousSpecialtyRetail,
+            "mobile_home_dealers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MobileHomeDealers,
+            "motion_picture_theaters" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MotionPictureTheaters,
+            "motor_freight_carriers_and_trucking" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MotorFreightCarriersAndTrucking,
+            "motor_homes_dealers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MotorHomesDealers,
+            "motor_vehicle_supplies_and_new_parts" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MotorVehicleSuppliesAndNewParts,
+            "motorcycle_shops_and_dealers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MotorcycleShopsAndDealers,
+            "motorcycle_shops_dealers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MotorcycleShopsDealers,
+            "music_stores_musical_instruments_pianos_and_sheet_music" => IssuingCardAuthorizationControlsAllowedCategoriesItem::MusicStoresMusicalInstrumentsPianosAndSheetMusic,
+            "news_dealers_and_newsstands" => IssuingCardAuthorizationControlsAllowedCategoriesItem::NewsDealersAndNewsstands,
+            "non_fi_money_orders" => IssuingCardAuthorizationControlsAllowedCategoriesItem::NonFiMoneyOrders,
+            "non_fi_stored_value_card_purchase_load" => IssuingCardAuthorizationControlsAllowedCategoriesItem::NonFiStoredValueCardPurchaseLoad,
+            "nondurable_goods" => IssuingCardAuthorizationControlsAllowedCategoriesItem::NondurableGoods,
+            "nurseries_lawn_and_garden_supply_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::NurseriesLawnAndGardenSupplyStores,
+            "nursing_personal_care" => IssuingCardAuthorizationControlsAllowedCategoriesItem::NursingPersonalCare,
+            "office_and_commercial_furniture" => IssuingCardAuthorizationControlsAllowedCategoriesItem::OfficeAndCommercialFurniture,
+            "opticians_eyeglasses" => IssuingCardAuthorizationControlsAllowedCategoriesItem::OpticiansEyeglasses,
+            "optometrists_ophthalmologist" => IssuingCardAuthorizationControlsAllowedCategoriesItem::OptometristsOphthalmologist,
+            "orthopedic_goods_prosthetic_devices" => IssuingCardAuthorizationControlsAllowedCategoriesItem::OrthopedicGoodsProstheticDevices,
+            "osteopaths" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Osteopaths,
+            "package_stores_beer_wine_and_liquor" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PackageStoresBeerWineAndLiquor,
+            "paints_varnishes_and_supplies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PaintsVarnishesAndSupplies,
+            "parking_lots_garages" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ParkingLotsGarages,
+            "passenger_railways" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PassengerRailways,
+            "pawn_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PawnShops,
+            "pet_shops_pet_food_and_supplies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PetShopsPetFoodAndSupplies,
+            "petroleum_and_petroleum_products" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PetroleumAndPetroleumProducts,
+            "photo_developing" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PhotoDeveloping,
+            "photographic_photocopy_microfilm_equipment_and_supplies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PhotographicPhotocopyMicrofilmEquipmentAndSupplies,
+            "photographic_studios" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PhotographicStudios,
+            "picture_video_production" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PictureVideoProduction,
+            "piece_goods_notions_and_other_dry_goods" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PieceGoodsNotionsAndOtherDryGoods,
+            "plumbing_heating_equipment_and_supplies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PlumbingHeatingEquipmentAndSupplies,
+            "political_organizations" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PoliticalOrganizations,
+            "postal_services_government_only" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PostalServicesGovernmentOnly,
+            "precious_stones_and_metals_watches_and_jewelry" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PreciousStonesAndMetalsWatchesAndJewelry,
+            "professional_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ProfessionalServices,
+            "public_warehousing_and_storage" => IssuingCardAuthorizationControlsAllowedCategoriesItem::PublicWarehousingAndStorage,
+            "quick_copy_repro_and_blueprint" => IssuingCardAuthorizationControlsAllowedCategoriesItem::QuickCopyReproAndBlueprint,
+            "railroads" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Railroads,
+            "real_estate_agents_and_managers_rentals" => IssuingCardAuthorizationControlsAllowedCategoriesItem::RealEstateAgentsAndManagersRentals,
+            "record_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::RecordStores,
+            "recreational_vehicle_rentals" => IssuingCardAuthorizationControlsAllowedCategoriesItem::RecreationalVehicleRentals,
+            "religious_goods_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ReligiousGoodsStores,
+            "religious_organizations" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ReligiousOrganizations,
+            "roofing_siding_sheet_metal" => IssuingCardAuthorizationControlsAllowedCategoriesItem::RoofingSidingSheetMetal,
+            "secretarial_support_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SecretarialSupportServices,
+            "security_brokers_dealers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SecurityBrokersDealers,
+            "service_stations" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ServiceStations,
+            "sewing_needlework_fabric_and_piece_goods_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SewingNeedleworkFabricAndPieceGoodsStores,
+            "shoe_repair_hat_cleaning" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ShoeRepairHatCleaning,
+            "shoe_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::ShoeStores,
+            "small_appliance_repair" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SmallApplianceRepair,
+            "snowmobile_dealers" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SnowmobileDealers,
+            "special_trade_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SpecialTradeServices,
+            "specialty_cleaning" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SpecialtyCleaning,
+            "sporting_goods_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SportingGoodsStores,
+            "sporting_recreation_camps" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SportingRecreationCamps,
+            "sports_and_riding_apparel_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SportsAndRidingApparelStores,
+            "sports_clubs_fields" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SportsClubsFields,
+            "stamp_and_coin_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::StampAndCoinStores,
+            "stationary_office_supplies_printing_and_writing_paper" => IssuingCardAuthorizationControlsAllowedCategoriesItem::StationaryOfficeSuppliesPrintingAndWritingPaper,
+            "stationery_stores_office_and_school_supply_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::StationeryStoresOfficeAndSchoolSupplyStores,
+            "swimming_pools_sales" => IssuingCardAuthorizationControlsAllowedCategoriesItem::SwimmingPoolsSales,
+            "t_ui_travel_germany" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TUiTravelGermany,
+            "tailors_alterations" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TailorsAlterations,
+            "tax_payments_government_agencies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TaxPaymentsGovernmentAgencies,
+            "tax_preparation_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TaxPreparationServices,
+            "taxicabs_limousines" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TaxicabsLimousines,
+            "telecommunication_equipment_and_telephone_sales" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TelecommunicationEquipmentAndTelephoneSales,
+            "telecommunication_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TelecommunicationServices,
+            "telegraph_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TelegraphServices,
+            "tent_and_awning_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TentAndAwningShops,
+            "testing_laboratories" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TestingLaboratories,
+            "theatrical_ticket_agencies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TheatricalTicketAgencies,
+            "timeshares" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Timeshares,
+            "tire_retreading_and_repair" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TireRetreadingAndRepair,
+            "tolls_bridge_fees" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TollsBridgeFees,
+            "tourist_attractions_and_exhibits" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TouristAttractionsAndExhibits,
+            "towing_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TowingServices,
+            "trailer_parks_campgrounds" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TrailerParksCampgrounds,
+            "transportation_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TransportationServices,
+            "travel_agencies_tour_operators" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TravelAgenciesTourOperators,
+            "truck_stop_iteration" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TruckStopIteration,
+            "truck_utility_trailer_rentals" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TruckUtilityTrailerRentals,
+            "typesetting_plate_making_and_related_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TypesettingPlateMakingAndRelatedServices,
+            "typewriter_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::TypewriterStores,
+            "u_s_federal_government_agencies_or_departments" => IssuingCardAuthorizationControlsAllowedCategoriesItem::USFederalGovernmentAgenciesOrDepartments,
+            "uniforms_commercial_clothing" => IssuingCardAuthorizationControlsAllowedCategoriesItem::UniformsCommercialClothing,
+            "used_merchandise_and_secondhand_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::UsedMerchandiseAndSecondhandStores,
+            "utilities" => IssuingCardAuthorizationControlsAllowedCategoriesItem::Utilities,
+            "variety_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::VarietyStores,
+            "veterinary_services" => IssuingCardAuthorizationControlsAllowedCategoriesItem::VeterinaryServices,
+            "video_amusement_game_supplies" => IssuingCardAuthorizationControlsAllowedCategoriesItem::VideoAmusementGameSupplies,
+            "video_game_arcades" => IssuingCardAuthorizationControlsAllowedCategoriesItem::VideoGameArcades,
+            "video_tape_rental_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::VideoTapeRentalStores,
+            "vocational_trade_schools" => IssuingCardAuthorizationControlsAllowedCategoriesItem::VocationalTradeSchools,
+            "watch_jewelry_repair" => IssuingCardAuthorizationControlsAllowedCategoriesItem::WatchJewelryRepair,
+            "welding_repair" => IssuingCardAuthorizationControlsAllowedCategoriesItem::WeldingRepair,
+            "wholesale_clubs" => IssuingCardAuthorizationControlsAllowedCategoriesItem::WholesaleClubs,
+            "wig_and_toupee_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::WigAndToupeeStores,
+            "wires_money_orders" => IssuingCardAuthorizationControlsAllowedCategoriesItem::WiresMoneyOrders,
+            "womens_accessory_and_specialty_shops" => IssuingCardAuthorizationControlsAllowedCategoriesItem::WomensAccessoryAndSpecialtyShops,
+            "womens_ready_to_wear_stores" => IssuingCardAuthorizationControlsAllowedCategoriesItem::WomensReadyToWearStores,
+            "wrecking_and_salvage_yards" => IssuingCardAuthorizationControlsAllowedCategoriesItem::WreckingAndSalvageYards,
+            other => IssuingCardAuthorizationControlsAllowedCategoriesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -9409,39 +8881,21 @@ impl IssuingCardCancellationReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingCardCancellationReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingCardCancellationReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "design_rejected" => IssuingCardCancellationReason::DesignRejected,
-                    "fulfillment_error" => IssuingCardCancellationReason::FulfillmentError,
-                    "lost" => IssuingCardCancellationReason::Lost,
-                    "stolen" => IssuingCardCancellationReason::Stolen,
-                    other => IssuingCardCancellationReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingCardCancellationReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingCardCancellationReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingCardCancellationReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "design_rejected" => IssuingCardCancellationReason::DesignRejected,
+            "fulfillment_error" => IssuingCardCancellationReason::FulfillmentError,
+            "lost" => IssuingCardCancellationReason::Lost,
+            "stolen" => IssuingCardCancellationReason::Stolen,
+            other => IssuingCardCancellationReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -9490,13 +8944,14 @@ impl<'de> serde::Deserialize<'de> for IssuingCardCancellationReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardFraudWarning {
     #[doc = "Timestamp of the most recent fraud warning."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub started_at: Option<i64>,
     #[doc = "The type of fraud warning that most recently took place on this card."]
-    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    #[json(rename = "type", default, skip_serializing_if = "Option::is_none")]
     pub r#type: Option<crate::issuing::IssuingCardFraudWarningType>,
 }
 
@@ -9658,39 +9113,21 @@ impl IssuingCardFraudWarningType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingCardFraudWarningType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingCardFraudWarningType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "card_testing_exposure" => IssuingCardFraudWarningType::CardTestingExposure,
-                    "fraud_dispute_filed" => IssuingCardFraudWarningType::FraudDisputeFiled,
-                    "third_party_reported" => IssuingCardFraudWarningType::ThirdPartyReported,
-                    "user_indicated_fraud" => IssuingCardFraudWarningType::UserIndicatedFraud,
-                    other => IssuingCardFraudWarningType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingCardFraudWarningType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingCardFraudWarningType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingCardFraudWarningType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "card_testing_exposure" => IssuingCardFraudWarningType::CardTestingExposure,
+            "fraud_dispute_filed" => IssuingCardFraudWarningType::FraudDisputeFiled,
+            "third_party_reported" => IssuingCardFraudWarningType::ThirdPartyReported,
+            "user_indicated_fraud" => IssuingCardFraudWarningType::UserIndicatedFraud,
+            other => IssuingCardFraudWarningType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -9739,13 +9176,14 @@ impl<'de> serde::Deserialize<'de> for IssuingCardFraudWarningType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardGooglePay {
     #[doc = "Google Pay Eligibility"]
-    #[serde(default)]
+    #[json(default)]
     pub eligible: bool,
     #[doc = "Reason the card is ineligible for Google Pay"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ineligible_reason: Option<crate::issuing::IssuingCardApplePayIneligibleReason>,
 }
 
@@ -9794,10 +9232,11 @@ pub struct IssuingCardGooglePay {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardLifecycleConditions {
     #[doc = "The card is automatically cancelled when it makes this number of non-zero payment authorizations and transactions."]
-    #[serde(default)]
+    #[json(default)]
     pub payment_count: i64,
 }
 
@@ -9846,9 +9285,10 @@ pub struct IssuingCardLifecycleConditions {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardLifecycleControls {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cancel_after: Option<crate::issuing::IssuingCardLifecycleConditions>,
 }
 
@@ -10055,36 +9495,18 @@ impl Default for IssuingCardObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingCardObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingCardObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "issuing.card" => IssuingCardObject::IssuingCard,
-                    other => IssuingCardObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingCardObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingCardObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingCardObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "issuing.card" => IssuingCardObject::IssuingCard,
+            other => IssuingCardObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -10248,40 +9670,22 @@ impl IssuingCardReplacementReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingCardReplacementReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingCardReplacementReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "damaged" => IssuingCardReplacementReason::Damaged,
-                    "expired" => IssuingCardReplacementReason::Expired,
-                    "fulfillment_error" => IssuingCardReplacementReason::FulfillmentError,
-                    "lost" => IssuingCardReplacementReason::Lost,
-                    "stolen" => IssuingCardReplacementReason::Stolen,
-                    other => IssuingCardReplacementReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingCardReplacementReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingCardReplacementReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingCardReplacementReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "damaged" => IssuingCardReplacementReason::Damaged,
+            "expired" => IssuingCardReplacementReason::Expired,
+            "fulfillment_error" => IssuingCardReplacementReason::FulfillmentError,
+            "lost" => IssuingCardReplacementReason::Lost,
+            "stolen" => IssuingCardReplacementReason::Stolen,
+            other => IssuingCardReplacementReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -10330,48 +9734,49 @@ impl<'de> serde::Deserialize<'de> for IssuingCardReplacementReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardShipping {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<crate::common::Address>,
     #[doc = "Address validation details for the shipment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address_validation: Option<crate::issuing::IssuingCardShippingAddressValidation>,
     #[doc = "The name of the business at the shipping address, used on the shipping label to ensure delivery when the card is ship..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub business_name: Option<String>,
     #[doc = "The delivery company that shipped a card."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub carrier: Option<crate::issuing::IssuingCardShippingCarrier>,
     #[doc = "Additional information that may be required for clearing customs."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customs: Option<crate::issuing::IssuingCardShippingCustoms>,
     #[doc = "A unix timestamp representing a best estimate of when the card will be delivered."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub eta: Option<i64>,
     #[doc = "Recipient name."]
-    #[serde(default)]
+    #[json(default)]
     pub name: String,
     #[doc = "The phone number of the receiver of the shipment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone_number: Option<String>,
     #[doc = "Whether a signature is required for card delivery."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub require_signature: Option<bool>,
     #[doc = "Shipment service, such as `standard` or `express`."]
-    #[serde(default)]
+    #[json(default)]
     pub service: crate::issuing::IssuingCardShippingService,
     #[doc = "The delivery status of the card."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<crate::issuing::IssuingCardShippingStatus>,
     #[doc = "A tracking number for a card shipment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tracking_number: Option<String>,
     #[doc = "A link to the shipping carrier's site where you can view detailed information about a card shipment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tracking_url: Option<String>,
     #[doc = "Packaging options."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::issuing::IssuingCardShippingType,
 }
 
@@ -10420,16 +9825,17 @@ pub struct IssuingCardShipping {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardShippingAddressValidation {
     #[doc = "The address validation capabilities to use."]
-    #[serde(default)]
+    #[json(default)]
     pub mode: crate::issuing::IssuingCardShippingAddressValidationMode,
     #[doc = "The normalized shipping address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub normalized_address: Option<crate::common::Address>,
     #[doc = "The validation result for the shipping address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub result: Option<crate::issuing::IssuingCardShippingAddressValidationResult>,
 }
 
@@ -10640,40 +10046,20 @@ impl Default for IssuingCardShippingAddressValidationMode {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingCardShippingAddressValidationMode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingCardShippingAddressValidationMode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "disabled" => IssuingCardShippingAddressValidationMode::Disabled,
-                    "normalization_only" => IssuingCardShippingAddressValidationMode::NormalizationOnly,
-                    "validation_and_normalization" => {
-                        IssuingCardShippingAddressValidationMode::ValidationAndNormalization
-                    }
-                    other => IssuingCardShippingAddressValidationMode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingCardShippingAddressValidationMode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingCardShippingAddressValidationMode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingCardShippingAddressValidationMode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "disabled" => IssuingCardShippingAddressValidationMode::Disabled,
+            "normalization_only" => IssuingCardShippingAddressValidationMode::NormalizationOnly,
+            "validation_and_normalization" => IssuingCardShippingAddressValidationMode::ValidationAndNormalization,
+            other => IssuingCardShippingAddressValidationMode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -10833,38 +10219,20 @@ impl IssuingCardShippingAddressValidationResult {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingCardShippingAddressValidationResult {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingCardShippingAddressValidationResult;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "indeterminate" => IssuingCardShippingAddressValidationResult::Indeterminate,
-                    "likely_deliverable" => IssuingCardShippingAddressValidationResult::LikelyDeliverable,
-                    "likely_undeliverable" => IssuingCardShippingAddressValidationResult::LikelyUndeliverable,
-                    other => IssuingCardShippingAddressValidationResult::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingCardShippingAddressValidationResult::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingCardShippingAddressValidationResult {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingCardShippingAddressValidationResult::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "indeterminate" => IssuingCardShippingAddressValidationResult::Indeterminate,
+            "likely_deliverable" => IssuingCardShippingAddressValidationResult::LikelyDeliverable,
+            "likely_undeliverable" => IssuingCardShippingAddressValidationResult::LikelyUndeliverable,
+            other => IssuingCardShippingAddressValidationResult::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -11028,40 +10396,22 @@ impl IssuingCardShippingCarrier {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingCardShippingCarrier {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingCardShippingCarrier;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "correos" => IssuingCardShippingCarrier::Correos,
-                    "dhl" => IssuingCardShippingCarrier::Dhl,
-                    "fedex" => IssuingCardShippingCarrier::Fedex,
-                    "royal_mail" => IssuingCardShippingCarrier::RoyalMail,
-                    "usps" => IssuingCardShippingCarrier::Usps,
-                    other => IssuingCardShippingCarrier::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingCardShippingCarrier::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingCardShippingCarrier {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingCardShippingCarrier::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "correos" => IssuingCardShippingCarrier::Correos,
+            "dhl" => IssuingCardShippingCarrier::Dhl,
+            "fedex" => IssuingCardShippingCarrier::Fedex,
+            "royal_mail" => IssuingCardShippingCarrier::RoyalMail,
+            "usps" => IssuingCardShippingCarrier::Usps,
+            other => IssuingCardShippingCarrier::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -11110,10 +10460,11 @@ impl<'de> serde::Deserialize<'de> for IssuingCardShippingCarrier {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardShippingCustoms {
     #[doc = "A registration number used for customs in Europe."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub eori_number: Option<String>,
 }
 
@@ -11324,38 +10675,20 @@ impl Default for IssuingCardShippingService {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingCardShippingService {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingCardShippingService;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "express" => IssuingCardShippingService::Express,
-                    "priority" => IssuingCardShippingService::Priority,
-                    "standard" => IssuingCardShippingService::Standard,
-                    other => IssuingCardShippingService::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingCardShippingService::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingCardShippingService {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingCardShippingService::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "express" => IssuingCardShippingService::Express,
+            "priority" => IssuingCardShippingService::Priority,
+            "standard" => IssuingCardShippingService::Standard,
+            other => IssuingCardShippingService::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -11523,42 +10856,24 @@ impl IssuingCardShippingStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingCardShippingStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingCardShippingStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "canceled" => IssuingCardShippingStatus::Canceled,
-                    "delivered" => IssuingCardShippingStatus::Delivered,
-                    "failure" => IssuingCardShippingStatus::Failure,
-                    "pending" => IssuingCardShippingStatus::Pending,
-                    "returned" => IssuingCardShippingStatus::Returned,
-                    "shipped" => IssuingCardShippingStatus::Shipped,
-                    "submitted" => IssuingCardShippingStatus::Submitted,
-                    other => IssuingCardShippingStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingCardShippingStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingCardShippingStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingCardShippingStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "canceled" => IssuingCardShippingStatus::Canceled,
+            "delivered" => IssuingCardShippingStatus::Delivered,
+            "failure" => IssuingCardShippingStatus::Failure,
+            "pending" => IssuingCardShippingStatus::Pending,
+            "returned" => IssuingCardShippingStatus::Returned,
+            "shipped" => IssuingCardShippingStatus::Shipped,
+            "submitted" => IssuingCardShippingStatus::Submitted,
+            other => IssuingCardShippingStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -11767,37 +11082,19 @@ impl Default for IssuingCardShippingType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingCardShippingType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingCardShippingType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "bulk" => IssuingCardShippingType::Bulk,
-                    "individual" => IssuingCardShippingType::Individual,
-                    other => IssuingCardShippingType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingCardShippingType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingCardShippingType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingCardShippingType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "bulk" => IssuingCardShippingType::Bulk,
+            "individual" => IssuingCardShippingType::Individual,
+            other => IssuingCardShippingType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -11846,16 +11143,17 @@ impl<'de> serde::Deserialize<'de> for IssuingCardShippingType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardSpendingLimit {
     #[doc = "Maximum amount allowed to spend per interval."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Array of strings containing [categories](https://docs.stripe.com/api#issuing_authorization_object-merchant_data-categ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub categories: Option<Vec<crate::issuing::IssuingCardAuthorizationControlsAllowedCategoriesItem>>,
     #[doc = "Interval (or event) to which the amount applies."]
-    #[serde(default)]
+    #[json(default)]
     pub interval: crate::issuing::IssuingCardSpendingLimitInterval,
 }
 
@@ -12072,41 +11370,23 @@ impl Default for IssuingCardSpendingLimitInterval {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingCardSpendingLimitInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingCardSpendingLimitInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "all_time" => IssuingCardSpendingLimitInterval::AllTime,
-                    "daily" => IssuingCardSpendingLimitInterval::Daily,
-                    "monthly" => IssuingCardSpendingLimitInterval::Monthly,
-                    "per_authorization" => IssuingCardSpendingLimitInterval::PerAuthorization,
-                    "weekly" => IssuingCardSpendingLimitInterval::Weekly,
-                    "yearly" => IssuingCardSpendingLimitInterval::Yearly,
-                    other => IssuingCardSpendingLimitInterval::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingCardSpendingLimitInterval::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingCardSpendingLimitInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingCardSpendingLimitInterval::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "all_time" => IssuingCardSpendingLimitInterval::AllTime,
+            "daily" => IssuingCardSpendingLimitInterval::Daily,
+            "monthly" => IssuingCardSpendingLimitInterval::Monthly,
+            "per_authorization" => IssuingCardSpendingLimitInterval::PerAuthorization,
+            "weekly" => IssuingCardSpendingLimitInterval::Weekly,
+            "yearly" => IssuingCardSpendingLimitInterval::Yearly,
+            other => IssuingCardSpendingLimitInterval::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -12317,38 +11597,20 @@ impl Default for IssuingCardStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingCardStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingCardStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => IssuingCardStatus::Active,
-                    "canceled" => IssuingCardStatus::Canceled,
-                    "inactive" => IssuingCardStatus::Inactive,
-                    other => IssuingCardStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingCardStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingCardStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingCardStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => IssuingCardStatus::Active,
+            "canceled" => IssuingCardStatus::Canceled,
+            "inactive" => IssuingCardStatus::Inactive,
+            other => IssuingCardStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -12557,37 +11819,19 @@ impl Default for IssuingCardType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingCardType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingCardType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "physical" => IssuingCardType::Physical,
-                    "virtual" => IssuingCardType::Virtual,
-                    other => IssuingCardType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingCardType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingCardType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingCardType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "physical" => IssuingCardType::Physical,
+            "virtual" => IssuingCardType::Virtual,
+            other => IssuingCardType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -12636,14 +11880,15 @@ impl<'de> serde::Deserialize<'de> for IssuingCardType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardWallets {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub apple_pay: Option<crate::issuing::IssuingCardApplePay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub google_pay: Option<crate::issuing::IssuingCardGooglePay>,
     #[doc = "Unique identifier for a card used with digital wallets"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub primary_account_identifier: Option<String>,
 }
 
@@ -12692,53 +11937,54 @@ pub struct IssuingCardWallets {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardholder {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billing: Option<crate::issuing::IssuingCardholderAddress>,
     #[doc = "Additional information about a `company` cardholder."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub company: Option<crate::issuing::IssuingCardholderCompany>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "The cardholder's email address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "Additional information about an `individual` cardholder."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub individual: Option<crate::issuing::IssuingCardholderIndividual>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "The cardholder's name."]
-    #[serde(default)]
+    #[json(default)]
     pub name: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::issuing::IssuingCardholderObject,
     #[doc = "The cardholder's phone number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone_number: Option<String>,
     #[doc = "The cardholder’s preferred locales (languages), ordered by preference."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub preferred_locales: Option<Vec<crate::issuing::IssuingCardholderPreferredLocalesItem>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub requirements: Option<crate::issuing::IssuingCardholderRequirements>,
     #[doc = "Rules that control spending across this cardholder's cards."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub spending_controls: Option<crate::issuing::IssuingCardholderAuthorizationControls>,
     #[doc = "Specifies whether to permit authorizations on this cardholder's cards."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::issuing::IssuingCardholderStatus,
     #[doc = "One of `individual` or `company`."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::issuing::IssuingCardholderType,
 }
 
@@ -12838,9 +12084,10 @@ impl crate::PagedItem for IssuingCardholder {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardholderAddress {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<crate::common::Address>,
 }
 
@@ -12889,31 +12136,32 @@ pub struct IssuingCardholderAddress {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardholderAuthorizationControls {
     #[doc = "Array of card presence statuses from which authorizations will be allowed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub allowed_card_presences: Option<Vec<crate::issuing::IssuingAuthorizationCardPresence>>,
     #[doc = "Array of strings containing [categories](https://docs.stripe.com/api#issuing_authorization_object-merchant_data-categ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub allowed_categories: Option<Vec<crate::issuing::IssuingCardAuthorizationControlsAllowedCategoriesItem>>,
     #[doc = "Array of strings containing representing countries from which authorizations will be allowed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub allowed_merchant_countries: Option<Vec<String>>,
     #[doc = "Array of card presence statuses from which authorizations will be declined."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub blocked_card_presences: Option<Vec<crate::issuing::IssuingAuthorizationCardPresence>>,
     #[doc = "Array of strings containing [categories](https://docs.stripe.com/api#issuing_authorization_object-merchant_data-categ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub blocked_categories: Option<Vec<crate::issuing::IssuingCardAuthorizationControlsAllowedCategoriesItem>>,
     #[doc = "Array of strings containing representing countries from which authorizations will be declined."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub blocked_merchant_countries: Option<Vec<String>>,
     #[doc = "Limit spending with amount-based rules that apply across this cardholder's cards."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub spending_limits: Option<Vec<crate::issuing::IssuingCardholderSpendingLimit>>,
     #[doc = "Currency of the amounts within `spending_limits`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub spending_limits_currency: Option<String>,
 }
 
@@ -12962,10 +12210,11 @@ pub struct IssuingCardholderAuthorizationControls {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardholderCardIssuing {
     #[doc = "Information about cardholder acceptance of Celtic [Authorized User Terms](https://docs.stripe.com/issuing/compliance-..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub user_terms_acceptance: Option<crate::issuing::IssuingCardholderUserTermsAcceptance>,
 }
 
@@ -13014,10 +12263,11 @@ pub struct IssuingCardholderCardIssuing {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardholderCompany {
     #[doc = "Whether the company's business ID number was provided."]
-    #[serde(default)]
+    #[json(default)]
     pub tax_id_provided: bool,
 }
 
@@ -13066,13 +12316,14 @@ pub struct IssuingCardholderCompany {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardholderIdDocument {
     #[doc = "The back of a document returned by a [file upload](https://docs.stripe.com/api#create_file) with a `purpose` value of..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub back: Option<crate::Expandable<crate::files::File>>,
     #[doc = "The front of a document returned by a [file upload](https://docs.stripe.com/api#create_file) with a `purpose` value o..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub front: Option<crate::Expandable<crate::files::File>>,
 }
 
@@ -13121,22 +12372,23 @@ pub struct IssuingCardholderIdDocument {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardholderIndividual {
     #[doc = "Information related to the card_issuing program for this cardholder."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card_issuing: Option<crate::issuing::IssuingCardholderCardIssuing>,
     #[doc = "The date of birth of this cardholder."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub dob: Option<crate::issuing::IssuingCardholderIndividualDob>,
     #[doc = "The first name of this cardholder."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub first_name: Option<String>,
     #[doc = "The last name of this cardholder."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last_name: Option<String>,
     #[doc = "Government-issued ID document for this cardholder."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verification: Option<crate::issuing::IssuingCardholderVerification>,
 }
 
@@ -13185,16 +12437,17 @@ pub struct IssuingCardholderIndividual {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardholderIndividualDob {
     #[doc = "The day of birth, between 1 and 31."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub day: Option<i64>,
     #[doc = "The month of birth, between 1 and 12."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub month: Option<i64>,
     #[doc = "The four-digit year of birth."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub year: Option<i64>,
 }
 
@@ -13401,36 +12654,18 @@ impl Default for IssuingCardholderObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingCardholderObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingCardholderObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "issuing.cardholder" => IssuingCardholderObject::IssuingCardholder,
-                    other => IssuingCardholderObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingCardholderObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingCardholderObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingCardholderObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "issuing.cardholder" => IssuingCardholderObject::IssuingCardholder,
+            other => IssuingCardholderObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -13594,40 +12829,22 @@ impl IssuingCardholderPreferredLocalesItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingCardholderPreferredLocalesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingCardholderPreferredLocalesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "de" => IssuingCardholderPreferredLocalesItem::De,
-                    "en" => IssuingCardholderPreferredLocalesItem::En,
-                    "es" => IssuingCardholderPreferredLocalesItem::Es,
-                    "fr" => IssuingCardholderPreferredLocalesItem::Fr,
-                    "it" => IssuingCardholderPreferredLocalesItem::It,
-                    other => IssuingCardholderPreferredLocalesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingCardholderPreferredLocalesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingCardholderPreferredLocalesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingCardholderPreferredLocalesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "de" => IssuingCardholderPreferredLocalesItem::De,
+            "en" => IssuingCardholderPreferredLocalesItem::En,
+            "es" => IssuingCardholderPreferredLocalesItem::Es,
+            "fr" => IssuingCardholderPreferredLocalesItem::Fr,
+            "it" => IssuingCardholderPreferredLocalesItem::It,
+            other => IssuingCardholderPreferredLocalesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -13676,13 +12893,14 @@ impl<'de> serde::Deserialize<'de> for IssuingCardholderPreferredLocalesItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardholderRequirements {
     #[doc = "If `disabled_reason` is present, all cards will decline authorizations with `cardholder_verification_required` reason."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub disabled_reason: Option<crate::issuing::IssuingCardholderRequirementsDisabledReason>,
     #[doc = "Array of fields that need to be collected in order to verify and re-enable the cardholder."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub past_due: Option<Vec<crate::issuing::IssuingCardholderRequirementsPastDueItem>>,
 }
 
@@ -13844,39 +13062,21 @@ impl IssuingCardholderRequirementsDisabledReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingCardholderRequirementsDisabledReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingCardholderRequirementsDisabledReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "listed" => IssuingCardholderRequirementsDisabledReason::Listed,
-                    "rejected.listed" => IssuingCardholderRequirementsDisabledReason::RejectedListed,
-                    "requirements.past_due" => IssuingCardholderRequirementsDisabledReason::RequirementsPastDue,
-                    "under_review" => IssuingCardholderRequirementsDisabledReason::UnderReview,
-                    other => IssuingCardholderRequirementsDisabledReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingCardholderRequirementsDisabledReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingCardholderRequirementsDisabledReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingCardholderRequirementsDisabledReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "listed" => IssuingCardholderRequirementsDisabledReason::Listed,
+            "rejected.listed" => IssuingCardholderRequirementsDisabledReason::RejectedListed,
+            "requirements.past_due" => IssuingCardholderRequirementsDisabledReason::RequirementsPastDue,
+            "under_review" => IssuingCardholderRequirementsDisabledReason::UnderReview,
+            other => IssuingCardholderRequirementsDisabledReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -14054,50 +13254,32 @@ impl IssuingCardholderRequirementsPastDueItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingCardholderRequirementsPastDueItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingCardholderRequirementsPastDueItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "company.tax_id" => IssuingCardholderRequirementsPastDueItem::CompanyTaxId,
-                    "individual.card_issuing.user_terms_acceptance.date" => {
-                        IssuingCardholderRequirementsPastDueItem::IndividualCardIssuingUserTermsAcceptanceDate
-                    }
-                    "individual.card_issuing.user_terms_acceptance.ip" => {
-                        IssuingCardholderRequirementsPastDueItem::IndividualCardIssuingUserTermsAcceptanceIp
-                    }
-                    "individual.dob.day" => IssuingCardholderRequirementsPastDueItem::IndividualDobDay,
-                    "individual.dob.month" => IssuingCardholderRequirementsPastDueItem::IndividualDobMonth,
-                    "individual.dob.year" => IssuingCardholderRequirementsPastDueItem::IndividualDobYear,
-                    "individual.first_name" => IssuingCardholderRequirementsPastDueItem::IndividualFirstName,
-                    "individual.last_name" => IssuingCardholderRequirementsPastDueItem::IndividualLastName,
-                    "individual.verification.document" => {
-                        IssuingCardholderRequirementsPastDueItem::IndividualVerificationDocument
-                    }
-                    other => IssuingCardholderRequirementsPastDueItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingCardholderRequirementsPastDueItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingCardholderRequirementsPastDueItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingCardholderRequirementsPastDueItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "company.tax_id" => IssuingCardholderRequirementsPastDueItem::CompanyTaxId,
+            "individual.card_issuing.user_terms_acceptance.date" => {
+                IssuingCardholderRequirementsPastDueItem::IndividualCardIssuingUserTermsAcceptanceDate
+            }
+            "individual.card_issuing.user_terms_acceptance.ip" => {
+                IssuingCardholderRequirementsPastDueItem::IndividualCardIssuingUserTermsAcceptanceIp
+            }
+            "individual.dob.day" => IssuingCardholderRequirementsPastDueItem::IndividualDobDay,
+            "individual.dob.month" => IssuingCardholderRequirementsPastDueItem::IndividualDobMonth,
+            "individual.dob.year" => IssuingCardholderRequirementsPastDueItem::IndividualDobYear,
+            "individual.first_name" => IssuingCardholderRequirementsPastDueItem::IndividualFirstName,
+            "individual.last_name" => IssuingCardholderRequirementsPastDueItem::IndividualLastName,
+            "individual.verification.document" => {
+                IssuingCardholderRequirementsPastDueItem::IndividualVerificationDocument
+            }
+            other => IssuingCardholderRequirementsPastDueItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -14146,16 +13328,17 @@ impl<'de> serde::Deserialize<'de> for IssuingCardholderRequirementsPastDueItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardholderSpendingLimit {
     #[doc = "Maximum amount allowed to spend per interval."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Array of strings containing [categories](https://docs.stripe.com/api#issuing_authorization_object-merchant_data-categ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub categories: Option<Vec<crate::issuing::IssuingCardAuthorizationControlsAllowedCategoriesItem>>,
     #[doc = "Interval (or event) to which the amount applies."]
-    #[serde(default)]
+    #[json(default)]
     pub interval: crate::issuing::IssuingCardSpendingLimitInterval,
 }
 
@@ -14366,38 +13549,20 @@ impl Default for IssuingCardholderStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingCardholderStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingCardholderStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => IssuingCardholderStatus::Active,
-                    "blocked" => IssuingCardholderStatus::Blocked,
-                    "inactive" => IssuingCardholderStatus::Inactive,
-                    other => IssuingCardholderStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingCardholderStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingCardholderStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingCardholderStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => IssuingCardholderStatus::Active,
+            "blocked" => IssuingCardholderStatus::Blocked,
+            "inactive" => IssuingCardholderStatus::Inactive,
+            other => IssuingCardholderStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -14606,37 +13771,19 @@ impl Default for IssuingCardholderType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingCardholderType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingCardholderType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "company" => IssuingCardholderType::Company,
-                    "individual" => IssuingCardholderType::Individual,
-                    other => IssuingCardholderType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingCardholderType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingCardholderType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingCardholderType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "company" => IssuingCardholderType::Company,
+            "individual" => IssuingCardholderType::Individual,
+            other => IssuingCardholderType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -14685,16 +13832,17 @@ impl<'de> serde::Deserialize<'de> for IssuingCardholderType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardholderUserTermsAcceptance {
     #[doc = "The Unix timestamp marking when the cardholder accepted the Authorized User Terms."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub date: Option<i64>,
     #[doc = "The IP address from which the cardholder accepted the Authorized User Terms."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ip: Option<String>,
     #[doc = "The user agent of the browser from which the cardholder accepted the Authorized User Terms."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub user_agent: Option<String>,
 }
 
@@ -14743,10 +13891,11 @@ pub struct IssuingCardholderUserTermsAcceptance {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingCardholderVerification {
     #[doc = "An identifying document, either a passport or local ID card."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub document: Option<crate::issuing::IssuingCardholderIdDocument>,
 }
 
@@ -14795,45 +13944,46 @@ pub struct IssuingCardholderVerification {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingDispute {
     #[doc = "Disputed amount in the card's currency and in the [smallest currency unit](https://docs.stripe.com/currencies#zero-de..."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "List of balance transactions associated with the dispute."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub balance_transactions: Option<Vec<crate::balance_transactions::BalanceTransaction>>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "The currency the `transaction` was made in."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub evidence: Option<crate::issuing::IssuingDisputeEvidence>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "The enum that describes the dispute loss outcome."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub loss_reason: Option<crate::issuing::IssuingDisputeLossReason>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::issuing::IssuingDisputeObject,
     #[doc = "Current status of the dispute."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::issuing::IssuingDisputeStatus,
     #[doc = "The transaction being disputed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transaction: Option<crate::Expandable<crate::issuing::IssuingTransaction>>,
     #[doc = "[Treasury](https://docs.stripe.com/api/treasury) details related to this dispute if it was created on a [FinancialAcc..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub treasury: Option<crate::issuing::IssuingDisputeTreasury>,
 }
 
@@ -14933,37 +14083,38 @@ impl crate::PagedItem for IssuingDispute {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingDisputeCanceledEvidence {
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Additional documentation supporting the dispute."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub additional_documentation: Option<crate::Expandable<crate::files::File>>,
     #[doc = "Date when order was canceled."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub canceled_at: Option<i64>,
     #[doc = "Whether the cardholder was provided with a cancellation policy."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cancellation_policy_provided: Option<bool>,
     #[doc = "Reason for canceling the order."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cancellation_reason: Option<String>,
     #[doc = "Date when the cardholder expected to receive the product."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expected_at: Option<i64>,
     #[doc = "Explanation of why the cardholder is disputing this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub explanation: Option<String>,
     #[doc = "Description of the merchandise or service that was purchased."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub product_description: Option<String>,
     #[doc = "Whether the product was a merchandise or service."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub product_type: Option<crate::issuing::IssuingDisputeCanceledEvidenceProductType>,
     #[doc = "Result of cardholder's attempt to return the product."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub return_status: Option<crate::issuing::IssuingDisputeCanceledEvidenceReturnStatus>,
     #[doc = "Date when the product was returned or attempted to be returned."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub returned_at: Option<i64>,
 }
 
@@ -15121,37 +14272,19 @@ impl IssuingDisputeCanceledEvidenceProductType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingDisputeCanceledEvidenceProductType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingDisputeCanceledEvidenceProductType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "merchandise" => IssuingDisputeCanceledEvidenceProductType::Merchandise,
-                    "service" => IssuingDisputeCanceledEvidenceProductType::Service,
-                    other => IssuingDisputeCanceledEvidenceProductType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingDisputeCanceledEvidenceProductType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingDisputeCanceledEvidenceProductType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingDisputeCanceledEvidenceProductType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "merchandise" => IssuingDisputeCanceledEvidenceProductType::Merchandise,
+            "service" => IssuingDisputeCanceledEvidenceProductType::Service,
+            other => IssuingDisputeCanceledEvidenceProductType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -15309,37 +14442,19 @@ impl IssuingDisputeCanceledEvidenceReturnStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingDisputeCanceledEvidenceReturnStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingDisputeCanceledEvidenceReturnStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "merchant_rejected" => IssuingDisputeCanceledEvidenceReturnStatus::MerchantRejected,
-                    "successful" => IssuingDisputeCanceledEvidenceReturnStatus::Successful,
-                    other => IssuingDisputeCanceledEvidenceReturnStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingDisputeCanceledEvidenceReturnStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingDisputeCanceledEvidenceReturnStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingDisputeCanceledEvidenceReturnStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "merchant_rejected" => IssuingDisputeCanceledEvidenceReturnStatus::MerchantRejected,
+            "successful" => IssuingDisputeCanceledEvidenceReturnStatus::Successful,
+            other => IssuingDisputeCanceledEvidenceReturnStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -15388,25 +14503,26 @@ impl<'de> serde::Deserialize<'de> for IssuingDisputeCanceledEvidenceReturnStatus
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingDisputeDuplicateEvidence {
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Additional documentation supporting the dispute."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub additional_documentation: Option<crate::Expandable<crate::files::File>>,
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Copy of the card statement showing that the produ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card_statement: Option<crate::Expandable<crate::files::File>>,
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Copy of the receipt showing that the product had ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cash_receipt: Option<crate::Expandable<crate::files::File>>,
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Image of the front and back of the check that was..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub check_image: Option<crate::Expandable<crate::files::File>>,
     #[doc = "Explanation of why the cardholder is disputing this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub explanation: Option<String>,
     #[doc = "Transaction (e.g., ipi_...) that the disputed transaction is a duplicate of."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub original_transaction: Option<String>,
 }
 
@@ -15455,26 +14571,27 @@ pub struct IssuingDisputeDuplicateEvidence {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingDisputeEvidence {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub canceled: Option<crate::issuing::IssuingDisputeCanceledEvidence>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub duplicate: Option<crate::issuing::IssuingDisputeDuplicateEvidence>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fraudulent: Option<crate::issuing::IssuingDisputeFraudulentEvidence>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub merchandise_not_as_described: Option<crate::issuing::IssuingDisputeMerchandiseNotAsDescribedEvidence>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub no_valid_authorization: Option<crate::issuing::IssuingDisputeNoValidAuthorizationEvidence>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub not_received: Option<crate::issuing::IssuingDisputeNotReceivedEvidence>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub other: Option<crate::issuing::IssuingDisputeOtherEvidence>,
     #[doc = "The reason for filing the dispute."]
-    #[serde(default)]
+    #[json(default)]
     pub reason: crate::issuing::IssuingDisputeEvidenceReason,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub service_not_as_described: Option<crate::issuing::IssuingDisputeServiceNotAsDescribedEvidence>,
 }
 
@@ -15695,43 +14812,25 @@ impl Default for IssuingDisputeEvidenceReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingDisputeEvidenceReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingDisputeEvidenceReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "canceled" => IssuingDisputeEvidenceReason::Canceled,
-                    "duplicate" => IssuingDisputeEvidenceReason::Duplicate,
-                    "fraudulent" => IssuingDisputeEvidenceReason::Fraudulent,
-                    "merchandise_not_as_described" => IssuingDisputeEvidenceReason::MerchandiseNotAsDescribed,
-                    "no_valid_authorization" => IssuingDisputeEvidenceReason::NoValidAuthorization,
-                    "not_received" => IssuingDisputeEvidenceReason::NotReceived,
-                    "other" => IssuingDisputeEvidenceReason::Other,
-                    "service_not_as_described" => IssuingDisputeEvidenceReason::ServiceNotAsDescribed,
-                    other => IssuingDisputeEvidenceReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingDisputeEvidenceReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingDisputeEvidenceReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingDisputeEvidenceReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "canceled" => IssuingDisputeEvidenceReason::Canceled,
+            "duplicate" => IssuingDisputeEvidenceReason::Duplicate,
+            "fraudulent" => IssuingDisputeEvidenceReason::Fraudulent,
+            "merchandise_not_as_described" => IssuingDisputeEvidenceReason::MerchandiseNotAsDescribed,
+            "no_valid_authorization" => IssuingDisputeEvidenceReason::NoValidAuthorization,
+            "not_received" => IssuingDisputeEvidenceReason::NotReceived,
+            "other" => IssuingDisputeEvidenceReason::Other,
+            "service_not_as_described" => IssuingDisputeEvidenceReason::ServiceNotAsDescribed,
+            other => IssuingDisputeEvidenceReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -15780,13 +14879,14 @@ impl<'de> serde::Deserialize<'de> for IssuingDisputeEvidenceReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingDisputeFraudulentEvidence {
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Additional documentation supporting the dispute."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub additional_documentation: Option<crate::Expandable<crate::files::File>>,
     #[doc = "Explanation of why the cardholder is disputing this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub explanation: Option<String>,
 }
 
@@ -15988,65 +15088,45 @@ impl IssuingDisputeLossReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingDisputeLossReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingDisputeLossReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cardholder_authentication_issuer_liability" => {
-                        IssuingDisputeLossReason::CardholderAuthenticationIssuerLiability
-                    }
-                    "eci5_token_transaction_with_tavv" => IssuingDisputeLossReason::Eci5TokenTransactionWithTavv,
-                    "excess_disputes_in_timeframe" => IssuingDisputeLossReason::ExcessDisputesInTimeframe,
-                    "has_not_met_the_minimum_dispute_amount_requirements" => {
-                        IssuingDisputeLossReason::HasNotMetTheMinimumDisputeAmountRequirements
-                    }
-                    "invalid_duplicate_dispute" => IssuingDisputeLossReason::InvalidDuplicateDispute,
-                    "invalid_incorrect_amount_dispute" => IssuingDisputeLossReason::InvalidIncorrectAmountDispute,
-                    "invalid_no_authorization" => IssuingDisputeLossReason::InvalidNoAuthorization,
-                    "invalid_use_of_disputes" => IssuingDisputeLossReason::InvalidUseOfDisputes,
-                    "merchandise_delivered_or_shipped" => IssuingDisputeLossReason::MerchandiseDeliveredOrShipped,
-                    "merchandise_or_service_as_described" => IssuingDisputeLossReason::MerchandiseOrServiceAsDescribed,
-                    "not_cancelled" => IssuingDisputeLossReason::NotCancelled,
-                    "other" => IssuingDisputeLossReason::Other,
-                    "refund_issued" => IssuingDisputeLossReason::RefundIssued,
-                    "submitted_beyond_allowable_time_limit" => {
-                        IssuingDisputeLossReason::SubmittedBeyondAllowableTimeLimit
-                    }
-                    "transaction_3ds_required" => IssuingDisputeLossReason::Transaction3dsRequired,
-                    "transaction_approved_after_prior_fraud_dispute" => {
-                        IssuingDisputeLossReason::TransactionApprovedAfterPriorFraudDispute
-                    }
-                    "transaction_authorized" => IssuingDisputeLossReason::TransactionAuthorized,
-                    "transaction_electronically_read" => IssuingDisputeLossReason::TransactionElectronicallyRead,
-                    "transaction_qualifies_for_visa_easy_payment_service" => {
-                        IssuingDisputeLossReason::TransactionQualifiesForVisaEasyPaymentService
-                    }
-                    "transaction_unattended" => IssuingDisputeLossReason::TransactionUnattended,
-                    other => IssuingDisputeLossReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingDisputeLossReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingDisputeLossReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingDisputeLossReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cardholder_authentication_issuer_liability" => {
+                IssuingDisputeLossReason::CardholderAuthenticationIssuerLiability
+            }
+            "eci5_token_transaction_with_tavv" => IssuingDisputeLossReason::Eci5TokenTransactionWithTavv,
+            "excess_disputes_in_timeframe" => IssuingDisputeLossReason::ExcessDisputesInTimeframe,
+            "has_not_met_the_minimum_dispute_amount_requirements" => {
+                IssuingDisputeLossReason::HasNotMetTheMinimumDisputeAmountRequirements
+            }
+            "invalid_duplicate_dispute" => IssuingDisputeLossReason::InvalidDuplicateDispute,
+            "invalid_incorrect_amount_dispute" => IssuingDisputeLossReason::InvalidIncorrectAmountDispute,
+            "invalid_no_authorization" => IssuingDisputeLossReason::InvalidNoAuthorization,
+            "invalid_use_of_disputes" => IssuingDisputeLossReason::InvalidUseOfDisputes,
+            "merchandise_delivered_or_shipped" => IssuingDisputeLossReason::MerchandiseDeliveredOrShipped,
+            "merchandise_or_service_as_described" => IssuingDisputeLossReason::MerchandiseOrServiceAsDescribed,
+            "not_cancelled" => IssuingDisputeLossReason::NotCancelled,
+            "other" => IssuingDisputeLossReason::Other,
+            "refund_issued" => IssuingDisputeLossReason::RefundIssued,
+            "submitted_beyond_allowable_time_limit" => IssuingDisputeLossReason::SubmittedBeyondAllowableTimeLimit,
+            "transaction_3ds_required" => IssuingDisputeLossReason::Transaction3dsRequired,
+            "transaction_approved_after_prior_fraud_dispute" => {
+                IssuingDisputeLossReason::TransactionApprovedAfterPriorFraudDispute
+            }
+            "transaction_authorized" => IssuingDisputeLossReason::TransactionAuthorized,
+            "transaction_electronically_read" => IssuingDisputeLossReason::TransactionElectronicallyRead,
+            "transaction_qualifies_for_visa_easy_payment_service" => {
+                IssuingDisputeLossReason::TransactionQualifiesForVisaEasyPaymentService
+            }
+            "transaction_unattended" => IssuingDisputeLossReason::TransactionUnattended,
+            other => IssuingDisputeLossReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -16095,25 +15175,26 @@ impl<'de> serde::Deserialize<'de> for IssuingDisputeLossReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingDisputeMerchandiseNotAsDescribedEvidence {
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Additional documentation supporting the dispute."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub additional_documentation: Option<crate::Expandable<crate::files::File>>,
     #[doc = "Explanation of why the cardholder is disputing this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub explanation: Option<String>,
     #[doc = "Date when the product was received."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub received_at: Option<i64>,
     #[doc = "Description of the cardholder's attempt to return the product."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub return_description: Option<String>,
     #[doc = "Result of cardholder's attempt to return the product."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub return_status: Option<crate::issuing::IssuingDisputeCanceledEvidenceReturnStatus>,
     #[doc = "Date when the product was returned or attempted to be returned."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub returned_at: Option<i64>,
 }
 
@@ -16162,13 +15243,14 @@ pub struct IssuingDisputeMerchandiseNotAsDescribedEvidence {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingDisputeNoValidAuthorizationEvidence {
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Additional documentation supporting the dispute."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub additional_documentation: Option<crate::Expandable<crate::files::File>>,
     #[doc = "Explanation of why the cardholder is disputing this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub explanation: Option<String>,
 }
 
@@ -16217,22 +15299,23 @@ pub struct IssuingDisputeNoValidAuthorizationEvidence {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingDisputeNotReceivedEvidence {
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Additional documentation supporting the dispute."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub additional_documentation: Option<crate::Expandable<crate::files::File>>,
     #[doc = "Date when the cardholder expected to receive the product."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expected_at: Option<i64>,
     #[doc = "Explanation of why the cardholder is disputing this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub explanation: Option<String>,
     #[doc = "Description of the merchandise or service that was purchased."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub product_description: Option<String>,
     #[doc = "Whether the product was a merchandise or service."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub product_type: Option<crate::issuing::IssuingDisputeCanceledEvidenceProductType>,
 }
 
@@ -16439,36 +15522,18 @@ impl Default for IssuingDisputeObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingDisputeObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingDisputeObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "issuing.dispute" => IssuingDisputeObject::IssuingDispute,
-                    other => IssuingDisputeObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingDisputeObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingDisputeObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingDisputeObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "issuing.dispute" => IssuingDisputeObject::IssuingDispute,
+            other => IssuingDisputeObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -16517,19 +15582,20 @@ impl<'de> serde::Deserialize<'de> for IssuingDisputeObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingDisputeOtherEvidence {
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Additional documentation supporting the dispute."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub additional_documentation: Option<crate::Expandable<crate::files::File>>,
     #[doc = "Explanation of why the cardholder is disputing this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub explanation: Option<String>,
     #[doc = "Description of the merchandise or service that was purchased."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub product_description: Option<String>,
     #[doc = "Whether the product was a merchandise or service."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub product_type: Option<crate::issuing::IssuingDisputeCanceledEvidenceProductType>,
 }
 
@@ -16578,22 +15644,23 @@ pub struct IssuingDisputeOtherEvidence {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingDisputeServiceNotAsDescribedEvidence {
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Additional documentation supporting the dispute."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub additional_documentation: Option<crate::Expandable<crate::files::File>>,
     #[doc = "Date when order was canceled."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub canceled_at: Option<i64>,
     #[doc = "Reason for canceling the order."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cancellation_reason: Option<String>,
     #[doc = "Explanation of why the cardholder is disputing this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub explanation: Option<String>,
     #[doc = "Date when the product was received."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub received_at: Option<i64>,
 }
 
@@ -16808,40 +15875,22 @@ impl Default for IssuingDisputeStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingDisputeStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingDisputeStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "expired" => IssuingDisputeStatus::Expired,
-                    "lost" => IssuingDisputeStatus::Lost,
-                    "submitted" => IssuingDisputeStatus::Submitted,
-                    "unsubmitted" => IssuingDisputeStatus::Unsubmitted,
-                    "won" => IssuingDisputeStatus::Won,
-                    other => IssuingDisputeStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingDisputeStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingDisputeStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingDisputeStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "expired" => IssuingDisputeStatus::Expired,
+            "lost" => IssuingDisputeStatus::Lost,
+            "submitted" => IssuingDisputeStatus::Submitted,
+            "unsubmitted" => IssuingDisputeStatus::Unsubmitted,
+            "won" => IssuingDisputeStatus::Won,
+            other => IssuingDisputeStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -16890,13 +15939,14 @@ impl<'de> serde::Deserialize<'de> for IssuingDisputeStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingDisputeTreasury {
     #[doc = "The Treasury [DebitReversal](https://docs.stripe.com/api/treasury/debit_reversals) representing this Issuing dispute"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub debit_reversal: Option<String>,
     #[doc = "The Treasury [ReceivedDebit](https://docs.stripe.com/api/treasury/received_debits) that is being disputed."]
-    #[serde(default)]
+    #[json(default)]
     pub received_debit: String,
 }
 
@@ -16945,13 +15995,14 @@ pub struct IssuingDisputeTreasury {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingNetworkTokenAddress {
     #[doc = "The street address of the cardholder tokenizing the card."]
-    #[serde(default)]
+    #[json(default)]
     pub line1: String,
     #[doc = "The postal code of the cardholder tokenizing the card."]
-    #[serde(default)]
+    #[json(default)]
     pub postal_code: String,
 }
 
@@ -17000,25 +16051,26 @@ pub struct IssuingNetworkTokenAddress {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingNetworkTokenDevice {
     #[doc = "An obfuscated ID derived from the device ID."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub device_fingerprint: Option<String>,
     #[doc = "The IP address of the device at provisioning time."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ip_address: Option<String>,
     #[doc = "The geographic latitude/longitude coordinates of the device at provisioning time."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub location: Option<String>,
     #[doc = "The name of the device used for tokenization."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[doc = "The phone number of the device used for tokenization."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone_number: Option<String>,
     #[doc = "The type of device used for tokenization."]
-    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    #[json(rename = "type", default, skip_serializing_if = "Option::is_none")]
     pub r#type: Option<crate::issuing::IssuingNetworkTokenDeviceType>,
 }
 
@@ -17178,38 +16230,20 @@ impl IssuingNetworkTokenDeviceType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingNetworkTokenDeviceType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingNetworkTokenDeviceType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "other" => IssuingNetworkTokenDeviceType::Other,
-                    "phone" => IssuingNetworkTokenDeviceType::Phone,
-                    "watch" => IssuingNetworkTokenDeviceType::Watch,
-                    other => IssuingNetworkTokenDeviceType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingNetworkTokenDeviceType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingNetworkTokenDeviceType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingNetworkTokenDeviceType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "other" => IssuingNetworkTokenDeviceType::Other,
+            "phone" => IssuingNetworkTokenDeviceType::Phone,
+            "watch" => IssuingNetworkTokenDeviceType::Watch,
+            other => IssuingNetworkTokenDeviceType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -17258,19 +16292,20 @@ impl<'de> serde::Deserialize<'de> for IssuingNetworkTokenDeviceType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingNetworkTokenMastercard {
     #[doc = "A unique reference ID from Mastercard to represent the card account number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card_reference_id: Option<String>,
     #[doc = "The network-unique identifier for the token."]
-    #[serde(default)]
+    #[json(default)]
     pub token_reference_id: String,
     #[doc = "The ID of the entity requesting tokenization, specific to Mastercard."]
-    #[serde(default)]
+    #[json(default)]
     pub token_requestor_id: String,
     #[doc = "The name of the entity requesting tokenization, if known."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub token_requestor_name: Option<String>,
 }
 
@@ -17319,18 +16354,19 @@ pub struct IssuingNetworkTokenMastercard {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingNetworkTokenNetworkData {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub device: Option<crate::issuing::IssuingNetworkTokenDevice>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mastercard: Option<crate::issuing::IssuingNetworkTokenMastercard>,
     #[doc = "The network that the token is associated with."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::issuing::IssuingTokenNetwork,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub visa: Option<crate::issuing::IssuingNetworkTokenVisa>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub wallet_provider: Option<crate::issuing::IssuingNetworkTokenWalletProvider>,
 }
 
@@ -17379,19 +16415,20 @@ pub struct IssuingNetworkTokenNetworkData {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingNetworkTokenVisa {
     #[doc = "A unique reference ID from Visa to represent the card account number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card_reference_id: Option<String>,
     #[doc = "The network-unique identifier for the token."]
-    #[serde(default)]
+    #[json(default)]
     pub token_reference_id: String,
     #[doc = "The ID of the entity requesting tokenization, specific to Visa."]
-    #[serde(default)]
+    #[json(default)]
     pub token_requestor_id: String,
     #[doc = "Degree of risk associated with the token between `01` and `99`, with higher number indicating higher risk."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub token_risk_score: Option<String>,
 }
 
@@ -17440,36 +16477,37 @@ pub struct IssuingNetworkTokenVisa {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingNetworkTokenWalletProvider {
     #[doc = "The wallet provider-given account ID of the digital wallet the token belongs to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_id: Option<String>,
     #[doc = "An evaluation on the trustworthiness of the wallet account between 1 and 5."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_trust_score: Option<i64>,
     #[doc = "The method used for tokenizing a card."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card_number_source: Option<crate::issuing::IssuingNetworkTokenWalletProviderCardNumberSource>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cardholder_address: Option<crate::issuing::IssuingNetworkTokenAddress>,
     #[doc = "The name of the cardholder tokenizing the card."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cardholder_name: Option<String>,
     #[doc = "An evaluation on the trustworthiness of the device."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub device_trust_score: Option<i64>,
     #[doc = "The hashed email address of the cardholder's account with the wallet provider."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hashed_account_email_address: Option<String>,
     #[doc = "The reasons for suggested tokenization given by the card network."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reason_codes: Option<Vec<crate::issuing::IssuingNetworkTokenWalletProviderReasonCodesItem>>,
     #[doc = "The recommendation on responding to the tokenization request."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub suggested_decision: Option<crate::issuing::IssuingNetworkTokenWalletProviderSuggestedDecision>,
     #[doc = "The version of the standard for mapping reason codes followed by the wallet provider."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub suggested_decision_version: Option<String>,
 }
 
@@ -17631,39 +16669,21 @@ impl IssuingNetworkTokenWalletProviderCardNumberSource {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingNetworkTokenWalletProviderCardNumberSource {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingNetworkTokenWalletProviderCardNumberSource;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "app" => IssuingNetworkTokenWalletProviderCardNumberSource::App,
-                    "manual" => IssuingNetworkTokenWalletProviderCardNumberSource::Manual,
-                    "on_file" => IssuingNetworkTokenWalletProviderCardNumberSource::OnFile,
-                    "other" => IssuingNetworkTokenWalletProviderCardNumberSource::Other,
-                    other => IssuingNetworkTokenWalletProviderCardNumberSource::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingNetworkTokenWalletProviderCardNumberSource::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingNetworkTokenWalletProviderCardNumberSource {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingNetworkTokenWalletProviderCardNumberSource::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "app" => IssuingNetworkTokenWalletProviderCardNumberSource::App,
+            "manual" => IssuingNetworkTokenWalletProviderCardNumberSource::Manual,
+            "on_file" => IssuingNetworkTokenWalletProviderCardNumberSource::OnFile,
+            "other" => IssuingNetworkTokenWalletProviderCardNumberSource::Other,
+            other => IssuingNetworkTokenWalletProviderCardNumberSource::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -17887,81 +16907,59 @@ impl IssuingNetworkTokenWalletProviderReasonCodesItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingNetworkTokenWalletProviderReasonCodesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingNetworkTokenWalletProviderReasonCodesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account_card_too_new" => IssuingNetworkTokenWalletProviderReasonCodesItem::AccountCardTooNew,
-                    "account_recently_changed" => {
-                        IssuingNetworkTokenWalletProviderReasonCodesItem::AccountRecentlyChanged
-                    }
-                    "account_too_new" => IssuingNetworkTokenWalletProviderReasonCodesItem::AccountTooNew,
-                    "account_too_new_since_launch" => {
-                        IssuingNetworkTokenWalletProviderReasonCodesItem::AccountTooNewSinceLaunch
-                    }
-                    "additional_device" => IssuingNetworkTokenWalletProviderReasonCodesItem::AdditionalDevice,
-                    "data_expired" => IssuingNetworkTokenWalletProviderReasonCodesItem::DataExpired,
-                    "defer_id_v_decision" => IssuingNetworkTokenWalletProviderReasonCodesItem::DeferIdVDecision,
-                    "device_recently_lost" => IssuingNetworkTokenWalletProviderReasonCodesItem::DeviceRecentlyLost,
-                    "good_activity_history" => IssuingNetworkTokenWalletProviderReasonCodesItem::GoodActivityHistory,
-                    "has_suspended_tokens" => IssuingNetworkTokenWalletProviderReasonCodesItem::HasSuspendedTokens,
-                    "high_risk" => IssuingNetworkTokenWalletProviderReasonCodesItem::HighRisk,
-                    "inactive_account" => IssuingNetworkTokenWalletProviderReasonCodesItem::InactiveAccount,
-                    "long_account_tenure" => IssuingNetworkTokenWalletProviderReasonCodesItem::LongAccountTenure,
-                    "low_account_score" => IssuingNetworkTokenWalletProviderReasonCodesItem::LowAccountScore,
-                    "low_device_score" => IssuingNetworkTokenWalletProviderReasonCodesItem::LowDeviceScore,
-                    "low_phone_number_score" => IssuingNetworkTokenWalletProviderReasonCodesItem::LowPhoneNumberScore,
-                    "network_service_error" => IssuingNetworkTokenWalletProviderReasonCodesItem::NetworkServiceError,
-                    "outside_home_territory" => IssuingNetworkTokenWalletProviderReasonCodesItem::OutsideHomeTerritory,
-                    "provisioning_cardholder_mismatch" => {
-                        IssuingNetworkTokenWalletProviderReasonCodesItem::ProvisioningCardholderMismatch
-                    }
-                    "provisioning_device_and_cardholder_mismatch" => {
-                        IssuingNetworkTokenWalletProviderReasonCodesItem::ProvisioningDeviceAndCardholderMismatch
-                    }
-                    "provisioning_device_mismatch" => {
-                        IssuingNetworkTokenWalletProviderReasonCodesItem::ProvisioningDeviceMismatch
-                    }
-                    "same_device_no_prior_authentication" => {
-                        IssuingNetworkTokenWalletProviderReasonCodesItem::SameDeviceNoPriorAuthentication
-                    }
-                    "same_device_successful_prior_authentication" => {
-                        IssuingNetworkTokenWalletProviderReasonCodesItem::SameDeviceSuccessfulPriorAuthentication
-                    }
-                    "software_update" => IssuingNetworkTokenWalletProviderReasonCodesItem::SoftwareUpdate,
-                    "suspicious_activity" => IssuingNetworkTokenWalletProviderReasonCodesItem::SuspiciousActivity,
-                    "too_many_different_cardholders" => {
-                        IssuingNetworkTokenWalletProviderReasonCodesItem::TooManyDifferentCardholders
-                    }
-                    "too_many_recent_attempts" => {
-                        IssuingNetworkTokenWalletProviderReasonCodesItem::TooManyRecentAttempts
-                    }
-                    "too_many_recent_tokens" => IssuingNetworkTokenWalletProviderReasonCodesItem::TooManyRecentTokens,
-                    other => IssuingNetworkTokenWalletProviderReasonCodesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingNetworkTokenWalletProviderReasonCodesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingNetworkTokenWalletProviderReasonCodesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingNetworkTokenWalletProviderReasonCodesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account_card_too_new" => IssuingNetworkTokenWalletProviderReasonCodesItem::AccountCardTooNew,
+            "account_recently_changed" => IssuingNetworkTokenWalletProviderReasonCodesItem::AccountRecentlyChanged,
+            "account_too_new" => IssuingNetworkTokenWalletProviderReasonCodesItem::AccountTooNew,
+            "account_too_new_since_launch" => {
+                IssuingNetworkTokenWalletProviderReasonCodesItem::AccountTooNewSinceLaunch
+            }
+            "additional_device" => IssuingNetworkTokenWalletProviderReasonCodesItem::AdditionalDevice,
+            "data_expired" => IssuingNetworkTokenWalletProviderReasonCodesItem::DataExpired,
+            "defer_id_v_decision" => IssuingNetworkTokenWalletProviderReasonCodesItem::DeferIdVDecision,
+            "device_recently_lost" => IssuingNetworkTokenWalletProviderReasonCodesItem::DeviceRecentlyLost,
+            "good_activity_history" => IssuingNetworkTokenWalletProviderReasonCodesItem::GoodActivityHistory,
+            "has_suspended_tokens" => IssuingNetworkTokenWalletProviderReasonCodesItem::HasSuspendedTokens,
+            "high_risk" => IssuingNetworkTokenWalletProviderReasonCodesItem::HighRisk,
+            "inactive_account" => IssuingNetworkTokenWalletProviderReasonCodesItem::InactiveAccount,
+            "long_account_tenure" => IssuingNetworkTokenWalletProviderReasonCodesItem::LongAccountTenure,
+            "low_account_score" => IssuingNetworkTokenWalletProviderReasonCodesItem::LowAccountScore,
+            "low_device_score" => IssuingNetworkTokenWalletProviderReasonCodesItem::LowDeviceScore,
+            "low_phone_number_score" => IssuingNetworkTokenWalletProviderReasonCodesItem::LowPhoneNumberScore,
+            "network_service_error" => IssuingNetworkTokenWalletProviderReasonCodesItem::NetworkServiceError,
+            "outside_home_territory" => IssuingNetworkTokenWalletProviderReasonCodesItem::OutsideHomeTerritory,
+            "provisioning_cardholder_mismatch" => {
+                IssuingNetworkTokenWalletProviderReasonCodesItem::ProvisioningCardholderMismatch
+            }
+            "provisioning_device_and_cardholder_mismatch" => {
+                IssuingNetworkTokenWalletProviderReasonCodesItem::ProvisioningDeviceAndCardholderMismatch
+            }
+            "provisioning_device_mismatch" => {
+                IssuingNetworkTokenWalletProviderReasonCodesItem::ProvisioningDeviceMismatch
+            }
+            "same_device_no_prior_authentication" => {
+                IssuingNetworkTokenWalletProviderReasonCodesItem::SameDeviceNoPriorAuthentication
+            }
+            "same_device_successful_prior_authentication" => {
+                IssuingNetworkTokenWalletProviderReasonCodesItem::SameDeviceSuccessfulPriorAuthentication
+            }
+            "software_update" => IssuingNetworkTokenWalletProviderReasonCodesItem::SoftwareUpdate,
+            "suspicious_activity" => IssuingNetworkTokenWalletProviderReasonCodesItem::SuspiciousActivity,
+            "too_many_different_cardholders" => {
+                IssuingNetworkTokenWalletProviderReasonCodesItem::TooManyDifferentCardholders
+            }
+            "too_many_recent_attempts" => IssuingNetworkTokenWalletProviderReasonCodesItem::TooManyRecentAttempts,
+            "too_many_recent_tokens" => IssuingNetworkTokenWalletProviderReasonCodesItem::TooManyRecentTokens,
+            other => IssuingNetworkTokenWalletProviderReasonCodesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -18121,38 +17119,20 @@ impl IssuingNetworkTokenWalletProviderSuggestedDecision {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingNetworkTokenWalletProviderSuggestedDecision {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingNetworkTokenWalletProviderSuggestedDecision;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "approve" => IssuingNetworkTokenWalletProviderSuggestedDecision::Approve,
-                    "decline" => IssuingNetworkTokenWalletProviderSuggestedDecision::Decline,
-                    "require_auth" => IssuingNetworkTokenWalletProviderSuggestedDecision::RequireAuth,
-                    other => IssuingNetworkTokenWalletProviderSuggestedDecision::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingNetworkTokenWalletProviderSuggestedDecision::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingNetworkTokenWalletProviderSuggestedDecision {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingNetworkTokenWalletProviderSuggestedDecision::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "approve" => IssuingNetworkTokenWalletProviderSuggestedDecision::Approve,
+            "decline" => IssuingNetworkTokenWalletProviderSuggestedDecision::Decline,
+            "require_auth" => IssuingNetworkTokenWalletProviderSuggestedDecision::RequireAuth,
+            other => IssuingNetworkTokenWalletProviderSuggestedDecision::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -18201,44 +17181,45 @@ impl<'de> serde::Deserialize<'de> for IssuingNetworkTokenWalletProviderSuggested
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingPersonalizationDesign {
     #[doc = "The file for the card logo to use with physical bundles that support card logos."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card_logo: Option<crate::Expandable<crate::files::File>>,
     #[doc = "Hash containing carrier text, for use with physical bundles that support carrier text."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub carrier_text: Option<crate::issuing::IssuingPersonalizationDesignCarrierText>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "A lookup key used to retrieve personalization designs dynamically from a static string."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub lookup_key: Option<String>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "Friendly display name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::issuing::IssuingPersonalizationDesignObject,
     #[doc = "The physical bundle object belonging to this personalization design."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub physical_bundle: Option<crate::Expandable<crate::issuing::IssuingPhysicalBundle>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub preferences: Option<crate::issuing::IssuingPersonalizationDesignPreferences>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub rejection_reasons: Option<crate::issuing::IssuingPersonalizationDesignRejectionReasons>,
     #[doc = "Whether this personalization design can be used to create cards."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::issuing::IssuingPersonalizationDesignStatus,
 }
 
@@ -18338,19 +17319,20 @@ impl crate::PagedItem for IssuingPersonalizationDesign {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingPersonalizationDesignCarrierText {
     #[doc = "The footer body text of the carrier letter."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub footer_body: Option<String>,
     #[doc = "The footer title text of the carrier letter."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub footer_title: Option<String>,
     #[doc = "The header body text of the carrier letter."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub header_body: Option<String>,
     #[doc = "The header title text of the carrier letter."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub header_title: Option<String>,
 }
 
@@ -18557,38 +17539,18 @@ impl Default for IssuingPersonalizationDesignObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingPersonalizationDesignObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingPersonalizationDesignObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "issuing.personalization_design" => {
-                        IssuingPersonalizationDesignObject::IssuingPersonalizationDesign
-                    }
-                    other => IssuingPersonalizationDesignObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingPersonalizationDesignObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingPersonalizationDesignObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingPersonalizationDesignObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "issuing.personalization_design" => IssuingPersonalizationDesignObject::IssuingPersonalizationDesign,
+            other => IssuingPersonalizationDesignObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -18637,13 +17599,14 @@ impl<'de> serde::Deserialize<'de> for IssuingPersonalizationDesignObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingPersonalizationDesignPreferences {
     #[doc = "Whether we use this personalization design to create cards when one isn't specified."]
-    #[serde(default)]
+    #[json(default)]
     pub is_default: bool,
     #[doc = "Whether this personalization design is used to create cards when one is not specified and a default for this connecte..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub is_platform_default: Option<bool>,
 }
 
@@ -18692,13 +17655,14 @@ pub struct IssuingPersonalizationDesignPreferences {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingPersonalizationDesignRejectionReasons {
     #[doc = "The reason(s) the card logo was rejected."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card_logo: Option<Vec<crate::issuing::IssuingPersonalizationDesignRejectionReasonsCardLogoItem>>,
     #[doc = "The reason(s) the carrier text was rejected."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub carrier_text: Option<Vec<crate::issuing::IssuingPersonalizationDesignRejectionReasonsCarrierTextItem>>,
 }
 
@@ -18868,47 +17832,25 @@ impl IssuingPersonalizationDesignRejectionReasonsCardLogoItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingPersonalizationDesignRejectionReasonsCardLogoItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingPersonalizationDesignRejectionReasonsCardLogoItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "geographic_location" => {
-                        IssuingPersonalizationDesignRejectionReasonsCardLogoItem::GeographicLocation
-                    }
-                    "inappropriate" => IssuingPersonalizationDesignRejectionReasonsCardLogoItem::Inappropriate,
-                    "network_name" => IssuingPersonalizationDesignRejectionReasonsCardLogoItem::NetworkName,
-                    "non_binary_image" => IssuingPersonalizationDesignRejectionReasonsCardLogoItem::NonBinaryImage,
-                    "non_fiat_currency" => IssuingPersonalizationDesignRejectionReasonsCardLogoItem::NonFiatCurrency,
-                    "other" => IssuingPersonalizationDesignRejectionReasonsCardLogoItem::Other,
-                    "other_entity" => IssuingPersonalizationDesignRejectionReasonsCardLogoItem::OtherEntity,
-                    "promotional_material" => {
-                        IssuingPersonalizationDesignRejectionReasonsCardLogoItem::PromotionalMaterial
-                    }
-                    other => IssuingPersonalizationDesignRejectionReasonsCardLogoItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingPersonalizationDesignRejectionReasonsCardLogoItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingPersonalizationDesignRejectionReasonsCardLogoItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingPersonalizationDesignRejectionReasonsCardLogoItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "geographic_location" => IssuingPersonalizationDesignRejectionReasonsCardLogoItem::GeographicLocation,
+            "inappropriate" => IssuingPersonalizationDesignRejectionReasonsCardLogoItem::Inappropriate,
+            "network_name" => IssuingPersonalizationDesignRejectionReasonsCardLogoItem::NetworkName,
+            "non_binary_image" => IssuingPersonalizationDesignRejectionReasonsCardLogoItem::NonBinaryImage,
+            "non_fiat_currency" => IssuingPersonalizationDesignRejectionReasonsCardLogoItem::NonFiatCurrency,
+            "other" => IssuingPersonalizationDesignRejectionReasonsCardLogoItem::Other,
+            "other_entity" => IssuingPersonalizationDesignRejectionReasonsCardLogoItem::OtherEntity,
+            "promotional_material" => IssuingPersonalizationDesignRejectionReasonsCardLogoItem::PromotionalMaterial,
+            other => IssuingPersonalizationDesignRejectionReasonsCardLogoItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -19076,48 +18018,26 @@ impl IssuingPersonalizationDesignRejectionReasonsCarrierTextItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingPersonalizationDesignRejectionReasonsCarrierTextItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingPersonalizationDesignRejectionReasonsCarrierTextItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "geographic_location" => {
-                        IssuingPersonalizationDesignRejectionReasonsCarrierTextItem::GeographicLocation
-                    }
-                    "inappropriate" => IssuingPersonalizationDesignRejectionReasonsCarrierTextItem::Inappropriate,
-                    "network_name" => IssuingPersonalizationDesignRejectionReasonsCarrierTextItem::NetworkName,
-                    "non_fiat_currency" => IssuingPersonalizationDesignRejectionReasonsCarrierTextItem::NonFiatCurrency,
-                    "other" => IssuingPersonalizationDesignRejectionReasonsCarrierTextItem::Other,
-                    "other_entity" => IssuingPersonalizationDesignRejectionReasonsCarrierTextItem::OtherEntity,
-                    "promotional_material" => {
-                        IssuingPersonalizationDesignRejectionReasonsCarrierTextItem::PromotionalMaterial
-                    }
-                    other => IssuingPersonalizationDesignRejectionReasonsCarrierTextItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingPersonalizationDesignRejectionReasonsCarrierTextItem::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for IssuingPersonalizationDesignRejectionReasonsCarrierTextItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingPersonalizationDesignRejectionReasonsCarrierTextItem::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "geographic_location" => IssuingPersonalizationDesignRejectionReasonsCarrierTextItem::GeographicLocation,
+            "inappropriate" => IssuingPersonalizationDesignRejectionReasonsCarrierTextItem::Inappropriate,
+            "network_name" => IssuingPersonalizationDesignRejectionReasonsCarrierTextItem::NetworkName,
+            "non_fiat_currency" => IssuingPersonalizationDesignRejectionReasonsCarrierTextItem::NonFiatCurrency,
+            "other" => IssuingPersonalizationDesignRejectionReasonsCarrierTextItem::Other,
+            "other_entity" => IssuingPersonalizationDesignRejectionReasonsCarrierTextItem::OtherEntity,
+            "promotional_material" => IssuingPersonalizationDesignRejectionReasonsCarrierTextItem::PromotionalMaterial,
+            other => IssuingPersonalizationDesignRejectionReasonsCarrierTextItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -19330,39 +18250,21 @@ impl Default for IssuingPersonalizationDesignStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingPersonalizationDesignStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingPersonalizationDesignStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => IssuingPersonalizationDesignStatus::Active,
-                    "inactive" => IssuingPersonalizationDesignStatus::Inactive,
-                    "rejected" => IssuingPersonalizationDesignStatus::Rejected,
-                    "review" => IssuingPersonalizationDesignStatus::Review,
-                    other => IssuingPersonalizationDesignStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingPersonalizationDesignStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingPersonalizationDesignStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingPersonalizationDesignStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => IssuingPersonalizationDesignStatus::Active,
+            "inactive" => IssuingPersonalizationDesignStatus::Inactive,
+            "rejected" => IssuingPersonalizationDesignStatus::Rejected,
+            "review" => IssuingPersonalizationDesignStatus::Review,
+            other => IssuingPersonalizationDesignStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -19411,27 +18313,28 @@ impl<'de> serde::Deserialize<'de> for IssuingPersonalizationDesignStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingPhysicalBundle {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub features: Option<crate::issuing::IssuingPhysicalBundleFeatures>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Friendly display name."]
-    #[serde(default)]
+    #[json(default)]
     pub name: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::issuing::IssuingPhysicalBundleObject,
     #[doc = "Whether this physical bundle can be used to create cards."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::issuing::IssuingPhysicalBundleStatus,
     #[doc = "Whether this physical bundle is a standard Stripe offering or custom-made for you."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::issuing::IssuingPhysicalBundleType,
 }
 
@@ -19531,16 +18434,17 @@ impl crate::PagedItem for IssuingPhysicalBundle {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingPhysicalBundleFeatures {
     #[doc = "The policy for how to use card logo images in a card design with this physical bundle."]
-    #[serde(default)]
+    #[json(default)]
     pub card_logo: crate::issuing::IssuingPhysicalBundleFeaturesCardLogo,
     #[doc = "The policy for how to use carrier letter text in a card design with this physical bundle."]
-    #[serde(default)]
+    #[json(default)]
     pub carrier_text: crate::issuing::IssuingPhysicalBundleFeaturesCardLogo,
     #[doc = "The policy for how to use a second line on a card with this physical bundle."]
-    #[serde(default)]
+    #[json(default)]
     pub second_line: crate::issuing::IssuingPhysicalBundleFeaturesCardLogo,
 }
 
@@ -19751,38 +18655,20 @@ impl Default for IssuingPhysicalBundleFeaturesCardLogo {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingPhysicalBundleFeaturesCardLogo {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingPhysicalBundleFeaturesCardLogo;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "optional" => IssuingPhysicalBundleFeaturesCardLogo::Optional,
-                    "required" => IssuingPhysicalBundleFeaturesCardLogo::Required,
-                    "unsupported" => IssuingPhysicalBundleFeaturesCardLogo::Unsupported,
-                    other => IssuingPhysicalBundleFeaturesCardLogo::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingPhysicalBundleFeaturesCardLogo::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingPhysicalBundleFeaturesCardLogo {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingPhysicalBundleFeaturesCardLogo::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "optional" => IssuingPhysicalBundleFeaturesCardLogo::Optional,
+            "required" => IssuingPhysicalBundleFeaturesCardLogo::Required,
+            "unsupported" => IssuingPhysicalBundleFeaturesCardLogo::Unsupported,
+            other => IssuingPhysicalBundleFeaturesCardLogo::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -19989,36 +18875,18 @@ impl Default for IssuingPhysicalBundleObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingPhysicalBundleObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingPhysicalBundleObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "issuing.physical_bundle" => IssuingPhysicalBundleObject::IssuingPhysicalBundle,
-                    other => IssuingPhysicalBundleObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingPhysicalBundleObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingPhysicalBundleObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingPhysicalBundleObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "issuing.physical_bundle" => IssuingPhysicalBundleObject::IssuingPhysicalBundle,
+            other => IssuingPhysicalBundleObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -20229,38 +19097,20 @@ impl Default for IssuingPhysicalBundleStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingPhysicalBundleStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingPhysicalBundleStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => IssuingPhysicalBundleStatus::Active,
-                    "inactive" => IssuingPhysicalBundleStatus::Inactive,
-                    "review" => IssuingPhysicalBundleStatus::Review,
-                    other => IssuingPhysicalBundleStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingPhysicalBundleStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingPhysicalBundleStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingPhysicalBundleStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => IssuingPhysicalBundleStatus::Active,
+            "inactive" => IssuingPhysicalBundleStatus::Inactive,
+            "review" => IssuingPhysicalBundleStatus::Review,
+            other => IssuingPhysicalBundleStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -20469,37 +19319,19 @@ impl Default for IssuingPhysicalBundleType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingPhysicalBundleType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingPhysicalBundleType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "custom" => IssuingPhysicalBundleType::Custom,
-                    "standard" => IssuingPhysicalBundleType::Standard,
-                    other => IssuingPhysicalBundleType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingPhysicalBundleType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingPhysicalBundleType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingPhysicalBundleType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "custom" => IssuingPhysicalBundleType::Custom,
+            "standard" => IssuingPhysicalBundleType::Standard,
+            other => IssuingPhysicalBundleType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -20548,42 +19380,43 @@ impl<'de> serde::Deserialize<'de> for IssuingPhysicalBundleType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingToken {
     #[doc = "Card associated with this token."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::Expandable<crate::issuing::IssuingCard>>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "The hashed ID derived from the device ID from the card network associated with the token."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub device_fingerprint: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The last four digits of the token."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last4: Option<String>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "The token service provider / card network associated with the token."]
-    #[serde(default)]
+    #[json(default)]
     pub network: crate::issuing::IssuingTokenNetwork,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub network_data: Option<crate::issuing::IssuingNetworkTokenNetworkData>,
     #[doc = "Time at which the token was last updated by the card network."]
-    #[serde(default)]
+    #[json(default)]
     pub network_updated_at: i64,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::issuing::IssuingTokenObject,
     #[doc = "The usage state of the token."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::issuing::IssuingTokenStatus,
     #[doc = "The digital wallet for this token, if one was used."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub wallet_provider: Option<crate::issuing::IssuingTokenWalletProvider>,
 }
 
@@ -20843,37 +19676,19 @@ impl Default for IssuingTokenNetwork {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingTokenNetwork {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingTokenNetwork;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "mastercard" => IssuingTokenNetwork::Mastercard,
-                    "visa" => IssuingTokenNetwork::Visa,
-                    other => IssuingTokenNetwork::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingTokenNetwork::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingTokenNetwork {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingTokenNetwork::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "mastercard" => IssuingTokenNetwork::Mastercard,
+            "visa" => IssuingTokenNetwork::Visa,
+            other => IssuingTokenNetwork::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -21080,36 +19895,18 @@ impl Default for IssuingTokenObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingTokenObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingTokenObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "issuing.token" => IssuingTokenObject::IssuingToken,
-                    other => IssuingTokenObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingTokenObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingTokenObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingTokenObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "issuing.token" => IssuingTokenObject::IssuingToken,
+            other => IssuingTokenObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -21322,39 +20119,21 @@ impl Default for IssuingTokenStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingTokenStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingTokenStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => IssuingTokenStatus::Active,
-                    "deleted" => IssuingTokenStatus::Deleted,
-                    "requested" => IssuingTokenStatus::Requested,
-                    "suspended" => IssuingTokenStatus::Suspended,
-                    other => IssuingTokenStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingTokenStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingTokenStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingTokenStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => IssuingTokenStatus::Active,
+            "deleted" => IssuingTokenStatus::Deleted,
+            "requested" => IssuingTokenStatus::Requested,
+            "suspended" => IssuingTokenStatus::Suspended,
+            other => IssuingTokenStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -21514,38 +20293,20 @@ impl IssuingTokenWalletProvider {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingTokenWalletProvider {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingTokenWalletProvider;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "apple_pay" => IssuingTokenWalletProvider::ApplePay,
-                    "google_pay" => IssuingTokenWalletProvider::GooglePay,
-                    "samsung_pay" => IssuingTokenWalletProvider::SamsungPay,
-                    other => IssuingTokenWalletProvider::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingTokenWalletProvider::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingTokenWalletProvider {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingTokenWalletProvider::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "apple_pay" => IssuingTokenWalletProvider::ApplePay,
+            "google_pay" => IssuingTokenWalletProvider::GooglePay,
+            "samsung_pay" => IssuingTokenWalletProvider::SamsungPay,
+            other => IssuingTokenWalletProvider::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -21594,72 +20355,73 @@ impl<'de> serde::Deserialize<'de> for IssuingTokenWalletProvider {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingTransaction {
     #[doc = "The transaction amount, which will be reflected in your balance."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Detailed breakdown of amount components."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_details: Option<crate::issuing::IssuingTransactionAmountDetails>,
     #[doc = "The `Authorization` object that led to this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub authorization: Option<crate::Expandable<crate::issuing::IssuingAuthorization>>,
     #[doc = "ID of the [balance transaction](https://docs.stripe.com/api/balance_transactions) associated with this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub balance_transaction: Option<crate::Expandable<crate::balance_transactions::BalanceTransaction>>,
     #[doc = "The card used to make this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::Expandable<crate::issuing::IssuingCard>>,
     #[doc = "The cardholder to whom this transaction belongs."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cardholder: Option<crate::Expandable<crate::issuing::IssuingCardholder>>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "If you've disputed the transaction, the ID of the dispute."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub dispute: Option<crate::Expandable<crate::issuing::IssuingDispute>>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "The amount that the merchant will receive, denominated in `merchant_currency` and in the [smallest currency unit](htt..."]
-    #[serde(default)]
+    #[json(default)]
     pub merchant_amount: i64,
     #[doc = "The currency with which the merchant is taking payment."]
-    #[serde(default)]
+    #[json(default)]
     pub merchant_currency: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub merchant_data: Option<crate::issuing::IssuingAuthorizationMerchantData>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "Details about the transaction, such as processing dates, set by the card network."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub network_data: Option<crate::issuing::IssuingTransactionNetworkData>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::issuing::IssuingTransactionObject,
     #[doc = "Additional purchase information that is optionally provided by the merchant."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub purchase_details: Option<crate::issuing::IssuingTransactionPurchaseDetails>,
     #[doc = "[Token](https://docs.stripe.com/api/issuing/tokens/object) object used for this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub token: Option<crate::Expandable<crate::issuing::IssuingToken>>,
     #[doc = "[Treasury](https://docs.stripe.com/api/treasury) details related to this transaction if it was created on a [Financia..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub treasury: Option<crate::issuing::IssuingTransactionTreasury>,
     #[doc = "The nature of the transaction."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::issuing::IssuingTransactionType,
     #[doc = "The digital wallet used for this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub wallet: Option<crate::issuing::IssuingTokenWalletProvider>,
 }
 
@@ -21759,13 +20521,14 @@ impl crate::PagedItem for IssuingTransaction {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingTransactionAmountDetails {
     #[doc = "The fee charged by the ATM for the cash withdrawal."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub atm_fee: Option<i64>,
     #[doc = "The amount of cash requested by the cardholder."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cashback_amount: Option<i64>,
 }
 
@@ -21814,22 +20577,23 @@ pub struct IssuingTransactionAmountDetails {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingTransactionFleetCardholderPromptData {
     #[doc = "Driver ID."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub driver_id: Option<String>,
     #[doc = "Odometer reading."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub odometer: Option<i64>,
     #[doc = "An alphanumeric ID."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unspecified_id: Option<String>,
     #[doc = "User ID."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub user_id: Option<String>,
     #[doc = "Vehicle number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub vehicle_number: Option<String>,
 }
 
@@ -21878,19 +20642,20 @@ pub struct IssuingTransactionFleetCardholderPromptData {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingTransactionFleetData {
     #[doc = "Answers to prompts presented to cardholder at point of sale."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cardholder_prompt_data: Option<crate::issuing::IssuingTransactionFleetCardholderPromptData>,
     #[doc = "The type of purchase."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub purchase_type: Option<String>,
     #[doc = "More information about the total amount."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reported_breakdown: Option<crate::issuing::IssuingTransactionFleetReportedBreakdown>,
     #[doc = "The type of fuel service."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub service_type: Option<String>,
 }
 
@@ -21939,10 +20704,11 @@ pub struct IssuingTransactionFleetData {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingTransactionFleetFuelPriceData {
     #[doc = "Gross fuel amount that should equal Fuel Volume multiplied by Fuel Unit Cost, inclusive of taxes."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub gross_amount_decimal: Option<String>,
 }
 
@@ -21991,10 +20757,11 @@ pub struct IssuingTransactionFleetFuelPriceData {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingTransactionFleetNonFuelPriceData {
     #[doc = "Gross non-fuel amount that should equal the sum of the line items, inclusive of taxes."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub gross_amount_decimal: Option<String>,
 }
 
@@ -22043,16 +20810,17 @@ pub struct IssuingTransactionFleetNonFuelPriceData {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingTransactionFleetReportedBreakdown {
     #[doc = "Breakdown of fuel portion of the purchase."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fuel: Option<crate::issuing::IssuingTransactionFleetFuelPriceData>,
     #[doc = "Breakdown of non-fuel portion of the purchase."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub non_fuel: Option<crate::issuing::IssuingTransactionFleetNonFuelPriceData>,
     #[doc = "Information about tax included in this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax: Option<crate::issuing::IssuingTransactionFleetTaxData>,
 }
 
@@ -22101,13 +20869,14 @@ pub struct IssuingTransactionFleetReportedBreakdown {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingTransactionFleetTaxData {
     #[doc = "Amount of state or provincial Sales Tax included in the transaction amount."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub local_amount_decimal: Option<String>,
     #[doc = "Amount of national Sales Tax or VAT included in the transaction amount."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub national_amount_decimal: Option<String>,
 }
 
@@ -22156,22 +20925,23 @@ pub struct IssuingTransactionFleetTaxData {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingTransactionFlightData {
     #[doc = "The time that the flight departed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub departure_at: Option<i64>,
     #[doc = "The name of the passenger."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub passenger_name: Option<String>,
     #[doc = "Whether the ticket is refundable."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refundable: Option<bool>,
     #[doc = "The legs of the trip."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub segments: Option<Vec<crate::issuing::IssuingTransactionFlightDataLeg>>,
     #[doc = "The travel agency that issued the ticket."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub travel_agency: Option<String>,
 }
 
@@ -22220,25 +20990,26 @@ pub struct IssuingTransactionFlightData {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingTransactionFlightDataLeg {
     #[doc = "The three-letter IATA airport code of the flight's destination."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub arrival_airport_code: Option<String>,
     #[doc = "The airline carrier code."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub carrier: Option<String>,
     #[doc = "The three-letter IATA airport code that the flight departed from."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub departure_airport_code: Option<String>,
     #[doc = "The flight number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub flight_number: Option<String>,
     #[doc = "The flight's service class."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub service_class: Option<String>,
     #[doc = "Whether a stopover is allowed on this flight."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub stopover_allowed: Option<bool>,
 }
 
@@ -22287,22 +21058,23 @@ pub struct IssuingTransactionFlightDataLeg {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingTransactionFuelData {
     #[doc = "[Conexxus Payment System Product Code](https://www.conexxus.org/conexxus-payment-system-product-codes) identifying th..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub industry_product_code: Option<String>,
     #[doc = "The quantity of `unit`s of fuel that was dispensed, represented as a decimal string with at most 12 decimal places."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub quantity_decimal: Option<String>,
     #[doc = "The type of fuel that was purchased."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: String,
     #[doc = "The units for `quantity_decimal`."]
-    #[serde(default)]
+    #[json(default)]
     pub unit: String,
     #[doc = "The cost in cents per each unit of fuel, represented as a decimal string with at most 12 decimal places."]
-    #[serde(default)]
+    #[json(default)]
     pub unit_cost_decimal: String,
 }
 
@@ -22351,13 +21123,14 @@ pub struct IssuingTransactionFuelData {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingTransactionLodgingData {
     #[doc = "The time of checking into the lodging."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub check_in_at: Option<i64>,
     #[doc = "The number of nights stayed at the lodging."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub nights: Option<i64>,
 }
 
@@ -22406,16 +21179,17 @@ pub struct IssuingTransactionLodgingData {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingTransactionNetworkData {
     #[doc = "A code created by Stripe which is shared with the merchant to validate the authorization."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub authorization_code: Option<String>,
     #[doc = "The date the transaction was processed by the card network."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub processing_date: Option<String>,
     #[doc = "Unique identifier for the authorization assigned by the card network used to match subsequent messages, disputes, and..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transaction_id: Option<String>,
 }
 
@@ -22622,36 +21396,18 @@ impl Default for IssuingTransactionObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingTransactionObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingTransactionObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "issuing.transaction" => IssuingTransactionObject::IssuingTransaction,
-                    other => IssuingTransactionObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingTransactionObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingTransactionObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingTransactionObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "issuing.transaction" => IssuingTransactionObject::IssuingTransaction,
+            other => IssuingTransactionObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -22700,25 +21456,26 @@ impl<'de> serde::Deserialize<'de> for IssuingTransactionObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingTransactionPurchaseDetails {
     #[doc = "Fleet-specific information for transactions using Fleet cards."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fleet: Option<crate::issuing::IssuingTransactionFleetData>,
     #[doc = "Information about the flight that was purchased with this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub flight: Option<crate::issuing::IssuingTransactionFlightData>,
     #[doc = "Information about fuel that was purchased with this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fuel: Option<crate::issuing::IssuingTransactionFuelData>,
     #[doc = "Information about lodging that was purchased with this transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub lodging: Option<crate::issuing::IssuingTransactionLodgingData>,
     #[doc = "The line items in the purchase."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub receipt: Option<Vec<crate::issuing::IssuingTransactionReceiptData>>,
     #[doc = "A merchant-specific order number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
 }
 
@@ -22767,19 +21524,20 @@ pub struct IssuingTransactionPurchaseDetails {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingTransactionReceiptData {
     #[doc = "The description of the item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "The quantity of the item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub quantity: Option<f64>,
     #[doc = "The total for this line item in cents."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub total: Option<i64>,
     #[doc = "The unit cost of the item in cents."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unit_cost: Option<i64>,
 }
 
@@ -22828,13 +21586,14 @@ pub struct IssuingTransactionReceiptData {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct IssuingTransactionTreasury {
     #[doc = "The Treasury [ReceivedCredit](https://docs.stripe.com/api/treasury/received_credits) representing this Issuing transa..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub received_credit: Option<String>,
     #[doc = "The Treasury [ReceivedDebit](https://docs.stripe.com/api/treasury/received_debits) representing this Issuing transact..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub received_debit: Option<String>,
 }
 
@@ -23043,37 +21802,19 @@ impl Default for IssuingTransactionType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for IssuingTransactionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = IssuingTransactionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "capture" => IssuingTransactionType::Capture,
-                    "refund" => IssuingTransactionType::Refund,
-                    other => IssuingTransactionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(IssuingTransactionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for IssuingTransactionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(IssuingTransactionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "capture" => IssuingTransactionType::Capture,
+            "refund" => IssuingTransactionType::Refund,
+            other => IssuingTransactionType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -23155,39 +21896,21 @@ impl ListIssuingAuthorizationsParamsStatus {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for ListIssuingAuthorizationsParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListIssuingAuthorizationsParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "closed" => ListIssuingAuthorizationsParamsStatus::Closed,
-                    "expired" => ListIssuingAuthorizationsParamsStatus::Expired,
-                    "pending" => ListIssuingAuthorizationsParamsStatus::Pending,
-                    "reversed" => ListIssuingAuthorizationsParamsStatus::Reversed,
-                    other => ListIssuingAuthorizationsParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListIssuingAuthorizationsParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListIssuingAuthorizationsParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListIssuingAuthorizationsParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "closed" => ListIssuingAuthorizationsParamsStatus::Closed,
+            "expired" => ListIssuingAuthorizationsParamsStatus::Expired,
+            "pending" => ListIssuingAuthorizationsParamsStatus::Pending,
+            "reversed" => ListIssuingAuthorizationsParamsStatus::Reversed,
+            other => ListIssuingAuthorizationsParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -23256,38 +21979,20 @@ impl ListIssuingCardholdersParamsStatus {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for ListIssuingCardholdersParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListIssuingCardholdersParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => ListIssuingCardholdersParamsStatus::Active,
-                    "blocked" => ListIssuingCardholdersParamsStatus::Blocked,
-                    "inactive" => ListIssuingCardholdersParamsStatus::Inactive,
-                    other => ListIssuingCardholdersParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListIssuingCardholdersParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListIssuingCardholdersParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListIssuingCardholdersParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => ListIssuingCardholdersParamsStatus::Active,
+            "blocked" => ListIssuingCardholdersParamsStatus::Blocked,
+            "inactive" => ListIssuingCardholdersParamsStatus::Inactive,
+            other => ListIssuingCardholdersParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -23320,37 +22025,19 @@ impl ListIssuingCardholdersParamsType {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for ListIssuingCardholdersParamsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListIssuingCardholdersParamsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "company" => ListIssuingCardholdersParamsType::Company,
-                    "individual" => ListIssuingCardholdersParamsType::Individual,
-                    other => ListIssuingCardholdersParamsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListIssuingCardholdersParamsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListIssuingCardholdersParamsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListIssuingCardholdersParamsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "company" => ListIssuingCardholdersParamsType::Company,
+            "individual" => ListIssuingCardholdersParamsType::Individual,
+            other => ListIssuingCardholdersParamsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -23425,38 +22112,20 @@ impl ListIssuingCardsParamsStatus {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for ListIssuingCardsParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListIssuingCardsParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => ListIssuingCardsParamsStatus::Active,
-                    "canceled" => ListIssuingCardsParamsStatus::Canceled,
-                    "inactive" => ListIssuingCardsParamsStatus::Inactive,
-                    other => ListIssuingCardsParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListIssuingCardsParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListIssuingCardsParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListIssuingCardsParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => ListIssuingCardsParamsStatus::Active,
+            "canceled" => ListIssuingCardsParamsStatus::Canceled,
+            "inactive" => ListIssuingCardsParamsStatus::Inactive,
+            other => ListIssuingCardsParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -23489,37 +22158,19 @@ impl ListIssuingCardsParamsType {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for ListIssuingCardsParamsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListIssuingCardsParamsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "physical" => ListIssuingCardsParamsType::Physical,
-                    "virtual" => ListIssuingCardsParamsType::Virtual,
-                    other => ListIssuingCardsParamsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListIssuingCardsParamsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListIssuingCardsParamsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListIssuingCardsParamsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "physical" => ListIssuingCardsParamsType::Physical,
+            "virtual" => ListIssuingCardsParamsType::Virtual,
+            other => ListIssuingCardsParamsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -23588,40 +22239,22 @@ impl ListIssuingDisputesParamsStatus {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for ListIssuingDisputesParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListIssuingDisputesParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "expired" => ListIssuingDisputesParamsStatus::Expired,
-                    "lost" => ListIssuingDisputesParamsStatus::Lost,
-                    "submitted" => ListIssuingDisputesParamsStatus::Submitted,
-                    "unsubmitted" => ListIssuingDisputesParamsStatus::Unsubmitted,
-                    "won" => ListIssuingDisputesParamsStatus::Won,
-                    other => ListIssuingDisputesParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListIssuingDisputesParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListIssuingDisputesParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListIssuingDisputesParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "expired" => ListIssuingDisputesParamsStatus::Expired,
+            "lost" => ListIssuingDisputesParamsStatus::Lost,
+            "submitted" => ListIssuingDisputesParamsStatus::Submitted,
+            "unsubmitted" => ListIssuingDisputesParamsStatus::Unsubmitted,
+            "won" => ListIssuingDisputesParamsStatus::Won,
+            other => ListIssuingDisputesParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -23704,39 +22337,21 @@ impl ListIssuingPersonalizationDesignsParamsStatus {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for ListIssuingPersonalizationDesignsParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListIssuingPersonalizationDesignsParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => ListIssuingPersonalizationDesignsParamsStatus::Active,
-                    "inactive" => ListIssuingPersonalizationDesignsParamsStatus::Inactive,
-                    "rejected" => ListIssuingPersonalizationDesignsParamsStatus::Rejected,
-                    "review" => ListIssuingPersonalizationDesignsParamsStatus::Review,
-                    other => ListIssuingPersonalizationDesignsParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListIssuingPersonalizationDesignsParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListIssuingPersonalizationDesignsParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListIssuingPersonalizationDesignsParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => ListIssuingPersonalizationDesignsParamsStatus::Active,
+            "inactive" => ListIssuingPersonalizationDesignsParamsStatus::Inactive,
+            "rejected" => ListIssuingPersonalizationDesignsParamsStatus::Rejected,
+            "review" => ListIssuingPersonalizationDesignsParamsStatus::Review,
+            other => ListIssuingPersonalizationDesignsParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -23796,38 +22411,20 @@ impl ListIssuingPhysicalBundlesParamsStatus {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for ListIssuingPhysicalBundlesParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListIssuingPhysicalBundlesParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => ListIssuingPhysicalBundlesParamsStatus::Active,
-                    "inactive" => ListIssuingPhysicalBundlesParamsStatus::Inactive,
-                    "review" => ListIssuingPhysicalBundlesParamsStatus::Review,
-                    other => ListIssuingPhysicalBundlesParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListIssuingPhysicalBundlesParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListIssuingPhysicalBundlesParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListIssuingPhysicalBundlesParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => ListIssuingPhysicalBundlesParamsStatus::Active,
+            "inactive" => ListIssuingPhysicalBundlesParamsStatus::Inactive,
+            "review" => ListIssuingPhysicalBundlesParamsStatus::Review,
+            other => ListIssuingPhysicalBundlesParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -23860,37 +22457,19 @@ impl ListIssuingPhysicalBundlesParamsType {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for ListIssuingPhysicalBundlesParamsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListIssuingPhysicalBundlesParamsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "custom" => ListIssuingPhysicalBundlesParamsType::Custom,
-                    "standard" => ListIssuingPhysicalBundlesParamsType::Standard,
-                    other => ListIssuingPhysicalBundlesParamsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListIssuingPhysicalBundlesParamsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListIssuingPhysicalBundlesParamsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListIssuingPhysicalBundlesParamsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "custom" => ListIssuingPhysicalBundlesParamsType::Custom,
+            "standard" => ListIssuingPhysicalBundlesParamsType::Standard,
+            other => ListIssuingPhysicalBundlesParamsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -23957,39 +22536,21 @@ impl ListIssuingTokensParamsStatus {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for ListIssuingTokensParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListIssuingTokensParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => ListIssuingTokensParamsStatus::Active,
-                    "deleted" => ListIssuingTokensParamsStatus::Deleted,
-                    "requested" => ListIssuingTokensParamsStatus::Requested,
-                    "suspended" => ListIssuingTokensParamsStatus::Suspended,
-                    other => ListIssuingTokensParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListIssuingTokensParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListIssuingTokensParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListIssuingTokensParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => ListIssuingTokensParamsStatus::Active,
+            "deleted" => ListIssuingTokensParamsStatus::Deleted,
+            "requested" => ListIssuingTokensParamsStatus::Requested,
+            "suspended" => ListIssuingTokensParamsStatus::Suspended,
+            other => ListIssuingTokensParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -24054,37 +22615,19 @@ impl ListIssuingTransactionsParamsType {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for ListIssuingTransactionsParamsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListIssuingTransactionsParamsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "capture" => ListIssuingTransactionsParamsType::Capture,
-                    "refund" => ListIssuingTransactionsParamsType::Refund,
-                    other => ListIssuingTransactionsParamsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListIssuingTransactionsParamsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListIssuingTransactionsParamsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListIssuingTransactionsParamsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "capture" => ListIssuingTransactionsParamsType::Capture,
+            "refund" => ListIssuingTransactionsParamsType::Refund,
+            other => ListIssuingTransactionsParamsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -24183,37 +22726,19 @@ impl UpdateIssuingCardParamsCancellationReason {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for UpdateIssuingCardParamsCancellationReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = UpdateIssuingCardParamsCancellationReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "lost" => UpdateIssuingCardParamsCancellationReason::Lost,
-                    "stolen" => UpdateIssuingCardParamsCancellationReason::Stolen,
-                    other => UpdateIssuingCardParamsCancellationReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(UpdateIssuingCardParamsCancellationReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for UpdateIssuingCardParamsCancellationReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(UpdateIssuingCardParamsCancellationReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "lost" => UpdateIssuingCardParamsCancellationReason::Lost,
+            "stolen" => UpdateIssuingCardParamsCancellationReason::Stolen,
+            other => UpdateIssuingCardParamsCancellationReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -24733,25 +23258,25 @@ impl crate::params::FormEncode for UpdateIssuingDisputeParamsEvidence {
 #[derive(Debug, Clone, Default)]
 pub struct UpdateIssuingDisputeParamsEvidenceCanceled {
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Additional documentation supporting the dispute."]
-    pub additional_documentation: Option<serde_json::Value>,
+    pub additional_documentation: Option<json::OwnedValue>,
     #[doc = "Date when order was canceled."]
-    pub canceled_at: Option<serde_json::Value>,
+    pub canceled_at: Option<json::OwnedValue>,
     #[doc = "Whether the cardholder was provided with a cancellation policy."]
-    pub cancellation_policy_provided: Option<serde_json::Value>,
+    pub cancellation_policy_provided: Option<json::OwnedValue>,
     #[doc = "Reason for canceling the order."]
-    pub cancellation_reason: Option<serde_json::Value>,
+    pub cancellation_reason: Option<json::OwnedValue>,
     #[doc = "Date when the cardholder expected to receive the product."]
-    pub expected_at: Option<serde_json::Value>,
+    pub expected_at: Option<json::OwnedValue>,
     #[doc = "Explanation of why the cardholder is disputing this transaction."]
-    pub explanation: Option<serde_json::Value>,
+    pub explanation: Option<json::OwnedValue>,
     #[doc = "Description of the merchandise or service that was purchased."]
-    pub product_description: Option<serde_json::Value>,
+    pub product_description: Option<json::OwnedValue>,
     #[doc = "Whether the product was a merchandise or service."]
     pub product_type: Option<crate::issuing::UpdateIssuingDisputeParamsEvidenceCanceledProductType>,
     #[doc = "Result of cardholder's attempt to return the product."]
     pub return_status: Option<crate::issuing::UpdateIssuingDisputeParamsEvidenceCanceledReturnStatus>,
     #[doc = "Date when the product was returned or attempted to be returned."]
-    pub returned_at: Option<serde_json::Value>,
+    pub returned_at: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "issuing")]
@@ -24780,17 +23305,17 @@ pub type UpdateIssuingDisputeParamsEvidenceFraudulent = crate::issuing::CreateIs
 #[derive(Debug, Clone, Default)]
 pub struct UpdateIssuingDisputeParamsEvidenceMerchandiseNotAsDescribed {
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Additional documentation supporting the dispute."]
-    pub additional_documentation: Option<serde_json::Value>,
+    pub additional_documentation: Option<json::OwnedValue>,
     #[doc = "Explanation of why the cardholder is disputing this transaction."]
-    pub explanation: Option<serde_json::Value>,
+    pub explanation: Option<json::OwnedValue>,
     #[doc = "Date when the product was received."]
-    pub received_at: Option<serde_json::Value>,
+    pub received_at: Option<json::OwnedValue>,
     #[doc = "Description of the cardholder's attempt to return the product."]
-    pub return_description: Option<serde_json::Value>,
+    pub return_description: Option<json::OwnedValue>,
     #[doc = "Result of cardholder's attempt to return the product."]
     pub return_status: Option<crate::issuing::UpdateIssuingDisputeParamsEvidenceMerchandiseNotAsDescribedReturnStatus>,
     #[doc = "Date when the product was returned or attempted to be returned."]
-    pub returned_at: Option<serde_json::Value>,
+    pub returned_at: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "issuing")]
@@ -24812,13 +23337,13 @@ pub type UpdateIssuingDisputeParamsEvidenceNoValidAuthorization =
 #[derive(Debug, Clone, Default)]
 pub struct UpdateIssuingDisputeParamsEvidenceNotReceived {
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Additional documentation supporting the dispute."]
-    pub additional_documentation: Option<serde_json::Value>,
+    pub additional_documentation: Option<json::OwnedValue>,
     #[doc = "Date when the cardholder expected to receive the product."]
-    pub expected_at: Option<serde_json::Value>,
+    pub expected_at: Option<json::OwnedValue>,
     #[doc = "Explanation of why the cardholder is disputing this transaction."]
-    pub explanation: Option<serde_json::Value>,
+    pub explanation: Option<json::OwnedValue>,
     #[doc = "Description of the merchandise or service that was purchased."]
-    pub product_description: Option<serde_json::Value>,
+    pub product_description: Option<json::OwnedValue>,
     #[doc = "Whether the product was a merchandise or service."]
     pub product_type: Option<crate::issuing::UpdateIssuingDisputeParamsEvidenceNotReceivedProductType>,
 }
@@ -24838,11 +23363,11 @@ pub type UpdateIssuingDisputeParamsEvidenceNotReceivedProductType =
 #[derive(Debug, Clone, Default)]
 pub struct UpdateIssuingDisputeParamsEvidenceOther {
     #[doc = "(ID of a [file upload](https://stripe.com/docs/guides/file-upload)) Additional documentation supporting the dispute."]
-    pub additional_documentation: Option<serde_json::Value>,
+    pub additional_documentation: Option<json::OwnedValue>,
     #[doc = "Explanation of why the cardholder is disputing this transaction."]
-    pub explanation: Option<serde_json::Value>,
+    pub explanation: Option<json::OwnedValue>,
     #[doc = "Description of the merchandise or service that was purchased."]
-    pub product_description: Option<serde_json::Value>,
+    pub product_description: Option<json::OwnedValue>,
     #[doc = "Whether the product was a merchandise or service."]
     pub product_type: Option<crate::issuing::UpdateIssuingDisputeParamsEvidenceOtherProductType>,
 }
@@ -24869,17 +23394,17 @@ pub type UpdateIssuingDisputeParamsEvidenceServiceNotAsDescribed =
 #[derive(Debug, Clone, Default)]
 pub struct UpdateIssuingPersonalizationDesignParams {
     #[doc = "The file for the card logo, for use with physical bundles that support card logos."]
-    pub card_logo: Option<serde_json::Value>,
+    pub card_logo: Option<json::OwnedValue>,
     #[doc = "Hash containing carrier text, for use with physical bundles that support carrier text."]
     pub carrier_text: Option<crate::issuing::UpdateIssuingPersonalizationDesignParamsCarrierText>,
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "A lookup key used to retrieve personalization designs dynamically from a static string."]
-    pub lookup_key: Option<serde_json::Value>,
+    pub lookup_key: Option<json::OwnedValue>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "Friendly display name."]
-    pub name: Option<serde_json::Value>,
+    pub name: Option<json::OwnedValue>,
     #[doc = "The physical bundle object belonging to this personalization design."]
     pub physical_bundle: Option<String>,
     #[doc = "Information on whether this personalization design is used to create cards when one is not specified."]
@@ -24957,38 +23482,20 @@ impl UpdateIssuingTokenParamsStatus {
 }
 
 #[cfg(feature = "issuing")]
-impl<'de> serde::Deserialize<'de> for UpdateIssuingTokenParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = UpdateIssuingTokenParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => UpdateIssuingTokenParamsStatus::Active,
-                    "deleted" => UpdateIssuingTokenParamsStatus::Deleted,
-                    "suspended" => UpdateIssuingTokenParamsStatus::Suspended,
-                    other => UpdateIssuingTokenParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(UpdateIssuingTokenParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for UpdateIssuingTokenParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(UpdateIssuingTokenParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => UpdateIssuingTokenParamsStatus::Active,
+            "deleted" => UpdateIssuingTokenParamsStatus::Deleted,
+            "suspended" => UpdateIssuingTokenParamsStatus::Suspended,
+            other => UpdateIssuingTokenParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 

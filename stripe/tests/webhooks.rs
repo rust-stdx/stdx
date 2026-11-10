@@ -5,7 +5,7 @@
 //! tests pass.
 
 use crypto::{hmac::Hmac, sha2::Sha256};
-use serde_json::Value;
+use json::OwnedValue as Value;
 use stripe::{Webhook, WebhookError, verify_signature};
 
 fn sign(timestamp: i64, payload: &[u8], secret: &str) -> String {
@@ -225,7 +225,7 @@ fn construct_event_returns_typed_payload() {
     let signature = sign(now, PAYLOAD, SECRET);
     let header = format!("t={now},v1={signature}");
     let event: Value = Webhook::construct_event(PAYLOAD, &header, SECRET, 300).expect("verified event");
-    assert_eq!(event["id"], "evt_test_webhook");
+    assert_eq!(event["id"].as_str(), Some("evt_test_webhook"));
 }
 
 #[test]

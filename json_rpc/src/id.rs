@@ -1,9 +1,6 @@
 use std::fmt;
 
-use serde::{
-    Deserialize, Deserializer, Serialize, Serializer,
-    de::{self, Visitor},
-};
+use json::{Decode, Decoder, Encode, Encoder, ErrorKind, Result, Write};
 
 /// A JSON-RPC request or response identifier.
 ///
@@ -79,57 +76,39 @@ impl From<&str> for Id {
     }
 }
 
-impl Serialize for Id {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+impl Encode for Id {
+    fn encode<W: Write>(&self, encoder: &mut Encoder<W>) -> core::result::Result<(), W::Error> {
         match self {
-            Self::Number(n) => serializer.serialize_i64(*n),
-            Self::String(s) => serializer.serialize_str(s),
-            Self::Null => serializer.serialize_unit(),
+            Self::Number(n) => encoder.i64(*n),
+            Self::String(s) => encoder.string(s),
+            Self::Null => encoder.null(),
         }
     }
 }
 
-impl<'de> Deserialize<'de> for Id {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct IdVisitor;
-
-        impl<'de> Visitor<'de> for IdVisitor {
-            type Value = Id;
-
-            fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.write_str("a JSON-RPC id: a string, an integer, or null")
+impl<'a> Decode<'a> for Id {
+    fn decode(decoder: &mut Decoder<'a>) -> Result<Self> {
+        decoder.skip_ws()?;
+        match decoder.peek_byte() {
+            Some(b'"') => Ok(Self::String(decoder.decode_string()?)),
+            Some(b'n') => {
+                decoder.decode_null()?;
+                Ok(Self::Null)
             }
-
-            fn visit_i64<E: de::Error>(self, v: i64) -> Result<Self::Value, E> {
-                Ok(Id::Number(v))
-            }
-
-            fn visit_u64<E: de::Error>(self, v: u64) -> Result<Self::Value, E> {
-                Ok(Id::Number(v as i64))
-            }
-
-            fn visit_f64<E: de::Error>(self, v: f64) -> Result<Self::Value, E> {
-                if v.fract() == 0.0 {
-                    Ok(Id::Number(v as i64))
-                } else {
-                    Err(de::Error::invalid_value(de::Unexpected::Float(v), &self))
+            Some(b'-' | b'0'..=b'9') => {
+                let number = decoder.decode_number()?;
+                match number {
+                    json::Number::PosInt(v) if v <= i64::MAX as u64 => Ok(Self::Number(v as i64)),
+                    json::Number::NegInt(v) => Ok(Self::Number(v)),
+                    json::Number::Float(v) if v.fract() == 0.0 && v >= i64::MIN as f64 && v <= i64::MAX as f64 => {
+                        Ok(Self::Number(v as i64))
+                    }
+                    _ => Err(decoder.error(ErrorKind::Message("JSON-RPC id must be an integer or string"))),
                 }
             }
-
-            fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
-                Ok(Id::String(v.to_owned()))
-            }
-
-            fn visit_string<E: de::Error>(self, v: String) -> Result<Self::Value, E> {
-                Ok(Id::String(v))
-            }
-
-            fn visit_unit<E: de::Error>(self) -> Result<Self::Value, E> {
-                Ok(Id::Null)
-            }
+            None => Err(decoder.error(ErrorKind::UnexpectedEof)),
+            Some(_) => Err(decoder.error(ErrorKind::ExpectedValue)),
         }
-
-        deserializer.deserialize_any(IdVisitor)
     }
 }
 
@@ -138,38 +117,37 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_id_serde_number() {
+    fn test_id_json_number() {
         let json = "42";
-        let id: Id = serde_json::from_str(json).unwrap();
+        let id: Id = json::from_str(json).unwrap();
         assert_eq!(id, Id::Number(42));
-        assert_eq!(serde_json::to_string(&id).unwrap(), json);
+        assert_eq!(json::to_string(&id), json);
     }
 
     #[test]
-    fn test_id_serde_string() {
+    fn test_id_json_string() {
         let json = r#""abc""#;
-        let id: Id = serde_json::from_str(json).unwrap();
+        let id: Id = json::from_str(json).unwrap();
         assert_eq!(id, Id::String("abc".into()));
-        assert_eq!(serde_json::to_string(&id).unwrap(), json);
+        assert_eq!(json::to_string(&id), json);
     }
 
     #[test]
-    fn test_id_serde_null() {
+    fn test_id_json_null() {
         let json = "null";
-        let id: Id = serde_json::from_str(json).unwrap();
+        let id: Id = json::from_str(json).unwrap();
         assert_eq!(id, Id::Null);
-        assert_eq!(serde_json::to_string(&id).unwrap(), json);
+        assert_eq!(json::to_string(&id), json);
     }
 
     #[test]
     fn test_id_deserialize_float_rejected() {
-        let err = serde_json::from_str::<Id>("1.5").unwrap_err();
-        assert!(err.to_string().contains("floating point"));
+        assert!(json::from_str::<Id>("1.5").is_err());
     }
 
     #[test]
     fn test_id_deserialize_whole_float_accepted() {
-        let id: Id = serde_json::from_str("1.0").unwrap();
+        let id: Id = json::from_str("1.0").unwrap();
         assert_eq!(id, Id::Number(1));
     }
 
@@ -198,27 +176,5 @@ mod tests {
     #[test]
     fn test_id_display_null() {
         assert_eq!(Id::Null.to_string(), "null");
-    }
-
-    #[test]
-    fn test_id_as_i64_some() {
-        assert_eq!(Id::Number(10).as_i64(), Some(10));
-    }
-
-    #[test]
-    fn test_id_as_i64_none() {
-        assert_eq!(Id::String("x".into()).as_i64(), None);
-        assert_eq!(Id::Null.as_i64(), None);
-    }
-
-    #[test]
-    fn test_id_as_str_some() {
-        assert_eq!(Id::String("x".into()).as_str(), Some("x"));
-    }
-
-    #[test]
-    fn test_id_as_str_none() {
-        assert_eq!(Id::Number(1).as_str(), None);
-        assert_eq!(Id::Null.as_str(), None);
     }
 }

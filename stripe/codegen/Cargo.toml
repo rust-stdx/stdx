@@ -17,5 +17,4 @@ name = "stripe_codegen"
 path = "main.rs"
 
 [dependencies]
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
+json = { workspace = true }

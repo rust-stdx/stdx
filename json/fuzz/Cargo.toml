@@ -1,0 +1,41 @@
+[package]
+name = "json-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+json = { path = "..", features = ["derive", "alloc", "std"] }
+
+[workspace]
+
+[[bin]]
+name = "decode"
+path = "fuzz_targets/decode.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "validate"
+path = "fuzz_targets/validate.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "masks"
+path = "fuzz_targets/masks.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "roundtrip"
+path = "fuzz_targets/roundtrip.rs"
+test = false
+doc = false
+
+[profile.release]
+debug = 1

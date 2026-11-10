@@ -9,24 +9,25 @@
 #![allow(non_camel_case_types)]
 
 #[cfg(feature = "account_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AccountSession {
     #[doc = "The ID of the account the AccountSession was created for"]
-    #[serde(default)]
+    #[json(default)]
     pub account: String,
     #[doc = "The client secret of this AccountSession."]
-    #[serde(default)]
+    #[json(default)]
     pub client_secret: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub components: Option<crate::accounts::ConnectEmbeddedAccountSessionCreateComponents>,
     #[doc = "The timestamp at which this AccountSession will expire."]
-    #[serde(default)]
+    #[json(default)]
     pub expires_at: i64,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::account_sessions::AccountSessionObject,
 }
 
@@ -57,36 +58,18 @@ impl Default for AccountSessionObject {
 }
 
 #[cfg(feature = "account_sessions")]
-impl<'de> serde::Deserialize<'de> for AccountSessionObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AccountSessionObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account_session" => AccountSessionObject::AccountSession,
-                    other => AccountSessionObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AccountSessionObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AccountSessionObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AccountSessionObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account_session" => AccountSessionObject::AccountSession,
+            other => AccountSessionObject::Unknown(other.to_string()),
+        })
     }
 }
 

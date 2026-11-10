@@ -852,44 +852,22 @@ impl CreateTestHelperConfirmationTokenParamsPaymentMethodDataAllowRedisplay {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperConfirmationTokenParamsPaymentMethodDataAllowRedisplay {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperConfirmationTokenParamsPaymentMethodDataAllowRedisplay;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataAllowRedisplay::Always,
-                    "limited" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataAllowRedisplay::Limited,
-                    "unspecified" => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodDataAllowRedisplay::Unspecified
-                    }
-                    other => CreateTestHelperConfirmationTokenParamsPaymentMethodDataAllowRedisplay::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperConfirmationTokenParamsPaymentMethodDataAllowRedisplay::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperConfirmationTokenParamsPaymentMethodDataAllowRedisplay {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTestHelperConfirmationTokenParamsPaymentMethodDataAllowRedisplay::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataAllowRedisplay::Always,
+            "limited" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataAllowRedisplay::Limited,
+            "unspecified" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataAllowRedisplay::Unspecified,
+            other => CreateTestHelperConfirmationTokenParamsPaymentMethodDataAllowRedisplay::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -957,11 +935,11 @@ pub struct CreateTestHelperConfirmationTokenParamsPaymentMethodDataBillingDetail
     pub address:
         Option<crate::test_helpers::CreateTestHelperConfirmationTokenParamsPaymentMethodDataBillingDetailsAddress>,
     #[doc = "Email address."]
-    pub email: Option<serde_json::Value>,
+    pub email: Option<json::OwnedValue>,
     #[doc = "Full name."]
-    pub name: Option<serde_json::Value>,
+    pub name: Option<json::OwnedValue>,
     #[doc = "Billing phone number (including extension)."]
-    pub phone: Option<serde_json::Value>,
+    pub phone: Option<json::OwnedValue>,
     #[doc = "Taxpayer identification number."]
     pub tax_id: Option<String>,
 }
@@ -1153,65 +1131,75 @@ impl CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "arzte_und_apotheker_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::ArzteUndApothekerBank,
-                    "austrian_anadi_bank_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::AustrianAnadiBankAg,
-                    "bank_austria" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::BankAustria,
-                    "bankhaus_carl_spangler" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::BankhausCarlSpangler,
-                    "bankhaus_schelhammer_und_schattera_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::BankhausSchelhammerUndSchatteraAg,
-                    "bawag_psk_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::BawagPskAg,
-                    "bks_bank_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::BksBankAg,
-                    "brull_kallmus_bank_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::BrullKallmusBankAg,
-                    "btv_vier_lander_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::BtvVierLanderBank,
-                    "capital_bank_grawe_gruppe_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::CapitalBankGraweGruppeAg,
-                    "deutsche_bank_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::DeutscheBankAg,
-                    "dolomitenbank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::Dolomitenbank,
-                    "easybank_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::EasybankAg,
-                    "erste_bank_und_sparkassen" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::ErsteBankUndSparkassen,
-                    "hypo_alpeadriabank_international_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::HypoAlpeadriabankInternationalAg,
-                    "hypo_bank_burgenland_aktiengesellschaft" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::HypoBankBurgenlandAktiengesellschaft,
-                    "hypo_noe_lb_fur_niederosterreich_u_wien" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::HypoNoeLbFurNiederosterreichUWien,
-                    "hypo_oberosterreich_salzburg_steiermark" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::HypoOberosterreichSalzburgSteiermark,
-                    "hypo_tirol_bank_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::HypoTirolBankAg,
-                    "hypo_vorarlberg_bank_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::HypoVorarlbergBankAg,
-                    "marchfelder_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::MarchfelderBank,
-                    "oberbank_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::OberbankAg,
-                    "raiffeisen_bankengruppe_osterreich" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::RaiffeisenBankengruppeOsterreich,
-                    "schoellerbank_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::SchoellerbankAg,
-                    "sparda_bank_wien" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::SpardaBankWien,
-                    "volksbank_gruppe" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::VolksbankGruppe,
-                    "volkskreditbank_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::VolkskreditbankAg,
-                    "vr_bank_braunau" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::VrBankBraunau,
-                    other => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "arzte_und_apotheker_bank" => {
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::ArzteUndApothekerBank
+            }
+            "austrian_anadi_bank_ag" => {
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::AustrianAnadiBankAg
+            }
+            "bank_austria" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::BankAustria,
+            "bankhaus_carl_spangler" => {
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::BankhausCarlSpangler
+            }
+            "bankhaus_schelhammer_und_schattera_ag" => {
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::BankhausSchelhammerUndSchatteraAg
+            }
+            "bawag_psk_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::BawagPskAg,
+            "bks_bank_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::BksBankAg,
+            "brull_kallmus_bank_ag" => {
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::BrullKallmusBankAg
+            }
+            "btv_vier_lander_bank" => {
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::BtvVierLanderBank
+            }
+            "capital_bank_grawe_gruppe_ag" => {
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::CapitalBankGraweGruppeAg
+            }
+            "deutsche_bank_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::DeutscheBankAg,
+            "dolomitenbank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::Dolomitenbank,
+            "easybank_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::EasybankAg,
+            "erste_bank_und_sparkassen" => {
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::ErsteBankUndSparkassen
+            }
+            "hypo_alpeadriabank_international_ag" => {
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::HypoAlpeadriabankInternationalAg
+            }
+            "hypo_bank_burgenland_aktiengesellschaft" => {
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::HypoBankBurgenlandAktiengesellschaft
+            }
+            "hypo_noe_lb_fur_niederosterreich_u_wien" => {
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::HypoNoeLbFurNiederosterreichUWien
+            }
+            "hypo_oberosterreich_salzburg_steiermark" => {
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::HypoOberosterreichSalzburgSteiermark
+            }
+            "hypo_tirol_bank_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::HypoTirolBankAg,
+            "hypo_vorarlberg_bank_ag" => {
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::HypoVorarlbergBankAg
+            }
+            "marchfelder_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::MarchfelderBank,
+            "oberbank_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::OberbankAg,
+            "raiffeisen_bankengruppe_osterreich" => {
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::RaiffeisenBankengruppeOsterreich
+            }
+            "schoellerbank_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::SchoellerbankAg,
+            "sparda_bank_wien" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::SpardaBankWien,
+            "volksbank_gruppe" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::VolksbankGruppe,
+            "volkskreditbank_ag" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::VolkskreditbankAg,
+            "vr_bank_braunau" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::VrBankBraunau,
+            other => CreateTestHelperConfirmationTokenParamsPaymentMethodDataEpsBank::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1262,41 +1250,23 @@ impl CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxAccountHolderTyp
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxAccountHolderType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxAccountHolderType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "company" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxAccountHolderType::Company,
-                    "individual" => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxAccountHolderType::Individual
-                    }
-                    other => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxAccountHolderType::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxAccountHolderType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxAccountHolderType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxAccountHolderType::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "company" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxAccountHolderType::Company,
+            "individual" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxAccountHolderType::Individual,
+            other => {
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxAccountHolderType::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -1375,66 +1345,44 @@ impl CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "affin_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::AffinBank,
-                    "agrobank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Agrobank,
-                    "alliance_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::AllianceBank,
-                    "ambank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Ambank,
-                    "bank_islam" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::BankIslam,
-                    "bank_muamalat" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::BankMuamalat,
-                    "bank_of_china" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::BankOfChina,
-                    "bank_rakyat" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::BankRakyat,
-                    "bnp_paribas" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::BnpParibas,
-                    "bsn" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Bsn,
-                    "cimb" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Cimb,
-                    "citibank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Citibank,
-                    "deutsche_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::DeutscheBank,
-                    "hong_leong_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::HongLeongBank,
-                    "hsbc" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Hsbc,
-                    "kfh" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Kfh,
-                    "maybank2e" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Maybank2e,
-                    "maybank2u" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Maybank2u,
-                    "mbsb_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::MbsbBank,
-                    "ocbc" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Ocbc,
-                    "pb_enterprise" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::PbEnterprise,
-                    "public_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::PublicBank,
-                    "rhb" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Rhb,
-                    "standard_chartered" => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::StandardChartered
-                    }
-                    "uob" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Uob,
-                    other => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "affin_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::AffinBank,
+            "agrobank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Agrobank,
+            "alliance_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::AllianceBank,
+            "ambank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Ambank,
+            "bank_islam" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::BankIslam,
+            "bank_muamalat" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::BankMuamalat,
+            "bank_of_china" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::BankOfChina,
+            "bank_rakyat" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::BankRakyat,
+            "bnp_paribas" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::BnpParibas,
+            "bsn" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Bsn,
+            "cimb" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Cimb,
+            "citibank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Citibank,
+            "deutsche_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::DeutscheBank,
+            "hong_leong_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::HongLeongBank,
+            "hsbc" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Hsbc,
+            "kfh" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Kfh,
+            "maybank2e" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Maybank2e,
+            "maybank2u" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Maybank2u,
+            "mbsb_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::MbsbBank,
+            "ocbc" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Ocbc,
+            "pb_enterprise" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::PbEnterprise,
+            "public_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::PublicBank,
+            "rhb" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Rhb,
+            "standard_chartered" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::StandardChartered,
+            "uob" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Uob,
+            other => CreateTestHelperConfirmationTokenParamsPaymentMethodDataFpxBank::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1525,59 +1473,39 @@ impl CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "abn_amro" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::AbnAmro,
-                    "adyen" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Adyen,
-                    "asn_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::AsnBank,
-                    "bunq" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Bunq,
-                    "buut" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Buut,
-                    "finom" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Finom,
-                    "handelsbanken" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Handelsbanken,
-                    "ing" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Ing,
-                    "knab" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Knab,
-                    "mollie" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Mollie,
-                    "moneyou" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Moneyou,
-                    "n26" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::N26,
-                    "nn" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Nn,
-                    "rabobank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Rabobank,
-                    "regiobank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Regiobank,
-                    "revolut" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Revolut,
-                    "sns_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::SnsBank,
-                    "triodos_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::TriodosBank,
-                    "van_lanschot" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::VanLanschot,
-                    "yoursafe" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Yoursafe,
-                    other => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "abn_amro" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::AbnAmro,
+            "adyen" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Adyen,
+            "asn_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::AsnBank,
+            "bunq" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Bunq,
+            "buut" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Buut,
+            "finom" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Finom,
+            "handelsbanken" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Handelsbanken,
+            "ing" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Ing,
+            "knab" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Knab,
+            "mollie" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Mollie,
+            "moneyou" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Moneyou,
+            "n26" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::N26,
+            "nn" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Nn,
+            "rabobank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Rabobank,
+            "regiobank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Regiobank,
+            "revolut" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Revolut,
+            "sns_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::SnsBank,
+            "triodos_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::TriodosBank,
+            "van_lanschot" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::VanLanschot,
+            "yoursafe" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Yoursafe,
+            other => CreateTestHelperConfirmationTokenParamsPaymentMethodDataIdealBank::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1690,39 +1618,21 @@ impl CreateTestHelperConfirmationTokenParamsPaymentMethodDataNaverPayFunding {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperConfirmationTokenParamsPaymentMethodDataNaverPayFunding {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperConfirmationTokenParamsPaymentMethodDataNaverPayFunding;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "card" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataNaverPayFunding::Card,
-                    "points" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataNaverPayFunding::Points,
-                    other => CreateTestHelperConfirmationTokenParamsPaymentMethodDataNaverPayFunding::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperConfirmationTokenParamsPaymentMethodDataNaverPayFunding::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperConfirmationTokenParamsPaymentMethodDataNaverPayFunding {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTestHelperConfirmationTokenParamsPaymentMethodDataNaverPayFunding::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "card" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataNaverPayFunding::Card,
+            "points" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataNaverPayFunding::Points,
+            other => {
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataNaverPayFunding::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -1855,83 +1765,51 @@ impl CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "alior_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::AliorBank,
-                    "bank_millennium" => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::BankMillennium
-                    }
-                    "bank_nowy_bfg_sa" => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::BankNowyBfgSa
-                    }
-                    "bank_pekao_sa" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::BankPekaoSa,
-                    "banki_spbdzielcze" => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::BankiSpbdzielcze
-                    }
-                    "blik" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::Blik,
-                    "bnp_paribas" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::BnpParibas,
-                    "boz" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::Boz,
-                    "citi_handlowy" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::CitiHandlowy,
-                    "credit_agricole" => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::CreditAgricole
-                    }
-                    "envelobank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::Envelobank,
-                    "etransfer_pocztowy24" => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::EtransferPocztowy24
-                    }
-                    "getin_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::GetinBank,
-                    "ideabank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::Ideabank,
-                    "ing" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::Ing,
-                    "inteligo" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::Inteligo,
-                    "mbank_mtransfer" => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::MbankMtransfer
-                    }
-                    "nest_przelew" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::NestPrzelew,
-                    "noble_pay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::NoblePay,
-                    "pbac_z_ipko" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::PbacZIpko,
-                    "plus_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::PlusBank,
-                    "santander_przelew24" => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::SantanderPrzelew24
-                    }
-                    "tmobile_usbugi_bankowe" => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::TmobileUsbugiBankowe
-                    }
-                    "toyota_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::ToyotaBank,
-                    "velobank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::Velobank,
-                    "volkswagen_bank" => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::VolkswagenBank
-                    }
-                    other => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "alior_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::AliorBank,
+            "bank_millennium" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::BankMillennium,
+            "bank_nowy_bfg_sa" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::BankNowyBfgSa,
+            "bank_pekao_sa" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::BankPekaoSa,
+            "banki_spbdzielcze" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::BankiSpbdzielcze,
+            "blik" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::Blik,
+            "bnp_paribas" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::BnpParibas,
+            "boz" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::Boz,
+            "citi_handlowy" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::CitiHandlowy,
+            "credit_agricole" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::CreditAgricole,
+            "envelobank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::Envelobank,
+            "etransfer_pocztowy24" => {
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::EtransferPocztowy24
+            }
+            "getin_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::GetinBank,
+            "ideabank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::Ideabank,
+            "ing" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::Ing,
+            "inteligo" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::Inteligo,
+            "mbank_mtransfer" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::MbankMtransfer,
+            "nest_przelew" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::NestPrzelew,
+            "noble_pay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::NoblePay,
+            "pbac_z_ipko" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::PbacZIpko,
+            "plus_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::PlusBank,
+            "santander_przelew24" => {
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::SantanderPrzelew24
+            }
+            "tmobile_usbugi_bankowe" => {
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::TmobileUsbugiBankowe
+            }
+            "toyota_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::ToyotaBank,
+            "velobank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::Velobank,
+            "volkswagen_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::VolkswagenBank,
+            other => CreateTestHelperConfirmationTokenParamsPaymentMethodDataP24Bank::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2082,45 +1960,25 @@ impl CreateTestHelperConfirmationTokenParamsPaymentMethodDataSofortCountry {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperConfirmationTokenParamsPaymentMethodDataSofortCountry {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperConfirmationTokenParamsPaymentMethodDataSofortCountry;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "AT" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataSofortCountry::AT,
-                    "BE" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataSofortCountry::BE,
-                    "DE" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataSofortCountry::DE,
-                    "ES" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataSofortCountry::ES,
-                    "IT" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataSofortCountry::IT,
-                    "NL" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataSofortCountry::NL,
-                    other => CreateTestHelperConfirmationTokenParamsPaymentMethodDataSofortCountry::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperConfirmationTokenParamsPaymentMethodDataSofortCountry::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperConfirmationTokenParamsPaymentMethodDataSofortCountry {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTestHelperConfirmationTokenParamsPaymentMethodDataSofortCountry::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "AT" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataSofortCountry::AT,
+            "BE" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataSofortCountry::BE,
+            "DE" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataSofortCountry::DE,
+            "ES" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataSofortCountry::ES,
+            "IT" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataSofortCountry::IT,
+            "NL" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataSofortCountry::NL,
+            other => CreateTestHelperConfirmationTokenParamsPaymentMethodDataSofortCountry::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2271,94 +2129,74 @@ impl CreateTestHelperConfirmationTokenParamsPaymentMethodDataType {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperConfirmationTokenParamsPaymentMethodDataType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperConfirmationTokenParamsPaymentMethodDataType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "acss_debit" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::AcssDebit,
-                    "affirm" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Affirm,
-                    "afterpay_clearpay" => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::AfterpayClearpay
-                    }
-                    "alipay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Alipay,
-                    "alma" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Alma,
-                    "amazon_pay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::AmazonPay,
-                    "au_becs_debit" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::AuBecsDebit,
-                    "bacs_debit" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::BacsDebit,
-                    "bancontact" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Bancontact,
-                    "billie" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Billie,
-                    "bizum" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Bizum,
-                    "blik" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Blik,
-                    "boleto" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Boleto,
-                    "cashapp" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Cashapp,
-                    "crypto" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Crypto,
-                    "customer_balance" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::CustomerBalance,
-                    "eps" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Eps,
-                    "fpx" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Fpx,
-                    "giropay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Giropay,
-                    "grabpay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Grabpay,
-                    "ideal" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Ideal,
-                    "kakao_pay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::KakaoPay,
-                    "klarna" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Klarna,
-                    "konbini" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Konbini,
-                    "kr_card" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::KrCard,
-                    "link" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Link,
-                    "mb_way" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::MbWay,
-                    "mobilepay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Mobilepay,
-                    "multibanco" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Multibanco,
-                    "naver_pay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::NaverPay,
-                    "nz_bank_account" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::NzBankAccount,
-                    "oxxo" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Oxxo,
-                    "p24" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::P24,
-                    "pay_by_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::PayByBank,
-                    "payco" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Payco,
-                    "paynow" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Paynow,
-                    "paypal" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Paypal,
-                    "paypay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Paypay,
-                    "payto" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Payto,
-                    "pix" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Pix,
-                    "promptpay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Promptpay,
-                    "revolut_pay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::RevolutPay,
-                    "samsung_pay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::SamsungPay,
-                    "satispay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Satispay,
-                    "scalapay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Scalapay,
-                    "sepa_debit" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::SepaDebit,
-                    "sequra" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Sequra,
-                    "sofort" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Sofort,
-                    "sunbit" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Sunbit,
-                    "swish" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Swish,
-                    "twint" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Twint,
-                    "upi" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Upi,
-                    "us_bank_account" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::UsBankAccount,
-                    "wechat_pay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::WechatPay,
-                    "zip" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Zip,
-                    other => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperConfirmationTokenParamsPaymentMethodDataType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "acss_debit" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::AcssDebit,
+            "affirm" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Affirm,
+            "afterpay_clearpay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::AfterpayClearpay,
+            "alipay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Alipay,
+            "alma" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Alma,
+            "amazon_pay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::AmazonPay,
+            "au_becs_debit" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::AuBecsDebit,
+            "bacs_debit" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::BacsDebit,
+            "bancontact" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Bancontact,
+            "billie" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Billie,
+            "bizum" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Bizum,
+            "blik" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Blik,
+            "boleto" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Boleto,
+            "cashapp" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Cashapp,
+            "crypto" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Crypto,
+            "customer_balance" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::CustomerBalance,
+            "eps" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Eps,
+            "fpx" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Fpx,
+            "giropay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Giropay,
+            "grabpay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Grabpay,
+            "ideal" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Ideal,
+            "kakao_pay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::KakaoPay,
+            "klarna" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Klarna,
+            "konbini" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Konbini,
+            "kr_card" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::KrCard,
+            "link" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Link,
+            "mb_way" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::MbWay,
+            "mobilepay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Mobilepay,
+            "multibanco" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Multibanco,
+            "naver_pay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::NaverPay,
+            "nz_bank_account" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::NzBankAccount,
+            "oxxo" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Oxxo,
+            "p24" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::P24,
+            "pay_by_bank" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::PayByBank,
+            "payco" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Payco,
+            "paynow" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Paynow,
+            "paypal" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Paypal,
+            "paypay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Paypay,
+            "payto" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Payto,
+            "pix" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Pix,
+            "promptpay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Promptpay,
+            "revolut_pay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::RevolutPay,
+            "samsung_pay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::SamsungPay,
+            "satispay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Satispay,
+            "scalapay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Scalapay,
+            "sepa_debit" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::SepaDebit,
+            "sequra" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Sequra,
+            "sofort" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Sofort,
+            "sunbit" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Sunbit,
+            "swish" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Swish,
+            "twint" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Twint,
+            "upi" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Upi,
+            "us_bank_account" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::UsBankAccount,
+            "wechat_pay" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::WechatPay,
+            "zip" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Zip,
+            other => CreateTestHelperConfirmationTokenParamsPaymentMethodDataType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2433,51 +2271,27 @@ impl CreateTestHelperConfirmationTokenParamsPaymentMethodDataUpiMandateOptionsAm
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateTestHelperConfirmationTokenParamsPaymentMethodDataUpiMandateOptionsAmountType
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperConfirmationTokenParamsPaymentMethodDataUpiMandateOptionsAmountType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "fixed" => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodDataUpiMandateOptionsAmountType::Fixed
-                    }
-                    "maximum" => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodDataUpiMandateOptionsAmountType::Maximum
-                    }
-                    other => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodDataUpiMandateOptionsAmountType::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateTestHelperConfirmationTokenParamsPaymentMethodDataUpiMandateOptionsAmountType::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataUpiMandateOptionsAmountType::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "fixed" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataUpiMandateOptionsAmountType::Fixed,
+            "maximum" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataUpiMandateOptionsAmountType::Maximum,
+            other => CreateTestHelperConfirmationTokenParamsPaymentMethodDataUpiMandateOptionsAmountType::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -2543,47 +2357,23 @@ impl CreateTestHelperConfirmationTokenParamsPaymentMethodDataUsBankAccountAccoun
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperConfirmationTokenParamsPaymentMethodDataUsBankAccountAccountType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperConfirmationTokenParamsPaymentMethodDataUsBankAccountAccountType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "checking" => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodDataUsBankAccountAccountType::Checking
-                    }
-                    "savings" => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodDataUsBankAccountAccountType::Savings
-                    }
-                    other => CreateTestHelperConfirmationTokenParamsPaymentMethodDataUsBankAccountAccountType::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateTestHelperConfirmationTokenParamsPaymentMethodDataUsBankAccountAccountType::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperConfirmationTokenParamsPaymentMethodDataUsBankAccountAccountType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateTestHelperConfirmationTokenParamsPaymentMethodDataUsBankAccountAccountType::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "checking" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataUsBankAccountAccountType::Checking,
+            "savings" => CreateTestHelperConfirmationTokenParamsPaymentMethodDataUsBankAccountAccountType::Savings,
+            other => CreateTestHelperConfirmationTokenParamsPaymentMethodDataUsBankAccountAccountType::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -2690,48 +2480,26 @@ impl CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallments
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallmentsPlanInterval
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallmentsPlanInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "month" => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallmentsPlanInterval::Month
-                    }
-                    other => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallmentsPlanInterval::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallmentsPlanInterval::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallmentsPlanInterval::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "month" => CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallmentsPlanInterval::Month,
+            other => CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallmentsPlanInterval::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -2774,54 +2542,32 @@ impl CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallments
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallmentsPlanType
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallmentsPlanType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "bonus" => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallmentsPlanType::Bonus
-                    }
-                    "fixed_count" => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallmentsPlanType::FixedCount
-                    }
-                    "revolving" => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallmentsPlanType::Revolving
-                    }
-                    other => {
-                        CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallmentsPlanType::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallmentsPlanType::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallmentsPlanType::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "bonus" => CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallmentsPlanType::Bonus,
+            "fixed_count" => {
+                CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallmentsPlanType::FixedCount
+            }
+            "revolving" => {
+                CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallmentsPlanType::Revolving
+            }
+            other => CreateTestHelperConfirmationTokenParamsPaymentMethodOptionsCardInstallmentsPlanType::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -2854,37 +2600,19 @@ impl CreateTestHelperConfirmationTokenParamsSetupFutureUsage {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperConfirmationTokenParamsSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperConfirmationTokenParamsSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "off_session" => CreateTestHelperConfirmationTokenParamsSetupFutureUsage::OffSession,
-                    "on_session" => CreateTestHelperConfirmationTokenParamsSetupFutureUsage::OnSession,
-                    other => CreateTestHelperConfirmationTokenParamsSetupFutureUsage::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperConfirmationTokenParamsSetupFutureUsage::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperConfirmationTokenParamsSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTestHelperConfirmationTokenParamsSetupFutureUsage::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "off_session" => CreateTestHelperConfirmationTokenParamsSetupFutureUsage::OffSession,
+            "on_session" => CreateTestHelperConfirmationTokenParamsSetupFutureUsage::OnSession,
+            other => CreateTestHelperConfirmationTokenParamsSetupFutureUsage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2903,7 +2631,7 @@ pub struct CreateTestHelperConfirmationTokenParamsShipping {
     #[doc = "Recipient name."]
     pub name: String,
     #[doc = "Recipient phone (including extension)"]
-    pub phone: Option<serde_json::Value>,
+    pub phone: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "test_helpers")]
@@ -3029,42 +2757,24 @@ impl CreateTestHelperIssuingAuthorizationParamsAuthorizationMethod {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperIssuingAuthorizationParamsAuthorizationMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperIssuingAuthorizationParamsAuthorizationMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "chip" => CreateTestHelperIssuingAuthorizationParamsAuthorizationMethod::Chip,
-                    "contactless" => CreateTestHelperIssuingAuthorizationParamsAuthorizationMethod::Contactless,
-                    "keyed_in" => CreateTestHelperIssuingAuthorizationParamsAuthorizationMethod::KeyedIn,
-                    "online" => CreateTestHelperIssuingAuthorizationParamsAuthorizationMethod::Online,
-                    "swipe" => CreateTestHelperIssuingAuthorizationParamsAuthorizationMethod::Swipe,
-                    other => CreateTestHelperIssuingAuthorizationParamsAuthorizationMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperIssuingAuthorizationParamsAuthorizationMethod::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperIssuingAuthorizationParamsAuthorizationMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTestHelperIssuingAuthorizationParamsAuthorizationMethod::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "chip" => CreateTestHelperIssuingAuthorizationParamsAuthorizationMethod::Chip,
+            "contactless" => CreateTestHelperIssuingAuthorizationParamsAuthorizationMethod::Contactless,
+            "keyed_in" => CreateTestHelperIssuingAuthorizationParamsAuthorizationMethod::KeyedIn,
+            "online" => CreateTestHelperIssuingAuthorizationParamsAuthorizationMethod::Online,
+            "swipe" => CreateTestHelperIssuingAuthorizationParamsAuthorizationMethod::Swipe,
+            other => CreateTestHelperIssuingAuthorizationParamsAuthorizationMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3152,42 +2862,24 @@ impl CreateTestHelperIssuingAuthorizationParamsFleetPurchaseType {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperIssuingAuthorizationParamsFleetPurchaseType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperIssuingAuthorizationParamsFleetPurchaseType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "fuel_and_non_fuel_purchase" => {
-                        CreateTestHelperIssuingAuthorizationParamsFleetPurchaseType::FuelAndNonFuelPurchase
-                    }
-                    "fuel_purchase" => CreateTestHelperIssuingAuthorizationParamsFleetPurchaseType::FuelPurchase,
-                    "non_fuel_purchase" => CreateTestHelperIssuingAuthorizationParamsFleetPurchaseType::NonFuelPurchase,
-                    other => CreateTestHelperIssuingAuthorizationParamsFleetPurchaseType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperIssuingAuthorizationParamsFleetPurchaseType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperIssuingAuthorizationParamsFleetPurchaseType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTestHelperIssuingAuthorizationParamsFleetPurchaseType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "fuel_and_non_fuel_purchase" => {
+                CreateTestHelperIssuingAuthorizationParamsFleetPurchaseType::FuelAndNonFuelPurchase
+            }
+            "fuel_purchase" => CreateTestHelperIssuingAuthorizationParamsFleetPurchaseType::FuelPurchase,
+            "non_fuel_purchase" => CreateTestHelperIssuingAuthorizationParamsFleetPurchaseType::NonFuelPurchase,
+            other => CreateTestHelperIssuingAuthorizationParamsFleetPurchaseType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3277,42 +2969,22 @@ impl CreateTestHelperIssuingAuthorizationParamsFleetServiceType {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperIssuingAuthorizationParamsFleetServiceType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperIssuingAuthorizationParamsFleetServiceType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "full_service" => CreateTestHelperIssuingAuthorizationParamsFleetServiceType::FullService,
-                    "non_fuel_transaction" => {
-                        CreateTestHelperIssuingAuthorizationParamsFleetServiceType::NonFuelTransaction
-                    }
-                    "self_service" => CreateTestHelperIssuingAuthorizationParamsFleetServiceType::SelfService,
-                    other => CreateTestHelperIssuingAuthorizationParamsFleetServiceType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperIssuingAuthorizationParamsFleetServiceType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperIssuingAuthorizationParamsFleetServiceType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTestHelperIssuingAuthorizationParamsFleetServiceType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "full_service" => CreateTestHelperIssuingAuthorizationParamsFleetServiceType::FullService,
+            "non_fuel_transaction" => CreateTestHelperIssuingAuthorizationParamsFleetServiceType::NonFuelTransaction,
+            "self_service" => CreateTestHelperIssuingAuthorizationParamsFleetServiceType::SelfService,
+            other => CreateTestHelperIssuingAuthorizationParamsFleetServiceType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3349,45 +3021,23 @@ impl CreateTestHelperIssuingAuthorizationParamsFraudDisputabilityLikelihood {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperIssuingAuthorizationParamsFraudDisputabilityLikelihood {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperIssuingAuthorizationParamsFraudDisputabilityLikelihood;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "neutral" => CreateTestHelperIssuingAuthorizationParamsFraudDisputabilityLikelihood::Neutral,
-                    "unknown" => CreateTestHelperIssuingAuthorizationParamsFraudDisputabilityLikelihood::UnknownValue,
-                    "very_likely" => CreateTestHelperIssuingAuthorizationParamsFraudDisputabilityLikelihood::VeryLikely,
-                    "very_unlikely" => {
-                        CreateTestHelperIssuingAuthorizationParamsFraudDisputabilityLikelihood::VeryUnlikely
-                    }
-                    other => CreateTestHelperIssuingAuthorizationParamsFraudDisputabilityLikelihood::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperIssuingAuthorizationParamsFraudDisputabilityLikelihood::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperIssuingAuthorizationParamsFraudDisputabilityLikelihood {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTestHelperIssuingAuthorizationParamsFraudDisputabilityLikelihood::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "neutral" => CreateTestHelperIssuingAuthorizationParamsFraudDisputabilityLikelihood::Neutral,
+            "unknown" => CreateTestHelperIssuingAuthorizationParamsFraudDisputabilityLikelihood::UnknownValue,
+            "very_likely" => CreateTestHelperIssuingAuthorizationParamsFraudDisputabilityLikelihood::VeryLikely,
+            "very_unlikely" => CreateTestHelperIssuingAuthorizationParamsFraudDisputabilityLikelihood::VeryUnlikely,
+            other => CreateTestHelperIssuingAuthorizationParamsFraudDisputabilityLikelihood::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3452,40 +3102,22 @@ impl CreateTestHelperIssuingAuthorizationParamsFuelType {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperIssuingAuthorizationParamsFuelType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperIssuingAuthorizationParamsFuelType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "diesel" => CreateTestHelperIssuingAuthorizationParamsFuelType::Diesel,
-                    "other" => CreateTestHelperIssuingAuthorizationParamsFuelType::Other,
-                    "unleaded_plus" => CreateTestHelperIssuingAuthorizationParamsFuelType::UnleadedPlus,
-                    "unleaded_regular" => CreateTestHelperIssuingAuthorizationParamsFuelType::UnleadedRegular,
-                    "unleaded_super" => CreateTestHelperIssuingAuthorizationParamsFuelType::UnleadedSuper,
-                    other => CreateTestHelperIssuingAuthorizationParamsFuelType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperIssuingAuthorizationParamsFuelType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperIssuingAuthorizationParamsFuelType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTestHelperIssuingAuthorizationParamsFuelType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "diesel" => CreateTestHelperIssuingAuthorizationParamsFuelType::Diesel,
+            "other" => CreateTestHelperIssuingAuthorizationParamsFuelType::Other,
+            "unleaded_plus" => CreateTestHelperIssuingAuthorizationParamsFuelType::UnleadedPlus,
+            "unleaded_regular" => CreateTestHelperIssuingAuthorizationParamsFuelType::UnleadedRegular,
+            "unleaded_super" => CreateTestHelperIssuingAuthorizationParamsFuelType::UnleadedSuper,
+            other => CreateTestHelperIssuingAuthorizationParamsFuelType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3530,43 +3162,25 @@ impl CreateTestHelperIssuingAuthorizationParamsFuelUnit {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperIssuingAuthorizationParamsFuelUnit {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperIssuingAuthorizationParamsFuelUnit;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "charging_minute" => CreateTestHelperIssuingAuthorizationParamsFuelUnit::ChargingMinute,
-                    "imperial_gallon" => CreateTestHelperIssuingAuthorizationParamsFuelUnit::ImperialGallon,
-                    "kilogram" => CreateTestHelperIssuingAuthorizationParamsFuelUnit::Kilogram,
-                    "kilowatt_hour" => CreateTestHelperIssuingAuthorizationParamsFuelUnit::KilowattHour,
-                    "liter" => CreateTestHelperIssuingAuthorizationParamsFuelUnit::Liter,
-                    "other" => CreateTestHelperIssuingAuthorizationParamsFuelUnit::Other,
-                    "pound" => CreateTestHelperIssuingAuthorizationParamsFuelUnit::Pound,
-                    "us_gallon" => CreateTestHelperIssuingAuthorizationParamsFuelUnit::UsGallon,
-                    other => CreateTestHelperIssuingAuthorizationParamsFuelUnit::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperIssuingAuthorizationParamsFuelUnit::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperIssuingAuthorizationParamsFuelUnit {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTestHelperIssuingAuthorizationParamsFuelUnit::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "charging_minute" => CreateTestHelperIssuingAuthorizationParamsFuelUnit::ChargingMinute,
+            "imperial_gallon" => CreateTestHelperIssuingAuthorizationParamsFuelUnit::ImperialGallon,
+            "kilogram" => CreateTestHelperIssuingAuthorizationParamsFuelUnit::Kilogram,
+            "kilowatt_hour" => CreateTestHelperIssuingAuthorizationParamsFuelUnit::KilowattHour,
+            "liter" => CreateTestHelperIssuingAuthorizationParamsFuelUnit::Liter,
+            "other" => CreateTestHelperIssuingAuthorizationParamsFuelUnit::Other,
+            "pound" => CreateTestHelperIssuingAuthorizationParamsFuelUnit::Pound,
+            "us_gallon" => CreateTestHelperIssuingAuthorizationParamsFuelUnit::UsGallon,
+            other => CreateTestHelperIssuingAuthorizationParamsFuelUnit::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4221,331 +3835,313 @@ impl CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ac_refrigeration_repair" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AcRefrigerationRepair,
-                    "accounting_bookkeeping_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AccountingBookkeepingServices,
-                    "advertising_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AdvertisingServices,
-                    "agricultural_cooperative" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AgriculturalCooperative,
-                    "airlines_air_carriers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AirlinesAirCarriers,
-                    "airports_flying_fields" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AirportsFlyingFields,
-                    "ambulance_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AmbulanceServices,
-                    "amusement_parks_carnivals" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AmusementParksCarnivals,
-                    "antique_reproductions" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AntiqueReproductions,
-                    "antique_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AntiqueShops,
-                    "aquariums" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Aquariums,
-                    "architectural_surveying_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ArchitecturalSurveyingServices,
-                    "art_dealers_and_galleries" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ArtDealersAndGalleries,
-                    "artists_supply_and_craft_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ArtistsSupplyAndCraftShops,
-                    "auto_and_home_supply_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AutoAndHomeSupplyStores,
-                    "auto_body_repair_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AutoBodyRepairShops,
-                    "auto_paint_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AutoPaintShops,
-                    "auto_service_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AutoServiceShops,
-                    "automated_cash_disburse" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AutomatedCashDisburse,
-                    "automated_fuel_dispensers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AutomatedFuelDispensers,
-                    "automobile_associations" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AutomobileAssociations,
-                    "automotive_parts_and_accessories_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AutomotivePartsAndAccessoriesStores,
-                    "automotive_tire_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AutomotiveTireStores,
-                    "bail_and_bond_payments" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BailAndBondPayments,
-                    "bakeries" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Bakeries,
-                    "bands_orchestras" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BandsOrchestras,
-                    "barber_and_beauty_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BarberAndBeautyShops,
-                    "betting_casino_gambling" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BettingCasinoGambling,
-                    "bicycle_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BicycleShops,
-                    "billiard_pool_establishments" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BilliardPoolEstablishments,
-                    "boat_dealers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BoatDealers,
-                    "boat_rentals_and_leases" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BoatRentalsAndLeases,
-                    "book_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BookStores,
-                    "books_periodicals_and_newspapers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BooksPeriodicalsAndNewspapers,
-                    "bowling_alleys" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BowlingAlleys,
-                    "bus_lines" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BusLines,
-                    "business_secretarial_schools" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BusinessSecretarialSchools,
-                    "buying_shopping_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BuyingShoppingServices,
-                    "cable_satellite_and_other_pay_television_and_radio" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CableSatelliteAndOtherPayTelevisionAndRadio,
-                    "camera_and_photographic_supply_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CameraAndPhotographicSupplyStores,
-                    "candy_nut_and_confectionery_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CandyNutAndConfectioneryStores,
-                    "car_and_truck_dealers_new_used" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CarAndTruckDealersNewUsed,
-                    "car_and_truck_dealers_used_only" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CarAndTruckDealersUsedOnly,
-                    "car_rental_agencies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CarRentalAgencies,
-                    "car_washes" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CarWashes,
-                    "carpentry_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CarpentryServices,
-                    "carpet_upholstery_cleaning" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CarpetUpholsteryCleaning,
-                    "caterers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Caterers,
-                    "charitable_and_social_service_organizations_fundraising" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CharitableAndSocialServiceOrganizationsFundraising,
-                    "chemicals_and_allied_products" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ChemicalsAndAlliedProducts,
-                    "child_care_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ChildCareServices,
-                    "childrens_and_infants_wear_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ChildrensAndInfantsWearStores,
-                    "chiropodists_podiatrists" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ChiropodistsPodiatrists,
-                    "chiropractors" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Chiropractors,
-                    "cigar_stores_and_stands" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CigarStoresAndStands,
-                    "civic_social_fraternal_associations" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CivicSocialFraternalAssociations,
-                    "cleaning_and_maintenance" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CleaningAndMaintenance,
-                    "clothing_rental" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ClothingRental,
-                    "colleges_universities" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CollegesUniversities,
-                    "commercial_equipment" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CommercialEquipment,
-                    "commercial_footwear" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CommercialFootwear,
-                    "commercial_photography_art_and_graphics" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CommercialPhotographyArtAndGraphics,
-                    "commuter_transport_and_ferries" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CommuterTransportAndFerries,
-                    "computer_network_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ComputerNetworkServices,
-                    "computer_programming" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ComputerProgramming,
-                    "computer_repair" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ComputerRepair,
-                    "computer_software_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ComputerSoftwareStores,
-                    "computers_peripherals_and_software" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ComputersPeripheralsAndSoftware,
-                    "concrete_work_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ConcreteWorkServices,
-                    "construction_materials" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ConstructionMaterials,
-                    "consulting_public_relations" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ConsultingPublicRelations,
-                    "correspondence_schools" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CorrespondenceSchools,
-                    "cosmetic_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CosmeticStores,
-                    "counseling_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CounselingServices,
-                    "country_clubs" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CountryClubs,
-                    "courier_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CourierServices,
-                    "court_costs" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CourtCosts,
-                    "credit_reporting_agencies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CreditReportingAgencies,
-                    "cruise_lines" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CruiseLines,
-                    "dairy_products_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DairyProductsStores,
-                    "dance_hall_studios_schools" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DanceHallStudiosSchools,
-                    "dating_escort_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DatingEscortServices,
-                    "dentists_orthodontists" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DentistsOrthodontists,
-                    "department_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DepartmentStores,
-                    "detective_agencies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DetectiveAgencies,
-                    "digital_goods_applications" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DigitalGoodsApplications,
-                    "digital_goods_games" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DigitalGoodsGames,
-                    "digital_goods_large_volume" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DigitalGoodsLargeVolume,
-                    "digital_goods_media" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DigitalGoodsMedia,
-                    "direct_marketing_catalog_merchant" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DirectMarketingCatalogMerchant,
-                    "direct_marketing_combination_catalog_and_retail_merchant" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DirectMarketingCombinationCatalogAndRetailMerchant,
-                    "direct_marketing_inbound_telemarketing" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DirectMarketingInboundTelemarketing,
-                    "direct_marketing_insurance_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DirectMarketingInsuranceServices,
-                    "direct_marketing_other" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DirectMarketingOther,
-                    "direct_marketing_outbound_telemarketing" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DirectMarketingOutboundTelemarketing,
-                    "direct_marketing_subscription" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DirectMarketingSubscription,
-                    "direct_marketing_travel" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DirectMarketingTravel,
-                    "discount_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DiscountStores,
-                    "doctors" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Doctors,
-                    "door_to_door_sales" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DoorToDoorSales,
-                    "drapery_window_covering_and_upholstery_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DraperyWindowCoveringAndUpholsteryStores,
-                    "drinking_places" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DrinkingPlaces,
-                    "drug_stores_and_pharmacies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DrugStoresAndPharmacies,
-                    "drugs_drug_proprietaries_and_druggist_sundries" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DrugsDrugProprietariesAndDruggistSundries,
-                    "dry_cleaners" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DryCleaners,
-                    "durable_goods" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DurableGoods,
-                    "duty_free_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DutyFreeStores,
-                    "eating_places_restaurants" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::EatingPlacesRestaurants,
-                    "educational_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::EducationalServices,
-                    "electric_razor_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ElectricRazorStores,
-                    "electric_vehicle_charging" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ElectricVehicleCharging,
-                    "electrical_parts_and_equipment" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ElectricalPartsAndEquipment,
-                    "electrical_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ElectricalServices,
-                    "electronics_repair_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ElectronicsRepairShops,
-                    "electronics_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ElectronicsStores,
-                    "elementary_secondary_schools" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ElementarySecondarySchools,
-                    "emergency_services_gcas_visa_use_only" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::EmergencyServicesGcasVisaUseOnly,
-                    "employment_temp_agencies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::EmploymentTempAgencies,
-                    "equipment_rental" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::EquipmentRental,
-                    "exterminating_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ExterminatingServices,
-                    "family_clothing_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FamilyClothingStores,
-                    "fast_food_restaurants" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FastFoodRestaurants,
-                    "financial_institutions" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FinancialInstitutions,
-                    "fines_government_administrative_entities" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FinesGovernmentAdministrativeEntities,
-                    "fireplace_fireplace_screens_and_accessories_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FireplaceFireplaceScreensAndAccessoriesStores,
-                    "floor_covering_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FloorCoveringStores,
-                    "florists" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Florists,
-                    "florists_supplies_nursery_stock_and_flowers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FloristsSuppliesNurseryStockAndFlowers,
-                    "freezer_and_locker_meat_provisioners" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FreezerAndLockerMeatProvisioners,
-                    "fuel_dealers_non_automotive" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FuelDealersNonAutomotive,
-                    "funeral_services_crematories" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FuneralServicesCrematories,
-                    "furniture_home_furnishings_and_equipment_stores_except_appliances" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FurnitureHomeFurnishingsAndEquipmentStoresExceptAppliances,
-                    "furniture_repair_refinishing" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FurnitureRepairRefinishing,
-                    "furriers_and_fur_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FurriersAndFurShops,
-                    "general_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GeneralServices,
-                    "gift_card_novelty_and_souvenir_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GiftCardNoveltyAndSouvenirShops,
-                    "glass_paint_and_wallpaper_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GlassPaintAndWallpaperStores,
-                    "glassware_crystal_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GlasswareCrystalStores,
-                    "golf_courses_public" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GolfCoursesPublic,
-                    "government_licensed_horse_dog_racing_us_region_only" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GovernmentLicensedHorseDogRacingUsRegionOnly,
-                    "government_licensed_online_casions_online_gambling_us_region_only" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GovernmentLicensedOnlineCasionsOnlineGamblingUsRegionOnly,
-                    "government_owned_lotteries_non_us_region" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GovernmentOwnedLotteriesNonUsRegion,
-                    "government_owned_lotteries_us_region_only" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GovernmentOwnedLotteriesUsRegionOnly,
-                    "government_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GovernmentServices,
-                    "grocery_stores_supermarkets" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GroceryStoresSupermarkets,
-                    "hardware_equipment_and_supplies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::HardwareEquipmentAndSupplies,
-                    "hardware_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::HardwareStores,
-                    "health_and_beauty_spas" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::HealthAndBeautySpas,
-                    "hearing_aids_sales_and_supplies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::HearingAidsSalesAndSupplies,
-                    "heating_plumbing_a_c" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::HeatingPlumbingAC,
-                    "hobby_toy_and_game_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::HobbyToyAndGameShops,
-                    "home_supply_warehouse_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::HomeSupplyWarehouseStores,
-                    "hospitals" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Hospitals,
-                    "hotels_motels_and_resorts" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::HotelsMotelsAndResorts,
-                    "household_appliance_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::HouseholdApplianceStores,
-                    "industrial_supplies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::IndustrialSupplies,
-                    "information_retrieval_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::InformationRetrievalServices,
-                    "insurance_default" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::InsuranceDefault,
-                    "insurance_underwriting_premiums" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::InsuranceUnderwritingPremiums,
-                    "intra_company_purchases" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::IntraCompanyPurchases,
-                    "jewelry_stores_watches_clocks_and_silverware_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::JewelryStoresWatchesClocksAndSilverwareStores,
-                    "landscaping_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::LandscapingServices,
-                    "laundries" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Laundries,
-                    "laundry_cleaning_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::LaundryCleaningServices,
-                    "legal_services_attorneys" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::LegalServicesAttorneys,
-                    "luggage_and_leather_goods_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::LuggageAndLeatherGoodsStores,
-                    "lumber_building_materials_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::LumberBuildingMaterialsStores,
-                    "manual_cash_disburse" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ManualCashDisburse,
-                    "marinas_service_and_supplies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MarinasServiceAndSupplies,
-                    "marketplaces" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Marketplaces,
-                    "masonry_stonework_and_plaster" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MasonryStoneworkAndPlaster,
-                    "massage_parlors" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MassageParlors,
-                    "medical_and_dental_labs" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MedicalAndDentalLabs,
-                    "medical_dental_ophthalmic_and_hospital_equipment_and_supplies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MedicalDentalOphthalmicAndHospitalEquipmentAndSupplies,
-                    "medical_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MedicalServices,
-                    "membership_organizations" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MembershipOrganizations,
-                    "mens_and_boys_clothing_and_accessories_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MensAndBoysClothingAndAccessoriesStores,
-                    "mens_womens_clothing_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MensWomensClothingStores,
-                    "metal_service_centers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MetalServiceCenters,
-                    "miscellaneous_apparel_and_accessory_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousApparelAndAccessoryShops,
-                    "miscellaneous_auto_dealers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousAutoDealers,
-                    "miscellaneous_business_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousBusinessServices,
-                    "miscellaneous_food_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousFoodStores,
-                    "miscellaneous_general_merchandise" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousGeneralMerchandise,
-                    "miscellaneous_general_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousGeneralServices,
-                    "miscellaneous_home_furnishing_specialty_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousHomeFurnishingSpecialtyStores,
-                    "miscellaneous_publishing_and_printing" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousPublishingAndPrinting,
-                    "miscellaneous_recreation_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousRecreationServices,
-                    "miscellaneous_repair_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousRepairShops,
-                    "miscellaneous_specialty_retail" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousSpecialtyRetail,
-                    "mobile_home_dealers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MobileHomeDealers,
-                    "motion_picture_theaters" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MotionPictureTheaters,
-                    "motor_freight_carriers_and_trucking" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MotorFreightCarriersAndTrucking,
-                    "motor_homes_dealers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MotorHomesDealers,
-                    "motor_vehicle_supplies_and_new_parts" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MotorVehicleSuppliesAndNewParts,
-                    "motorcycle_shops_and_dealers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MotorcycleShopsAndDealers,
-                    "motorcycle_shops_dealers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MotorcycleShopsDealers,
-                    "music_stores_musical_instruments_pianos_and_sheet_music" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MusicStoresMusicalInstrumentsPianosAndSheetMusic,
-                    "news_dealers_and_newsstands" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::NewsDealersAndNewsstands,
-                    "non_fi_money_orders" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::NonFiMoneyOrders,
-                    "non_fi_stored_value_card_purchase_load" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::NonFiStoredValueCardPurchaseLoad,
-                    "nondurable_goods" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::NondurableGoods,
-                    "nurseries_lawn_and_garden_supply_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::NurseriesLawnAndGardenSupplyStores,
-                    "nursing_personal_care" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::NursingPersonalCare,
-                    "office_and_commercial_furniture" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::OfficeAndCommercialFurniture,
-                    "opticians_eyeglasses" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::OpticiansEyeglasses,
-                    "optometrists_ophthalmologist" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::OptometristsOphthalmologist,
-                    "orthopedic_goods_prosthetic_devices" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::OrthopedicGoodsProstheticDevices,
-                    "osteopaths" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Osteopaths,
-                    "package_stores_beer_wine_and_liquor" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PackageStoresBeerWineAndLiquor,
-                    "paints_varnishes_and_supplies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PaintsVarnishesAndSupplies,
-                    "parking_lots_garages" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ParkingLotsGarages,
-                    "passenger_railways" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PassengerRailways,
-                    "pawn_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PawnShops,
-                    "pet_shops_pet_food_and_supplies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PetShopsPetFoodAndSupplies,
-                    "petroleum_and_petroleum_products" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PetroleumAndPetroleumProducts,
-                    "photo_developing" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PhotoDeveloping,
-                    "photographic_photocopy_microfilm_equipment_and_supplies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PhotographicPhotocopyMicrofilmEquipmentAndSupplies,
-                    "photographic_studios" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PhotographicStudios,
-                    "picture_video_production" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PictureVideoProduction,
-                    "piece_goods_notions_and_other_dry_goods" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PieceGoodsNotionsAndOtherDryGoods,
-                    "plumbing_heating_equipment_and_supplies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PlumbingHeatingEquipmentAndSupplies,
-                    "political_organizations" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PoliticalOrganizations,
-                    "postal_services_government_only" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PostalServicesGovernmentOnly,
-                    "precious_stones_and_metals_watches_and_jewelry" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PreciousStonesAndMetalsWatchesAndJewelry,
-                    "professional_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ProfessionalServices,
-                    "public_warehousing_and_storage" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PublicWarehousingAndStorage,
-                    "quick_copy_repro_and_blueprint" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::QuickCopyReproAndBlueprint,
-                    "railroads" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Railroads,
-                    "real_estate_agents_and_managers_rentals" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::RealEstateAgentsAndManagersRentals,
-                    "record_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::RecordStores,
-                    "recreational_vehicle_rentals" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::RecreationalVehicleRentals,
-                    "religious_goods_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ReligiousGoodsStores,
-                    "religious_organizations" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ReligiousOrganizations,
-                    "roofing_siding_sheet_metal" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::RoofingSidingSheetMetal,
-                    "secretarial_support_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SecretarialSupportServices,
-                    "security_brokers_dealers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SecurityBrokersDealers,
-                    "service_stations" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ServiceStations,
-                    "sewing_needlework_fabric_and_piece_goods_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SewingNeedleworkFabricAndPieceGoodsStores,
-                    "shoe_repair_hat_cleaning" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ShoeRepairHatCleaning,
-                    "shoe_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ShoeStores,
-                    "small_appliance_repair" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SmallApplianceRepair,
-                    "snowmobile_dealers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SnowmobileDealers,
-                    "special_trade_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SpecialTradeServices,
-                    "specialty_cleaning" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SpecialtyCleaning,
-                    "sporting_goods_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SportingGoodsStores,
-                    "sporting_recreation_camps" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SportingRecreationCamps,
-                    "sports_and_riding_apparel_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SportsAndRidingApparelStores,
-                    "sports_clubs_fields" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SportsClubsFields,
-                    "stamp_and_coin_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::StampAndCoinStores,
-                    "stationary_office_supplies_printing_and_writing_paper" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::StationaryOfficeSuppliesPrintingAndWritingPaper,
-                    "stationery_stores_office_and_school_supply_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::StationeryStoresOfficeAndSchoolSupplyStores,
-                    "swimming_pools_sales" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SwimmingPoolsSales,
-                    "t_ui_travel_germany" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TUiTravelGermany,
-                    "tailors_alterations" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TailorsAlterations,
-                    "tax_payments_government_agencies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TaxPaymentsGovernmentAgencies,
-                    "tax_preparation_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TaxPreparationServices,
-                    "taxicabs_limousines" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TaxicabsLimousines,
-                    "telecommunication_equipment_and_telephone_sales" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TelecommunicationEquipmentAndTelephoneSales,
-                    "telecommunication_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TelecommunicationServices,
-                    "telegraph_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TelegraphServices,
-                    "tent_and_awning_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TentAndAwningShops,
-                    "testing_laboratories" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TestingLaboratories,
-                    "theatrical_ticket_agencies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TheatricalTicketAgencies,
-                    "timeshares" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Timeshares,
-                    "tire_retreading_and_repair" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TireRetreadingAndRepair,
-                    "tolls_bridge_fees" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TollsBridgeFees,
-                    "tourist_attractions_and_exhibits" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TouristAttractionsAndExhibits,
-                    "towing_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TowingServices,
-                    "trailer_parks_campgrounds" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TrailerParksCampgrounds,
-                    "transportation_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TransportationServices,
-                    "travel_agencies_tour_operators" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TravelAgenciesTourOperators,
-                    "truck_stop_iteration" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TruckStopIteration,
-                    "truck_utility_trailer_rentals" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TruckUtilityTrailerRentals,
-                    "typesetting_plate_making_and_related_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TypesettingPlateMakingAndRelatedServices,
-                    "typewriter_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TypewriterStores,
-                    "u_s_federal_government_agencies_or_departments" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::USFederalGovernmentAgenciesOrDepartments,
-                    "uniforms_commercial_clothing" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::UniformsCommercialClothing,
-                    "used_merchandise_and_secondhand_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::UsedMerchandiseAndSecondhandStores,
-                    "utilities" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Utilities,
-                    "variety_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::VarietyStores,
-                    "veterinary_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::VeterinaryServices,
-                    "video_amusement_game_supplies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::VideoAmusementGameSupplies,
-                    "video_game_arcades" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::VideoGameArcades,
-                    "video_tape_rental_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::VideoTapeRentalStores,
-                    "vocational_trade_schools" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::VocationalTradeSchools,
-                    "watch_jewelry_repair" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::WatchJewelryRepair,
-                    "welding_repair" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::WeldingRepair,
-                    "wholesale_clubs" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::WholesaleClubs,
-                    "wig_and_toupee_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::WigAndToupeeStores,
-                    "wires_money_orders" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::WiresMoneyOrders,
-                    "womens_accessory_and_specialty_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::WomensAccessoryAndSpecialtyShops,
-                    "womens_ready_to_wear_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::WomensReadyToWearStores,
-                    "wrecking_and_salvage_yards" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::WreckingAndSalvageYards,
-                    other => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ac_refrigeration_repair" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AcRefrigerationRepair,
+            "accounting_bookkeeping_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AccountingBookkeepingServices,
+            "advertising_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AdvertisingServices,
+            "agricultural_cooperative" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AgriculturalCooperative,
+            "airlines_air_carriers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AirlinesAirCarriers,
+            "airports_flying_fields" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AirportsFlyingFields,
+            "ambulance_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AmbulanceServices,
+            "amusement_parks_carnivals" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AmusementParksCarnivals,
+            "antique_reproductions" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AntiqueReproductions,
+            "antique_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AntiqueShops,
+            "aquariums" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Aquariums,
+            "architectural_surveying_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ArchitecturalSurveyingServices,
+            "art_dealers_and_galleries" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ArtDealersAndGalleries,
+            "artists_supply_and_craft_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ArtistsSupplyAndCraftShops,
+            "auto_and_home_supply_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AutoAndHomeSupplyStores,
+            "auto_body_repair_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AutoBodyRepairShops,
+            "auto_paint_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AutoPaintShops,
+            "auto_service_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AutoServiceShops,
+            "automated_cash_disburse" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AutomatedCashDisburse,
+            "automated_fuel_dispensers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AutomatedFuelDispensers,
+            "automobile_associations" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AutomobileAssociations,
+            "automotive_parts_and_accessories_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AutomotivePartsAndAccessoriesStores,
+            "automotive_tire_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::AutomotiveTireStores,
+            "bail_and_bond_payments" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BailAndBondPayments,
+            "bakeries" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Bakeries,
+            "bands_orchestras" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BandsOrchestras,
+            "barber_and_beauty_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BarberAndBeautyShops,
+            "betting_casino_gambling" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BettingCasinoGambling,
+            "bicycle_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BicycleShops,
+            "billiard_pool_establishments" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BilliardPoolEstablishments,
+            "boat_dealers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BoatDealers,
+            "boat_rentals_and_leases" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BoatRentalsAndLeases,
+            "book_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BookStores,
+            "books_periodicals_and_newspapers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BooksPeriodicalsAndNewspapers,
+            "bowling_alleys" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BowlingAlleys,
+            "bus_lines" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BusLines,
+            "business_secretarial_schools" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BusinessSecretarialSchools,
+            "buying_shopping_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::BuyingShoppingServices,
+            "cable_satellite_and_other_pay_television_and_radio" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CableSatelliteAndOtherPayTelevisionAndRadio,
+            "camera_and_photographic_supply_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CameraAndPhotographicSupplyStores,
+            "candy_nut_and_confectionery_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CandyNutAndConfectioneryStores,
+            "car_and_truck_dealers_new_used" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CarAndTruckDealersNewUsed,
+            "car_and_truck_dealers_used_only" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CarAndTruckDealersUsedOnly,
+            "car_rental_agencies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CarRentalAgencies,
+            "car_washes" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CarWashes,
+            "carpentry_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CarpentryServices,
+            "carpet_upholstery_cleaning" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CarpetUpholsteryCleaning,
+            "caterers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Caterers,
+            "charitable_and_social_service_organizations_fundraising" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CharitableAndSocialServiceOrganizationsFundraising,
+            "chemicals_and_allied_products" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ChemicalsAndAlliedProducts,
+            "child_care_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ChildCareServices,
+            "childrens_and_infants_wear_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ChildrensAndInfantsWearStores,
+            "chiropodists_podiatrists" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ChiropodistsPodiatrists,
+            "chiropractors" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Chiropractors,
+            "cigar_stores_and_stands" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CigarStoresAndStands,
+            "civic_social_fraternal_associations" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CivicSocialFraternalAssociations,
+            "cleaning_and_maintenance" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CleaningAndMaintenance,
+            "clothing_rental" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ClothingRental,
+            "colleges_universities" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CollegesUniversities,
+            "commercial_equipment" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CommercialEquipment,
+            "commercial_footwear" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CommercialFootwear,
+            "commercial_photography_art_and_graphics" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CommercialPhotographyArtAndGraphics,
+            "commuter_transport_and_ferries" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CommuterTransportAndFerries,
+            "computer_network_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ComputerNetworkServices,
+            "computer_programming" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ComputerProgramming,
+            "computer_repair" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ComputerRepair,
+            "computer_software_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ComputerSoftwareStores,
+            "computers_peripherals_and_software" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ComputersPeripheralsAndSoftware,
+            "concrete_work_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ConcreteWorkServices,
+            "construction_materials" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ConstructionMaterials,
+            "consulting_public_relations" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ConsultingPublicRelations,
+            "correspondence_schools" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CorrespondenceSchools,
+            "cosmetic_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CosmeticStores,
+            "counseling_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CounselingServices,
+            "country_clubs" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CountryClubs,
+            "courier_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CourierServices,
+            "court_costs" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CourtCosts,
+            "credit_reporting_agencies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CreditReportingAgencies,
+            "cruise_lines" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::CruiseLines,
+            "dairy_products_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DairyProductsStores,
+            "dance_hall_studios_schools" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DanceHallStudiosSchools,
+            "dating_escort_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DatingEscortServices,
+            "dentists_orthodontists" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DentistsOrthodontists,
+            "department_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DepartmentStores,
+            "detective_agencies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DetectiveAgencies,
+            "digital_goods_applications" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DigitalGoodsApplications,
+            "digital_goods_games" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DigitalGoodsGames,
+            "digital_goods_large_volume" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DigitalGoodsLargeVolume,
+            "digital_goods_media" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DigitalGoodsMedia,
+            "direct_marketing_catalog_merchant" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DirectMarketingCatalogMerchant,
+            "direct_marketing_combination_catalog_and_retail_merchant" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DirectMarketingCombinationCatalogAndRetailMerchant,
+            "direct_marketing_inbound_telemarketing" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DirectMarketingInboundTelemarketing,
+            "direct_marketing_insurance_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DirectMarketingInsuranceServices,
+            "direct_marketing_other" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DirectMarketingOther,
+            "direct_marketing_outbound_telemarketing" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DirectMarketingOutboundTelemarketing,
+            "direct_marketing_subscription" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DirectMarketingSubscription,
+            "direct_marketing_travel" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DirectMarketingTravel,
+            "discount_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DiscountStores,
+            "doctors" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Doctors,
+            "door_to_door_sales" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DoorToDoorSales,
+            "drapery_window_covering_and_upholstery_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DraperyWindowCoveringAndUpholsteryStores,
+            "drinking_places" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DrinkingPlaces,
+            "drug_stores_and_pharmacies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DrugStoresAndPharmacies,
+            "drugs_drug_proprietaries_and_druggist_sundries" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DrugsDrugProprietariesAndDruggistSundries,
+            "dry_cleaners" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DryCleaners,
+            "durable_goods" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DurableGoods,
+            "duty_free_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::DutyFreeStores,
+            "eating_places_restaurants" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::EatingPlacesRestaurants,
+            "educational_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::EducationalServices,
+            "electric_razor_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ElectricRazorStores,
+            "electric_vehicle_charging" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ElectricVehicleCharging,
+            "electrical_parts_and_equipment" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ElectricalPartsAndEquipment,
+            "electrical_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ElectricalServices,
+            "electronics_repair_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ElectronicsRepairShops,
+            "electronics_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ElectronicsStores,
+            "elementary_secondary_schools" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ElementarySecondarySchools,
+            "emergency_services_gcas_visa_use_only" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::EmergencyServicesGcasVisaUseOnly,
+            "employment_temp_agencies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::EmploymentTempAgencies,
+            "equipment_rental" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::EquipmentRental,
+            "exterminating_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ExterminatingServices,
+            "family_clothing_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FamilyClothingStores,
+            "fast_food_restaurants" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FastFoodRestaurants,
+            "financial_institutions" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FinancialInstitutions,
+            "fines_government_administrative_entities" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FinesGovernmentAdministrativeEntities,
+            "fireplace_fireplace_screens_and_accessories_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FireplaceFireplaceScreensAndAccessoriesStores,
+            "floor_covering_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FloorCoveringStores,
+            "florists" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Florists,
+            "florists_supplies_nursery_stock_and_flowers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FloristsSuppliesNurseryStockAndFlowers,
+            "freezer_and_locker_meat_provisioners" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FreezerAndLockerMeatProvisioners,
+            "fuel_dealers_non_automotive" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FuelDealersNonAutomotive,
+            "funeral_services_crematories" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FuneralServicesCrematories,
+            "furniture_home_furnishings_and_equipment_stores_except_appliances" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FurnitureHomeFurnishingsAndEquipmentStoresExceptAppliances,
+            "furniture_repair_refinishing" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FurnitureRepairRefinishing,
+            "furriers_and_fur_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::FurriersAndFurShops,
+            "general_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GeneralServices,
+            "gift_card_novelty_and_souvenir_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GiftCardNoveltyAndSouvenirShops,
+            "glass_paint_and_wallpaper_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GlassPaintAndWallpaperStores,
+            "glassware_crystal_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GlasswareCrystalStores,
+            "golf_courses_public" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GolfCoursesPublic,
+            "government_licensed_horse_dog_racing_us_region_only" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GovernmentLicensedHorseDogRacingUsRegionOnly,
+            "government_licensed_online_casions_online_gambling_us_region_only" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GovernmentLicensedOnlineCasionsOnlineGamblingUsRegionOnly,
+            "government_owned_lotteries_non_us_region" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GovernmentOwnedLotteriesNonUsRegion,
+            "government_owned_lotteries_us_region_only" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GovernmentOwnedLotteriesUsRegionOnly,
+            "government_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GovernmentServices,
+            "grocery_stores_supermarkets" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::GroceryStoresSupermarkets,
+            "hardware_equipment_and_supplies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::HardwareEquipmentAndSupplies,
+            "hardware_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::HardwareStores,
+            "health_and_beauty_spas" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::HealthAndBeautySpas,
+            "hearing_aids_sales_and_supplies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::HearingAidsSalesAndSupplies,
+            "heating_plumbing_a_c" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::HeatingPlumbingAC,
+            "hobby_toy_and_game_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::HobbyToyAndGameShops,
+            "home_supply_warehouse_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::HomeSupplyWarehouseStores,
+            "hospitals" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Hospitals,
+            "hotels_motels_and_resorts" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::HotelsMotelsAndResorts,
+            "household_appliance_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::HouseholdApplianceStores,
+            "industrial_supplies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::IndustrialSupplies,
+            "information_retrieval_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::InformationRetrievalServices,
+            "insurance_default" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::InsuranceDefault,
+            "insurance_underwriting_premiums" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::InsuranceUnderwritingPremiums,
+            "intra_company_purchases" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::IntraCompanyPurchases,
+            "jewelry_stores_watches_clocks_and_silverware_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::JewelryStoresWatchesClocksAndSilverwareStores,
+            "landscaping_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::LandscapingServices,
+            "laundries" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Laundries,
+            "laundry_cleaning_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::LaundryCleaningServices,
+            "legal_services_attorneys" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::LegalServicesAttorneys,
+            "luggage_and_leather_goods_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::LuggageAndLeatherGoodsStores,
+            "lumber_building_materials_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::LumberBuildingMaterialsStores,
+            "manual_cash_disburse" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ManualCashDisburse,
+            "marinas_service_and_supplies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MarinasServiceAndSupplies,
+            "marketplaces" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Marketplaces,
+            "masonry_stonework_and_plaster" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MasonryStoneworkAndPlaster,
+            "massage_parlors" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MassageParlors,
+            "medical_and_dental_labs" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MedicalAndDentalLabs,
+            "medical_dental_ophthalmic_and_hospital_equipment_and_supplies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MedicalDentalOphthalmicAndHospitalEquipmentAndSupplies,
+            "medical_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MedicalServices,
+            "membership_organizations" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MembershipOrganizations,
+            "mens_and_boys_clothing_and_accessories_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MensAndBoysClothingAndAccessoriesStores,
+            "mens_womens_clothing_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MensWomensClothingStores,
+            "metal_service_centers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MetalServiceCenters,
+            "miscellaneous_apparel_and_accessory_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousApparelAndAccessoryShops,
+            "miscellaneous_auto_dealers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousAutoDealers,
+            "miscellaneous_business_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousBusinessServices,
+            "miscellaneous_food_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousFoodStores,
+            "miscellaneous_general_merchandise" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousGeneralMerchandise,
+            "miscellaneous_general_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousGeneralServices,
+            "miscellaneous_home_furnishing_specialty_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousHomeFurnishingSpecialtyStores,
+            "miscellaneous_publishing_and_printing" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousPublishingAndPrinting,
+            "miscellaneous_recreation_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousRecreationServices,
+            "miscellaneous_repair_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousRepairShops,
+            "miscellaneous_specialty_retail" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MiscellaneousSpecialtyRetail,
+            "mobile_home_dealers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MobileHomeDealers,
+            "motion_picture_theaters" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MotionPictureTheaters,
+            "motor_freight_carriers_and_trucking" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MotorFreightCarriersAndTrucking,
+            "motor_homes_dealers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MotorHomesDealers,
+            "motor_vehicle_supplies_and_new_parts" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MotorVehicleSuppliesAndNewParts,
+            "motorcycle_shops_and_dealers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MotorcycleShopsAndDealers,
+            "motorcycle_shops_dealers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MotorcycleShopsDealers,
+            "music_stores_musical_instruments_pianos_and_sheet_music" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::MusicStoresMusicalInstrumentsPianosAndSheetMusic,
+            "news_dealers_and_newsstands" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::NewsDealersAndNewsstands,
+            "non_fi_money_orders" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::NonFiMoneyOrders,
+            "non_fi_stored_value_card_purchase_load" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::NonFiStoredValueCardPurchaseLoad,
+            "nondurable_goods" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::NondurableGoods,
+            "nurseries_lawn_and_garden_supply_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::NurseriesLawnAndGardenSupplyStores,
+            "nursing_personal_care" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::NursingPersonalCare,
+            "office_and_commercial_furniture" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::OfficeAndCommercialFurniture,
+            "opticians_eyeglasses" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::OpticiansEyeglasses,
+            "optometrists_ophthalmologist" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::OptometristsOphthalmologist,
+            "orthopedic_goods_prosthetic_devices" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::OrthopedicGoodsProstheticDevices,
+            "osteopaths" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Osteopaths,
+            "package_stores_beer_wine_and_liquor" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PackageStoresBeerWineAndLiquor,
+            "paints_varnishes_and_supplies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PaintsVarnishesAndSupplies,
+            "parking_lots_garages" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ParkingLotsGarages,
+            "passenger_railways" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PassengerRailways,
+            "pawn_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PawnShops,
+            "pet_shops_pet_food_and_supplies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PetShopsPetFoodAndSupplies,
+            "petroleum_and_petroleum_products" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PetroleumAndPetroleumProducts,
+            "photo_developing" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PhotoDeveloping,
+            "photographic_photocopy_microfilm_equipment_and_supplies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PhotographicPhotocopyMicrofilmEquipmentAndSupplies,
+            "photographic_studios" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PhotographicStudios,
+            "picture_video_production" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PictureVideoProduction,
+            "piece_goods_notions_and_other_dry_goods" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PieceGoodsNotionsAndOtherDryGoods,
+            "plumbing_heating_equipment_and_supplies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PlumbingHeatingEquipmentAndSupplies,
+            "political_organizations" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PoliticalOrganizations,
+            "postal_services_government_only" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PostalServicesGovernmentOnly,
+            "precious_stones_and_metals_watches_and_jewelry" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PreciousStonesAndMetalsWatchesAndJewelry,
+            "professional_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ProfessionalServices,
+            "public_warehousing_and_storage" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::PublicWarehousingAndStorage,
+            "quick_copy_repro_and_blueprint" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::QuickCopyReproAndBlueprint,
+            "railroads" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Railroads,
+            "real_estate_agents_and_managers_rentals" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::RealEstateAgentsAndManagersRentals,
+            "record_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::RecordStores,
+            "recreational_vehicle_rentals" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::RecreationalVehicleRentals,
+            "religious_goods_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ReligiousGoodsStores,
+            "religious_organizations" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ReligiousOrganizations,
+            "roofing_siding_sheet_metal" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::RoofingSidingSheetMetal,
+            "secretarial_support_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SecretarialSupportServices,
+            "security_brokers_dealers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SecurityBrokersDealers,
+            "service_stations" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ServiceStations,
+            "sewing_needlework_fabric_and_piece_goods_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SewingNeedleworkFabricAndPieceGoodsStores,
+            "shoe_repair_hat_cleaning" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ShoeRepairHatCleaning,
+            "shoe_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::ShoeStores,
+            "small_appliance_repair" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SmallApplianceRepair,
+            "snowmobile_dealers" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SnowmobileDealers,
+            "special_trade_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SpecialTradeServices,
+            "specialty_cleaning" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SpecialtyCleaning,
+            "sporting_goods_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SportingGoodsStores,
+            "sporting_recreation_camps" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SportingRecreationCamps,
+            "sports_and_riding_apparel_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SportsAndRidingApparelStores,
+            "sports_clubs_fields" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SportsClubsFields,
+            "stamp_and_coin_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::StampAndCoinStores,
+            "stationary_office_supplies_printing_and_writing_paper" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::StationaryOfficeSuppliesPrintingAndWritingPaper,
+            "stationery_stores_office_and_school_supply_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::StationeryStoresOfficeAndSchoolSupplyStores,
+            "swimming_pools_sales" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::SwimmingPoolsSales,
+            "t_ui_travel_germany" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TUiTravelGermany,
+            "tailors_alterations" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TailorsAlterations,
+            "tax_payments_government_agencies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TaxPaymentsGovernmentAgencies,
+            "tax_preparation_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TaxPreparationServices,
+            "taxicabs_limousines" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TaxicabsLimousines,
+            "telecommunication_equipment_and_telephone_sales" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TelecommunicationEquipmentAndTelephoneSales,
+            "telecommunication_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TelecommunicationServices,
+            "telegraph_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TelegraphServices,
+            "tent_and_awning_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TentAndAwningShops,
+            "testing_laboratories" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TestingLaboratories,
+            "theatrical_ticket_agencies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TheatricalTicketAgencies,
+            "timeshares" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Timeshares,
+            "tire_retreading_and_repair" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TireRetreadingAndRepair,
+            "tolls_bridge_fees" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TollsBridgeFees,
+            "tourist_attractions_and_exhibits" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TouristAttractionsAndExhibits,
+            "towing_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TowingServices,
+            "trailer_parks_campgrounds" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TrailerParksCampgrounds,
+            "transportation_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TransportationServices,
+            "travel_agencies_tour_operators" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TravelAgenciesTourOperators,
+            "truck_stop_iteration" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TruckStopIteration,
+            "truck_utility_trailer_rentals" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TruckUtilityTrailerRentals,
+            "typesetting_plate_making_and_related_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TypesettingPlateMakingAndRelatedServices,
+            "typewriter_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::TypewriterStores,
+            "u_s_federal_government_agencies_or_departments" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::USFederalGovernmentAgenciesOrDepartments,
+            "uniforms_commercial_clothing" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::UniformsCommercialClothing,
+            "used_merchandise_and_secondhand_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::UsedMerchandiseAndSecondhandStores,
+            "utilities" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Utilities,
+            "variety_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::VarietyStores,
+            "veterinary_services" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::VeterinaryServices,
+            "video_amusement_game_supplies" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::VideoAmusementGameSupplies,
+            "video_game_arcades" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::VideoGameArcades,
+            "video_tape_rental_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::VideoTapeRentalStores,
+            "vocational_trade_schools" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::VocationalTradeSchools,
+            "watch_jewelry_repair" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::WatchJewelryRepair,
+            "welding_repair" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::WeldingRepair,
+            "wholesale_clubs" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::WholesaleClubs,
+            "wig_and_toupee_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::WigAndToupeeStores,
+            "wires_money_orders" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::WiresMoneyOrders,
+            "womens_accessory_and_specialty_shops" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::WomensAccessoryAndSpecialtyShops,
+            "womens_ready_to_wear_stores" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::WomensReadyToWearStores,
+            "wrecking_and_salvage_yards" => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::WreckingAndSalvageYards,
+            other => CreateTestHelperIssuingAuthorizationParamsMerchantDataCategory::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4648,49 +4244,27 @@ impl CreateTestHelperIssuingAuthorizationParamsRiskAssessmentCardTestingRiskLeve
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperIssuingAuthorizationParamsRiskAssessmentCardTestingRiskLevel {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperIssuingAuthorizationParamsRiskAssessmentCardTestingRiskLevel;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "elevated" => {
-                        CreateTestHelperIssuingAuthorizationParamsRiskAssessmentCardTestingRiskLevel::Elevated
-                    }
-                    "highest" => CreateTestHelperIssuingAuthorizationParamsRiskAssessmentCardTestingRiskLevel::Highest,
-                    "low" => CreateTestHelperIssuingAuthorizationParamsRiskAssessmentCardTestingRiskLevel::Low,
-                    "normal" => CreateTestHelperIssuingAuthorizationParamsRiskAssessmentCardTestingRiskLevel::Normal,
-                    "not_assessed" => {
-                        CreateTestHelperIssuingAuthorizationParamsRiskAssessmentCardTestingRiskLevel::NotAssessed
-                    }
-                    "unknown" => {
-                        CreateTestHelperIssuingAuthorizationParamsRiskAssessmentCardTestingRiskLevel::UnknownValue
-                    }
-                    other => CreateTestHelperIssuingAuthorizationParamsRiskAssessmentCardTestingRiskLevel::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperIssuingAuthorizationParamsRiskAssessmentCardTestingRiskLevel::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperIssuingAuthorizationParamsRiskAssessmentCardTestingRiskLevel {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateTestHelperIssuingAuthorizationParamsRiskAssessmentCardTestingRiskLevel::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "elevated" => CreateTestHelperIssuingAuthorizationParamsRiskAssessmentCardTestingRiskLevel::Elevated,
+            "highest" => CreateTestHelperIssuingAuthorizationParamsRiskAssessmentCardTestingRiskLevel::Highest,
+            "low" => CreateTestHelperIssuingAuthorizationParamsRiskAssessmentCardTestingRiskLevel::Low,
+            "normal" => CreateTestHelperIssuingAuthorizationParamsRiskAssessmentCardTestingRiskLevel::Normal,
+            "not_assessed" => CreateTestHelperIssuingAuthorizationParamsRiskAssessmentCardTestingRiskLevel::NotAssessed,
+            "unknown" => CreateTestHelperIssuingAuthorizationParamsRiskAssessmentCardTestingRiskLevel::UnknownValue,
+            other => {
+                CreateTestHelperIssuingAuthorizationParamsRiskAssessmentCardTestingRiskLevel::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -4801,42 +4375,24 @@ impl CreateTestHelperIssuingAuthorizationParamsVerificationDataAddressLine1Check
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperIssuingAuthorizationParamsVerificationDataAddressLine1Check {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperIssuingAuthorizationParamsVerificationDataAddressLine1Check;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "match" => CreateTestHelperIssuingAuthorizationParamsVerificationDataAddressLine1Check::Match,
-                    "mismatch" => CreateTestHelperIssuingAuthorizationParamsVerificationDataAddressLine1Check::Mismatch,
-                    "not_provided" => {
-                        CreateTestHelperIssuingAuthorizationParamsVerificationDataAddressLine1Check::NotProvided
-                    }
-                    other => CreateTestHelperIssuingAuthorizationParamsVerificationDataAddressLine1Check::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperIssuingAuthorizationParamsVerificationDataAddressLine1Check::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperIssuingAuthorizationParamsVerificationDataAddressLine1Check {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateTestHelperIssuingAuthorizationParamsVerificationDataAddressLine1Check::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "match" => CreateTestHelperIssuingAuthorizationParamsVerificationDataAddressLine1Check::Match,
+            "mismatch" => CreateTestHelperIssuingAuthorizationParamsVerificationDataAddressLine1Check::Mismatch,
+            "not_provided" => CreateTestHelperIssuingAuthorizationParamsVerificationDataAddressLine1Check::NotProvided,
+            other => {
+                CreateTestHelperIssuingAuthorizationParamsVerificationDataAddressLine1Check::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -4898,43 +4454,33 @@ impl CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExe
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionClaimedBy
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionClaimedBy;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionClaimedBy::Unknown(
+                    String::new(),
+                ),
+            );
+        }
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "acquirer" => {
+                CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionClaimedBy::Acquirer
             }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "acquirer" => CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionClaimedBy::Acquirer,
-                    "issuer" => CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionClaimedBy::Issuer,
-                    other => CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionClaimedBy::Unknown(other.to_string()),
-                })
+            "issuer" => {
+                CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionClaimedBy::Issuer
             }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionClaimedBy::Unknown(
-                        String::new(),
-                    ),
+            other => {
+                CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionClaimedBy::Unknown(
+                    other.to_string(),
                 )
             }
-        }
-        deserializer.deserialize_any(EnumVisitor)
+        })
     }
 }
 
@@ -4971,44 +4517,26 @@ impl CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExe
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionType
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "low_value_transaction" => CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionType::LowValueTransaction,
-                    "transaction_risk_analysis" => CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionType::TransactionRiskAnalysis,
-                    "unknown" => CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionType::UnknownValue,
-                    other => CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionType::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionType::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "low_value_transaction" => CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionType::LowValueTransaction,
+            "transaction_risk_analysis" => CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionType::TransactionRiskAnalysis,
+            "unknown" => CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionType::UnknownValue,
+            other => CreateTestHelperIssuingAuthorizationParamsVerificationDataAuthenticationExemptionType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5073,39 +4601,29 @@ impl CreateTestHelperIssuingAuthorizationParamsVerificationDataThreeDSecureResul
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperIssuingAuthorizationParamsVerificationDataThreeDSecureResult {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperIssuingAuthorizationParamsVerificationDataThreeDSecureResult;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "attempt_acknowledged" => CreateTestHelperIssuingAuthorizationParamsVerificationDataThreeDSecureResult::AttemptAcknowledged,
-                    "authenticated" => CreateTestHelperIssuingAuthorizationParamsVerificationDataThreeDSecureResult::Authenticated,
-                    "failed" => CreateTestHelperIssuingAuthorizationParamsVerificationDataThreeDSecureResult::Failed,
-                    "required" => CreateTestHelperIssuingAuthorizationParamsVerificationDataThreeDSecureResult::Required,
-                    other => CreateTestHelperIssuingAuthorizationParamsVerificationDataThreeDSecureResult::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperIssuingAuthorizationParamsVerificationDataThreeDSecureResult::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperIssuingAuthorizationParamsVerificationDataThreeDSecureResult {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateTestHelperIssuingAuthorizationParamsVerificationDataThreeDSecureResult::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "attempt_acknowledged" => {
+                CreateTestHelperIssuingAuthorizationParamsVerificationDataThreeDSecureResult::AttemptAcknowledged
+            }
+            "authenticated" => {
+                CreateTestHelperIssuingAuthorizationParamsVerificationDataThreeDSecureResult::Authenticated
+            }
+            "failed" => CreateTestHelperIssuingAuthorizationParamsVerificationDataThreeDSecureResult::Failed,
+            "required" => CreateTestHelperIssuingAuthorizationParamsVerificationDataThreeDSecureResult::Required,
+            other => {
+                CreateTestHelperIssuingAuthorizationParamsVerificationDataThreeDSecureResult::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -5140,38 +4658,20 @@ impl CreateTestHelperIssuingAuthorizationParamsWallet {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperIssuingAuthorizationParamsWallet {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperIssuingAuthorizationParamsWallet;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "apple_pay" => CreateTestHelperIssuingAuthorizationParamsWallet::ApplePay,
-                    "google_pay" => CreateTestHelperIssuingAuthorizationParamsWallet::GooglePay,
-                    "samsung_pay" => CreateTestHelperIssuingAuthorizationParamsWallet::SamsungPay,
-                    other => CreateTestHelperIssuingAuthorizationParamsWallet::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperIssuingAuthorizationParamsWallet::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperIssuingAuthorizationParamsWallet {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTestHelperIssuingAuthorizationParamsWallet::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "apple_pay" => CreateTestHelperIssuingAuthorizationParamsWallet::ApplePay,
+            "google_pay" => CreateTestHelperIssuingAuthorizationParamsWallet::GooglePay,
+            "samsung_pay" => CreateTestHelperIssuingAuthorizationParamsWallet::SamsungPay,
+            other => CreateTestHelperIssuingAuthorizationParamsWallet::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5286,44 +4786,24 @@ impl CreateTestHelperTreasuryReceivedCreditParamsInitiatingPaymentMethodDetailsT
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperTreasuryReceivedCreditParamsInitiatingPaymentMethodDetailsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperTreasuryReceivedCreditParamsInitiatingPaymentMethodDetailsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "us_bank_account" => {
-                        CreateTestHelperTreasuryReceivedCreditParamsInitiatingPaymentMethodDetailsType::UsBankAccount
-                    }
-                    other => CreateTestHelperTreasuryReceivedCreditParamsInitiatingPaymentMethodDetailsType::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateTestHelperTreasuryReceivedCreditParamsInitiatingPaymentMethodDetailsType::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperTreasuryReceivedCreditParamsInitiatingPaymentMethodDetailsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateTestHelperTreasuryReceivedCreditParamsInitiatingPaymentMethodDetailsType::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "us_bank_account" => {
+                CreateTestHelperTreasuryReceivedCreditParamsInitiatingPaymentMethodDetailsType::UsBankAccount
+            }
+            other => CreateTestHelperTreasuryReceivedCreditParamsInitiatingPaymentMethodDetailsType::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -5380,38 +4860,20 @@ impl CreateTestHelperTreasuryReceivedCreditParamsNetwork {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperTreasuryReceivedCreditParamsNetwork {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperTreasuryReceivedCreditParamsNetwork;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ach" => CreateTestHelperTreasuryReceivedCreditParamsNetwork::Ach,
-                    "rtp" => CreateTestHelperTreasuryReceivedCreditParamsNetwork::Rtp,
-                    "us_domestic_wire" => CreateTestHelperTreasuryReceivedCreditParamsNetwork::UsDomesticWire,
-                    other => CreateTestHelperTreasuryReceivedCreditParamsNetwork::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperTreasuryReceivedCreditParamsNetwork::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperTreasuryReceivedCreditParamsNetwork {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTestHelperTreasuryReceivedCreditParamsNetwork::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ach" => CreateTestHelperTreasuryReceivedCreditParamsNetwork::Ach,
+            "rtp" => CreateTestHelperTreasuryReceivedCreditParamsNetwork::Rtp,
+            "us_domestic_wire" => CreateTestHelperTreasuryReceivedCreditParamsNetwork::UsDomesticWire,
+            other => CreateTestHelperTreasuryReceivedCreditParamsNetwork::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5507,36 +4969,18 @@ impl CreateTestHelperTreasuryReceivedDebitParamsNetwork {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for CreateTestHelperTreasuryReceivedDebitParamsNetwork {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateTestHelperTreasuryReceivedDebitParamsNetwork;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ach" => CreateTestHelperTreasuryReceivedDebitParamsNetwork::Ach,
-                    other => CreateTestHelperTreasuryReceivedDebitParamsNetwork::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateTestHelperTreasuryReceivedDebitParamsNetwork::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateTestHelperTreasuryReceivedDebitParamsNetwork {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateTestHelperTreasuryReceivedDebitParamsNetwork::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ach" => CreateTestHelperTreasuryReceivedDebitParamsNetwork::Ach,
+            other => CreateTestHelperTreasuryReceivedDebitParamsNetwork::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5803,16 +5247,17 @@ pub type DeactivateTestHelperIssuingPersonalizationDesignParams =
     crate::test_helpers::ExpireTestHelperIssuingAuthorizationParams;
 
 #[cfg(feature = "test_helpers")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DeletedTestHelpersTestClock {
     #[doc = "Always true for a deleted object"]
-    #[serde(default)]
+    #[json(default)]
     pub deleted: bool,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::test_helpers::TestHelpersTestClockObject,
 }
 
@@ -5937,68 +5382,44 @@ impl FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account_closed" => FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::AccountClosed,
-                    "account_frozen" => FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::AccountFrozen,
-                    "bank_account_restricted" => {
-                        FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::BankAccountRestricted
-                    }
-                    "bank_ownership_changed" => {
-                        FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::BankOwnershipChanged
-                    }
-                    "debit_not_authorized" => {
-                        FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::DebitNotAuthorized
-                    }
-                    "incorrect_account_holder_address" => {
-                        FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::IncorrectAccountHolderAddress
-                    }
-                    "incorrect_account_holder_name" => {
-                        FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::IncorrectAccountHolderName
-                    }
-                    "incorrect_account_holder_tax_id" => {
-                        FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::IncorrectAccountHolderTaxId
-                    }
-                    "insufficient_funds" => {
-                        FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::InsufficientFunds
-                    }
-                    "invalid_account_number" => {
-                        FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::InvalidAccountNumber
-                    }
-                    "invalid_currency" => {
-                        FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::InvalidCurrency
-                    }
-                    "no_account" => FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::NoAccount,
-                    "other" => FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::Other,
-                    other => FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account_closed" => FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::AccountClosed,
+            "account_frozen" => FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::AccountFrozen,
+            "bank_account_restricted" => {
+                FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::BankAccountRestricted
+            }
+            "bank_ownership_changed" => {
+                FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::BankOwnershipChanged
+            }
+            "debit_not_authorized" => FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::DebitNotAuthorized,
+            "incorrect_account_holder_address" => {
+                FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::IncorrectAccountHolderAddress
+            }
+            "incorrect_account_holder_name" => {
+                FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::IncorrectAccountHolderName
+            }
+            "incorrect_account_holder_tax_id" => {
+                FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::IncorrectAccountHolderTaxId
+            }
+            "insufficient_funds" => FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::InsufficientFunds,
+            "invalid_account_number" => {
+                FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::InvalidAccountNumber
+            }
+            "invalid_currency" => FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::InvalidCurrency,
+            "no_account" => FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::NoAccount,
+            "other" => FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::Other,
+            other => FailTestHelperTreasuryInboundTransferParamsFailureDetailsCode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6311,38 +5732,20 @@ impl PresentPaymentMethodParamsType {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for PresentPaymentMethodParamsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PresentPaymentMethodParamsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "card" => PresentPaymentMethodParamsType::Card,
-                    "card_present" => PresentPaymentMethodParamsType::CardPresent,
-                    "interac_present" => PresentPaymentMethodParamsType::InteracPresent,
-                    other => PresentPaymentMethodParamsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PresentPaymentMethodParamsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PresentPaymentMethodParamsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PresentPaymentMethodParamsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "card" => PresentPaymentMethodParamsType::Card,
+            "card_present" => PresentPaymentMethodParamsType::CardPresent,
+            "interac_present" => PresentPaymentMethodParamsType::InteracPresent,
+            other => PresentPaymentMethodParamsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6464,47 +5867,43 @@ impl RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoI
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "geographic_location" => RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem::GeographicLocation,
-                    "inappropriate" => RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem::Inappropriate,
-                    "network_name" => RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem::NetworkName,
-                    "non_binary_image" => RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem::NonBinaryImage,
-                    "non_fiat_currency" => RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem::NonFiatCurrency,
-                    "other" => RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem::Other,
-                    "other_entity" => RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem::OtherEntity,
-                    "promotional_material" => RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem::PromotionalMaterial,
-                    other => RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "geographic_location" => {
+                RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem::GeographicLocation
+            }
+            "inappropriate" => {
+                RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem::Inappropriate
+            }
+            "network_name" => {
+                RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem::NetworkName
+            }
+            "non_binary_image" => {
+                RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem::NonBinaryImage
+            }
+            "non_fiat_currency" => {
+                RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem::NonFiatCurrency
+            }
+            "other" => RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem::Other,
+            "other_entity" => {
+                RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem::OtherEntity
+            }
+            "promotional_material" => {
+                RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem::PromotionalMaterial
+            }
+            other => RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCardLogoItem::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -6559,48 +5958,42 @@ impl RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTe
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de>
-    for RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTextItem
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTextItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "geographic_location" => RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTextItem::GeographicLocation,
-                    "inappropriate" => RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTextItem::Inappropriate,
-                    "network_name" => RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTextItem::NetworkName,
-                    "non_fiat_currency" => RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTextItem::NonFiatCurrency,
-                    "other" => RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTextItem::Other,
-                    "other_entity" => RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTextItem::OtherEntity,
-                    "promotional_material" => RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTextItem::PromotionalMaterial,
-                    other => RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTextItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTextItem::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTextItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTextItem::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "geographic_location" => {
+                RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTextItem::GeographicLocation
+            }
+            "inappropriate" => {
+                RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTextItem::Inappropriate
+            }
+            "network_name" => {
+                RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTextItem::NetworkName
+            }
+            "non_fiat_currency" => {
+                RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTextItem::NonFiatCurrency
+            }
+            "other" => RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTextItem::Other,
+            "other_entity" => {
+                RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTextItem::OtherEntity
+            }
+            "promotional_material" => {
+                RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTextItem::PromotionalMaterial
+            }
+            other => RejectTestHelperIssuingPersonalizationDesignParamsRejectionReasonsCarrierTextItem::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -6716,59 +6109,37 @@ impl ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account_closed" => ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::AccountClosed,
-                    "account_frozen" => ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::AccountFrozen,
-                    "bank_account_restricted" => {
-                        ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::BankAccountRestricted
-                    }
-                    "bank_ownership_changed" => {
-                        ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::BankOwnershipChanged
-                    }
-                    "declined" => ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::Declined,
-                    "incorrect_account_holder_name" => {
-                        ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::IncorrectAccountHolderName
-                    }
-                    "invalid_account_number" => {
-                        ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::InvalidAccountNumber
-                    }
-                    "invalid_currency" => {
-                        ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::InvalidCurrency
-                    }
-                    "no_account" => ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::NoAccount,
-                    "other" => ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::Other,
-                    other => {
-                        ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account_closed" => ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::AccountClosed,
+            "account_frozen" => ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::AccountFrozen,
+            "bank_account_restricted" => {
+                ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::BankAccountRestricted
+            }
+            "bank_ownership_changed" => {
+                ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::BankOwnershipChanged
+            }
+            "declined" => ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::Declined,
+            "incorrect_account_holder_name" => {
+                ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::IncorrectAccountHolderName
+            }
+            "invalid_account_number" => {
+                ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::InvalidAccountNumber
+            }
+            "invalid_currency" => ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::InvalidCurrency,
+            "no_account" => ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::NoAccount,
+            "other" => ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::Other,
+            other => ReturnTestHelperTreasuryOutboundPaymentParamsReturnedDetailsCode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6882,37 +6253,19 @@ impl SucceedInputCollectionParamsSkipNonRequiredInputs {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for SucceedInputCollectionParamsSkipNonRequiredInputs {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SucceedInputCollectionParamsSkipNonRequiredInputs;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "all" => SucceedInputCollectionParamsSkipNonRequiredInputs::All,
-                    "none" => SucceedInputCollectionParamsSkipNonRequiredInputs::None,
-                    other => SucceedInputCollectionParamsSkipNonRequiredInputs::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SucceedInputCollectionParamsSkipNonRequiredInputs::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SucceedInputCollectionParamsSkipNonRequiredInputs {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SucceedInputCollectionParamsSkipNonRequiredInputs::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "all" => SucceedInputCollectionParamsSkipNonRequiredInputs::All,
+            "none" => SucceedInputCollectionParamsSkipNonRequiredInputs::None,
+            other => SucceedInputCollectionParamsSkipNonRequiredInputs::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6972,33 +6325,34 @@ pub type SucceedTestHelperTreasuryInboundTransferParams =
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct TestHelpersTestClock {
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Time at which this clock is scheduled to auto delete."]
-    #[serde(default)]
+    #[json(default)]
     pub deletes_after: i64,
     #[doc = "Time at which all objects belonging to this clock are frozen."]
-    #[serde(default)]
+    #[json(default)]
     pub frozen_time: i64,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "The custom name supplied at creation."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::test_helpers::TestHelpersTestClockObject,
     #[doc = "The status of the Test Clock."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::test_helpers::TestHelpersTestClockStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status_details: Option<crate::billing::BillingClocksResourceStatusDetailsStatusDetails>,
 }
 
@@ -7256,36 +6610,18 @@ impl Default for TestHelpersTestClockObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for TestHelpersTestClockObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TestHelpersTestClockObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "test_helpers.test_clock" => TestHelpersTestClockObject::TestHelpersTestClock,
-                    other => TestHelpersTestClockObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TestHelpersTestClockObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TestHelpersTestClockObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TestHelpersTestClockObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "test_helpers.test_clock" => TestHelpersTestClockObject::TestHelpersTestClock,
+            other => TestHelpersTestClockObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7496,38 +6832,20 @@ impl Default for TestHelpersTestClockStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for TestHelpersTestClockStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = TestHelpersTestClockStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "advancing" => TestHelpersTestClockStatus::Advancing,
-                    "internal_failure" => TestHelpersTestClockStatus::InternalFailure,
-                    "ready" => TestHelpersTestClockStatus::Ready,
-                    other => TestHelpersTestClockStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(TestHelpersTestClockStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for TestHelpersTestClockStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(TestHelpersTestClockStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "advancing" => TestHelpersTestClockStatus::Advancing,
+            "internal_failure" => TestHelpersTestClockStatus::InternalFailure,
+            "ready" => TestHelpersTestClockStatus::Ready,
+            other => TestHelpersTestClockStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7610,43 +6928,21 @@ impl UpdateTestHelperTreasuryOutboundPaymentParamsTrackingDetailsType {
 }
 
 #[cfg(feature = "test_helpers")]
-impl<'de> serde::Deserialize<'de> for UpdateTestHelperTreasuryOutboundPaymentParamsTrackingDetailsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = UpdateTestHelperTreasuryOutboundPaymentParamsTrackingDetailsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ach" => UpdateTestHelperTreasuryOutboundPaymentParamsTrackingDetailsType::Ach,
-                    "us_domestic_wire" => {
-                        UpdateTestHelperTreasuryOutboundPaymentParamsTrackingDetailsType::UsDomesticWire
-                    }
-                    other => {
-                        UpdateTestHelperTreasuryOutboundPaymentParamsTrackingDetailsType::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(UpdateTestHelperTreasuryOutboundPaymentParamsTrackingDetailsType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for UpdateTestHelperTreasuryOutboundPaymentParamsTrackingDetailsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(UpdateTestHelperTreasuryOutboundPaymentParamsTrackingDetailsType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ach" => UpdateTestHelperTreasuryOutboundPaymentParamsTrackingDetailsType::Ach,
+            "us_domestic_wire" => UpdateTestHelperTreasuryOutboundPaymentParamsTrackingDetailsType::UsDomesticWire,
+            other => UpdateTestHelperTreasuryOutboundPaymentParamsTrackingDetailsType::Unknown(other.to_string()),
+        })
     }
 }
 

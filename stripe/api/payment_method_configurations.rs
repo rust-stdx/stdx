@@ -276,40 +276,24 @@ impl CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference 
 }
 
 #[cfg(feature = "payment_method_configurations")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "none" => CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference::None,
-                    "off" => CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference::Off,
-                    "on" => CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference::On,
-                    other => CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "none" => CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference::None,
+            "off" => CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference::Off,
+            "on" => CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference::On,
+            other => {
+                CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -2440,7 +2424,7 @@ impl crate::params::FormEncode for GetPaymentMethodConfigurationParams {
 #[derive(Debug, Clone, Default)]
 pub struct ListPaymentMethodConfigurationsParams {
     pub active: Option<bool>,
-    pub application: Option<serde_json::Value>,
+    pub application: Option<json::OwnedValue>,
     pub ending_before: Option<String>,
     pub expand: Option<Vec<String>>,
     pub limit: Option<i64>,
@@ -2461,151 +2445,152 @@ impl crate::params::FormEncode for ListPaymentMethodConfigurationsParams {
 }
 
 #[cfg(feature = "payment_method_configurations")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentMethodConfiguration {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub acss_debit: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
     #[doc = "Whether the configuration can be used for new payments."]
-    #[serde(default)]
+    #[json(default)]
     pub active: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub affirm: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub afterpay_clearpay: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub alipay: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub alma: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amazon_pay: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub apple_pay: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
     #[doc = "For child configs, the Connect application associated with the configuration."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub au_becs_debit: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bacs_debit: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bancontact: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billie: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bizum: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub blik: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub boleto: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cartes_bancaires: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cashapp: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub crypto: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_balance: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub eps: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fpx: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub giropay: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub google_pay: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub grabpay: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ideal: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
     #[doc = "The default configuration is used whenever a payment method configuration is not specified."]
-    #[serde(default)]
+    #[json(default)]
     pub is_default: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub jcb: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub kakao_pay: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub klarna: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub konbini: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub kr_card: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub link: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mb_way: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mobilepay: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub multibanco: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
     #[doc = "The configuration's name."]
-    #[serde(default)]
+    #[json(default)]
     pub name: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub naver_pay: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub nz_bank_account: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::payment_method_configurations::PaymentMethodConfigurationObject,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub oxxo: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub p24: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
     #[doc = "For child configs, the configuration's parent configuration."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pay_by_bank: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payco: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paynow: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paypal: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paypay: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payto: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pix: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub promptpay: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub revolut_pay: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub samsung_pay: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub satispay: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub scalapay: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sepa_debit: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sequra: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sofort: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sunbit: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub swish: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub twint: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub upi: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us_bank_account: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub wechat_pay: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub zip: Option<crate::payment_methods::PaymentMethodConfigResourcePaymentMethodProperties>,
 }
 
@@ -2643,36 +2628,18 @@ impl Default for PaymentMethodConfigurationObject {
 }
 
 #[cfg(feature = "payment_method_configurations")]
-impl<'de> serde::Deserialize<'de> for PaymentMethodConfigurationObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentMethodConfigurationObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "payment_method_configuration" => PaymentMethodConfigurationObject::PaymentMethodConfiguration,
-                    other => PaymentMethodConfigurationObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentMethodConfigurationObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentMethodConfigurationObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentMethodConfigurationObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "payment_method_configuration" => PaymentMethodConfigurationObject::PaymentMethodConfiguration,
+            other => PaymentMethodConfigurationObject::Unknown(other.to_string()),
+        })
     }
 }
 

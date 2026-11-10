@@ -20,7 +20,7 @@ test = false
 form_urlencoded = { path = "../form_urlencoded" }
 ryu = { path = "../ryu" }
 
-serde = { workspace = true }
+serde = { workspace = true, features = ["alloc"] }
 
 # [dev-dependencies]
 # serde_derive = "1"

@@ -1,10 +1,9 @@
 use std::fmt;
 
 use crypto::{Hasher, p256::PublicKey, sha2::Sha256};
-use reqwest::Response;
 // use rustls_pki_types::CertificateDer;
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use json::{DecodeOwned, Encode};
+use reqwest::Response;
 use thiserror::Error;
 // use ureq::Response;
 
@@ -33,7 +32,7 @@ pub enum Error {
     HttpIo(#[from] std::io::Error),
     /// Failed to (de)serialize a JSON object
     #[error("failed to (de)serialize JSON: {0}")]
-    Json(#[from] serde_json::Error),
+    Json(#[from] json::Error),
     /// Miscellaneous errors
     #[error("missing data: {0}")]
     Str(&'static str),
@@ -51,54 +50,36 @@ impl From<&'static str> for Error {
 /// server URLs from the relevant ACME server. This can be used to serialize
 /// the account credentials to a file or secret manager and restore the
 /// account from persistent storage.
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(json::Decode, json::Encode, Clone)]
 pub struct AccountCredentials {
     pub(crate) id: String,
     /// Stored in DER, serialized as base64
-    #[serde(with = "pkcs8_serde")]
+    #[json(with = "pkcs8_serde")]
     pub(crate) key_pkcs8: Vec<u8>,
     pub(crate) directory: Option<String>,
     pub(crate) urls: Option<DirectoryUrls>,
 }
 
 mod pkcs8_serde {
-    use std::fmt;
+    use json::{Decoder, Encoder, Error, Result, Write};
 
-    use serde::{Deserializer, Serializer, de};
-
-    pub(crate) fn serialize<S>(key_pkcs8: &[u8], serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let encoded = base64::encode(key_pkcs8, base64::Alphabet::UrlNoPadding);
-        serializer.serialize_str(&encoded)
+    pub(crate) fn serialize<W: Write>(
+        key_pkcs8: &Vec<u8>,
+        encoder: &mut Encoder<W>,
+    ) -> core::result::Result<(), W::Error> {
+        encoder.string(&base64::encode(key_pkcs8, base64::Alphabet::UrlNoPadding))
     }
 
-    pub(crate) fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<u8>, D::Error> {
-        struct Visitor;
-
-        impl<'de> de::Visitor<'de> for Visitor {
-            type Value = Vec<u8>;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("a base64-encoded PKCS#8 private key")
-            }
-
-            fn visit_str<E>(self, v: &str) -> Result<Vec<u8>, E>
-            where
-                E: de::Error,
-            {
-                base64::decode(v, base64::Alphabet::UrlNoPadding).map_err(de::Error::custom)
-            }
-        }
-
-        deserializer.deserialize_str(Visitor)
+    pub(crate) fn deserialize<'a>(decoder: &mut Decoder<'a>) -> Result<Vec<u8>> {
+        let text = decoder.decode_str()?;
+        base64::decode(text, base64::Alphabet::UrlNoPadding)
+            .map_err(|_| Error::message("invalid base64 private key", decoder.position()))
     }
 }
 
 /// An RFC 7807 problem document as returned by the ACME server
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Debug, json::Decode)]
+#[json(rename_all = "camelCase")]
 pub struct Problem {
     /// One of an enumerated list of problem types
     ///
@@ -111,8 +92,9 @@ pub struct Problem {
 }
 
 impl Problem {
-    pub(crate) async fn check<T: DeserializeOwned>(rsp: Response) -> Result<T, Error> {
-        rsp.json().await.map_err(Error::Http)
+    pub(crate) async fn check<T: DecodeOwned>(rsp: Response) -> Result<T, Error> {
+        let body = rsp.bytes().await?;
+        Ok(T::decode_owned(&body)?)
     }
 
     pub(crate) async fn from_response(rsp: Response) -> Result<Vec<u8>, Error> {
@@ -123,7 +105,7 @@ impl Problem {
             return Ok(body.to_vec());
         }
 
-        Err(serde_json::from_slice::<Problem>(&body)?.into())
+        Err(json::from_slice::<Problem>(&body)?.into())
     }
 }
 
@@ -144,7 +126,7 @@ impl fmt::Display for Problem {
 
 impl core::error::Error for Problem {}
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, json::Encode)]
 pub(crate) struct FinalizeRequest {
     csr: String,
 }
@@ -157,21 +139,47 @@ impl FinalizeRequest {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub(crate) struct Header<'a> {
     pub(crate) alg: SigningAlgorithm,
-    #[serde(flatten)]
     pub(crate) key: KeyOrKeyId<'a>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) nonce: Option<&'a str>,
     pub(crate) url: &'a str,
 }
 
-#[derive(Debug, Serialize)]
+impl Encode for Header<'_> {
+    fn encode<W: json::Write>(&self, encoder: &mut json::Encoder<W>) -> core::result::Result<(), W::Error> {
+        encoder.begin_object()?;
+        encoder.comma(true)?;
+        encoder.key("alg")?;
+        self.alg.encode(encoder)?;
+        match &self.key {
+            KeyOrKeyId::Key(jwk) => {
+                encoder.comma(false)?;
+                encoder.key("jwk")?;
+                jwk.encode(encoder)?;
+            }
+            KeyOrKeyId::KeyId(kid) => {
+                encoder.comma(false)?;
+                encoder.key("kid")?;
+                encoder.string(kid)?;
+            }
+        }
+        if let Some(nonce) = self.nonce {
+            encoder.comma(false)?;
+            encoder.key("nonce")?;
+            encoder.string(nonce)?;
+        }
+        encoder.comma(false)?;
+        encoder.key("url")?;
+        encoder.string(self.url)?;
+        encoder.end_object()
+    }
+}
+
+#[derive(Debug)]
 pub(crate) enum KeyOrKeyId<'a> {
-    #[serde(rename = "jwk")]
     Key(Jwk),
-    #[serde(rename = "kid")]
     KeyId(&'a str),
 }
 
@@ -181,7 +189,7 @@ impl<'a> KeyOrKeyId<'a> {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, json::Encode)]
 pub(crate) struct Jwk {
     alg: SigningAlgorithm,
     crv: &'static str,
@@ -205,21 +213,21 @@ impl Jwk {
         }
     }
 
-    pub(crate) fn thumb_sha256(key: &PublicKey) -> Result<[u8; 32], serde_json::Error> {
+    pub(crate) fn thumb_sha256(key: &PublicKey) -> Result<[u8; 32], json::Error> {
         let jwk = Self::new(key);
-        let hash = Sha256::hash(&serde_json::to_vec(&JwkThumb {
+        let hash = Sha256::hash(&json::to_vec(&JwkThumb {
             crv: jwk.crv,
             kty: jwk.kty,
             x: &jwk.x,
             y: &jwk.y,
-        })?);
+        }));
         let mut out = [0u8; 32];
         out.copy_from_slice(&hash.as_ref()[..32]);
         Ok(out)
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, json::Encode)]
 struct JwkThumb<'a> {
     crv: &'a str,
     kty: &'a str,
@@ -230,7 +238,7 @@ struct JwkThumb<'a> {
 /// An ACME challenge as described in RFC 8555 (section 7.1.5)
 ///
 /// <https://datatracker.ietf.org/doc/html/rfc8555#section-7.1.5>
-#[derive(Debug, Deserialize)]
+#[derive(Debug, json::Decode)]
 pub struct Challenge {
     /// Type of challenge
     pub r#type: ChallengeType,
@@ -249,8 +257,8 @@ pub struct Challenge {
 /// The order identity will usually be represented by an [Order](crate::Order).
 ///
 /// <https://datatracker.ietf.org/doc/html/rfc8555#section-7.1.3>
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, json::Decode)]
+#[json(rename_all = "camelCase")]
 pub struct OrderState {
     /// Current status
     pub status: OrderStatus,
@@ -269,34 +277,12 @@ pub struct OrderState {
 /// Input data for [Order](crate::Order) creation
 ///
 /// To be passed into [Account::new_order()](crate::Account::new_order()).
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, json::Encode)]
+#[json(rename_all = "camelCase")]
 pub struct NewOrder<'a> {
     /// Identifiers to be included in the order
     pub identifiers: &'a [Identifier],
 }
-
-// /// Payload for a certificate revocation request
-// /// Defined in <https://datatracker.ietf.org/doc/html/rfc8555#section-7.6>
-// #[derive(Debug)]
-// pub struct RevocationRequest<'a> {
-//     /// The certificate to revoke
-//     pub certificate: &'a CertificateDer<'a>,
-//     /// Reason for revocation
-//     pub reason: Option<RevocationReason>,
-// }
-
-// impl<'a> Serialize for RevocationRequest<'a> {
-//     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-//         let base64 = BASE64_URL_SAFE_NO_PAD.encode(self.certificate);
-//         let mut map = serializer.serialize_map(Some(2))?;
-//         map.serialize_entry("certificate", &base64)?;
-//         if let Some(reason) = &self.reason {
-//             map.serialize_entry("reason", reason)?;
-//         }
-//         map.end()
-//     }
-// }
 
 /// The reason for a certificate revocation
 /// Defined in <https://datatracker.ietf.org/doc/html/rfc5280#section-5.3.1>
@@ -316,26 +302,43 @@ pub enum RevocationReason {
     AaCompromise = 10,
 }
 
-impl Serialize for RevocationReason {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_u8(self.clone() as u8)
+impl Encode for RevocationReason {
+    fn encode<W: json::Write>(&self, encoder: &mut json::Encoder<W>) -> core::result::Result<(), W::Error> {
+        encoder.u64(self.clone() as u64)
     }
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
 pub(crate) struct NewAccountPayload<'a> {
-    #[serde(flatten)]
     pub(crate) new_account: &'a NewAccount<'a>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) external_account_binding: Option<JoseJson>,
+}
+
+impl Encode for NewAccountPayload<'_> {
+    fn encode<W: json::Write>(&self, encoder: &mut json::Encoder<W>) -> core::result::Result<(), W::Error> {
+        encoder.begin_object()?;
+        encoder.comma(true)?;
+        encoder.key("contact")?;
+        self.new_account.contact.encode(encoder)?;
+        encoder.comma(false)?;
+        encoder.key("termsOfServiceAgreed")?;
+        self.new_account.terms_of_service_agreed.encode(encoder)?;
+        encoder.comma(false)?;
+        encoder.key("onlyReturnExisting")?;
+        self.new_account.only_return_existing.encode(encoder)?;
+        if let Some(external) = &self.external_account_binding {
+            encoder.comma(false)?;
+            encoder.key("externalAccountBinding")?;
+            external.encode(encoder)?;
+        }
+        encoder.end_object()
+    }
 }
 
 /// Input data for [Account](crate::Account) creation
 ///
 /// To be passed into [Account::create()](crate::Account::create()).
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, json::Encode)]
+#[json(rename_all = "camelCase")]
 pub struct NewAccount<'a> {
     /// A list of contact URIs (like `mailto:info@example.com`)
     pub contact: &'a [&'a str],
@@ -347,8 +350,8 @@ pub struct NewAccount<'a> {
     pub only_return_existing: bool,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, json::Decode, json::Encode)]
+#[json(rename_all = "camelCase")]
 pub(crate) struct DirectoryUrls {
     pub(crate) new_nonce: String,
     pub(crate) new_account: String,
@@ -356,7 +359,7 @@ pub(crate) struct DirectoryUrls {
     pub(crate) revoke_cert: String,
 }
 
-#[derive(Serialize)]
+#[derive(json::Encode)]
 pub(crate) struct JoseJson {
     pub(crate) protected: String,
     pub(crate) payload: String,
@@ -365,7 +368,7 @@ pub(crate) struct JoseJson {
 
 impl JoseJson {
     pub(crate) fn new(
-        payload: Option<&impl Serialize>,
+        payload: Option<&impl Encode>,
         protected: Header<'_>,
         signer: &impl Signer,
     ) -> Result<Self, Error> {
@@ -393,15 +396,15 @@ pub(crate) trait Signer {
     fn sign(&self, payload: &[u8]) -> Result<Self::Signature, Error>;
 }
 
-fn base64(data: &impl Serialize) -> Result<String, serde_json::Error> {
-    let json_data = serde_json::to_vec(data)?;
+fn base64(data: &impl Encode) -> Result<String, json::Error> {
+    let json_data = json::to_vec(data);
     let encoded_json_data = base64::encode(&json_data, base64::Alphabet::UrlNoPadding);
     return Ok(encoded_json_data);
 }
 
 /// An ACME authorization as described in RFC 8555 (section 7.1.4)
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, json::Decode)]
+#[json(rename_all = "camelCase")]
 pub struct Authorization {
     /// The identifier that the account is authorized to represent
     pub identifier: Identifier,
@@ -413,8 +416,8 @@ pub struct Authorization {
 
 /// Status for an [`Authorization`]
 #[allow(missing_docs)]
-#[derive(Clone, Copy, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Copy, Debug, json::Decode)]
+#[json(rename_all = "camelCase")]
 pub enum AuthorizationStatus {
     Pending,
     Valid,
@@ -425,26 +428,26 @@ pub enum AuthorizationStatus {
 
 /// Represent an identifier in an ACME [Order](crate::Order)
 #[allow(missing_docs)]
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(tag = "type", content = "value", rename_all = "camelCase")]
+#[derive(Clone, Debug, json::Encode, json::Decode)]
+#[json(tag = "type", content = "value", rename_all = "camelCase")]
 pub enum Identifier {
     Dns(String),
 }
 
 /// The challenge type
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, json::Decode, Eq, PartialEq)]
 #[allow(missing_docs)]
 pub enum ChallengeType {
-    #[serde(rename = "http-01")]
+    #[json(rename = "http-01")]
     Http01,
-    #[serde(rename = "dns-01")]
+    #[json(rename = "dns-01")]
     Dns01,
-    #[serde(rename = "tls-alpn-01")]
+    #[json(rename = "tls-alpn-01")]
     TlsAlpn01,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Copy, Debug, json::Decode)]
+#[json(rename_all = "camelCase")]
 pub enum ChallengeStatus {
     Pending,
     Processing,
@@ -454,8 +457,8 @@ pub enum ChallengeStatus {
 
 /// Status of an [Order](crate::Order)
 #[allow(missing_docs)]
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Copy, Debug, json::Decode, PartialEq, Eq)]
+#[json(rename_all = "camelCase")]
 pub enum OrderStatus {
     Pending,
     Ready,
@@ -498,8 +501,8 @@ impl ZeroSsl {
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize)]
-#[serde(rename_all = "UPPERCASE")]
+#[derive(Clone, Copy, Debug, json::Encode)]
+#[json(rename_all = "UPPERCASE")]
 pub(crate) enum SigningAlgorithm {
     /// ECDSA using P-256 and SHA-256
     Es256,
@@ -507,5 +510,5 @@ pub(crate) enum SigningAlgorithm {
     Hs256,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, json::Encode, json::Decode)]
 pub(crate) struct Empty {}

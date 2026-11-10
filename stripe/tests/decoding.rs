@@ -10,7 +10,7 @@
 
 #![cfg(feature = "core")]
 
-use serde_json::{Value, json};
+use json::{OwnedValue as Value, json};
 // The legacy Plans API is an opt-in feature.
 #[cfg(feature = "plans")]
 use stripe::plans::Plan;
@@ -30,8 +30,9 @@ const CUSTOMER_FIXTURE: &str = include_str!("fixtures/customer.json");
 const CHARGE_FIXTURE: &str = include_str!("fixtures/charge.json");
 
 /// Decodes `value` (a JSON object) as `T`, returning the error message.
-fn decode<T: serde::de::DeserializeOwned>(value: &Value) -> Result<T, String> {
-    serde_json::from_value(value.clone()).map_err(|error| error.to_string())
+fn decode<T: json::DecodeOwned>(value: impl Into<json::OwnedValue>) -> Result<T, String> {
+    let value: json::OwnedValue = value.into();
+    decode_value(&value).map_err(|error| error.to_string())
 }
 
 /// Deleted objects are the minimal shape `{id, object, deleted}`.
@@ -39,6 +40,11 @@ fn decode<T: serde::de::DeserializeOwned>(value: &Value) -> Result<T, String> {
 /// They appear when an `expand`ed field (or a webhook payload) refers to a
 /// resource that was deleted, and must decode as the live type instead of
 /// failing the whole response.
+fn decode_value<T: json::DecodeOwned>(value: impl Into<json::OwnedValue>) -> Result<T, String> {
+    let value: json::OwnedValue = value.into();
+    T::decode_owned(&json::to_vec(&value)).map_err(|error| error.to_string())
+}
+
 #[test]
 fn deleted_objects_decode_as_their_live_type() {
     assert!(decode::<Customer>(&json!({"id": "cus_1", "object": "customer", "deleted": true})).is_ok());
@@ -55,7 +61,7 @@ fn deleted_objects_decode_as_their_live_type() {
 
 #[test]
 fn a_deleted_object_decodes_inside_an_expandable_field() {
-    let mut value: Value = serde_json::from_str(CHARGE_FIXTURE).expect("fixture");
+    let mut value: Value = json::from_str(CHARGE_FIXTURE).expect("fixture");
     value["customer"] = json!({"id": "cus_1", "object": "customer", "deleted": true});
 
     let charge: Charge = decode(&value).expect("a deleted customer must not fail the charge");
@@ -68,7 +74,7 @@ fn a_deleted_object_decodes_inside_an_expandable_field() {
 
 #[test]
 fn removing_any_field_keeps_the_response_decodable() {
-    let fixture: Value = serde_json::from_str(CUSTOMER_FIXTURE).expect("fixture");
+    let fixture: Value = json::from_str(CUSTOMER_FIXTURE).expect("fixture");
     let object = fixture.as_object().expect("object");
     assert!(object.len() > 10, "the fixture should be a realistic customer");
 
@@ -84,7 +90,7 @@ fn removing_any_field_keeps_the_response_decodable() {
 fn nulling_a_nullable_field_keeps_the_response_decodable() {
     // Stripe sends `null` for the fields its specification marks nullable, which
     // are `Option` here.
-    let fixture: Value = serde_json::from_str(CUSTOMER_FIXTURE).expect("fixture");
+    let fixture: Value = json::from_str(CUSTOMER_FIXTURE).expect("fixture");
     for key in [
         "address",
         "balance",
@@ -97,7 +103,7 @@ fn nulling_a_nullable_field_keeps_the_response_decodable() {
         "shipping",
     ] {
         let mut value = fixture.clone();
-        value[key] = Value::Null;
+        value[key] = json::Value::Null;
         let decoded = decode::<Customer>(&value);
         assert!(decoded.is_ok(), "nulling nullable `{key}` failed the response: {decoded:?}");
     }
@@ -108,19 +114,19 @@ fn a_null_where_a_value_is_required_is_an_error() {
     // A `null` in a field that is not nullable is a broken payload; reporting it
     // beats inventing a value.
     for key in ["created", "id", "livemode"] {
-        let mut value: Value = serde_json::from_str(CUSTOMER_FIXTURE).expect("fixture");
-        value[key] = Value::Null;
+        let mut value: Value = json::from_str(CUSTOMER_FIXTURE).expect("fixture");
+        value[key] = json::Value::Null;
         assert!(decode::<Customer>(&value).is_err(), "`{key}` is not nullable");
     }
 }
 
 #[test]
 fn nulling_any_field_never_panics() {
-    let fixture: Value = serde_json::from_str(CUSTOMER_FIXTURE).expect("fixture");
+    let fixture: Value = json::from_str(CUSTOMER_FIXTURE).expect("fixture");
     let object = fixture.as_object().expect("object");
     for key in object.keys() {
         let mut value = fixture.clone();
-        value[key] = Value::Null;
+        value[key] = json::Value::Null;
         let _ = decode::<Customer>(&value);
     }
 }
@@ -129,8 +135,8 @@ fn nulling_any_field_never_panics() {
 fn a_null_enum_is_an_unknown_value() {
     // Enums tolerate `null` themselves, so this holds inside containers too,
     // where there is no field-level default to fall back to.
-    let mut value: Value = serde_json::from_str(CUSTOMER_FIXTURE).expect("fixture");
-    value["object"] = Value::Null;
+    let mut value: Value = json::from_str(CUSTOMER_FIXTURE).expect("fixture");
+    value["object"] = json::Value::Null;
     let customer: Customer = decode(&value).expect("a null discriminator decodes");
     assert!(matches!(customer.object, CustomerObject::Unknown(ref value) if value.is_empty()));
 
@@ -142,22 +148,22 @@ fn a_null_enum_is_an_unknown_value() {
 #[test]
 fn a_duplicate_key_is_an_error_for_a_generated_type() {
     // Stripe does not send repeated keys, and a payload that did would silently
-    // lose a value if the last one won. `serde_json::Value` takes the last
+    // lose a value if the last one won. `json::OwnedValue` takes the last
     // value, so this pins the behaviour of the generated types specifically.
     let body = r#"{"id":"first","id":"second","object":"customer"}"#;
-    let error = serde_json::from_str::<Customer>(body).expect_err("a repeated field is reported");
+    let error = json::from_str::<Customer>(body).expect_err("a repeated field is reported");
     assert!(error.to_string().contains("duplicate"), "unexpected error: {error}");
-    let value: Value = serde_json::from_str(body).expect("value");
-    assert_eq!(value["id"], "second", "`Value` keeps the last value instead");
+    let value: Value = json::from_str(body).expect("value");
+    assert_eq!(value["id"].as_str(), Some("second"), "`Value` keeps the last value instead");
 }
 
 #[test]
 fn a_wrongly_typed_field_is_an_error() {
-    let mut value: Value = serde_json::from_str(CUSTOMER_FIXTURE).expect("fixture");
+    let mut value: Value = json::from_str(CUSTOMER_FIXTURE).expect("fixture");
     value["created"] = json!("not a number");
     assert!(decode::<Customer>(&value).is_err(), "a string is not a timestamp");
 
-    let mut value: Value = serde_json::from_str(CHARGE_FIXTURE).expect("fixture");
+    let mut value: Value = json::from_str(CHARGE_FIXTURE).expect("fixture");
     value["amount"] = json!([1, 2]);
     assert!(decode::<Charge>(&value).is_err(), "an array is not an amount");
 }
@@ -165,7 +171,7 @@ fn a_wrongly_typed_field_is_an_error() {
 #[test]
 fn a_field_stripped_of_its_type_is_still_reported() {
     // `object` is the discriminator: an unexpected value is preserved, not fatal.
-    let mut value: Value = serde_json::from_str(CUSTOMER_FIXTURE).expect("fixture");
+    let mut value: Value = json::from_str(CUSTOMER_FIXTURE).expect("fixture");
     value["object"] = json!("something_new");
     let customer: Customer = decode(&value).expect("unknown discriminators are preserved");
     assert!(matches!(customer.object, CustomerObject::Unknown(ref value) if value == "something_new"));
@@ -173,12 +179,13 @@ fn a_field_stripped_of_its_type_is_still_reported() {
 
 #[test]
 fn a_list_item_that_cannot_decode_is_an_error_not_a_dropped_item() {
+    let fixture: Value = json::from_str(CUSTOMER_FIXTURE).expect("fixture");
     let body = json!({
         "object": "list",
         "has_more": false,
         "url": "/v1/customers",
         "data": [
-            serde_json::from_str::<Value>(CUSTOMER_FIXTURE).expect("fixture"),
+            fixture,
             {"id": "cus_broken", "object": "customer", "created": "not a number"}
         ]
     });
@@ -187,7 +194,7 @@ fn a_list_item_that_cannot_decode_is_an_error_not_a_dropped_item() {
     // list, which reconciliation logic would read as "the object is gone".
     let error = decode::<stripe::List<Customer>>(&body).expect_err("the bad item must be reported");
     assert!(
-        error.contains("invalid type") || error.contains("expected"),
+        error.contains("invalid") || error.contains("expected") || error.contains("number"),
         "the error should describe the mismatch: {error}"
     );
 }
@@ -209,6 +216,7 @@ fn hostile_json_is_rejected_without_panicking() {
 #[test]
 fn responses_with_huge_values_are_bounded_by_the_type() {
     // An integer that does not fit in `i64` is a decoding error, not a wrap.
-    let body = json!({"id": "cus_1", "object": "customer", "created": u64::MAX});
+    let huge = u64::MAX;
+    let body = json!({"id": "cus_1", "object": "customer", "created": huge});
     assert!(decode::<Customer>(&body).is_err());
 }

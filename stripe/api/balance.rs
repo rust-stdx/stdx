@@ -9,104 +9,111 @@
 #![allow(non_camel_case_types)]
 
 #[cfg(any(feature = "balance", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Balance {
     #[doc = "Available funds that you can transfer or pay out automatically by Stripe or explicitly through the [Transfers API](ht..."]
-    #[serde(default)]
+    #[json(default)]
     pub available: Vec<crate::balance::BalanceAmount>,
     #[doc = "Funds held due to negative balances on connected accounts where [account.controller.requirement_collection](/api/acco..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub connect_reserved: Option<Vec<crate::balance::BalanceAmount>>,
     #[doc = "Funds that you can pay out using Instant Payouts."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub instant_available: Option<Vec<crate::balance::BalanceAmountNet>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub issuing: Option<crate::balance::BalanceDetail>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::balance::BalanceObject,
     #[doc = "Funds that aren't available in the balance yet."]
-    #[serde(default)]
+    #[json(default)]
     pub pending: Vec<crate::balance::BalanceAmount>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub refund_and_dispute_prefunding: Option<crate::balance::BalanceDetailUngated>,
 }
 
 #[cfg(any(feature = "balance", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BalanceAmount {
     #[doc = "Balance amount."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub source_types: Option<crate::balance::BalanceAmountBySourceType>,
 }
 
 #[cfg(any(feature = "balance", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BalanceAmountBySourceType {
     #[doc = "Amount coming from [legacy US ACH payments](https://docs.stripe.com/ach-deprecated)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_account: Option<i64>,
     #[doc = "Amount coming from most payment methods, including cards as well as [non-legacy bank debits](https://docs.stripe.com/..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<i64>,
     #[doc = "Amount coming from [FPX](https://docs.stripe.com/payments/fpx), a Malaysian payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fpx: Option<i64>,
 }
 
 #[cfg(any(feature = "balance", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BalanceAmountNet {
     #[doc = "Balance amount."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "Breakdown of balance by destination."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub net_available: Option<Vec<crate::balance::BalanceNetAvailable>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub source_types: Option<crate::balance::BalanceAmountBySourceType>,
 }
 
 #[cfg(any(feature = "balance", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BalanceDetail {
     #[doc = "Funds that are available for use."]
-    #[serde(default)]
+    #[json(default)]
     pub available: Vec<crate::balance::BalanceAmount>,
 }
 
 #[cfg(any(feature = "balance", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BalanceDetailUngated {
     #[doc = "Funds that are available for use."]
-    #[serde(default)]
+    #[json(default)]
     pub available: Vec<crate::balance::BalanceAmount>,
     #[doc = "Funds that are pending"]
-    #[serde(default)]
+    #[json(default)]
     pub pending: Vec<crate::balance::BalanceAmount>,
 }
 
 #[cfg(any(feature = "balance", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BalanceNetAvailable {
     #[doc = "Net balance amount, subtracting fees from platform-set pricing."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "ID of the external account for this net balance (not expandable)."]
-    #[serde(default)]
+    #[json(default)]
     pub destination: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub source_types: Option<crate::balance::BalanceAmountBySourceType>,
 }
 
@@ -137,36 +144,18 @@ impl Default for BalanceObject {
 }
 
 #[cfg(any(feature = "balance", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for BalanceObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BalanceObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "balance" => BalanceObject::Balance,
-                    other => BalanceObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BalanceObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BalanceObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BalanceObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "balance" => BalanceObject::Balance,
+            other => BalanceObject::Unknown(other.to_string()),
+        })
     }
 }
 

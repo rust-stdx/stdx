@@ -10,7 +10,8 @@ use hyper_utils::{
     http_body_util::{BodyExt, Full},
     rt::TokioIo,
 };
-use serde::{Serialize, de::DeserializeOwned};
+use json::{DecodeOwned, Encode};
+use serde::Serialize;
 use tokio::{net::UnixStream, sync::Mutex};
 use tracing::{debug, error};
 
@@ -67,11 +68,11 @@ impl Client {
         return Ok(());
     }
 
-    pub(crate) async fn send_request<R: DeserializeOwned, S: Serialize>(
+    pub(crate) async fn send_request<R: DecodeOwned, Q: Serialize, B: Encode>(
         &self,
         path: &str,
-        query: Option<S>,
-        body: Option<S>,
+        query: Option<Q>,
+        body: Option<B>,
     ) -> Result<R, Error> {
         if self.socket.lock().await.is_none() {
             self.connect().await?;
@@ -95,7 +96,7 @@ impl Client {
             .map_err(|err| Error::Unspecified(format!("building request's URL: {err}")))?;
 
         let body = body
-            .map(|body_data| serde_json::to_vec(&body_data))
+            .map(|body_data| Ok::<_, core::convert::Infallible>(json::to_vec(&body_data)))
             .unwrap_or(Ok(Vec::new()))
             .map_err(|err| Error::Unspecified(format!("encoding body to JSON: {err}")))?;
         let body_bytes = Bytes::from(body);
@@ -140,7 +141,7 @@ impl Client {
             .await
             .map_err(|err| Error::Unspecified(format!("reading response: {err}")))?
             .to_bytes();
-        let res = serde_json::from_slice(&response_body)
+        let res = json::from_slice_owned(&response_body)
             .map_err(|err| Error::Unspecified(format!("parsing response: {err}")))?;
 
         return Ok(res);

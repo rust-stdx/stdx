@@ -6,9 +6,9 @@
 //!
 //! # Features
 //!
-//! - Zero-copy deferred parsing via `serde_json::value::RawValue`
+//! - Zero-copy deferred parsing via `json::RawValueBuf`
 //! - Generic `Server<C>` with typed async handler registration and automatic
-//!   serde (de)serialization
+//!   `json::Encode`/`json::Decode` (de)serialization
 //! - Spec-compliant batch request/response handling, including invalid batch
 //!   entries
 //! - Notification support
@@ -18,15 +18,15 @@
 //! # Defining typed parameters and results
 //!
 //! ```rust
-//! use serde::{Deserialize, Serialize};
+//! use json::{Decode, Encode};
 //!
-//! #[derive(Deserialize)]
+//! #[derive(Decode)]
 //! struct AddParams {
 //!     a: i64,
 //!     b: i64,
 //! }
 //!
-//! #[derive(Serialize)]
+//! #[derive(Encode)]
 //! struct AddResult {
 //!     sum: i64,
 //! }
@@ -42,13 +42,13 @@
 //!     prefix: String,
 //! }
 //!
-//! # use serde::{Deserialize, Serialize};
-//! # #[derive(Deserialize)]
+//! # use json::{Decode, Encode};
+//! # #[derive(Decode)]
 //! # struct AddParams {
 //! #     a: i64,
 //! #     b: i64,
 //! # }
-//! # #[derive(Serialize)]
+//! # #[derive(Encode)]
 //! # struct AddResult {
 //! #     sum: i64,
 //! # }
@@ -72,11 +72,11 @@
 //! # let mut server = Server::<()>::new(ServerConfig::default());
 //! # server.register("add", |_: (), (a, b): (i64, i64)| async move { Ok::<_, Error>(a + b) });
 //! let json = r#"{"jsonrpc":"2.0","method":"add","params":[3,4],"id":1}"#;
-//! let request: Request = serde_json::from_str(json).unwrap();
+//! let request: Request = json::from_str(json).unwrap();
 //!
 //! let response = server.handle((), RequestMessage::Single(request)).await;
 //! if let Some(response) = response {
-//!     println!("{}", serde_json::to_string(&response).unwrap());
+//!     println!("{}", json::to_string(&response));
 //!     // => {"jsonrpc":"2.0","result":7,"id":1}
 //! }
 //! # }
@@ -92,7 +92,7 @@
 //! # let mut server = Server::<()>::new(ServerConfig::default());
 //! # server.register("log", |_: (), _message: String| async move { Ok::<_, Error>(()) });
 //! let json = r#"{"jsonrpc":"2.0","method":"log","params":"hello"}"#;
-//! let request: Request = serde_json::from_str(json).unwrap();
+//! let request: Request = json::from_str(json).unwrap();
 //!
 //! let response = server.handle((), RequestMessage::Single(request)).await;
 //! assert!(response.is_none());
@@ -111,11 +111,11 @@
 //!     {"jsonrpc":"2.0","method":"add","params":[1,2],"id":"1"},
 //!     {"jsonrpc":"2.0","method":"add","params":[3,4],"id":"2"}
 //! ]"#;
-//! let message: RequestMessage = serde_json::from_str(json).unwrap();
+//! let message: RequestMessage = json::from_str(json).unwrap();
 //!
 //! let response = server.handle((), message).await;
 //! if let Some(response) = response {
-//!     println!("{}", serde_json::to_string(&response).unwrap());
+//!     println!("{}", json::to_string(&response));
 //! }
 //! # }
 //! ```
@@ -173,18 +173,18 @@
 //!         let mut lines = BufReader::new(reader).lines();
 //!
 //!         while let Ok(Some(line)) = lines.next_line().await {
-//!             let message: RequestMessage = match serde_json::from_str(&line) {
+//!             let message: RequestMessage = match json::from_str(&line) {
 //!                 Ok(message) => message,
 //!                 Err(_) => {
 //!                     let error = Response::error(Id::Null, Error::parse_error());
-//!                     writer.write_all(serde_json::to_string(&error).unwrap().as_bytes()).await?;
+//!                     writer.write_all(json::to_string(&error).as_bytes()).await?;
 //!                     writer.write_all(b"\n").await?;
 //!                     continue;
 //!                 }
 //!             };
 //!
 //!             if let Some(response) = server.handle((), message).await {
-//!                 writer.write_all(serde_json::to_string(&response).unwrap().as_bytes()).await?;
+//!                 writer.write_all(json::to_string(&response).as_bytes()).await?;
 //!                 writer.write_all(b"\n").await?;
 //!             }
 //!         }

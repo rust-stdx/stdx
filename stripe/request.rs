@@ -5,7 +5,7 @@ use core::time::Duration;
 
 use bytes::Bytes;
 use futures_util::StreamExt as _;
-use serde::{Serialize, de::DeserializeOwned};
+use json::{DecodeOwned, Encode};
 
 use crate::{
     client::Client,
@@ -14,9 +14,9 @@ use crate::{
     params::{FormBuilder, FormEncode},
 };
 
-#[derive(serde::Deserialize)]
+#[derive(json::Decode)]
 struct ErrorEnvelope {
-    #[serde(default)]
+    #[json(default)]
     error: ApiErrorBody,
 }
 
@@ -33,7 +33,7 @@ const MAX_RETRY_AFTER_SECONDS: u64 = 60;
 
 impl Client {
     /// `GET` with a pre-encoded query string, used by pagination.
-    pub(crate) async fn get_raw<R: DeserializeOwned>(&self, path: &str, query: &str) -> Result<R, Error> {
+    pub(crate) async fn get_raw<R: DecodeOwned>(&self, path: &str, query: &str) -> Result<R, Error> {
         let url = self.build_url(path, query);
         self.execute(HttpMethod::Get, url, None, Bytes::new(), &crate::RequestOptions::default())
             .await?
@@ -46,7 +46,7 @@ impl Client {
     /// The URL is only followed when it stays within the configured base URL, so
     /// a hostile or buggy response cannot redirect the request (and the API key)
     /// to another host.
-    pub(crate) async fn get_raw_url<R: DeserializeOwned>(&self, url: &str) -> Result<R, Error> {
+    pub(crate) async fn get_raw_url<R: DecodeOwned>(&self, url: &str) -> Result<R, Error> {
         let url = self.resolve_url(url)?;
         self.execute(HttpMethod::Get, url, None, Bytes::new(), &crate::RequestOptions::default())
             .await?
@@ -87,13 +87,13 @@ impl Client {
     /// Performs a `GET` request, encoding `params` as the query string.
     ///
     /// Intended for endpoints without a generated helper.
-    pub async fn get<R: DeserializeOwned, Q: FormEncode + ?Sized>(&self, path: &str, query: &Q) -> Result<R, Error> {
+    pub async fn get<R: DecodeOwned, Q: FormEncode + ?Sized>(&self, path: &str, query: &Q) -> Result<R, Error> {
         self.get_with_options(path, query, &crate::RequestOptions::default())
             .await
     }
 
     /// Like [`Client::get`], with per-request [`RequestOptions`](crate::RequestOptions).
-    pub async fn get_with_options<R: DeserializeOwned, Q: FormEncode + ?Sized>(
+    pub async fn get_with_options<R: DecodeOwned, Q: FormEncode + ?Sized>(
         &self,
         path: &str,
         query: &Q,
@@ -108,17 +108,13 @@ impl Client {
     }
 
     /// Performs a `POST` request with a form-encoded body (v1 API).
-    pub async fn post_form<R: DeserializeOwned, B: FormEncode + ?Sized>(
-        &self,
-        path: &str,
-        body: &B,
-    ) -> Result<R, Error> {
+    pub async fn post_form<R: DecodeOwned, B: FormEncode + ?Sized>(&self, path: &str, body: &B) -> Result<R, Error> {
         self.post_form_with_options(path, body, &crate::RequestOptions::default())
             .await
     }
 
     /// Like [`Client::post_form`], with per-request [`RequestOptions`](crate::RequestOptions).
-    pub async fn post_form_with_options<R: DeserializeOwned, B: FormEncode + ?Sized>(
+    pub async fn post_form_with_options<R: DecodeOwned, B: FormEncode + ?Sized>(
         &self,
         path: &str,
         body: &B,
@@ -139,17 +135,13 @@ impl Client {
     }
 
     /// Performs a `DELETE` request with a form-encoded body (v1 API).
-    pub async fn delete_form<R: DeserializeOwned, B: FormEncode + ?Sized>(
-        &self,
-        path: &str,
-        body: &B,
-    ) -> Result<R, Error> {
+    pub async fn delete_form<R: DecodeOwned, B: FormEncode + ?Sized>(&self, path: &str, body: &B) -> Result<R, Error> {
         self.delete_form_with_options(path, body, &crate::RequestOptions::default())
             .await
     }
 
     /// Like [`Client::delete_form`], with per-request [`RequestOptions`](crate::RequestOptions).
-    pub async fn delete_form_with_options<R: DeserializeOwned, B: FormEncode + ?Sized>(
+    pub async fn delete_form_with_options<R: DecodeOwned, B: FormEncode + ?Sized>(
         &self,
         path: &str,
         body: &B,
@@ -170,12 +162,12 @@ impl Client {
     }
 
     /// Performs a `DELETE` request without a body (v1 API).
-    pub async fn delete<R: DeserializeOwned>(&self, path: &str) -> Result<R, Error> {
+    pub async fn delete<R: DecodeOwned>(&self, path: &str) -> Result<R, Error> {
         self.delete_with_options(path, &crate::RequestOptions::default()).await
     }
 
     /// Like [`Client::delete`], with per-request [`RequestOptions`](crate::RequestOptions).
-    pub async fn delete_with_options<R: DeserializeOwned>(
+    pub async fn delete_with_options<R: DecodeOwned>(
         &self,
         path: &str,
         options: &crate::RequestOptions,
@@ -187,26 +179,19 @@ impl Client {
     }
 
     /// Performs a `POST` request with a JSON body (v2 API).
-    pub async fn post_json<R: DeserializeOwned, B: Serialize + ?Sized>(
-        &self,
-        path: &str,
-        body: &B,
-    ) -> Result<R, Error> {
+    pub async fn post_json<R: DecodeOwned, B: Encode + ?Sized>(&self, path: &str, body: &B) -> Result<R, Error> {
         self.post_json_with_options(path, body, &crate::RequestOptions::default())
             .await
     }
 
     /// Like [`Client::post_json`], with per-request [`RequestOptions`](crate::RequestOptions).
-    pub async fn post_json_with_options<R: DeserializeOwned, B: Serialize + ?Sized>(
+    pub async fn post_json_with_options<R: DecodeOwned, B: Encode + ?Sized>(
         &self,
         path: &str,
         body: &B,
         options: &crate::RequestOptions,
     ) -> Result<R, Error> {
-        let encoded = Bytes::from(
-            serde_json::to_vec(body)
-                .map_err(|err| Error::InvalidRequest(format!("failed to encode JSON body: {err}")))?,
-        );
+        let encoded = Bytes::from(json::to_vec(body));
         let url = self.build_url(path, "");
         self.execute(HttpMethod::Post, url, Some("application/json"), encoded, options)
             .await?
@@ -214,26 +199,19 @@ impl Client {
     }
 
     /// Performs a `DELETE` request with a JSON body (v2 API).
-    pub async fn delete_json<R: DeserializeOwned, B: Serialize + ?Sized>(
-        &self,
-        path: &str,
-        body: &B,
-    ) -> Result<R, Error> {
+    pub async fn delete_json<R: DecodeOwned, B: Encode + ?Sized>(&self, path: &str, body: &B) -> Result<R, Error> {
         self.delete_json_with_options(path, body, &crate::RequestOptions::default())
             .await
     }
 
     /// Like [`Client::delete_json`], with per-request [`RequestOptions`](crate::RequestOptions).
-    pub async fn delete_json_with_options<R: DeserializeOwned, B: Serialize + ?Sized>(
+    pub async fn delete_json_with_options<R: DecodeOwned, B: Encode + ?Sized>(
         &self,
         path: &str,
         body: &B,
         options: &crate::RequestOptions,
     ) -> Result<R, Error> {
-        let encoded = Bytes::from(
-            serde_json::to_vec(body)
-                .map_err(|err| Error::InvalidRequest(format!("failed to encode JSON body: {err}")))?,
-        );
+        let encoded = Bytes::from(json::to_vec(body));
         let url = self.build_url(path, "");
         self.execute(HttpMethod::Delete, url, Some("application/json"), encoded, options)
             .await?
@@ -411,10 +389,10 @@ pub(crate) struct RawResponse {
 impl RawResponse {
     /// Decodes the body into the expected type.
     ///
-    /// This is the only generic step: a thin call into `serde_json`,
+    /// This is the only generic step: a thin call into `json`,
     /// instantiated per response type instead of the whole pipeline.
-    pub(crate) fn decode<R: DeserializeOwned>(self) -> Result<R, Error> {
-        serde_json::from_slice(&self.body).map_err(|source| Error::Decode {
+    pub(crate) fn decode<R: DecodeOwned>(self) -> Result<R, Error> {
+        R::decode_owned(&self.body).map_err(|source| Error::Decode {
             status: self.status,
             request_id: self.request_id,
             source,
@@ -454,7 +432,7 @@ async fn read_body(mut stream: ByteStream, limit: usize) -> Result<Vec<u8>, Erro
 }
 
 fn parse_error_body(body: &[u8]) -> ApiErrorBody {
-    serde_json::from_slice::<ErrorEnvelope>(body)
+    json::from_slice_owned::<ErrorEnvelope>(body)
         .map(|envelope| envelope.error)
         .unwrap_or_default()
 }

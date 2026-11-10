@@ -111,40 +111,22 @@ impl CreateShippingRateParamsDeliveryEstimateMaximumUnit {
 }
 
 #[cfg(feature = "shipping_rates")]
-impl<'de> serde::Deserialize<'de> for CreateShippingRateParamsDeliveryEstimateMaximumUnit {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateShippingRateParamsDeliveryEstimateMaximumUnit;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "business_day" => CreateShippingRateParamsDeliveryEstimateMaximumUnit::BusinessDay,
-                    "day" => CreateShippingRateParamsDeliveryEstimateMaximumUnit::Day,
-                    "hour" => CreateShippingRateParamsDeliveryEstimateMaximumUnit::Hour,
-                    "month" => CreateShippingRateParamsDeliveryEstimateMaximumUnit::Month,
-                    "week" => CreateShippingRateParamsDeliveryEstimateMaximumUnit::Week,
-                    other => CreateShippingRateParamsDeliveryEstimateMaximumUnit::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateShippingRateParamsDeliveryEstimateMaximumUnit::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateShippingRateParamsDeliveryEstimateMaximumUnit {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateShippingRateParamsDeliveryEstimateMaximumUnit::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "business_day" => CreateShippingRateParamsDeliveryEstimateMaximumUnit::BusinessDay,
+            "day" => CreateShippingRateParamsDeliveryEstimateMaximumUnit::Day,
+            "hour" => CreateShippingRateParamsDeliveryEstimateMaximumUnit::Hour,
+            "month" => CreateShippingRateParamsDeliveryEstimateMaximumUnit::Month,
+            "week" => CreateShippingRateParamsDeliveryEstimateMaximumUnit::Week,
+            other => CreateShippingRateParamsDeliveryEstimateMaximumUnit::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -246,42 +228,22 @@ impl CreateShippingRateParamsFixedAmountCurrencyOptionsValueTaxBehavior {
 }
 
 #[cfg(feature = "shipping_rates")]
-impl<'de> serde::Deserialize<'de> for CreateShippingRateParamsFixedAmountCurrencyOptionsValueTaxBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateShippingRateParamsFixedAmountCurrencyOptionsValueTaxBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exclusive" => CreateShippingRateParamsFixedAmountCurrencyOptionsValueTaxBehavior::Exclusive,
-                    "inclusive" => CreateShippingRateParamsFixedAmountCurrencyOptionsValueTaxBehavior::Inclusive,
-                    "unspecified" => CreateShippingRateParamsFixedAmountCurrencyOptionsValueTaxBehavior::Unspecified,
-                    other => {
-                        CreateShippingRateParamsFixedAmountCurrencyOptionsValueTaxBehavior::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateShippingRateParamsFixedAmountCurrencyOptionsValueTaxBehavior::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateShippingRateParamsFixedAmountCurrencyOptionsValueTaxBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateShippingRateParamsFixedAmountCurrencyOptionsValueTaxBehavior::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exclusive" => CreateShippingRateParamsFixedAmountCurrencyOptionsValueTaxBehavior::Exclusive,
+            "inclusive" => CreateShippingRateParamsFixedAmountCurrencyOptionsValueTaxBehavior::Inclusive,
+            "unspecified" => CreateShippingRateParamsFixedAmountCurrencyOptionsValueTaxBehavior::Unspecified,
+            other => CreateShippingRateParamsFixedAmountCurrencyOptionsValueTaxBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -316,36 +278,18 @@ impl CreateShippingRateParamsType {
 }
 
 #[cfg(feature = "shipping_rates")]
-impl<'de> serde::Deserialize<'de> for CreateShippingRateParamsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateShippingRateParamsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "fixed_amount" => CreateShippingRateParamsType::FixedAmount,
-                    other => CreateShippingRateParamsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateShippingRateParamsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateShippingRateParamsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateShippingRateParamsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "fixed_amount" => CreateShippingRateParamsType::FixedAmount,
+            other => CreateShippingRateParamsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -467,42 +411,43 @@ impl crate::params::FormEncode for ListShippingRatesParamsCreated {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ShippingRate {
     #[doc = "Whether the shipping rate can be used for new purchases."]
-    #[serde(default)]
+    #[json(default)]
     pub active: bool,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "The estimated range for how long shipping will take, meant to be displayable to the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub delivery_estimate: Option<crate::shipping_rates::ShippingRateDeliveryEstimate>,
     #[doc = "The name of the shipping rate, meant to be displayable to the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub display_name: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fixed_amount: Option<crate::shipping_rates::ShippingRateFixedAmount>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::shipping_rates::ShippingRateObject,
     #[doc = "Specifies whether the rate is considered inclusive of taxes or exclusive of taxes."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_behavior: Option<crate::shipping_rates::ShippingRateTaxBehavior>,
     #[doc = "A [tax code](https://docs.stripe.com/tax/tax-categories) ID."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_code: Option<crate::Expandable<crate::tax_codes::TaxCode>>,
     #[doc = "The type of calculation to use on the shipping rate."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::shipping_rates::ShippingRateType,
 }
 
@@ -604,13 +549,14 @@ impl crate::PagedItem for ShippingRate {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ShippingRateCurrencyOption {
     #[doc = "A non-negative integer in cents representing how much to charge."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Specifies whether the rate is considered inclusive of taxes or exclusive of taxes."]
-    #[serde(default)]
+    #[json(default)]
     pub tax_behavior: crate::shipping_rates::ShippingRateTaxBehavior,
 }
 
@@ -660,13 +606,14 @@ pub struct ShippingRateCurrencyOption {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ShippingRateDeliveryEstimate {
     #[doc = "The upper bound of the estimated range."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub maximum: Option<crate::shipping_rates::ShippingRateDeliveryEstimateBound>,
     #[doc = "The lower bound of the estimated range."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub minimum: Option<crate::shipping_rates::ShippingRateDeliveryEstimateBound>,
 }
 
@@ -716,13 +663,14 @@ pub struct ShippingRateDeliveryEstimate {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ShippingRateDeliveryEstimateBound {
     #[doc = "A unit of time."]
-    #[serde(default)]
+    #[json(default)]
     pub unit: crate::shipping_rates::ShippingRateDeliveryEstimateBoundUnit,
     #[doc = "Must be greater than 0."]
-    #[serde(default)]
+    #[json(default)]
     pub value: i64,
 }
 
@@ -941,40 +889,22 @@ impl Default for ShippingRateDeliveryEstimateBoundUnit {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ShippingRateDeliveryEstimateBoundUnit {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ShippingRateDeliveryEstimateBoundUnit;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "business_day" => ShippingRateDeliveryEstimateBoundUnit::BusinessDay,
-                    "day" => ShippingRateDeliveryEstimateBoundUnit::Day,
-                    "hour" => ShippingRateDeliveryEstimateBoundUnit::Hour,
-                    "month" => ShippingRateDeliveryEstimateBoundUnit::Month,
-                    "week" => ShippingRateDeliveryEstimateBoundUnit::Week,
-                    other => ShippingRateDeliveryEstimateBoundUnit::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ShippingRateDeliveryEstimateBoundUnit::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ShippingRateDeliveryEstimateBoundUnit {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ShippingRateDeliveryEstimateBoundUnit::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "business_day" => ShippingRateDeliveryEstimateBoundUnit::BusinessDay,
+            "day" => ShippingRateDeliveryEstimateBoundUnit::Day,
+            "hour" => ShippingRateDeliveryEstimateBoundUnit::Hour,
+            "month" => ShippingRateDeliveryEstimateBoundUnit::Month,
+            "week" => ShippingRateDeliveryEstimateBoundUnit::Week,
+            other => ShippingRateDeliveryEstimateBoundUnit::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1024,16 +954,17 @@ impl<'de> serde::Deserialize<'de> for ShippingRateDeliveryEstimateBoundUnit {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ShippingRateFixedAmount {
     #[doc = "A non-negative integer in cents representing how much to charge."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "Shipping rates defined in each available currency option."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub currency_options: Option<std::collections::HashMap<String, crate::shipping_rates::ShippingRateCurrencyOption>>,
 }
 
@@ -1244,36 +1175,18 @@ impl Default for ShippingRateObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ShippingRateObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ShippingRateObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "shipping_rate" => ShippingRateObject::ShippingRate,
-                    other => ShippingRateObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ShippingRateObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ShippingRateObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ShippingRateObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "shipping_rate" => ShippingRateObject::ShippingRate,
+            other => ShippingRateObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1488,38 +1401,20 @@ impl Default for ShippingRateTaxBehavior {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ShippingRateTaxBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ShippingRateTaxBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exclusive" => ShippingRateTaxBehavior::Exclusive,
-                    "inclusive" => ShippingRateTaxBehavior::Inclusive,
-                    "unspecified" => ShippingRateTaxBehavior::Unspecified,
-                    other => ShippingRateTaxBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ShippingRateTaxBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ShippingRateTaxBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ShippingRateTaxBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exclusive" => ShippingRateTaxBehavior::Exclusive,
+            "inclusive" => ShippingRateTaxBehavior::Inclusive,
+            "unspecified" => ShippingRateTaxBehavior::Unspecified,
+            other => ShippingRateTaxBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1730,36 +1625,18 @@ impl Default for ShippingRateType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ShippingRateType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ShippingRateType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "fixed_amount" => ShippingRateType::FixedAmount,
-                    other => ShippingRateType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ShippingRateType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ShippingRateType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ShippingRateType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "fixed_amount" => ShippingRateType::FixedAmount,
+            other => ShippingRateType::Unknown(other.to_string()),
+        })
     }
 }
 

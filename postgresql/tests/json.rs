@@ -11,7 +11,7 @@ use postgresql::{
     types::{INT4OID, JSONBOID, JSONOID},
 };
 
-#[derive(serde::Serialize, serde::Deserialize, Json, Debug, PartialEq)]
+#[derive(json::Encode, json::Decode, Json, Debug, PartialEq)]
 struct User {
     name: String,
     admin: bool,
@@ -74,7 +74,7 @@ fn derive_declares_a_single_jsonb_column() {
 }
 
 #[test]
-fn wrapper_roundtrips_any_serde_type() {
+fn wrapper_roundtrips_any_json_type() {
     let mut attributes = HashMap::new();
     attributes.insert("score".to_string(), 42i32);
 
@@ -89,13 +89,13 @@ fn wrapper_roundtrips_any_serde_type() {
     assert_eq!(shape[0].type_oid, JSONBOID);
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Json, Debug, PartialEq)]
+#[derive(json::Encode, json::Decode, Json, Debug, PartialEq)]
 enum Level {
     Low,
     High(u8),
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Json, Debug, PartialEq)]
+#[derive(json::Encode, json::Decode, Json, Debug, PartialEq)]
 struct Wrapper<T> {
     value: T,
 }

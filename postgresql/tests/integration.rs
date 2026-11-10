@@ -250,13 +250,13 @@ async fn rich_types() {
     let id = uuid::Uuid::new_v4();
     let now = time::DateTime::now();
 
-    let (got_id, got_text, got_json, got_net): (uuid::Uuid, String, serde_json::Value, ipnetwork::IpNetwork) =
+    let (got_id, got_text, got_json, got_net): (uuid::Uuid, String, json::Value<'static>, ipnetwork::IpNetwork) =
         query_as!(
-            (uuid::Uuid, String, serde_json::Value, ipnetwork::IpNetwork),
+            (uuid::Uuid, String, json::Value<'static>, ipnetwork::IpNetwork),
             "SELECT $1::uuid, $2::text, $3::jsonb, $4::inet",
             id,
             "hello",
-            serde_json::json!({"a": 1}),
+            json::json!({"a": 1}),
             "10.0.0.0/8".parse::<ipnetwork::IpNetwork>().unwrap()
         )
         .fetch_one(&conn)
@@ -265,7 +265,7 @@ async fn rich_types() {
 
     assert_eq!(got_id, id);
     assert_eq!(got_text, "hello");
-    assert_eq!(got_json, serde_json::json!({"a": 1}));
+    assert_eq!(got_json, json::json!({"a": 1}));
     assert_eq!(got_net.prefix(), 8);
 
     let back: time::DateTime = query_as!(time::DateTime, "SELECT $1::timestamptz", now)
@@ -1198,7 +1198,7 @@ async fn json_struct_roundtrip() {
     let conn = connect_or_skip!();
     let table = unique("pg_json");
 
-    #[derive(serde::Serialize, serde::Deserialize, postgresql::Json, Debug, Clone, PartialEq)]
+    #[derive(json::Encode, json::Decode, postgresql::Json, Debug, Clone, PartialEq)]
     struct Address {
         city: String,
         zip: String,

@@ -9,67 +9,69 @@
 #![allow(non_camel_case_types)]
 
 #[cfg(any(feature = "apps", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AppServiceResourceInstallContentSecurityPolicy {
     #[doc = "The URLs that the app can make network requests to."]
-    #[serde(default)]
+    #[json(default)]
     pub connect_src: Vec<String>,
     #[doc = "The URLs that the app can load images from."]
-    #[serde(default)]
+    #[json(default)]
     pub image_src: Vec<String>,
 }
 
 #[cfg(any(feature = "apps", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AppsInstall {
     #[doc = "The ID of the account that the app install belongs to."]
-    #[serde(default)]
+    #[json(default)]
     pub account: String,
     #[doc = "The ID of the app installed."]
-    #[serde(default)]
+    #[json(default)]
     pub app: String,
     #[doc = "Whether the installer must authorize pending permissions, content security policy entries, or endpoints."]
-    #[serde(default)]
+    #[json(default)]
     pub approval_required: bool,
     #[doc = "The authorization code for an oauth app install."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub auth_code: Option<String>,
     #[doc = "The distribution channel associated with the app install."]
-    #[serde(default)]
+    #[json(default)]
     pub channel: crate::apps::AppsInstallChannel,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub content_security_policy_granted: Option<crate::apps::AppServiceResourceInstallContentSecurityPolicy>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub content_security_policy_pending: Option<crate::apps::AppServiceResourceInstallContentSecurityPolicy>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "The ID of the embedding platform that created the install, if applicable."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub created_by: Option<String>,
     #[doc = "The endpoint URLs authorized by the installer."]
-    #[serde(default)]
+    #[json(default)]
     pub endpoints_granted: Vec<String>,
     #[doc = "The endpoint URLs requested by the latest app version that the installer has not authorized."]
-    #[serde(default)]
+    #[json(default)]
     pub endpoints_pending: Vec<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::apps::AppsInstallObject,
     #[doc = "The permissions authorized by the installer."]
-    #[serde(default)]
+    #[json(default)]
     pub permissions_granted: Vec<String>,
     #[doc = "The permissions requested by the latest app version that the installer has not authorized."]
-    #[serde(default)]
+    #[json(default)]
     pub permissions_pending: Vec<String>,
     #[doc = "The status of the app install."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::apps::AppsInstallStatus,
 }
 
@@ -115,40 +117,22 @@ impl Default for AppsInstallChannel {
 }
 
 #[cfg(any(feature = "apps", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for AppsInstallChannel {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AppsInstallChannel;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "private_live" => AppsInstallChannel::PrivateLive,
-                    "private_test" => AppsInstallChannel::PrivateTest,
-                    "public" => AppsInstallChannel::Public,
-                    "review" => AppsInstallChannel::Review,
-                    "testing" => AppsInstallChannel::Testing,
-                    other => AppsInstallChannel::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AppsInstallChannel::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AppsInstallChannel {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AppsInstallChannel::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "private_live" => AppsInstallChannel::PrivateLive,
+            "private_test" => AppsInstallChannel::PrivateTest,
+            "public" => AppsInstallChannel::Public,
+            "review" => AppsInstallChannel::Review,
+            "testing" => AppsInstallChannel::Testing,
+            other => AppsInstallChannel::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -179,36 +163,18 @@ impl Default for AppsInstallObject {
 }
 
 #[cfg(any(feature = "apps", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for AppsInstallObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AppsInstallObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "apps.install" => AppsInstallObject::AppsInstall,
-                    other => AppsInstallObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AppsInstallObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AppsInstallObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AppsInstallObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "apps.install" => AppsInstallObject::AppsInstall,
+            other => AppsInstallObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -247,71 +213,54 @@ impl Default for AppsInstallStatus {
 }
 
 #[cfg(any(feature = "apps", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for AppsInstallStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AppsInstallStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "install_failed" => AppsInstallStatus::InstallFailed,
-                    "installed" => AppsInstallStatus::Installed,
-                    "installing" => AppsInstallStatus::Installing,
-                    "uninstall_failed" => AppsInstallStatus::UninstallFailed,
-                    "uninstalling" => AppsInstallStatus::Uninstalling,
-                    other => AppsInstallStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AppsInstallStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AppsInstallStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AppsInstallStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "install_failed" => AppsInstallStatus::InstallFailed,
+            "installed" => AppsInstallStatus::Installed,
+            "installing" => AppsInstallStatus::Installing,
+            "uninstall_failed" => AppsInstallStatus::UninstallFailed,
+            "uninstalling" => AppsInstallStatus::Uninstalling,
+            other => AppsInstallStatus::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "apps")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AppsSecret {
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "If true, indicates that this secret has been deleted"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub deleted: Option<bool>,
     #[doc = "The Unix timestamp for the expiry time of the secret, after which the secret deletes."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<i64>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "A name for the secret that's unique within the scope."]
-    #[serde(default)]
+    #[json(default)]
     pub name: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::apps::AppsSecretObject,
     #[doc = "The plaintext secret value to be stored."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payload: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub scope: Option<crate::apps::SecretServiceResourceScope>,
 }
 
@@ -349,36 +298,18 @@ impl Default for AppsSecretObject {
 }
 
 #[cfg(feature = "apps")]
-impl<'de> serde::Deserialize<'de> for AppsSecretObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AppsSecretObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "apps.secret" => AppsSecretObject::AppsSecret,
-                    other => AppsSecretObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AppsSecretObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AppsSecretObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AppsSecretObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "apps.secret" => AppsSecretObject::AppsSecret,
+            other => AppsSecretObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -618,39 +549,21 @@ impl ListAppInstallsParamsChannel {
 }
 
 #[cfg(feature = "apps")]
-impl<'de> serde::Deserialize<'de> for ListAppInstallsParamsChannel {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListAppInstallsParamsChannel;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "private_live" => ListAppInstallsParamsChannel::PrivateLive,
-                    "private_test" => ListAppInstallsParamsChannel::PrivateTest,
-                    "public" => ListAppInstallsParamsChannel::Public,
-                    "testing" => ListAppInstallsParamsChannel::Testing,
-                    other => ListAppInstallsParamsChannel::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListAppInstallsParamsChannel::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListAppInstallsParamsChannel {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListAppInstallsParamsChannel::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "private_live" => ListAppInstallsParamsChannel::PrivateLive,
+            "private_test" => ListAppInstallsParamsChannel::PrivateTest,
+            "public" => ListAppInstallsParamsChannel::Public,
+            "testing" => ListAppInstallsParamsChannel::Testing,
+            other => ListAppInstallsParamsChannel::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -712,40 +625,22 @@ impl ListAppInstallsParamsStatus {
 }
 
 #[cfg(feature = "apps")]
-impl<'de> serde::Deserialize<'de> for ListAppInstallsParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListAppInstallsParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "install_failed" => ListAppInstallsParamsStatus::InstallFailed,
-                    "installed" => ListAppInstallsParamsStatus::Installed,
-                    "installing" => ListAppInstallsParamsStatus::Installing,
-                    "uninstall_failed" => ListAppInstallsParamsStatus::UninstallFailed,
-                    "uninstalling" => ListAppInstallsParamsStatus::Uninstalling,
-                    other => ListAppInstallsParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListAppInstallsParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListAppInstallsParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListAppInstallsParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "install_failed" => ListAppInstallsParamsStatus::InstallFailed,
+            "installed" => ListAppInstallsParamsStatus::Installed,
+            "installing" => ListAppInstallsParamsStatus::Installing,
+            "uninstall_failed" => ListAppInstallsParamsStatus::UninstallFailed,
+            "uninstalling" => ListAppInstallsParamsStatus::Uninstalling,
+            other => ListAppInstallsParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -818,37 +713,19 @@ impl ListAppSecretsParamsScopeType {
 }
 
 #[cfg(feature = "apps")]
-impl<'de> serde::Deserialize<'de> for ListAppSecretsParamsScopeType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListAppSecretsParamsScopeType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account" => ListAppSecretsParamsScopeType::Account,
-                    "user" => ListAppSecretsParamsScopeType::User,
-                    other => ListAppSecretsParamsScopeType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListAppSecretsParamsScopeType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListAppSecretsParamsScopeType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListAppSecretsParamsScopeType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account" => ListAppSecretsParamsScopeType::Account,
+            "user" => ListAppSecretsParamsScopeType::User,
+            other => ListAppSecretsParamsScopeType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -860,13 +737,14 @@ impl crate::params::FormEncode for ListAppSecretsParamsScopeType {
 }
 
 #[cfg(feature = "apps")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SecretServiceResourceScope {
     #[doc = "The secret scope type."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::apps::SecretServiceResourceScopeType,
     #[doc = "The user ID, if type is set to 'user'"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub user: Option<String>,
 }
 
@@ -899,37 +777,19 @@ impl Default for SecretServiceResourceScopeType {
 }
 
 #[cfg(feature = "apps")]
-impl<'de> serde::Deserialize<'de> for SecretServiceResourceScopeType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = SecretServiceResourceScopeType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account" => SecretServiceResourceScopeType::Account,
-                    "user" => SecretServiceResourceScopeType::User,
-                    other => SecretServiceResourceScopeType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(SecretServiceResourceScopeType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for SecretServiceResourceScopeType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(SecretServiceResourceScopeType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account" => SecretServiceResourceScopeType::Account,
+            "user" => SecretServiceResourceScopeType::User,
+            other => SecretServiceResourceScopeType::Unknown(other.to_string()),
+        })
     }
 }
 

@@ -53,25 +53,26 @@ impl crate::params::FormEncode for DeleteEphemeralKeyParams {
 }
 
 #[cfg(feature = "ephemeral_keys")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct EphemeralKey {
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Time at which the key will expire."]
-    #[serde(default)]
+    #[json(default)]
     pub expires: i64,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::ephemeral_keys::EphemeralKeyObject,
     #[doc = "The key's secret."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub secret: Option<String>,
 }
 
@@ -109,36 +110,18 @@ impl Default for EphemeralKeyObject {
 }
 
 #[cfg(feature = "ephemeral_keys")]
-impl<'de> serde::Deserialize<'de> for EphemeralKeyObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = EphemeralKeyObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ephemeral_key" => EphemeralKeyObject::EphemeralKey,
-                    other => EphemeralKeyObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(EphemeralKeyObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for EphemeralKeyObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(EphemeralKeyObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ephemeral_key" => EphemeralKeyObject::EphemeralKey,
+            other => EphemeralKeyObject::Unknown(other.to_string()),
+        })
     }
 }
 

@@ -9,19 +9,21 @@
 #![allow(non_camel_case_types)]
 
 #[cfg(feature = "v2_billing")]
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, json::Encode)]
+#[json(deny_duplicate_fields)]
 pub struct CreateBillingMeterEventAdjustmentParams {
     #[doc = "Specifies which event to cancel."]
     pub cancel: crate::v2_billing::CreateBillingMeterEventAdjustmentParamsCancel,
     #[doc = "The name of the meter event."]
     pub event_name: String,
     #[doc = "Specifies the type of cancellation."]
-    #[serde(rename = "type")]
+    #[json(rename = "type")]
     pub r#type: crate::v2_billing::CreateBillingMeterEventAdjustmentParamsType,
 }
 
 #[cfg(feature = "v2_billing")]
-#[derive(Debug, Clone, serde::Serialize, Default)]
+#[derive(Debug, Clone, json::Encode, Default)]
+#[json(deny_duplicate_fields)]
 pub struct CreateBillingMeterEventAdjustmentParamsCancel {
     #[doc = "The identifier that was originally assigned to the meter event."]
     pub identifier: String,
@@ -47,46 +49,25 @@ impl CreateBillingMeterEventAdjustmentParamsType {
 }
 
 #[cfg(feature = "v2_billing")]
-impl serde::Serialize for CreateBillingMeterEventAdjustmentParamsType {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(self.as_str())
+impl json::Encode for CreateBillingMeterEventAdjustmentParamsType {
+    fn encode<W: json::Write>(&self, encoder: &mut json::Encoder<W>) -> Result<(), W::Error> {
+        encoder.string(self.as_str())
     }
 }
 
 #[cfg(feature = "v2_billing")]
-impl<'de> serde::Deserialize<'de> for CreateBillingMeterEventAdjustmentParamsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateBillingMeterEventAdjustmentParamsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cancel" => CreateBillingMeterEventAdjustmentParamsType::Cancel,
-                    other => CreateBillingMeterEventAdjustmentParamsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateBillingMeterEventAdjustmentParamsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateBillingMeterEventAdjustmentParamsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateBillingMeterEventAdjustmentParamsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cancel" => CreateBillingMeterEventAdjustmentParamsType::Cancel,
+            other => CreateBillingMeterEventAdjustmentParamsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -94,83 +75,88 @@ impl<'de> serde::Deserialize<'de> for CreateBillingMeterEventAdjustmentParamsTyp
 pub type CreateBillingMeterEventParams = crate::v2_billing::MeterEventStreamParamsEventsItem;
 
 #[cfg(feature = "v2_billing")]
-#[derive(Debug, Clone, serde::Serialize, Default)]
+#[derive(Debug, Clone, json::Encode, Default)]
+#[json(deny_duplicate_fields)]
 pub struct MeterEventStreamParams {
     #[doc = "List of meter events to include in the request."]
     pub events: Vec<crate::v2_billing::MeterEventStreamParamsEventsItem>,
 }
 
 #[cfg(feature = "v2_billing")]
-#[derive(Debug, Clone, serde::Serialize, Default)]
+#[derive(Debug, Clone, json::Encode, Default)]
+#[json(deny_duplicate_fields)]
 pub struct MeterEventStreamParamsEventsItem {
     #[doc = "The name of the meter event."]
     pub event_name: String,
     #[doc = "A unique identifier for the event."]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[json(skip_serializing_if = "Option::is_none")]
     pub identifier: Option<String>,
     #[doc = "The payload of the event."]
     pub payload: std::collections::HashMap<String, String>,
     #[doc = "The time of the event."]
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[json(skip_serializing_if = "Option::is_none")]
     pub timestamp: Option<String>,
 }
 
 #[cfg(feature = "v2_billing")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct MeterEventStreamResponse {}
 
 #[cfg(feature = "v2_billing")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct V2BillingMeterEvent {
     #[doc = "The creation time of this meter event."]
-    #[serde(default)]
+    #[json(default)]
     pub created: String,
     #[doc = "The name of the meter event."]
-    #[serde(default)]
+    #[json(default)]
     pub event_name: String,
     #[doc = "A unique identifier for the event."]
-    #[serde(default)]
+    #[json(default)]
     pub identifier: String,
     #[doc = "Has the value `true` if the object exists in live mode or the value `false` if the object exists in test mode."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::v2_billing::V2BillingMeterEventObject,
     #[doc = "The payload of the event."]
-    #[serde(default)]
+    #[json(default)]
     pub payload: std::collections::HashMap<String, String>,
     #[doc = "The time of the event."]
-    #[serde(default)]
+    #[json(default)]
     pub timestamp: String,
 }
 
 #[cfg(feature = "v2_billing")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct V2BillingMeterEventAdjustment {
     #[doc = "Specifies which event to cancel."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cancel: Option<crate::v2_billing::V2BillingMeterEventAdjustmentCancel>,
     #[doc = "The time the adjustment was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: String,
     #[doc = "The name of the meter event."]
-    #[serde(default)]
+    #[json(default)]
     pub event_name: String,
     #[doc = "The unique ID of this meter event adjustment."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "Has the value `true` if the object exists in live mode or the value `false` if the object exists in test mode."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::v2_billing::V2BillingMeterEventAdjustmentObject,
     #[doc = "Open Enum."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::v2_billing::V2BillingMeterEventAdjustmentStatus,
     #[doc = "Open Enum."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::v2_billing::V2BillingMeterEventAdjustmentType,
 }
 
@@ -182,10 +168,11 @@ impl crate::PagedItem for V2BillingMeterEventAdjustment {
 }
 
 #[cfg(feature = "v2_billing")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct V2BillingMeterEventAdjustmentCancel {
     #[doc = "The identifier that was originally assigned to the meter event."]
-    #[serde(default)]
+    #[json(default)]
     pub identifier: String,
 }
 
@@ -216,38 +203,18 @@ impl Default for V2BillingMeterEventAdjustmentObject {
 }
 
 #[cfg(feature = "v2_billing")]
-impl<'de> serde::Deserialize<'de> for V2BillingMeterEventAdjustmentObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = V2BillingMeterEventAdjustmentObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "v2.billing.meter_event_adjustment" => {
-                        V2BillingMeterEventAdjustmentObject::V2BillingMeterEventAdjustment
-                    }
-                    other => V2BillingMeterEventAdjustmentObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(V2BillingMeterEventAdjustmentObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for V2BillingMeterEventAdjustmentObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(V2BillingMeterEventAdjustmentObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "v2.billing.meter_event_adjustment" => V2BillingMeterEventAdjustmentObject::V2BillingMeterEventAdjustment,
+            other => V2BillingMeterEventAdjustmentObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -280,37 +247,19 @@ impl Default for V2BillingMeterEventAdjustmentStatus {
 }
 
 #[cfg(feature = "v2_billing")]
-impl<'de> serde::Deserialize<'de> for V2BillingMeterEventAdjustmentStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = V2BillingMeterEventAdjustmentStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "complete" => V2BillingMeterEventAdjustmentStatus::Complete,
-                    "pending" => V2BillingMeterEventAdjustmentStatus::Pending,
-                    other => V2BillingMeterEventAdjustmentStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(V2BillingMeterEventAdjustmentStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for V2BillingMeterEventAdjustmentStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(V2BillingMeterEventAdjustmentStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "complete" => V2BillingMeterEventAdjustmentStatus::Complete,
+            "pending" => V2BillingMeterEventAdjustmentStatus::Pending,
+            other => V2BillingMeterEventAdjustmentStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -341,36 +290,18 @@ impl Default for V2BillingMeterEventAdjustmentType {
 }
 
 #[cfg(feature = "v2_billing")]
-impl<'de> serde::Deserialize<'de> for V2BillingMeterEventAdjustmentType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = V2BillingMeterEventAdjustmentType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cancel" => V2BillingMeterEventAdjustmentType::Cancel,
-                    other => V2BillingMeterEventAdjustmentType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(V2BillingMeterEventAdjustmentType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for V2BillingMeterEventAdjustmentType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(V2BillingMeterEventAdjustmentType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cancel" => V2BillingMeterEventAdjustmentType::Cancel,
+            other => V2BillingMeterEventAdjustmentType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -401,59 +332,42 @@ impl Default for V2BillingMeterEventObject {
 }
 
 #[cfg(feature = "v2_billing")]
-impl<'de> serde::Deserialize<'de> for V2BillingMeterEventObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = V2BillingMeterEventObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "v2.billing.meter_event" => V2BillingMeterEventObject::V2BillingMeterEvent,
-                    other => V2BillingMeterEventObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(V2BillingMeterEventObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for V2BillingMeterEventObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(V2BillingMeterEventObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "v2.billing.meter_event" => V2BillingMeterEventObject::V2BillingMeterEvent,
+            other => V2BillingMeterEventObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "v2_billing")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct V2BillingMeterEventSession {
     #[doc = "The authentication token for this session."]
-    #[serde(default)]
+    #[json(default)]
     pub authentication_token: String,
     #[doc = "The creation time of this session."]
-    #[serde(default)]
+    #[json(default)]
     pub created: String,
     #[doc = "The time at which this session expires."]
-    #[serde(default)]
+    #[json(default)]
     pub expires_at: String,
     #[doc = "The unique ID of this auth session."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "Has the value `true` if the object exists in live mode or the value `false` if the object exists in test mode."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::v2_billing::V2BillingMeterEventSessionObject,
 }
 
@@ -491,36 +405,18 @@ impl Default for V2BillingMeterEventSessionObject {
 }
 
 #[cfg(feature = "v2_billing")]
-impl<'de> serde::Deserialize<'de> for V2BillingMeterEventSessionObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = V2BillingMeterEventSessionObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "v2.billing.meter_event_session" => V2BillingMeterEventSessionObject::V2BillingMeterEventSession,
-                    other => V2BillingMeterEventSessionObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(V2BillingMeterEventSessionObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for V2BillingMeterEventSessionObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(V2BillingMeterEventSessionObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "v2.billing.meter_event_session" => V2BillingMeterEventSessionObject::V2BillingMeterEventSession,
+            other => V2BillingMeterEventSessionObject::Unknown(other.to_string()),
+        })
     }
 }
 

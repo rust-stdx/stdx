@@ -9,7 +9,7 @@ workspace = true
 
 [features]
 axum = ["dep:axum", "dep:tokio", "dep:thiserror"]
-json = ["dep:serde_json", "bel/json"]
+json = ["dep:json", "bel/json"]
 time = ["dep:time", "bel/time"]
 anyhow = ["dep:anyerr"]
 regex = ["bel/regex"]
@@ -21,7 +21,7 @@ bel = { path = "..", default-features = false }
 time = { workspace = true, optional = true }
 
 serde = { workspace = true, features = ["derive", "std"] }
-serde_json = { workspace = true, optional = true }
+json = { workspace = true, optional = true }
 
 axum = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true }

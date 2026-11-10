@@ -4,13 +4,13 @@
 mod common;
 
 use common::{Fields, MockClient};
-use serde::Deserialize;
+use json::Decode;
 use stripe::Error;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Decode)]
 struct Charge {
     id: String,
-    #[serde(default)]
+    #[json(default)]
     amount: i64,
 }
 
@@ -28,7 +28,7 @@ async fn deeply_nested_json_is_rejected_not_crashed() {
     mock.push_json(200, &body);
 
     let error = common::test_client(mock)
-        .get::<serde_json::Value, _>("/v1/customers", &Fields::new())
+        .get::<json::OwnedValue, _>("/v1/customers", &Fields::new())
         .await
         .expect_err("must be rejected");
     assert!(matches!(error, Error::Decode { .. }));
@@ -50,7 +50,7 @@ async fn invalid_utf8_is_a_decode_error() {
     let mock = MockClient::new();
     mock.push_response(200, &[], vec![0xff, 0xfe, 0xfd]);
     let error = common::test_client(mock)
-        .get::<serde_json::Value, _>("/v1/customers", &Fields::new())
+        .get::<json::OwnedValue, _>("/v1/customers", &Fields::new())
         .await
         .expect_err("invalid utf8");
     assert!(matches!(error, Error::Decode { .. }));
@@ -84,10 +84,10 @@ async fn duplicate_keys_take_the_last_value() {
     let mock = MockClient::new();
     mock.push_json(200, r#"{"id":"first","id":"second"}"#);
     let value = common::test_client(mock)
-        .get::<serde_json::Value, _>("/v1/charges", &Fields::new())
+        .get::<json::OwnedValue, _>("/v1/charges", &Fields::new())
         .await
         .expect("duplicate keys");
-    assert_eq!(value["id"], "second");
+    assert_eq!(value["id"].as_str(), Some("second"));
 }
 
 #[tokio::test]
@@ -95,7 +95,7 @@ async fn control_characters_in_parameters_are_encoded_not_injected() {
     let mock = MockClient::new();
     mock.push_json(200, "{}");
     common::test_client(mock.clone())
-        .get::<serde_json::Value, _>("/v1/customers", &Fields::new().field("name", "a\r\nX-Injected: yes"))
+        .get::<json::OwnedValue, _>("/v1/customers", &Fields::new().field("name", "a\r\nX-Injected: yes"))
         .await
         .expect("get");
     let url = mock.last_request().url;
@@ -110,7 +110,7 @@ async fn a_multimegabyte_body_is_rejected_quickly() {
     mock.push_response(200, &[], vec![b'a'; 8 * 1024 * 1024]);
     let client = common::test_client(mock).with_max_response_size(1024);
     let error = client
-        .get::<serde_json::Value, _>("/v1/customers", &Fields::new())
+        .get::<json::OwnedValue, _>("/v1/customers", &Fields::new())
         .await
         .expect_err("oversized");
     assert!(matches!(error, Error::ResponseTooLarge { .. }));

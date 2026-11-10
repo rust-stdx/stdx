@@ -40,7 +40,7 @@
 //!     };
 //!
 //!     // 3. Define the claims and sign.
-//!     let claims = serde_json::json!({ "sub": "user123", "exp": 9999999999_u64 });
+//!     let claims = json::json!({ "sub": "user123", "exp": 9999999999_u64 });
 //!     let token = sign(&secret_key, &header, &claims)?;
 //!
 //!     // 4. Extract the public key for verification.
@@ -59,9 +59,9 @@
 //!         iss: None,
 //!         clock: Some(&jwt::SYSTEM_CLOCK),
 //!     };
-//!     let claims: serde_json::Value =
+//!     let claims: json::OwnedValue =
 //!         parse_and_verify(&public_key, &parsed_header, &token, &opts)?;
-//!     assert_eq!(claims["sub"], "user123");
+//!     assert_eq!(claims["sub"].as_str(), Some("user123"));
 //! # }
 //! # Ok::<(), jwt::Error>(())
 //! ```
@@ -90,9 +90,9 @@
 //!     let key = p256::PublicKey::try_from(&jwk)?;
 //!
 //!     let header = Header { typ: TokenType::JWT, alg: Algorithm::ES256, ..Default::default() };
-//!     let token = sign(&secret_key, &header, &serde_json::json!({"exp": 9999999999_u64, "nbf": 0_u64 }))?;
+//!     let token = sign(&secret_key, &header, &json::json!({"exp": 9999999999_u64, "nbf": 0_u64 }))?;
 //!     let parsed_header = parse_header(&token)?;
-//!     let _claims: serde_json::Value = parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default())?;
+//!     let _claims: json::OwnedValue = parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default())?;
 //! # }
 //! # Ok::<(), jwt::Error>(())
 //! ```
@@ -116,9 +116,9 @@
 //!     assert!(matches!(key, Key::Ed25519Public(_)));
 //!
 //!     let header = Header { typ: TokenType::JWT, alg: Algorithm::EdDSA, ..Default::default() };
-//!     let token = sign(&secret_key, &header, &serde_json::json!({"exp": 9999999999_u64, "nbf": 0_u64 }))?;
+//!     let token = sign(&secret_key, &header, &json::json!({"exp": 9999999999_u64, "nbf": 0_u64 }))?;
 //!     let parsed_header = parse_header(&token)?;
-//!     let _claims: serde_json::Value = parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default())?;
+//!     let _claims: json::OwnedValue = parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default())?;
 //! # }
 //! # Ok::<(), jwt::Error>(())
 //! ```
@@ -137,9 +137,9 @@
 //!     assert!(matches!(key, Key::Ed25519Secret(_)));
 //!
 //!     let header = Header { typ: TokenType::JWT, alg: Algorithm::EdDSA, ..Default::default() };
-//!     let token = sign(&key, &header, &serde_json::json!({"exp": 9999999999_u64, "nbf": 0_u64 }))?;
+//!     let token = sign(&key, &header, &json::json!({"exp": 9999999999_u64, "nbf": 0_u64 }))?;
 //!     let parsed_header = parse_header(&token)?;
-//!     let _claims: serde_json::Value = parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default())?;
+//!     let _claims: json::OwnedValue = parse_and_verify(&key, &parsed_header, &token, &VerifyOptions::default())?;
 //! # }
 //! # Ok::<(), jwt::Error>(())
 //! ```
@@ -154,7 +154,7 @@ use alloc::{
 };
 use core::time::Duration;
 
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use json::{DecodeOwned, Encode};
 use small_collections::SmallString;
 
 mod jwk;
@@ -166,7 +166,7 @@ pub use jwt_crypto::*;
 #[cfg(feature = "std")]
 pub static SYSTEM_CLOCK: SystemClock = SystemClock;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, json::Encode, json::Decode)]
 pub struct Header {
     /// The only valid value is "JWT"
     /// https://tools.ietf.org/html/rfc7519#section-5.1
@@ -177,43 +177,43 @@ pub struct Header {
 
     /// Content type
     /// https://tools.ietf.org/html/rfc7519#section-5.2
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[json(skip_serializing_if = "Option::is_none")]
     pub cty: Option<SmallString<3>>,
 
     /// JSON Key URL
     /// https://tools.ietf.org/html/rfc7515#section-4.1.2
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[json(skip_serializing_if = "Option::is_none")]
     pub jku: Option<String>,
 
     /// JSON Web Key
     /// https://tools.ietf.org/html/rfc7515#section-4.1.3
-    // #[serde(skip_serializing_if = "Option::is_none")]
+    // #[json(skip_serializing_if = "Option::is_none")]
     // pub jwk: Option<Jwk>,
 
     /// Key ID
     /// https://tools.ietf.org/html/rfc7515#section-4.1.4
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[json(skip_serializing_if = "Option::is_none")]
     pub kid: Option<SmallString<36>>, // 36 = UUID length
 
     /// X.509 URL
     /// https://tools.ietf.org/html/rfc7515#section-4.1.5
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[json(skip_serializing_if = "Option::is_none")]
     pub x5u: Option<String>,
 
     /// X.509 certificate chain.
     /// https://tools.ietf.org/html/rfc7515#section-4.1.6
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[json(skip_serializing_if = "Option::is_none")]
     pub x5c: Option<Vec<String>>,
 
     /// X.509 SHA1 certificate Thumbprint
     /// https://tools.ietf.org/html/rfc7515#section-4.1.7
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[json(skip_serializing_if = "Option::is_none")]
     pub x5t: Option<SmallString<27>>, // 27 = base64_encoded_length(20)
 
     /// X.509 SHA256 certificate Thumbprint
     /// https://tools.ietf.org/html/rfc7515#section-4.1.8
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "x5t#S256")]
+    #[json(skip_serializing_if = "Option::is_none")]
+    #[json(rename = "x5t#S256")]
     pub x5t_s256: Option<SmallString<43>>, // 43 = base64_encoded_length(32)
 }
 
@@ -234,52 +234,52 @@ impl Default for Header {
 }
 
 /// Registered claim names from https://www.rfc-editor.org/rfc/rfc7519#section-4.1
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, json::Encode, json::Decode, Hash)]
 pub struct RegisteredClaims {
     /// Issuer
     /// https://www.rfc-editor.org/rfc/rfc7519#section-4.1.1
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[json(skip_serializing_if = "Option::is_none")]
     pub iss: Option<SmallString<20>>,
 
     /// Subject
     /// https://www.rfc-editor.org/rfc/rfc7519#section-4.1.2
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[json(skip_serializing_if = "Option::is_none")]
     pub sub: Option<SmallString<36>>, // 36 = UUID length
 
     /// Audience
     /// https://www.rfc-editor.org/rfc/rfc7519#section-4.1.3
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[json(skip_serializing_if = "Option::is_none")]
     pub aud: Option<SmallString<20>>,
 
     /// Expiration Time
     /// https://www.rfc-editor.org/rfc/rfc7519#section-4.1.4
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[json(skip_serializing_if = "Option::is_none")]
     pub exp: Option<u64>,
 
     /// Not Before
     /// https://www.rfc-editor.org/rfc/rfc7519#section-4.1.5
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[json(skip_serializing_if = "Option::is_none")]
     pub nbf: Option<u64>,
 
     /// Issued At
     /// https://www.rfc-editor.org/rfc/rfc7519#section-4.1.6
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[json(skip_serializing_if = "Option::is_none")]
     pub iat: Option<u64>,
 
     /// JWT ID
     /// https://www.rfc-editor.org/rfc/rfc7519#section-4.1.7
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[json(skip_serializing_if = "Option::is_none")]
     pub jti: Option<SmallString<36>>,
 }
 
-#[derive(Debug, Default, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, PartialEq, Eq, Hash, Copy, Clone, json::Encode, json::Decode)]
 pub enum TokenType {
     #[default]
     JWT,
 }
 
 /// The algorithms supported for signing / verifying JWTs
-#[derive(Copy, Debug, PartialEq, Eq, Hash, Clone, Serialize, Deserialize)]
+#[derive(Copy, Debug, PartialEq, Eq, Hash, Clone, json::Encode, json::Decode)]
 pub enum Algorithm {
     /// HMAC using SHA-256
     HS256,
@@ -306,15 +306,15 @@ pub enum Algorithm {
     ES512,
 
     /// ML-DSA-44
-    #[serde(rename = "ML-DSA-44")]
+    #[json(rename = "ML-DSA-44")]
     MlDsa44,
 
     /// ML-DSA-65
-    #[serde(rename = "ML-DSA-65")]
+    #[json(rename = "ML-DSA-65")]
     MlDsa65,
 
     /// ML-DSA-87
-    #[serde(rename = "ML-DSA-87")]
+    #[json(rename = "ML-DSA-87")]
     MlDsa87,
 
     /// RSASSA-PKCS1-v1.5 with SHA-256
@@ -423,7 +423,7 @@ pub enum Error {
     UnknownAlgorithm(String),
     InvalidCurve,
     InvalidTokenType(String),
-    Json(serde_json::Error),
+    Json(json::Error),
     InvalidToken,
     InvalidSignature,
     InvalidKey,
@@ -454,8 +454,8 @@ impl core::fmt::Display for Error {
     }
 }
 
-impl From<serde_json::Error> for Error {
-    fn from(err: serde_json::Error) -> Self {
+impl From<json::Error> for Error {
+    fn from(err: json::Error) -> Self {
         Self::Json(err)
     }
 }
@@ -519,14 +519,14 @@ impl Default for VerifyOptions<'_> {
     }
 }
 
-pub fn sign<C: Serialize>(key: &dyn Signer, header: &Header, claims: &C) -> Result<String, Error> {
+pub fn sign<C: Encode>(key: &dyn Signer, header: &Header, claims: &C) -> Result<String, Error> {
     let signing_algorithm = key.algorithm();
     if signing_algorithm != header.alg {
         return Err(Error::InvalidKey);
     }
 
-    let header_base64 = base64::encode(serde_json::to_string(header)?.as_bytes(), base64::Alphabet::UrlNoPadding);
-    let claims_base64 = base64::encode(serde_json::to_string(claims)?.as_bytes(), base64::Alphabet::UrlNoPadding);
+    let header_base64 = base64::encode(json::to_string(header).as_bytes(), base64::Alphabet::UrlNoPadding);
+    let claims_base64 = base64::encode(json::to_string(claims).as_bytes(), base64::Alphabet::UrlNoPadding);
 
     let mut jwt = String::with_capacity(
         header_base64.len()
@@ -554,12 +554,12 @@ pub fn parse_header(token: &str) -> Result<Header, Error> {
     }
 
     let header_json = base64::decode(header_base64, base64::Alphabet::UrlNoPadding).map_err(|_| Error::InvalidToken)?;
-    let header: Header = serde_json::from_slice(&header_json).map_err(|_| Error::InvalidToken)?;
+    let header: Header = json::from_slice(&header_json).map_err(|_| Error::InvalidToken)?;
 
     return Ok(header);
 }
 
-pub fn parse_and_verify<C: DeserializeOwned>(
+pub fn parse_and_verify<C: DecodeOwned>(
     key: &dyn Verifier,
     header: &Header,
     token: &str,
@@ -597,86 +597,59 @@ pub fn parse_and_verify<C: DeserializeOwned>(
 
     let claims =
         if verify_options.exp || verify_options.nbf || verify_options.aud.is_some() || verify_options.iss.is_some() {
-            let claims_json_value: serde_json::Value =
-                serde_json::from_slice(&claims_json).map_err(|_| Error::InvalidToken)?;
-
-            match &claims_json_value {
-                serde_json::Value::Object(claims_object) => {
-                    if verify_options.exp {
-                        match claims_object.get("exp") {
-                            None => return Err(Error::InvalidToken),
-                            Some(exp_value) => {
-                                if let Some(exp) = exp_value.as_u64() {
-                                    let now = verify_options.clock.unwrap().now();
-                                    // `now` and the drift are both caller-controlled; saturate so
-                                    // a clock before the drift (or before the Unix epoch) cannot
-                                    // underflow into a huge deadline.
-                                    let oldest_valid = now.saturating_sub(verify_options.allowed_time_drift.as_secs());
-                                    if exp < oldest_valid {
-                                        return Err(Error::InvalidToken);
-                                    }
-                                } else {
-                                    return Err(Error::InvalidToken);
-                                }
-                            }
-                        }
-                    }
-
-                    if verify_options.nbf {
-                        match claims_object.get("nbf") {
-                            None => return Err(Error::InvalidToken),
-                            Some(nbf_value) => {
-                                if let Some(nbf) = nbf_value.as_u64() {
-                                    let now = verify_options.clock.unwrap().now();
-                                    // Saturate: a near-`u64::MAX` clock plus a large drift must
-                                    // reject the token, not wrap to a tiny deadline.
-                                    let newest_valid = now.saturating_add(verify_options.allowed_time_drift.as_secs());
-                                    if nbf > newest_valid {
-                                        return Err(Error::InvalidToken);
-                                    }
-                                } else {
-                                    return Err(Error::InvalidToken);
-                                }
-                            }
-                        }
-                    }
-
-                    if let Some(expected_aud) = verify_options.aud {
-                        match claims_object.get("aud") {
-                            None => return Err(Error::InvalidToken),
-                            Some(aud_value) => {
-                                if let Some(aud) = aud_value.as_str() {
-                                    if !expected_aud.contains(&aud) {
-                                        return Err(Error::InvalidToken);
-                                    }
-                                } else {
-                                    return Err(Error::InvalidToken);
-                                }
-                            }
-                        }
-                    }
-
-                    if let Some(expected_iss) = verify_options.iss {
-                        match claims_object.get("iss") {
-                            None => return Err(Error::InvalidToken),
-                            Some(iss_value) => {
-                                if let Some(iss) = iss_value.as_str() {
-                                    if !expected_iss.contains(&iss) {
-                                        return Err(Error::InvalidToken);
-                                    }
-                                } else {
-                                    return Err(Error::InvalidToken);
-                                }
-                            }
-                        }
-                    }
-                }
-                _ => return Err(Error::InvalidToken),
+            let claims_value: json::Value = json::from_slice(&claims_json).map_err(|_| Error::InvalidToken)?;
+            let Some(claims_object) = claims_value.as_object() else {
+                return Err(Error::InvalidToken);
             };
 
-            serde_json::from_value(claims_json_value).map_err(|_| Error::InvalidToken)?
+            if verify_options.exp {
+                let Some(exp) = claims_object.get("exp").and_then(json::Value::as_u64) else {
+                    return Err(Error::InvalidToken);
+                };
+                let now = verify_options.clock.unwrap().now();
+                // `now` and the drift are both caller-controlled; saturate so
+                // a clock before the drift (or before the Unix epoch) cannot
+                // underflow into a huge deadline.
+                let oldest_valid = now.saturating_sub(verify_options.allowed_time_drift.as_secs());
+                if exp < oldest_valid {
+                    return Err(Error::InvalidToken);
+                }
+            }
+
+            if verify_options.nbf {
+                let Some(nbf) = claims_object.get("nbf").and_then(json::Value::as_u64) else {
+                    return Err(Error::InvalidToken);
+                };
+                let now = verify_options.clock.unwrap().now();
+                // Saturate: a near-`u64::MAX` clock plus a large drift must
+                // reject the token, not wrap to a tiny deadline.
+                let newest_valid = now.saturating_add(verify_options.allowed_time_drift.as_secs());
+                if nbf > newest_valid {
+                    return Err(Error::InvalidToken);
+                }
+            }
+
+            if let Some(expected_aud) = verify_options.aud {
+                let Some(aud) = claims_object.get("aud").and_then(json::Value::as_str) else {
+                    return Err(Error::InvalidToken);
+                };
+                if !expected_aud.contains(&aud) {
+                    return Err(Error::InvalidToken);
+                }
+            }
+
+            if let Some(expected_iss) = verify_options.iss {
+                let Some(iss) = claims_object.get("iss").and_then(json::Value::as_str) else {
+                    return Err(Error::InvalidToken);
+                };
+                if !expected_iss.contains(&iss) {
+                    return Err(Error::InvalidToken);
+                }
+            }
+
+            C::decode_owned(&claims_json).map_err(|_| Error::InvalidToken)?
         } else {
-            serde_json::from_slice(&claims_json).map_err(|_| Error::InvalidToken)?
+            C::decode_owned(&claims_json).map_err(|_| Error::InvalidToken)?
         };
 
     return Ok(claims);

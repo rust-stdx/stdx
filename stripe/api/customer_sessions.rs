@@ -148,41 +148,22 @@ impl CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodAllo
 }
 
 #[cfg(feature = "customer_sessions")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodAllowRedisplayFiltersItem
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value =
-                CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodAllowRedisplayFiltersItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodAllowRedisplayFiltersItem::Always,
-                    "limited" => CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodAllowRedisplayFiltersItem::Limited,
-                    "unspecified" => CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodAllowRedisplayFiltersItem::Unspecified,
-                    other => CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodAllowRedisplayFiltersItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodAllowRedisplayFiltersItem::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodAllowRedisplayFiltersItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodAllowRedisplayFiltersItem::Always,
+            "limited" => CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodAllowRedisplayFiltersItem::Limited,
+            "unspecified" => CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodAllowRedisplayFiltersItem::Unspecified,
+            other => CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodAllowRedisplayFiltersItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -217,45 +198,23 @@ impl CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodRemo
 }
 
 #[cfg(feature = "customer_sessions")]
-impl<'de> serde::Deserialize<'de> for CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodRemove {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodRemove;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "disabled" => {
-                        CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodRemove::Disabled
-                    }
-                    "enabled" => CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodRemove::Enabled,
-                    other => CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodRemove::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodRemove::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodRemove {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodRemove::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "disabled" => CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodRemove::Disabled,
+            "enabled" => CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodRemove::Enabled,
+            other => CreateCustomerSessionParamsComponentsCustomerSheetFeaturesPaymentMethodRemove::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -425,51 +384,29 @@ impl CreateCustomerSessionParamsComponentsPaymentElementFeaturesPaymentMethodSav
 }
 
 #[cfg(feature = "customer_sessions")]
-impl<'de> serde::Deserialize<'de>
-    for CreateCustomerSessionParamsComponentsPaymentElementFeaturesPaymentMethodSaveUsage
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCustomerSessionParamsComponentsPaymentElementFeaturesPaymentMethodSaveUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "off_session" => {
-                        CreateCustomerSessionParamsComponentsPaymentElementFeaturesPaymentMethodSaveUsage::OffSession
-                    }
-                    "on_session" => {
-                        CreateCustomerSessionParamsComponentsPaymentElementFeaturesPaymentMethodSaveUsage::OnSession
-                    }
-                    other => {
-                        CreateCustomerSessionParamsComponentsPaymentElementFeaturesPaymentMethodSaveUsage::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreateCustomerSessionParamsComponentsPaymentElementFeaturesPaymentMethodSaveUsage::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreateCustomerSessionParamsComponentsPaymentElementFeaturesPaymentMethodSaveUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreateCustomerSessionParamsComponentsPaymentElementFeaturesPaymentMethodSaveUsage::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "off_session" => {
+                CreateCustomerSessionParamsComponentsPaymentElementFeaturesPaymentMethodSaveUsage::OffSession
+            }
+            "on_session" => {
+                CreateCustomerSessionParamsComponentsPaymentElementFeaturesPaymentMethodSaveUsage::OnSession
+            }
+            other => CreateCustomerSessionParamsComponentsPaymentElementFeaturesPaymentMethodSaveUsage::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -485,30 +422,31 @@ pub type CreateCustomerSessionParamsComponentsPricingTable =
     crate::customer_sessions::CreateCustomerSessionParamsComponentsActiveEntitlements;
 
 #[cfg(feature = "customer_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CustomerSession {
     #[doc = "The client secret of this Customer Session."]
-    #[serde(default)]
+    #[json(default)]
     pub client_secret: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub components: Option<crate::customer_sessions::CustomerSessionResourceComponents>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "The Customer the Customer Session was created for."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<crate::Expandable<crate::customers::Customer>>,
     #[doc = "The Account that the Customer Session was created for."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_account: Option<String>,
     #[doc = "The timestamp at which this Customer Session will expire."]
-    #[serde(default)]
+    #[json(default)]
     pub expires_at: i64,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::customer_sessions::CustomerSessionObject,
 }
 
@@ -539,104 +477,92 @@ impl Default for CustomerSessionObject {
 }
 
 #[cfg(feature = "customer_sessions")]
-impl<'de> serde::Deserialize<'de> for CustomerSessionObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CustomerSessionObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "customer_session" => CustomerSessionObject::CustomerSession,
-                    other => CustomerSessionObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CustomerSessionObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CustomerSessionObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CustomerSessionObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "customer_session" => CustomerSessionObject::CustomerSession,
+            other => CustomerSessionObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "customer_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CustomerSessionResourceComponents {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub active_entitlements:
         Option<crate::customer_sessions::CustomerSessionResourceComponentsResourceActiveEntitlements>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub buy_button: Option<crate::customer_sessions::CustomerSessionResourceComponentsResourceBuyButton>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_portal: Option<crate::customer_sessions::CustomerSessionResourceComponentsResourceCustomerPortal>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_sheet: Option<crate::customer_sessions::CustomerSessionResourceComponentsResourceCustomerSheet>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mobile_payment_element:
         Option<crate::customer_sessions::CustomerSessionResourceComponentsResourceMobilePaymentElement>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_element: Option<crate::customer_sessions::CustomerSessionResourceComponentsResourcePaymentElement>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pricing_table: Option<crate::customer_sessions::CustomerSessionResourceComponentsResourcePricingTable>,
 }
 
 #[cfg(feature = "customer_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CustomerSessionResourceComponentsResourceActiveEntitlements {
     #[doc = "Whether the active entitlements is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
 }
 
 #[cfg(feature = "customer_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CustomerSessionResourceComponentsResourceBuyButton {
     #[doc = "Whether the buy button is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
 }
 
 #[cfg(feature = "customer_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CustomerSessionResourceComponentsResourceCustomerPortal {
     #[doc = "Whether the customer portal is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
 }
 
 #[cfg(feature = "customer_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CustomerSessionResourceComponentsResourceCustomerSheet {
     #[doc = "Whether the customer sheet is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "This hash defines whether the customer sheet supports certain features."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub features:
         Option<crate::customer_sessions::CustomerSessionResourceComponentsResourceCustomerSheetResourceFeatures>,
 }
 
 #[cfg(feature = "customer_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CustomerSessionResourceComponentsResourceCustomerSheetResourceFeatures {
     #[doc = "A list of [`allow_redisplay`](https://docs.stripe.com/api/payment_methods/object#payment_method_object-allow_redispla..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_allow_redisplay_filters: Option<Vec<crate::customer_sessions::CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodAllowRedisplayFiltersItem>>,
     #[doc = "Controls whether the customer sheet displays the option to remove a saved payment method.'  Allowing buyers to remove..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_remove: Option<crate::customer_sessions::CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodRemove>,
 }
 
@@ -664,40 +590,22 @@ impl CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPayme
 }
 
 #[cfg(feature = "customer_sessions")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodAllowRedisplayFiltersItem
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodAllowRedisplayFiltersItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodAllowRedisplayFiltersItem::Always,
-                    "limited" => CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodAllowRedisplayFiltersItem::Limited,
-                    "unspecified" => CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodAllowRedisplayFiltersItem::Unspecified,
-                    other => CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodAllowRedisplayFiltersItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodAllowRedisplayFiltersItem::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodAllowRedisplayFiltersItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodAllowRedisplayFiltersItem::Always,
+            "limited" => CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodAllowRedisplayFiltersItem::Limited,
+            "unspecified" => CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodAllowRedisplayFiltersItem::Unspecified,
+            other => CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodAllowRedisplayFiltersItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -736,110 +644,104 @@ impl Default for CustomerSessionResourceComponentsResourceCustomerSheetResourceF
 }
 
 #[cfg(feature = "customer_sessions")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodRemove
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodRemove;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodRemove::Unknown(
+                    String::new(),
+                ),
+            );
+        }
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "disabled" => {
+                CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodRemove::Disabled
             }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "disabled" => CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodRemove::Disabled,
-                    "enabled" => CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodRemove::Enabled,
-                    other => CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodRemove::Unknown(other.to_string()),
-                })
+            "enabled" => {
+                CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodRemove::Enabled
             }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodRemove::Unknown(
-                        String::new(),
-                    ),
+            other => {
+                CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodRemove::Unknown(
+                    other.to_string(),
                 )
             }
-        }
-        deserializer.deserialize_any(EnumVisitor)
+        })
     }
 }
 
 #[cfg(feature = "customer_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CustomerSessionResourceComponentsResourceMobilePaymentElement {
     #[doc = "Whether the mobile payment element is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "This hash defines whether the mobile payment element supports certain features."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub features:
         Option<crate::customer_sessions::CustomerSessionResourceComponentsResourceMobilePaymentElementResourceFeatures>,
 }
 
 #[cfg(feature = "customer_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CustomerSessionResourceComponentsResourceMobilePaymentElementResourceFeatures {
     #[doc = "A list of [`allow_redisplay`](https://docs.stripe.com/api/payment_methods/object#payment_method_object-allow_redispla..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_allow_redisplay_filters: Option<Vec<crate::customer_sessions::CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodAllowRedisplayFiltersItem>>,
     #[doc = "Controls whether or not the mobile payment element shows saved payment methods."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_redisplay: Option<crate::customer_sessions::CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodRemove>,
     #[doc = "Controls whether the mobile payment element displays the option to remove a saved payment method.'  Allowing buyers t..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_remove: Option<crate::customer_sessions::CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodRemove>,
     #[doc = "Controls whether the mobile payment element displays a checkbox offering to save a new payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_save: Option<crate::customer_sessions::CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodRemove>,
     #[doc = "Allows overriding the value of allow_override when saving a new payment method when payment_method_save is set to dis..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_save_allow_redisplay_override: Option<crate::customer_sessions::CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodAllowRedisplayFiltersItem>,
 }
 
 #[cfg(feature = "customer_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CustomerSessionResourceComponentsResourcePaymentElement {
     #[doc = "Whether the Payment Element is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "This hash defines whether the Payment Element supports certain features."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub features:
         Option<crate::customer_sessions::CustomerSessionResourceComponentsResourcePaymentElementResourceFeatures>,
 }
 
 #[cfg(feature = "customer_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CustomerSessionResourceComponentsResourcePaymentElementResourceFeatures {
     #[doc = "A list of [`allow_redisplay`](https://docs.stripe.com/api/payment_methods/object#payment_method_object-allow_redispla..."]
-    #[serde(default)]
+    #[json(default)]
     pub payment_method_allow_redisplay_filters: Vec<crate::customer_sessions::CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodAllowRedisplayFiltersItem>,
     #[doc = "Controls whether or not the Payment Element shows saved payment methods."]
-    #[serde(default)]
+    #[json(default)]
     pub payment_method_redisplay: crate::customer_sessions::CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodRemove,
     #[doc = "Determines the max number of saved payment methods for the Payment Element to display."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_redisplay_limit: Option<i64>,
     #[doc = "Controls whether the Payment Element displays the option to remove a saved payment method."]
-    #[serde(default)]
+    #[json(default)]
     pub payment_method_remove: crate::customer_sessions::CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodRemove,
     #[doc = "Controls whether the Payment Element displays a checkbox offering to save a new payment method."]
-    #[serde(default)]
+    #[json(default)]
     pub payment_method_save: crate::customer_sessions::CustomerSessionResourceComponentsResourceCustomerSheetResourceFeaturesPaymentMethodRemove,
     #[doc = "When using PaymentIntents and the customer checks the save checkbox, this field determines the [`setup_future_usage`]..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_save_usage: Option<crate::customer_sessions::CustomerSessionResourceComponentsResourcePaymentElementResourceFeaturesPaymentMethodSaveUsage>,
 }
 
@@ -865,47 +767,34 @@ impl CustomerSessionResourceComponentsResourcePaymentElementResourceFeaturesPaym
 }
 
 #[cfg(feature = "customer_sessions")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CustomerSessionResourceComponentsResourcePaymentElementResourceFeaturesPaymentMethodSaveUsage
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CustomerSessionResourceComponentsResourcePaymentElementResourceFeaturesPaymentMethodSaveUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "off_session" => CustomerSessionResourceComponentsResourcePaymentElementResourceFeaturesPaymentMethodSaveUsage::OffSession,
-                    "on_session" => CustomerSessionResourceComponentsResourcePaymentElementResourceFeaturesPaymentMethodSaveUsage::OnSession,
-                    other => CustomerSessionResourceComponentsResourcePaymentElementResourceFeaturesPaymentMethodSaveUsage::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CustomerSessionResourceComponentsResourcePaymentElementResourceFeaturesPaymentMethodSaveUsage::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CustomerSessionResourceComponentsResourcePaymentElementResourceFeaturesPaymentMethodSaveUsage::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "off_session" => CustomerSessionResourceComponentsResourcePaymentElementResourceFeaturesPaymentMethodSaveUsage::OffSession,
+            "on_session" => CustomerSessionResourceComponentsResourcePaymentElementResourceFeaturesPaymentMethodSaveUsage::OnSession,
+            other => CustomerSessionResourceComponentsResourcePaymentElementResourceFeaturesPaymentMethodSaveUsage::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "customer_sessions")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CustomerSessionResourceComponentsResourcePricingTable {
     #[doc = "Whether the pricing table is enabled."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
 }
 

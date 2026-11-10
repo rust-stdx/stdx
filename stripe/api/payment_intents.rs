@@ -75,39 +75,21 @@ impl CancelPaymentIntentParamsCancellationReason {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CancelPaymentIntentParamsCancellationReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CancelPaymentIntentParamsCancellationReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "abandoned" => CancelPaymentIntentParamsCancellationReason::Abandoned,
-                    "duplicate" => CancelPaymentIntentParamsCancellationReason::Duplicate,
-                    "fraudulent" => CancelPaymentIntentParamsCancellationReason::Fraudulent,
-                    "requested_by_customer" => CancelPaymentIntentParamsCancellationReason::RequestedByCustomer,
-                    other => CancelPaymentIntentParamsCancellationReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CancelPaymentIntentParamsCancellationReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CancelPaymentIntentParamsCancellationReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CancelPaymentIntentParamsCancellationReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "abandoned" => CancelPaymentIntentParamsCancellationReason::Abandoned,
+            "duplicate" => CancelPaymentIntentParamsCancellationReason::Duplicate,
+            "fraudulent" => CancelPaymentIntentParamsCancellationReason::Fraudulent,
+            "requested_by_customer" => CancelPaymentIntentParamsCancellationReason::RequestedByCustomer,
+            other => CancelPaymentIntentParamsCancellationReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -172,11 +154,11 @@ impl crate::params::FormEncode for CapturePaymentIntentParams {
 #[derive(Debug, Clone, Default)]
 pub struct CapturePaymentIntentParamsAmountDetails {
     #[doc = "The total discount applied on the transaction represented in the [smallest currency unit](https://docs.stripe.com/cur..."]
-    pub discount_amount: Option<serde_json::Value>,
+    pub discount_amount: Option<json::OwnedValue>,
     #[doc = "Set to `false` to return arithmetic validation errors in the response without failing the request."]
     pub enforce_arithmetic_validation: Option<bool>,
     #[doc = "A list of line items, each containing information about a product in the PaymentIntent."]
-    pub line_items: Option<serde_json::Value>,
+    pub line_items: Option<json::OwnedValue>,
     #[doc = "Contains information about the shipping portion of the amount."]
     pub shipping: Option<crate::payment_intents::CapturePaymentIntentParamsAmountDetailsShipping>,
     #[doc = "Contains information about the tax portion of the amount."]
@@ -264,16 +246,16 @@ pub struct ConfirmPaymentIntentParams {
     #[doc = "Set to `true` to fail the payment attempt if the PaymentIntent transitions into `requires_action`."]
     pub error_on_requires_action: Option<bool>,
     #[doc = "The list of payment method types to exclude from use with this payment."]
-    pub excluded_payment_method_types: Option<serde_json::Value>,
+    pub excluded_payment_method_types: Option<json::OwnedValue>,
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "Automations to be run during the PaymentIntent lifecycle"]
     pub hooks: Option<crate::payment_intents::ConfirmPaymentIntentParamsHooks>,
     #[doc = "ID of the mandate that's used for this payment."]
     pub mandate: Option<String>,
-    pub mandate_data: Option<serde_json::Value>,
+    pub mandate_data: Option<json::OwnedValue>,
     #[doc = "Set to `true` to indicate that the customer isn't in your checkout flow during this payment attempt and can't authent..."]
-    pub off_session: Option<serde_json::Value>,
+    pub off_session: Option<json::OwnedValue>,
     #[doc = "Provides industry-specific information about the charge."]
     pub payment_details: Option<crate::payment_intents::ConfirmPaymentIntentParamsPaymentDetails>,
     #[doc = "ID of the payment method (a PaymentMethod, Card, or [compatible Source](https://docs.stripe.com/payments/payment-meth..."]
@@ -285,7 +267,7 @@ pub struct ConfirmPaymentIntentParams {
     #[doc = "Options to configure Radar."]
     pub radar_options: Option<crate::payment_intents::ConfirmPaymentIntentParamsRadarOptions>,
     #[doc = "Email address that the receipt for the resulting payment will be sent to."]
-    pub receipt_email: Option<serde_json::Value>,
+    pub receipt_email: Option<json::OwnedValue>,
     #[doc = "The URL to redirect your customer back to after they authenticate or cancel their payment on the payment method's app..."]
     pub return_url: Option<String>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
@@ -334,11 +316,11 @@ pub type ConfirmPaymentIntentParamsAllowedPaymentMethodTypesItem =
 #[derive(Debug, Clone, Default)]
 pub struct ConfirmPaymentIntentParamsAmountDetails {
     #[doc = "The total discount applied on the transaction represented in the [smallest currency unit](https://docs.stripe.com/cur..."]
-    pub discount_amount: Option<serde_json::Value>,
+    pub discount_amount: Option<json::OwnedValue>,
     #[doc = "Set to `false` to return arithmetic validation errors in the response without failing the request."]
     pub enforce_arithmetic_validation: Option<bool>,
     #[doc = "A list of line items, each containing information about a product in the PaymentIntent."]
-    pub line_items: Option<serde_json::Value>,
+    pub line_items: Option<json::OwnedValue>,
     #[doc = "Contains information about the shipping portion of the amount."]
     pub shipping: Option<crate::payment_intents::ConfirmPaymentIntentParamsAmountDetailsShipping>,
     #[doc = "Contains information about the tax portion of the amount."]
@@ -646,11 +628,11 @@ pub struct ConfirmPaymentIntentParamsPaymentMethodDataBillingDetails {
     #[doc = "Billing address."]
     pub address: Option<crate::payment_intents::ConfirmPaymentIntentParamsPaymentMethodDataBillingDetailsAddress>,
     #[doc = "Email address."]
-    pub email: Option<serde_json::Value>,
+    pub email: Option<json::OwnedValue>,
     #[doc = "Full name."]
-    pub name: Option<serde_json::Value>,
+    pub name: Option<json::OwnedValue>,
     #[doc = "Billing phone number (including extension)."]
-    pub phone: Option<serde_json::Value>,
+    pub phone: Option<json::OwnedValue>,
     #[doc = "Taxpayer identification number."]
     pub tax_id: Option<String>,
 }
@@ -1251,7 +1233,7 @@ impl crate::params::FormEncode for ConfirmPaymentIntentParamsPaymentMethodOption
 #[derive(Debug, Clone, Default)]
 pub struct ConfirmPaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptions {
     #[doc = "A URL for custom mandate text to render during confirmation step."]
-    pub custom_mandate_url: Option<serde_json::Value>,
+    pub custom_mandate_url: Option<json::OwnedValue>,
     #[doc = "Description of the mandate interval."]
     pub interval_description: Option<String>,
     #[doc = "Payment schedule for the mandate."]
@@ -1650,9 +1632,9 @@ pub struct ConfirmPaymentIntentParamsPaymentMethodOptionsCard {
     pub setup_future_usage:
         Option<crate::payment_intents::ConfirmPaymentIntentParamsPaymentMethodOptionsCardSetupFutureUsage>,
     #[doc = "Provides information about a card payment that customers see on their statements."]
-    pub statement_descriptor_suffix_kana: Option<serde_json::Value>,
+    pub statement_descriptor_suffix_kana: Option<json::OwnedValue>,
     #[doc = "Provides information about a card payment that customers see on their statements."]
-    pub statement_descriptor_suffix_kanji: Option<serde_json::Value>,
+    pub statement_descriptor_suffix_kanji: Option<json::OwnedValue>,
     #[doc = "If 3D Secure authentication was performed with a third-party provider, the authentication details to use for this pay..."]
     pub three_d_secure: Option<crate::payment_intents::ConfirmPaymentIntentParamsPaymentMethodOptionsCardThreeDSecure>,
 }
@@ -2208,7 +2190,7 @@ pub struct ConfirmPaymentIntentParamsPaymentMethodOptionsKlarna {
     pub setup_future_usage:
         Option<crate::payment_intents::ConfirmPaymentIntentParamsPaymentMethodOptionsKlarnaSetupFutureUsage>,
     #[doc = "Subscription details if setting up or charging a subscription."]
-    pub subscriptions: Option<serde_json::Value>,
+    pub subscriptions: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "payment_intents")]
@@ -2268,13 +2250,13 @@ pub type ConfirmPaymentIntentParamsPaymentMethodOptionsKlarnaSetupFutureUsage =
 #[derive(Debug, Clone, Default)]
 pub struct ConfirmPaymentIntentParamsPaymentMethodOptionsKonbini {
     #[doc = "An optional 10 to 11 digit numeric-only string determining the confirmation code at applicable convenience stores."]
-    pub confirmation_number: Option<serde_json::Value>,
+    pub confirmation_number: Option<json::OwnedValue>,
     #[doc = "The number of calendar days (between 1 and 60) after which Konbini payment instructions will expire."]
-    pub expires_after_days: Option<serde_json::Value>,
+    pub expires_after_days: Option<json::OwnedValue>,
     #[doc = "The timestamp at which the Konbini payment instructions will expire."]
-    pub expires_at: Option<serde_json::Value>,
+    pub expires_at: Option<json::OwnedValue>,
     #[doc = "A product descriptor of up to 22 characters, which will appear to customers at the convenience store."]
-    pub product_description: Option<serde_json::Value>,
+    pub product_description: Option<json::OwnedValue>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
     pub setup_future_usage:
         Option<crate::payment_intents::ConfirmPaymentIntentParamsPaymentMethodOptionsKonbiniSetupFutureUsage>,
@@ -2623,18 +2605,18 @@ impl crate::params::FormEncode for ConfirmPaymentIntentParamsPaymentMethodOption
 #[derive(Debug, Clone, Default)]
 pub struct ConfirmPaymentIntentParamsPaymentMethodOptionsPaytoMandateOptions {
     #[doc = "Amount that will be collected."]
-    pub amount: Option<serde_json::Value>,
+    pub amount: Option<json::OwnedValue>,
     #[doc = "The type of amount that will be collected."]
     pub amount_type:
         Option<crate::payment_intents::ConfirmPaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsAmountType>,
     #[doc = "Date, in YYYY-MM-DD format, after which payments will not be collected."]
-    pub end_date: Option<serde_json::Value>,
+    pub end_date: Option<json::OwnedValue>,
     #[doc = "The periodicity at which payments will be collected."]
     pub payment_schedule: Option<
         crate::payment_intents::ConfirmPaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule,
     >,
     #[doc = "The number of payments that will be made during a payment period."]
-    pub payments_per_period: Option<serde_json::Value>,
+    pub payments_per_period: Option<json::OwnedValue>,
     #[doc = "The purpose for which payments are made."]
     pub purpose:
         Option<crate::payment_intents::ConfirmPaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose>,
@@ -2987,7 +2969,7 @@ pub type ConfirmPaymentIntentParamsPaymentMethodOptionsSunbitSetupFutureUsage =
 #[derive(Debug, Clone, Default)]
 pub struct ConfirmPaymentIntentParamsPaymentMethodOptionsSwish {
     #[doc = "A reference for this payment to be displayed in the Swish app."]
-    pub reference: Option<serde_json::Value>,
+    pub reference: Option<json::OwnedValue>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
     pub setup_future_usage:
         Option<crate::payment_intents::ConfirmPaymentIntentParamsPaymentMethodOptionsSwishSetupFutureUsage>,
@@ -3356,7 +3338,7 @@ pub struct CreatePaymentIntentParams {
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "Set to `true` to indicate that the customer isn't in your checkout flow during this payment attempt and can't authent..."]
-    pub off_session: Option<serde_json::Value>,
+    pub off_session: Option<json::OwnedValue>,
     #[doc = "The Stripe account ID that these funds are intended for."]
     pub on_behalf_of: Option<String>,
     #[doc = "Provides industry-specific information about the charge."]
@@ -3659,136 +3641,116 @@ impl CreatePaymentIntentParamsAllowedPaymentMethodTypesItem {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsAllowedPaymentMethodTypesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsAllowedPaymentMethodTypesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "acss_debit" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::AcssDebit,
-                    "affirm" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Affirm,
-                    "afterpay_clearpay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::AfterpayClearpay,
-                    "alipay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Alipay,
-                    "alma" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Alma,
-                    "amazon_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::AmazonPay,
-                    "au_becs_debit" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::AuBecsDebit,
-                    "bacs_debit" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::BacsDebit,
-                    "bancontact" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Bancontact,
-                    "billie" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Billie,
-                    "bizum" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Bizum,
-                    "blik" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Blik,
-                    "boku_promptpay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::BokuPromptpay,
-                    "boleto" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Boleto,
-                    "capchase_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::CapchasePay,
-                    "card" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Card,
-                    "card_present" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::CardPresent,
-                    "cashapp" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Cashapp,
-                    "check_scan" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::CheckScan,
-                    "click_to_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::ClickToPay,
-                    "crypto" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Crypto,
-                    "customer_balance" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::CustomerBalance,
-                    "demo_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::DemoPay,
-                    "duitnow" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Duitnow,
-                    "dummy_auth_push" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::DummyAuthPush,
-                    "dummy_passthrough_card" => {
-                        CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::DummyPassthroughCard
-                    }
-                    "edenred" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Edenred,
-                    "eps" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Eps,
-                    "fpx" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Fpx,
-                    "gcash" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Gcash,
-                    "getbalance" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Getbalance,
-                    "gift_card" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::GiftCard,
-                    "giropay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Giropay,
-                    "gopay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Gopay,
-                    "grabpay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Grabpay,
-                    "id_bank_transfer" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::IdBankTransfer,
-                    "ideal" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Ideal,
-                    "interac_present" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::InteracPresent,
-                    "kakao_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::KakaoPay,
-                    "klarna" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Klarna,
-                    "knet" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Knet,
-                    "konbini" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Konbini,
-                    "kr_card" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::KrCard,
-                    "kr_market" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::KrMarket,
-                    "kriya" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Kriya,
-                    "link" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Link,
-                    "mb_way" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::MbWay,
-                    "mobilepay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Mobilepay,
-                    "momo" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Momo,
-                    "mondu" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Mondu,
-                    "multibanco" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Multibanco,
-                    "naver_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::NaverPay,
-                    "netbanking" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Netbanking,
-                    "ng_bank" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::NgBank,
-                    "ng_bank_transfer" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::NgBankTransfer,
-                    "ng_card" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::NgCard,
-                    "ng_market" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::NgMarket,
-                    "ng_ussd" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::NgUssd,
-                    "ng_wallet" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::NgWallet,
-                    "nz_bank_account" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::NzBankAccount,
-                    "octopus" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Octopus,
-                    "oxxo" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Oxxo,
-                    "p24" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::P24,
-                    "paper_check" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::PaperCheck,
-                    "pay_by_bank" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::PayByBank,
-                    "payco" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Payco,
-                    "paynow" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Paynow,
-                    "paypal" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Paypal,
-                    "paypay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Paypay,
-                    "payto" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Payto,
-                    "pix" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Pix,
-                    "promptpay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Promptpay,
-                    "qris" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Qris,
-                    "rechnung" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Rechnung,
-                    "revolut_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::RevolutPay,
-                    "samsung_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::SamsungPay,
-                    "satispay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Satispay,
-                    "scalapay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Scalapay,
-                    "sepa_debit" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::SepaDebit,
-                    "sequra" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Sequra,
-                    "shop_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::ShopPay,
-                    "shopeepay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Shopeepay,
-                    "sofort" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Sofort,
-                    "south_korea_market" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::SouthKoreaMarket,
-                    "stripe_balance" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::StripeBalance,
-                    "sunbit" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Sunbit,
-                    "swish" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Swish,
-                    "tamara" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Tamara,
-                    "test_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::TestPay,
-                    "touch_n_go" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::TouchNGo,
-                    "truemoney" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Truemoney,
-                    "twint" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Twint,
-                    "upi" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Upi,
-                    "us_bank_account" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::UsBankAccount,
-                    "us_cash_voucher" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::UsCashVoucher,
-                    "vipps" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Vipps,
-                    "wechat_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::WechatPay,
-                    "wero" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Wero,
-                    "zip" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Zip,
-                    other => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsAllowedPaymentMethodTypesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "acss_debit" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::AcssDebit,
+            "affirm" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Affirm,
+            "afterpay_clearpay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::AfterpayClearpay,
+            "alipay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Alipay,
+            "alma" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Alma,
+            "amazon_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::AmazonPay,
+            "au_becs_debit" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::AuBecsDebit,
+            "bacs_debit" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::BacsDebit,
+            "bancontact" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Bancontact,
+            "billie" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Billie,
+            "bizum" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Bizum,
+            "blik" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Blik,
+            "boku_promptpay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::BokuPromptpay,
+            "boleto" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Boleto,
+            "capchase_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::CapchasePay,
+            "card" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Card,
+            "card_present" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::CardPresent,
+            "cashapp" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Cashapp,
+            "check_scan" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::CheckScan,
+            "click_to_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::ClickToPay,
+            "crypto" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Crypto,
+            "customer_balance" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::CustomerBalance,
+            "demo_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::DemoPay,
+            "duitnow" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Duitnow,
+            "dummy_auth_push" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::DummyAuthPush,
+            "dummy_passthrough_card" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::DummyPassthroughCard,
+            "edenred" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Edenred,
+            "eps" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Eps,
+            "fpx" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Fpx,
+            "gcash" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Gcash,
+            "getbalance" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Getbalance,
+            "gift_card" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::GiftCard,
+            "giropay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Giropay,
+            "gopay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Gopay,
+            "grabpay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Grabpay,
+            "id_bank_transfer" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::IdBankTransfer,
+            "ideal" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Ideal,
+            "interac_present" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::InteracPresent,
+            "kakao_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::KakaoPay,
+            "klarna" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Klarna,
+            "knet" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Knet,
+            "konbini" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Konbini,
+            "kr_card" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::KrCard,
+            "kr_market" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::KrMarket,
+            "kriya" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Kriya,
+            "link" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Link,
+            "mb_way" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::MbWay,
+            "mobilepay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Mobilepay,
+            "momo" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Momo,
+            "mondu" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Mondu,
+            "multibanco" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Multibanco,
+            "naver_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::NaverPay,
+            "netbanking" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Netbanking,
+            "ng_bank" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::NgBank,
+            "ng_bank_transfer" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::NgBankTransfer,
+            "ng_card" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::NgCard,
+            "ng_market" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::NgMarket,
+            "ng_ussd" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::NgUssd,
+            "ng_wallet" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::NgWallet,
+            "nz_bank_account" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::NzBankAccount,
+            "octopus" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Octopus,
+            "oxxo" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Oxxo,
+            "p24" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::P24,
+            "paper_check" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::PaperCheck,
+            "pay_by_bank" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::PayByBank,
+            "payco" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Payco,
+            "paynow" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Paynow,
+            "paypal" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Paypal,
+            "paypay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Paypay,
+            "payto" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Payto,
+            "pix" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Pix,
+            "promptpay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Promptpay,
+            "qris" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Qris,
+            "rechnung" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Rechnung,
+            "revolut_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::RevolutPay,
+            "samsung_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::SamsungPay,
+            "satispay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Satispay,
+            "scalapay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Scalapay,
+            "sepa_debit" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::SepaDebit,
+            "sequra" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Sequra,
+            "shop_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::ShopPay,
+            "shopeepay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Shopeepay,
+            "sofort" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Sofort,
+            "south_korea_market" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::SouthKoreaMarket,
+            "stripe_balance" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::StripeBalance,
+            "sunbit" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Sunbit,
+            "swish" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Swish,
+            "tamara" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Tamara,
+            "test_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::TestPay,
+            "touch_n_go" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::TouchNGo,
+            "truemoney" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Truemoney,
+            "twint" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Twint,
+            "upi" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Upi,
+            "us_bank_account" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::UsBankAccount,
+            "us_cash_voucher" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::UsCashVoucher,
+            "vipps" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Vipps,
+            "wechat_pay" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::WechatPay,
+            "wero" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Wero,
+            "zip" => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Zip,
+            other => CreatePaymentIntentParamsAllowedPaymentMethodTypesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3803,11 +3765,11 @@ impl crate::params::FormEncode for CreatePaymentIntentParamsAllowedPaymentMethod
 #[derive(Debug, Clone, Default)]
 pub struct CreatePaymentIntentParamsAmountDetails {
     #[doc = "The total discount applied on the transaction represented in the [smallest currency unit](https://docs.stripe.com/cur..."]
-    pub discount_amount: Option<serde_json::Value>,
+    pub discount_amount: Option<json::OwnedValue>,
     #[doc = "Set to `false` to return arithmetic validation errors in the response without failing the request."]
     pub enforce_arithmetic_validation: Option<bool>,
     #[doc = "A list of line items, each containing information about a product in the PaymentIntent."]
-    pub line_items: Option<serde_json::Value>,
+    pub line_items: Option<json::OwnedValue>,
     #[doc = "Contains information about the shipping portion of the amount."]
     pub shipping: Option<crate::payment_intents::CreatePaymentIntentParamsAmountDetailsShipping>,
     #[doc = "Contains information about the tax portion of the amount."]
@@ -3827,11 +3789,11 @@ impl crate::params::FormEncode for CreatePaymentIntentParamsAmountDetails {
 #[derive(Debug, Clone, Default)]
 pub struct CreatePaymentIntentParamsAmountDetailsShipping {
     #[doc = "If a physical good is being shipped, the cost of shipping represented in the [smallest currency unit](https://docs.st..."]
-    pub amount: Option<serde_json::Value>,
+    pub amount: Option<json::OwnedValue>,
     #[doc = "If a physical good is being shipped, the postal code of where it is being shipped from."]
-    pub from_postal_code: Option<serde_json::Value>,
+    pub from_postal_code: Option<json::OwnedValue>,
     #[doc = "If a physical good is being shipped, the postal code of where it is being shipped to."]
-    pub to_postal_code: Option<serde_json::Value>,
+    pub to_postal_code: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "payment_intents")]
@@ -3894,39 +3856,21 @@ impl CreatePaymentIntentParamsAutomaticPaymentMethodsAllowRedirects {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsAutomaticPaymentMethodsAllowRedirects {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsAutomaticPaymentMethodsAllowRedirects;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => CreatePaymentIntentParamsAutomaticPaymentMethodsAllowRedirects::Always,
-                    "never" => CreatePaymentIntentParamsAutomaticPaymentMethodsAllowRedirects::Never,
-                    other => CreatePaymentIntentParamsAutomaticPaymentMethodsAllowRedirects::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsAutomaticPaymentMethodsAllowRedirects::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsAutomaticPaymentMethodsAllowRedirects {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsAutomaticPaymentMethodsAllowRedirects::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => CreatePaymentIntentParamsAutomaticPaymentMethodsAllowRedirects::Always,
+            "never" => CreatePaymentIntentParamsAutomaticPaymentMethodsAllowRedirects::Never,
+            other => CreatePaymentIntentParamsAutomaticPaymentMethodsAllowRedirects::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3961,38 +3905,20 @@ impl CreatePaymentIntentParamsCaptureMethod {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsCaptureMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsCaptureMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "automatic" => CreatePaymentIntentParamsCaptureMethod::Automatic,
-                    "automatic_async" => CreatePaymentIntentParamsCaptureMethod::AutomaticAsync,
-                    "manual" => CreatePaymentIntentParamsCaptureMethod::Manual,
-                    other => CreatePaymentIntentParamsCaptureMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsCaptureMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsCaptureMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsCaptureMethod::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "automatic" => CreatePaymentIntentParamsCaptureMethod::Automatic,
+            "automatic_async" => CreatePaymentIntentParamsCaptureMethod::AutomaticAsync,
+            "manual" => CreatePaymentIntentParamsCaptureMethod::Manual,
+            other => CreatePaymentIntentParamsCaptureMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4025,37 +3951,19 @@ impl CreatePaymentIntentParamsConfirmationMethod {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsConfirmationMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsConfirmationMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "automatic" => CreatePaymentIntentParamsConfirmationMethod::Automatic,
-                    "manual" => CreatePaymentIntentParamsConfirmationMethod::Manual,
-                    other => CreatePaymentIntentParamsConfirmationMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsConfirmationMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsConfirmationMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsConfirmationMethod::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "automatic" => CreatePaymentIntentParamsConfirmationMethod::Automatic,
+            "manual" => CreatePaymentIntentParamsConfirmationMethod::Manual,
+            other => CreatePaymentIntentParamsConfirmationMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4194,90 +4102,72 @@ impl CreatePaymentIntentParamsExcludedPaymentMethodTypesItem {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsExcludedPaymentMethodTypesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsExcludedPaymentMethodTypesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "acss_debit" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::AcssDebit,
-                    "affirm" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Affirm,
-                    "afterpay_clearpay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::AfterpayClearpay,
-                    "alipay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Alipay,
-                    "alma" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Alma,
-                    "amazon_pay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::AmazonPay,
-                    "au_becs_debit" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::AuBecsDebit,
-                    "bacs_debit" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::BacsDebit,
-                    "bancontact" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Bancontact,
-                    "billie" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Billie,
-                    "bizum" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Bizum,
-                    "blik" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Blik,
-                    "boleto" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Boleto,
-                    "card" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Card,
-                    "cashapp" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Cashapp,
-                    "crypto" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Crypto,
-                    "customer_balance" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::CustomerBalance,
-                    "eps" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Eps,
-                    "fpx" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Fpx,
-                    "giropay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Giropay,
-                    "grabpay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Grabpay,
-                    "ideal" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Ideal,
-                    "kakao_pay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::KakaoPay,
-                    "klarna" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Klarna,
-                    "konbini" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Konbini,
-                    "kr_card" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::KrCard,
-                    "mb_way" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::MbWay,
-                    "mobilepay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Mobilepay,
-                    "multibanco" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Multibanco,
-                    "naver_pay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::NaverPay,
-                    "nz_bank_account" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::NzBankAccount,
-                    "oxxo" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Oxxo,
-                    "p24" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::P24,
-                    "pay_by_bank" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::PayByBank,
-                    "payco" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Payco,
-                    "paynow" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Paynow,
-                    "paypal" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Paypal,
-                    "paypay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Paypay,
-                    "payto" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Payto,
-                    "pix" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Pix,
-                    "promptpay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Promptpay,
-                    "revolut_pay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::RevolutPay,
-                    "samsung_pay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::SamsungPay,
-                    "satispay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Satispay,
-                    "scalapay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Scalapay,
-                    "sepa_debit" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::SepaDebit,
-                    "sequra" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Sequra,
-                    "sofort" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Sofort,
-                    "sunbit" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Sunbit,
-                    "swish" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Swish,
-                    "twint" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Twint,
-                    "upi" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Upi,
-                    "us_bank_account" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::UsBankAccount,
-                    "wechat_pay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::WechatPay,
-                    "zip" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Zip,
-                    other => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsExcludedPaymentMethodTypesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "acss_debit" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::AcssDebit,
+            "affirm" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Affirm,
+            "afterpay_clearpay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::AfterpayClearpay,
+            "alipay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Alipay,
+            "alma" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Alma,
+            "amazon_pay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::AmazonPay,
+            "au_becs_debit" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::AuBecsDebit,
+            "bacs_debit" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::BacsDebit,
+            "bancontact" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Bancontact,
+            "billie" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Billie,
+            "bizum" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Bizum,
+            "blik" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Blik,
+            "boleto" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Boleto,
+            "card" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Card,
+            "cashapp" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Cashapp,
+            "crypto" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Crypto,
+            "customer_balance" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::CustomerBalance,
+            "eps" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Eps,
+            "fpx" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Fpx,
+            "giropay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Giropay,
+            "grabpay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Grabpay,
+            "ideal" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Ideal,
+            "kakao_pay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::KakaoPay,
+            "klarna" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Klarna,
+            "konbini" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Konbini,
+            "kr_card" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::KrCard,
+            "mb_way" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::MbWay,
+            "mobilepay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Mobilepay,
+            "multibanco" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Multibanco,
+            "naver_pay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::NaverPay,
+            "nz_bank_account" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::NzBankAccount,
+            "oxxo" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Oxxo,
+            "p24" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::P24,
+            "pay_by_bank" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::PayByBank,
+            "payco" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Payco,
+            "paynow" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Paynow,
+            "paypal" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Paypal,
+            "paypay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Paypay,
+            "payto" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Payto,
+            "pix" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Pix,
+            "promptpay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Promptpay,
+            "revolut_pay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::RevolutPay,
+            "samsung_pay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::SamsungPay,
+            "satispay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Satispay,
+            "scalapay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Scalapay,
+            "sepa_debit" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::SepaDebit,
+            "sequra" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Sequra,
+            "sofort" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Sofort,
+            "sunbit" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Sunbit,
+            "swish" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Swish,
+            "twint" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Twint,
+            "upi" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Upi,
+            "us_bank_account" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::UsBankAccount,
+            "wechat_pay" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::WechatPay,
+            "zip" => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Zip,
+            other => CreatePaymentIntentParamsExcludedPaymentMethodTypesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4320,7 +4210,7 @@ impl crate::params::FormEncode for CreatePaymentIntentParamsHooksInputs {
 #[derive(Debug, Clone, Default)]
 pub struct CreatePaymentIntentParamsHooksInputsTax {
     #[doc = "The [TaxCalculation](https://docs.stripe.com/api/tax/calculations) id"]
-    pub calculation: serde_json::Value,
+    pub calculation: json::OwnedValue,
 }
 
 #[cfg(feature = "payment_intents")]
@@ -4417,39 +4307,21 @@ impl CreatePaymentIntentParamsMandateDataCustomerAcceptanceType {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsMandateDataCustomerAcceptanceType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsMandateDataCustomerAcceptanceType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "offline" => CreatePaymentIntentParamsMandateDataCustomerAcceptanceType::Offline,
-                    "online" => CreatePaymentIntentParamsMandateDataCustomerAcceptanceType::Online,
-                    other => CreatePaymentIntentParamsMandateDataCustomerAcceptanceType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsMandateDataCustomerAcceptanceType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsMandateDataCustomerAcceptanceType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsMandateDataCustomerAcceptanceType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "offline" => CreatePaymentIntentParamsMandateDataCustomerAcceptanceType::Offline,
+            "online" => CreatePaymentIntentParamsMandateDataCustomerAcceptanceType::Online,
+            other => CreatePaymentIntentParamsMandateDataCustomerAcceptanceType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4464,9 +4336,9 @@ impl crate::params::FormEncode for CreatePaymentIntentParamsMandateDataCustomerA
 #[derive(Debug, Clone, Default)]
 pub struct CreatePaymentIntentParamsPaymentDetails {
     #[doc = "A unique value to identify the customer."]
-    pub customer_reference: Option<serde_json::Value>,
+    pub customer_reference: Option<json::OwnedValue>,
     #[doc = "A unique value assigned by the business to identify the transaction."]
-    pub order_reference: Option<serde_json::Value>,
+    pub order_reference: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "payment_intents")]
@@ -4730,38 +4602,20 @@ impl CreatePaymentIntentParamsPaymentMethodDataAllowRedisplay {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodDataAllowRedisplay {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodDataAllowRedisplay;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => CreatePaymentIntentParamsPaymentMethodDataAllowRedisplay::Always,
-                    "limited" => CreatePaymentIntentParamsPaymentMethodDataAllowRedisplay::Limited,
-                    "unspecified" => CreatePaymentIntentParamsPaymentMethodDataAllowRedisplay::Unspecified,
-                    other => CreatePaymentIntentParamsPaymentMethodDataAllowRedisplay::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodDataAllowRedisplay::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodDataAllowRedisplay {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodDataAllowRedisplay::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => CreatePaymentIntentParamsPaymentMethodDataAllowRedisplay::Always,
+            "limited" => CreatePaymentIntentParamsPaymentMethodDataAllowRedisplay::Limited,
+            "unspecified" => CreatePaymentIntentParamsPaymentMethodDataAllowRedisplay::Unspecified,
+            other => CreatePaymentIntentParamsPaymentMethodDataAllowRedisplay::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4828,11 +4682,11 @@ pub struct CreatePaymentIntentParamsPaymentMethodDataBillingDetails {
     #[doc = "Billing address."]
     pub address: Option<crate::payment_intents::CreatePaymentIntentParamsPaymentMethodDataBillingDetailsAddress>,
     #[doc = "Email address."]
-    pub email: Option<serde_json::Value>,
+    pub email: Option<json::OwnedValue>,
     #[doc = "Full name."]
-    pub name: Option<serde_json::Value>,
+    pub name: Option<json::OwnedValue>,
     #[doc = "Billing phone number (including extension)."]
-    pub phone: Option<serde_json::Value>,
+    pub phone: Option<json::OwnedValue>,
     #[doc = "Taxpayer identification number."]
     pub tax_id: Option<String>,
 }
@@ -5010,83 +4864,59 @@ impl CreatePaymentIntentParamsPaymentMethodDataEpsBank {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodDataEpsBank {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodDataEpsBank;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "arzte_und_apotheker_bank" => {
-                        CreatePaymentIntentParamsPaymentMethodDataEpsBank::ArzteUndApothekerBank
-                    }
-                    "austrian_anadi_bank_ag" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::AustrianAnadiBankAg,
-                    "bank_austria" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::BankAustria,
-                    "bankhaus_carl_spangler" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::BankhausCarlSpangler,
-                    "bankhaus_schelhammer_und_schattera_ag" => {
-                        CreatePaymentIntentParamsPaymentMethodDataEpsBank::BankhausSchelhammerUndSchatteraAg
-                    }
-                    "bawag_psk_ag" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::BawagPskAg,
-                    "bks_bank_ag" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::BksBankAg,
-                    "brull_kallmus_bank_ag" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::BrullKallmusBankAg,
-                    "btv_vier_lander_bank" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::BtvVierLanderBank,
-                    "capital_bank_grawe_gruppe_ag" => {
-                        CreatePaymentIntentParamsPaymentMethodDataEpsBank::CapitalBankGraweGruppeAg
-                    }
-                    "deutsche_bank_ag" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::DeutscheBankAg,
-                    "dolomitenbank" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::Dolomitenbank,
-                    "easybank_ag" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::EasybankAg,
-                    "erste_bank_und_sparkassen" => {
-                        CreatePaymentIntentParamsPaymentMethodDataEpsBank::ErsteBankUndSparkassen
-                    }
-                    "hypo_alpeadriabank_international_ag" => {
-                        CreatePaymentIntentParamsPaymentMethodDataEpsBank::HypoAlpeadriabankInternationalAg
-                    }
-                    "hypo_bank_burgenland_aktiengesellschaft" => {
-                        CreatePaymentIntentParamsPaymentMethodDataEpsBank::HypoBankBurgenlandAktiengesellschaft
-                    }
-                    "hypo_noe_lb_fur_niederosterreich_u_wien" => {
-                        CreatePaymentIntentParamsPaymentMethodDataEpsBank::HypoNoeLbFurNiederosterreichUWien
-                    }
-                    "hypo_oberosterreich_salzburg_steiermark" => {
-                        CreatePaymentIntentParamsPaymentMethodDataEpsBank::HypoOberosterreichSalzburgSteiermark
-                    }
-                    "hypo_tirol_bank_ag" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::HypoTirolBankAg,
-                    "hypo_vorarlberg_bank_ag" => {
-                        CreatePaymentIntentParamsPaymentMethodDataEpsBank::HypoVorarlbergBankAg
-                    }
-                    "marchfelder_bank" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::MarchfelderBank,
-                    "oberbank_ag" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::OberbankAg,
-                    "raiffeisen_bankengruppe_osterreich" => {
-                        CreatePaymentIntentParamsPaymentMethodDataEpsBank::RaiffeisenBankengruppeOsterreich
-                    }
-                    "schoellerbank_ag" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::SchoellerbankAg,
-                    "sparda_bank_wien" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::SpardaBankWien,
-                    "volksbank_gruppe" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::VolksbankGruppe,
-                    "volkskreditbank_ag" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::VolkskreditbankAg,
-                    "vr_bank_braunau" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::VrBankBraunau,
-                    other => CreatePaymentIntentParamsPaymentMethodDataEpsBank::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodDataEpsBank::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodDataEpsBank {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodDataEpsBank::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "arzte_und_apotheker_bank" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::ArzteUndApothekerBank,
+            "austrian_anadi_bank_ag" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::AustrianAnadiBankAg,
+            "bank_austria" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::BankAustria,
+            "bankhaus_carl_spangler" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::BankhausCarlSpangler,
+            "bankhaus_schelhammer_und_schattera_ag" => {
+                CreatePaymentIntentParamsPaymentMethodDataEpsBank::BankhausSchelhammerUndSchatteraAg
+            }
+            "bawag_psk_ag" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::BawagPskAg,
+            "bks_bank_ag" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::BksBankAg,
+            "brull_kallmus_bank_ag" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::BrullKallmusBankAg,
+            "btv_vier_lander_bank" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::BtvVierLanderBank,
+            "capital_bank_grawe_gruppe_ag" => {
+                CreatePaymentIntentParamsPaymentMethodDataEpsBank::CapitalBankGraweGruppeAg
+            }
+            "deutsche_bank_ag" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::DeutscheBankAg,
+            "dolomitenbank" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::Dolomitenbank,
+            "easybank_ag" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::EasybankAg,
+            "erste_bank_und_sparkassen" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::ErsteBankUndSparkassen,
+            "hypo_alpeadriabank_international_ag" => {
+                CreatePaymentIntentParamsPaymentMethodDataEpsBank::HypoAlpeadriabankInternationalAg
+            }
+            "hypo_bank_burgenland_aktiengesellschaft" => {
+                CreatePaymentIntentParamsPaymentMethodDataEpsBank::HypoBankBurgenlandAktiengesellschaft
+            }
+            "hypo_noe_lb_fur_niederosterreich_u_wien" => {
+                CreatePaymentIntentParamsPaymentMethodDataEpsBank::HypoNoeLbFurNiederosterreichUWien
+            }
+            "hypo_oberosterreich_salzburg_steiermark" => {
+                CreatePaymentIntentParamsPaymentMethodDataEpsBank::HypoOberosterreichSalzburgSteiermark
+            }
+            "hypo_tirol_bank_ag" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::HypoTirolBankAg,
+            "hypo_vorarlberg_bank_ag" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::HypoVorarlbergBankAg,
+            "marchfelder_bank" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::MarchfelderBank,
+            "oberbank_ag" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::OberbankAg,
+            "raiffeisen_bankengruppe_osterreich" => {
+                CreatePaymentIntentParamsPaymentMethodDataEpsBank::RaiffeisenBankengruppeOsterreich
+            }
+            "schoellerbank_ag" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::SchoellerbankAg,
+            "sparda_bank_wien" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::SpardaBankWien,
+            "volksbank_gruppe" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::VolksbankGruppe,
+            "volkskreditbank_ag" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::VolkskreditbankAg,
+            "vr_bank_braunau" => CreatePaymentIntentParamsPaymentMethodDataEpsBank::VrBankBraunau,
+            other => CreatePaymentIntentParamsPaymentMethodDataEpsBank::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5137,39 +4967,21 @@ impl CreatePaymentIntentParamsPaymentMethodDataFpxAccountHolderType {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodDataFpxAccountHolderType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodDataFpxAccountHolderType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "company" => CreatePaymentIntentParamsPaymentMethodDataFpxAccountHolderType::Company,
-                    "individual" => CreatePaymentIntentParamsPaymentMethodDataFpxAccountHolderType::Individual,
-                    other => CreatePaymentIntentParamsPaymentMethodDataFpxAccountHolderType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodDataFpxAccountHolderType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodDataFpxAccountHolderType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodDataFpxAccountHolderType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "company" => CreatePaymentIntentParamsPaymentMethodDataFpxAccountHolderType::Company,
+            "individual" => CreatePaymentIntentParamsPaymentMethodDataFpxAccountHolderType::Individual,
+            other => CreatePaymentIntentParamsPaymentMethodDataFpxAccountHolderType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5248,60 +5060,42 @@ impl CreatePaymentIntentParamsPaymentMethodDataFpxBank {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodDataFpxBank {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodDataFpxBank;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "affin_bank" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::AffinBank,
-                    "agrobank" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Agrobank,
-                    "alliance_bank" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::AllianceBank,
-                    "ambank" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Ambank,
-                    "bank_islam" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::BankIslam,
-                    "bank_muamalat" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::BankMuamalat,
-                    "bank_of_china" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::BankOfChina,
-                    "bank_rakyat" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::BankRakyat,
-                    "bnp_paribas" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::BnpParibas,
-                    "bsn" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Bsn,
-                    "cimb" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Cimb,
-                    "citibank" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Citibank,
-                    "deutsche_bank" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::DeutscheBank,
-                    "hong_leong_bank" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::HongLeongBank,
-                    "hsbc" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Hsbc,
-                    "kfh" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Kfh,
-                    "maybank2e" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Maybank2e,
-                    "maybank2u" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Maybank2u,
-                    "mbsb_bank" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::MbsbBank,
-                    "ocbc" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Ocbc,
-                    "pb_enterprise" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::PbEnterprise,
-                    "public_bank" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::PublicBank,
-                    "rhb" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Rhb,
-                    "standard_chartered" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::StandardChartered,
-                    "uob" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Uob,
-                    other => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodDataFpxBank::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodDataFpxBank {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodDataFpxBank::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "affin_bank" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::AffinBank,
+            "agrobank" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Agrobank,
+            "alliance_bank" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::AllianceBank,
+            "ambank" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Ambank,
+            "bank_islam" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::BankIslam,
+            "bank_muamalat" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::BankMuamalat,
+            "bank_of_china" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::BankOfChina,
+            "bank_rakyat" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::BankRakyat,
+            "bnp_paribas" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::BnpParibas,
+            "bsn" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Bsn,
+            "cimb" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Cimb,
+            "citibank" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Citibank,
+            "deutsche_bank" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::DeutscheBank,
+            "hong_leong_bank" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::HongLeongBank,
+            "hsbc" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Hsbc,
+            "kfh" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Kfh,
+            "maybank2e" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Maybank2e,
+            "maybank2u" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Maybank2u,
+            "mbsb_bank" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::MbsbBank,
+            "ocbc" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Ocbc,
+            "pb_enterprise" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::PbEnterprise,
+            "public_bank" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::PublicBank,
+            "rhb" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Rhb,
+            "standard_chartered" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::StandardChartered,
+            "uob" => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Uob,
+            other => CreatePaymentIntentParamsPaymentMethodDataFpxBank::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5392,55 +5186,37 @@ impl CreatePaymentIntentParamsPaymentMethodDataIdealBank {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodDataIdealBank {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodDataIdealBank;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "abn_amro" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::AbnAmro,
-                    "adyen" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Adyen,
-                    "asn_bank" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::AsnBank,
-                    "bunq" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Bunq,
-                    "buut" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Buut,
-                    "finom" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Finom,
-                    "handelsbanken" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Handelsbanken,
-                    "ing" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Ing,
-                    "knab" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Knab,
-                    "mollie" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Mollie,
-                    "moneyou" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Moneyou,
-                    "n26" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::N26,
-                    "nn" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Nn,
-                    "rabobank" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Rabobank,
-                    "regiobank" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Regiobank,
-                    "revolut" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Revolut,
-                    "sns_bank" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::SnsBank,
-                    "triodos_bank" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::TriodosBank,
-                    "van_lanschot" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::VanLanschot,
-                    "yoursafe" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Yoursafe,
-                    other => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodDataIdealBank::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodDataIdealBank {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodDataIdealBank::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "abn_amro" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::AbnAmro,
+            "adyen" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Adyen,
+            "asn_bank" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::AsnBank,
+            "bunq" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Bunq,
+            "buut" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Buut,
+            "finom" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Finom,
+            "handelsbanken" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Handelsbanken,
+            "ing" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Ing,
+            "knab" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Knab,
+            "mollie" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Mollie,
+            "moneyou" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Moneyou,
+            "n26" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::N26,
+            "nn" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Nn,
+            "rabobank" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Rabobank,
+            "regiobank" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Regiobank,
+            "revolut" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Revolut,
+            "sns_bank" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::SnsBank,
+            "triodos_bank" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::TriodosBank,
+            "van_lanschot" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::VanLanschot,
+            "yoursafe" => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Yoursafe,
+            other => CreatePaymentIntentParamsPaymentMethodDataIdealBank::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5553,37 +5329,19 @@ impl CreatePaymentIntentParamsPaymentMethodDataNaverPayFunding {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodDataNaverPayFunding {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodDataNaverPayFunding;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "card" => CreatePaymentIntentParamsPaymentMethodDataNaverPayFunding::Card,
-                    "points" => CreatePaymentIntentParamsPaymentMethodDataNaverPayFunding::Points,
-                    other => CreatePaymentIntentParamsPaymentMethodDataNaverPayFunding::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodDataNaverPayFunding::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodDataNaverPayFunding {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodDataNaverPayFunding::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "card" => CreatePaymentIntentParamsPaymentMethodDataNaverPayFunding::Card,
+            "points" => CreatePaymentIntentParamsPaymentMethodDataNaverPayFunding::Points,
+            other => CreatePaymentIntentParamsPaymentMethodDataNaverPayFunding::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5710,61 +5468,43 @@ impl CreatePaymentIntentParamsPaymentMethodDataP24Bank {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodDataP24Bank {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodDataP24Bank;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "alior_bank" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::AliorBank,
-                    "bank_millennium" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::BankMillennium,
-                    "bank_nowy_bfg_sa" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::BankNowyBfgSa,
-                    "bank_pekao_sa" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::BankPekaoSa,
-                    "banki_spbdzielcze" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::BankiSpbdzielcze,
-                    "blik" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::Blik,
-                    "bnp_paribas" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::BnpParibas,
-                    "boz" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::Boz,
-                    "citi_handlowy" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::CitiHandlowy,
-                    "credit_agricole" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::CreditAgricole,
-                    "envelobank" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::Envelobank,
-                    "etransfer_pocztowy24" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::EtransferPocztowy24,
-                    "getin_bank" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::GetinBank,
-                    "ideabank" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::Ideabank,
-                    "ing" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::Ing,
-                    "inteligo" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::Inteligo,
-                    "mbank_mtransfer" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::MbankMtransfer,
-                    "nest_przelew" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::NestPrzelew,
-                    "noble_pay" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::NoblePay,
-                    "pbac_z_ipko" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::PbacZIpko,
-                    "plus_bank" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::PlusBank,
-                    "santander_przelew24" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::SantanderPrzelew24,
-                    "tmobile_usbugi_bankowe" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::TmobileUsbugiBankowe,
-                    "toyota_bank" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::ToyotaBank,
-                    "velobank" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::Velobank,
-                    "volkswagen_bank" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::VolkswagenBank,
-                    other => CreatePaymentIntentParamsPaymentMethodDataP24Bank::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodDataP24Bank::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodDataP24Bank {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodDataP24Bank::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "alior_bank" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::AliorBank,
+            "bank_millennium" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::BankMillennium,
+            "bank_nowy_bfg_sa" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::BankNowyBfgSa,
+            "bank_pekao_sa" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::BankPekaoSa,
+            "banki_spbdzielcze" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::BankiSpbdzielcze,
+            "blik" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::Blik,
+            "bnp_paribas" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::BnpParibas,
+            "boz" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::Boz,
+            "citi_handlowy" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::CitiHandlowy,
+            "credit_agricole" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::CreditAgricole,
+            "envelobank" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::Envelobank,
+            "etransfer_pocztowy24" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::EtransferPocztowy24,
+            "getin_bank" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::GetinBank,
+            "ideabank" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::Ideabank,
+            "ing" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::Ing,
+            "inteligo" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::Inteligo,
+            "mbank_mtransfer" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::MbankMtransfer,
+            "nest_przelew" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::NestPrzelew,
+            "noble_pay" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::NoblePay,
+            "pbac_z_ipko" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::PbacZIpko,
+            "plus_bank" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::PlusBank,
+            "santander_przelew24" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::SantanderPrzelew24,
+            "tmobile_usbugi_bankowe" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::TmobileUsbugiBankowe,
+            "toyota_bank" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::ToyotaBank,
+            "velobank" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::Velobank,
+            "volkswagen_bank" => CreatePaymentIntentParamsPaymentMethodDataP24Bank::VolkswagenBank,
+            other => CreatePaymentIntentParamsPaymentMethodDataP24Bank::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5915,41 +5655,23 @@ impl CreatePaymentIntentParamsPaymentMethodDataSofortCountry {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodDataSofortCountry {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodDataSofortCountry;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "AT" => CreatePaymentIntentParamsPaymentMethodDataSofortCountry::AT,
-                    "BE" => CreatePaymentIntentParamsPaymentMethodDataSofortCountry::BE,
-                    "DE" => CreatePaymentIntentParamsPaymentMethodDataSofortCountry::DE,
-                    "ES" => CreatePaymentIntentParamsPaymentMethodDataSofortCountry::ES,
-                    "IT" => CreatePaymentIntentParamsPaymentMethodDataSofortCountry::IT,
-                    "NL" => CreatePaymentIntentParamsPaymentMethodDataSofortCountry::NL,
-                    other => CreatePaymentIntentParamsPaymentMethodDataSofortCountry::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodDataSofortCountry::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodDataSofortCountry {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodDataSofortCountry::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "AT" => CreatePaymentIntentParamsPaymentMethodDataSofortCountry::AT,
+            "BE" => CreatePaymentIntentParamsPaymentMethodDataSofortCountry::BE,
+            "DE" => CreatePaymentIntentParamsPaymentMethodDataSofortCountry::DE,
+            "ES" => CreatePaymentIntentParamsPaymentMethodDataSofortCountry::ES,
+            "IT" => CreatePaymentIntentParamsPaymentMethodDataSofortCountry::IT,
+            "NL" => CreatePaymentIntentParamsPaymentMethodDataSofortCountry::NL,
+            other => CreatePaymentIntentParamsPaymentMethodDataSofortCountry::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6100,90 +5822,72 @@ impl CreatePaymentIntentParamsPaymentMethodDataType {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodDataType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodDataType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "acss_debit" => CreatePaymentIntentParamsPaymentMethodDataType::AcssDebit,
-                    "affirm" => CreatePaymentIntentParamsPaymentMethodDataType::Affirm,
-                    "afterpay_clearpay" => CreatePaymentIntentParamsPaymentMethodDataType::AfterpayClearpay,
-                    "alipay" => CreatePaymentIntentParamsPaymentMethodDataType::Alipay,
-                    "alma" => CreatePaymentIntentParamsPaymentMethodDataType::Alma,
-                    "amazon_pay" => CreatePaymentIntentParamsPaymentMethodDataType::AmazonPay,
-                    "au_becs_debit" => CreatePaymentIntentParamsPaymentMethodDataType::AuBecsDebit,
-                    "bacs_debit" => CreatePaymentIntentParamsPaymentMethodDataType::BacsDebit,
-                    "bancontact" => CreatePaymentIntentParamsPaymentMethodDataType::Bancontact,
-                    "billie" => CreatePaymentIntentParamsPaymentMethodDataType::Billie,
-                    "bizum" => CreatePaymentIntentParamsPaymentMethodDataType::Bizum,
-                    "blik" => CreatePaymentIntentParamsPaymentMethodDataType::Blik,
-                    "boleto" => CreatePaymentIntentParamsPaymentMethodDataType::Boleto,
-                    "cashapp" => CreatePaymentIntentParamsPaymentMethodDataType::Cashapp,
-                    "crypto" => CreatePaymentIntentParamsPaymentMethodDataType::Crypto,
-                    "customer_balance" => CreatePaymentIntentParamsPaymentMethodDataType::CustomerBalance,
-                    "eps" => CreatePaymentIntentParamsPaymentMethodDataType::Eps,
-                    "fpx" => CreatePaymentIntentParamsPaymentMethodDataType::Fpx,
-                    "giropay" => CreatePaymentIntentParamsPaymentMethodDataType::Giropay,
-                    "grabpay" => CreatePaymentIntentParamsPaymentMethodDataType::Grabpay,
-                    "ideal" => CreatePaymentIntentParamsPaymentMethodDataType::Ideal,
-                    "kakao_pay" => CreatePaymentIntentParamsPaymentMethodDataType::KakaoPay,
-                    "klarna" => CreatePaymentIntentParamsPaymentMethodDataType::Klarna,
-                    "konbini" => CreatePaymentIntentParamsPaymentMethodDataType::Konbini,
-                    "kr_card" => CreatePaymentIntentParamsPaymentMethodDataType::KrCard,
-                    "link" => CreatePaymentIntentParamsPaymentMethodDataType::Link,
-                    "mb_way" => CreatePaymentIntentParamsPaymentMethodDataType::MbWay,
-                    "mobilepay" => CreatePaymentIntentParamsPaymentMethodDataType::Mobilepay,
-                    "multibanco" => CreatePaymentIntentParamsPaymentMethodDataType::Multibanco,
-                    "naver_pay" => CreatePaymentIntentParamsPaymentMethodDataType::NaverPay,
-                    "nz_bank_account" => CreatePaymentIntentParamsPaymentMethodDataType::NzBankAccount,
-                    "oxxo" => CreatePaymentIntentParamsPaymentMethodDataType::Oxxo,
-                    "p24" => CreatePaymentIntentParamsPaymentMethodDataType::P24,
-                    "pay_by_bank" => CreatePaymentIntentParamsPaymentMethodDataType::PayByBank,
-                    "payco" => CreatePaymentIntentParamsPaymentMethodDataType::Payco,
-                    "paynow" => CreatePaymentIntentParamsPaymentMethodDataType::Paynow,
-                    "paypal" => CreatePaymentIntentParamsPaymentMethodDataType::Paypal,
-                    "paypay" => CreatePaymentIntentParamsPaymentMethodDataType::Paypay,
-                    "payto" => CreatePaymentIntentParamsPaymentMethodDataType::Payto,
-                    "pix" => CreatePaymentIntentParamsPaymentMethodDataType::Pix,
-                    "promptpay" => CreatePaymentIntentParamsPaymentMethodDataType::Promptpay,
-                    "revolut_pay" => CreatePaymentIntentParamsPaymentMethodDataType::RevolutPay,
-                    "samsung_pay" => CreatePaymentIntentParamsPaymentMethodDataType::SamsungPay,
-                    "satispay" => CreatePaymentIntentParamsPaymentMethodDataType::Satispay,
-                    "scalapay" => CreatePaymentIntentParamsPaymentMethodDataType::Scalapay,
-                    "sepa_debit" => CreatePaymentIntentParamsPaymentMethodDataType::SepaDebit,
-                    "sequra" => CreatePaymentIntentParamsPaymentMethodDataType::Sequra,
-                    "sofort" => CreatePaymentIntentParamsPaymentMethodDataType::Sofort,
-                    "sunbit" => CreatePaymentIntentParamsPaymentMethodDataType::Sunbit,
-                    "swish" => CreatePaymentIntentParamsPaymentMethodDataType::Swish,
-                    "twint" => CreatePaymentIntentParamsPaymentMethodDataType::Twint,
-                    "upi" => CreatePaymentIntentParamsPaymentMethodDataType::Upi,
-                    "us_bank_account" => CreatePaymentIntentParamsPaymentMethodDataType::UsBankAccount,
-                    "wechat_pay" => CreatePaymentIntentParamsPaymentMethodDataType::WechatPay,
-                    "zip" => CreatePaymentIntentParamsPaymentMethodDataType::Zip,
-                    other => CreatePaymentIntentParamsPaymentMethodDataType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodDataType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodDataType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodDataType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "acss_debit" => CreatePaymentIntentParamsPaymentMethodDataType::AcssDebit,
+            "affirm" => CreatePaymentIntentParamsPaymentMethodDataType::Affirm,
+            "afterpay_clearpay" => CreatePaymentIntentParamsPaymentMethodDataType::AfterpayClearpay,
+            "alipay" => CreatePaymentIntentParamsPaymentMethodDataType::Alipay,
+            "alma" => CreatePaymentIntentParamsPaymentMethodDataType::Alma,
+            "amazon_pay" => CreatePaymentIntentParamsPaymentMethodDataType::AmazonPay,
+            "au_becs_debit" => CreatePaymentIntentParamsPaymentMethodDataType::AuBecsDebit,
+            "bacs_debit" => CreatePaymentIntentParamsPaymentMethodDataType::BacsDebit,
+            "bancontact" => CreatePaymentIntentParamsPaymentMethodDataType::Bancontact,
+            "billie" => CreatePaymentIntentParamsPaymentMethodDataType::Billie,
+            "bizum" => CreatePaymentIntentParamsPaymentMethodDataType::Bizum,
+            "blik" => CreatePaymentIntentParamsPaymentMethodDataType::Blik,
+            "boleto" => CreatePaymentIntentParamsPaymentMethodDataType::Boleto,
+            "cashapp" => CreatePaymentIntentParamsPaymentMethodDataType::Cashapp,
+            "crypto" => CreatePaymentIntentParamsPaymentMethodDataType::Crypto,
+            "customer_balance" => CreatePaymentIntentParamsPaymentMethodDataType::CustomerBalance,
+            "eps" => CreatePaymentIntentParamsPaymentMethodDataType::Eps,
+            "fpx" => CreatePaymentIntentParamsPaymentMethodDataType::Fpx,
+            "giropay" => CreatePaymentIntentParamsPaymentMethodDataType::Giropay,
+            "grabpay" => CreatePaymentIntentParamsPaymentMethodDataType::Grabpay,
+            "ideal" => CreatePaymentIntentParamsPaymentMethodDataType::Ideal,
+            "kakao_pay" => CreatePaymentIntentParamsPaymentMethodDataType::KakaoPay,
+            "klarna" => CreatePaymentIntentParamsPaymentMethodDataType::Klarna,
+            "konbini" => CreatePaymentIntentParamsPaymentMethodDataType::Konbini,
+            "kr_card" => CreatePaymentIntentParamsPaymentMethodDataType::KrCard,
+            "link" => CreatePaymentIntentParamsPaymentMethodDataType::Link,
+            "mb_way" => CreatePaymentIntentParamsPaymentMethodDataType::MbWay,
+            "mobilepay" => CreatePaymentIntentParamsPaymentMethodDataType::Mobilepay,
+            "multibanco" => CreatePaymentIntentParamsPaymentMethodDataType::Multibanco,
+            "naver_pay" => CreatePaymentIntentParamsPaymentMethodDataType::NaverPay,
+            "nz_bank_account" => CreatePaymentIntentParamsPaymentMethodDataType::NzBankAccount,
+            "oxxo" => CreatePaymentIntentParamsPaymentMethodDataType::Oxxo,
+            "p24" => CreatePaymentIntentParamsPaymentMethodDataType::P24,
+            "pay_by_bank" => CreatePaymentIntentParamsPaymentMethodDataType::PayByBank,
+            "payco" => CreatePaymentIntentParamsPaymentMethodDataType::Payco,
+            "paynow" => CreatePaymentIntentParamsPaymentMethodDataType::Paynow,
+            "paypal" => CreatePaymentIntentParamsPaymentMethodDataType::Paypal,
+            "paypay" => CreatePaymentIntentParamsPaymentMethodDataType::Paypay,
+            "payto" => CreatePaymentIntentParamsPaymentMethodDataType::Payto,
+            "pix" => CreatePaymentIntentParamsPaymentMethodDataType::Pix,
+            "promptpay" => CreatePaymentIntentParamsPaymentMethodDataType::Promptpay,
+            "revolut_pay" => CreatePaymentIntentParamsPaymentMethodDataType::RevolutPay,
+            "samsung_pay" => CreatePaymentIntentParamsPaymentMethodDataType::SamsungPay,
+            "satispay" => CreatePaymentIntentParamsPaymentMethodDataType::Satispay,
+            "scalapay" => CreatePaymentIntentParamsPaymentMethodDataType::Scalapay,
+            "sepa_debit" => CreatePaymentIntentParamsPaymentMethodDataType::SepaDebit,
+            "sequra" => CreatePaymentIntentParamsPaymentMethodDataType::Sequra,
+            "sofort" => CreatePaymentIntentParamsPaymentMethodDataType::Sofort,
+            "sunbit" => CreatePaymentIntentParamsPaymentMethodDataType::Sunbit,
+            "swish" => CreatePaymentIntentParamsPaymentMethodDataType::Swish,
+            "twint" => CreatePaymentIntentParamsPaymentMethodDataType::Twint,
+            "upi" => CreatePaymentIntentParamsPaymentMethodDataType::Upi,
+            "us_bank_account" => CreatePaymentIntentParamsPaymentMethodDataType::UsBankAccount,
+            "wechat_pay" => CreatePaymentIntentParamsPaymentMethodDataType::WechatPay,
+            "zip" => CreatePaymentIntentParamsPaymentMethodDataType::Zip,
+            other => CreatePaymentIntentParamsPaymentMethodDataType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6254,41 +5958,21 @@ impl CreatePaymentIntentParamsPaymentMethodDataUpiMandateOptionsAmountType {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodDataUpiMandateOptionsAmountType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodDataUpiMandateOptionsAmountType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "fixed" => CreatePaymentIntentParamsPaymentMethodDataUpiMandateOptionsAmountType::Fixed,
-                    "maximum" => CreatePaymentIntentParamsPaymentMethodDataUpiMandateOptionsAmountType::Maximum,
-                    other => CreatePaymentIntentParamsPaymentMethodDataUpiMandateOptionsAmountType::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodDataUpiMandateOptionsAmountType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodDataUpiMandateOptionsAmountType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodDataUpiMandateOptionsAmountType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "fixed" => CreatePaymentIntentParamsPaymentMethodDataUpiMandateOptionsAmountType::Fixed,
+            "maximum" => CreatePaymentIntentParamsPaymentMethodDataUpiMandateOptionsAmountType::Maximum,
+            other => CreatePaymentIntentParamsPaymentMethodDataUpiMandateOptionsAmountType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6353,41 +6037,21 @@ impl CreatePaymentIntentParamsPaymentMethodDataUsBankAccountAccountType {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodDataUsBankAccountAccountType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodDataUsBankAccountAccountType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "checking" => CreatePaymentIntentParamsPaymentMethodDataUsBankAccountAccountType::Checking,
-                    "savings" => CreatePaymentIntentParamsPaymentMethodDataUsBankAccountAccountType::Savings,
-                    other => {
-                        CreatePaymentIntentParamsPaymentMethodDataUsBankAccountAccountType::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodDataUsBankAccountAccountType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodDataUsBankAccountAccountType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodDataUsBankAccountAccountType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "checking" => CreatePaymentIntentParamsPaymentMethodDataUsBankAccountAccountType::Checking,
+            "savings" => CreatePaymentIntentParamsPaymentMethodDataUsBankAccountAccountType::Savings,
+            other => CreatePaymentIntentParamsPaymentMethodDataUsBankAccountAccountType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6622,7 +6286,7 @@ impl crate::params::FormEncode for CreatePaymentIntentParamsPaymentMethodOptions
 #[derive(Debug, Clone, Default)]
 pub struct CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptions {
     #[doc = "A URL for custom mandate text to render during confirmation step."]
-    pub custom_mandate_url: Option<serde_json::Value>,
+    pub custom_mandate_url: Option<json::OwnedValue>,
     #[doc = "Description of the mandate interval."]
     pub interval_description: Option<String>,
     #[doc = "Payment schedule for the mandate."]
@@ -6670,54 +6334,28 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsPayment
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "combined" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule::Combined
-                    }
-                    "interval" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule::Interval
-                    }
-                    "sporadic" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule::Sporadic
-                    }
-                    other => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "combined" => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule::Combined,
+            "interval" => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule::Interval,
+            "sporadic" => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule::Sporadic,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsPaymentSchedule::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -6752,51 +6390,27 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsTransac
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "business" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Business
-                    }
-                    "personal" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Personal
-                    }
-                    other => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "business" => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Business,
+            "personal" => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Personal,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptionsTransactionType::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -6833,43 +6447,23 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitSetupFutureUsage {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::Unnamed,
-                    "none" => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::None,
-                    "off_session" => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::OffSession,
-                    "on_session" => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::OnSession,
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::Unnamed,
+            "none" => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::None,
+            "off_session" => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::OffSession,
+            "on_session" => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::OnSession,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitSetupFutureUsage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6904,42 +6498,24 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitVerificationMethod {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitVerificationMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitVerificationMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "automatic" => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitVerificationMethod::Automatic,
-                    "instant" => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitVerificationMethod::Instant,
-                    "microdeposits" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitVerificationMethod::Microdeposits
-                    }
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitVerificationMethod::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitVerificationMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitVerificationMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitVerificationMethod::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "automatic" => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitVerificationMethod::Automatic,
+            "instant" => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitVerificationMethod::Instant,
+            "microdeposits" => CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitVerificationMethod::Microdeposits,
+            other => {
+                CreatePaymentIntentParamsPaymentMethodOptionsAcssDebitVerificationMethod::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -6994,41 +6570,21 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsAffirmCaptureMethod {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsAffirmCaptureMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsAffirmCaptureMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreatePaymentIntentParamsPaymentMethodOptionsAffirmCaptureMethod::Unnamed,
-                    "manual" => CreatePaymentIntentParamsPaymentMethodOptionsAffirmCaptureMethod::Manual,
-                    other => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsAffirmCaptureMethod::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsAffirmCaptureMethod::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsAffirmCaptureMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodOptionsAffirmCaptureMethod::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreatePaymentIntentParamsPaymentMethodOptionsAffirmCaptureMethod::Unnamed,
+            "manual" => CreatePaymentIntentParamsPaymentMethodOptionsAffirmCaptureMethod::Manual,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsAffirmCaptureMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7059,40 +6615,20 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsAffirmSetupFutureUsage {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsAffirmSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsAffirmSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "none" => CreatePaymentIntentParamsPaymentMethodOptionsAffirmSetupFutureUsage::None,
-                    other => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsAffirmSetupFutureUsage::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsAffirmSetupFutureUsage::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsAffirmSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodOptionsAffirmSetupFutureUsage::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "none" => CreatePaymentIntentParamsPaymentMethodOptionsAffirmSetupFutureUsage::None,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsAffirmSetupFutureUsage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7172,42 +6708,22 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsAlipaySetupFutureUsage {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsAlipaySetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsAlipaySetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreatePaymentIntentParamsPaymentMethodOptionsAlipaySetupFutureUsage::Unnamed,
-                    "none" => CreatePaymentIntentParamsPaymentMethodOptionsAlipaySetupFutureUsage::None,
-                    "off_session" => CreatePaymentIntentParamsPaymentMethodOptionsAlipaySetupFutureUsage::OffSession,
-                    other => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsAlipaySetupFutureUsage::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsAlipaySetupFutureUsage::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsAlipaySetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodOptionsAlipaySetupFutureUsage::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreatePaymentIntentParamsPaymentMethodOptionsAlipaySetupFutureUsage::Unnamed,
+            "none" => CreatePaymentIntentParamsPaymentMethodOptionsAlipaySetupFutureUsage::None,
+            "off_session" => CreatePaymentIntentParamsPaymentMethodOptionsAlipaySetupFutureUsage::OffSession,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsAlipaySetupFutureUsage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7311,7 +6827,7 @@ impl crate::params::FormEncode for CreatePaymentIntentParamsPaymentMethodOptions
 #[derive(Debug, Clone, Default)]
 pub struct CreatePaymentIntentParamsPaymentMethodOptionsBacsDebitMandateOptions {
     #[doc = "Prefix used to generate the Mandate reference."]
-    pub reference_prefix: Option<serde_json::Value>,
+    pub reference_prefix: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "payment_intents")]
@@ -7370,41 +6886,25 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsBancontactPreferredLanguage {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsBancontactPreferredLanguage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsBancontactPreferredLanguage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "de" => CreatePaymentIntentParamsPaymentMethodOptionsBancontactPreferredLanguage::De,
-                    "en" => CreatePaymentIntentParamsPaymentMethodOptionsBancontactPreferredLanguage::En,
-                    "fr" => CreatePaymentIntentParamsPaymentMethodOptionsBancontactPreferredLanguage::Fr,
-                    "nl" => CreatePaymentIntentParamsPaymentMethodOptionsBancontactPreferredLanguage::Nl,
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsBancontactPreferredLanguage::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsBancontactPreferredLanguage::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsBancontactPreferredLanguage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsBancontactPreferredLanguage::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "de" => CreatePaymentIntentParamsPaymentMethodOptionsBancontactPreferredLanguage::De,
+            "en" => CreatePaymentIntentParamsPaymentMethodOptionsBancontactPreferredLanguage::En,
+            "fr" => CreatePaymentIntentParamsPaymentMethodOptionsBancontactPreferredLanguage::Fr,
+            "nl" => CreatePaymentIntentParamsPaymentMethodOptionsBancontactPreferredLanguage::Nl,
+            other => {
+                CreatePaymentIntentParamsPaymentMethodOptionsBancontactPreferredLanguage::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -7531,88 +7031,42 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrati
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de>
-    for CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unnamed,
-                    "ch_ein" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::ChEin
-                    }
-                    "de_hrb" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::DeHrb
-                    }
-                    "dk_cvr" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::DkCvr
-                    }
-                    "es_cif" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::EsCif
-                    }
-                    "fi_tunnus" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FiTunnus
-                    }
-                    "fr_siren" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FrSiren
-                    }
-                    "fr_siret" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FrSiret
-                    }
-                    "it_rea" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::ItRea
-                    }
-                    "nl_kvk" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NlKvk
-                    }
-                    "no_org_number" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NoOrgNumber
-                    }
-                    "no_pno" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NoPno
-                    }
-                    "se_org_number" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::SeOrgNumber
-                    }
-                    "se_pno" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::SePno
-                    }
-                    "uk_crn" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::UkCrn
-                    }
-                    other => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unnamed,
+            "ch_ein" => CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::ChEin,
+            "de_hrb" => CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::DeHrb,
+            "dk_cvr" => CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::DkCvr,
+            "es_cif" => CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::EsCif,
+            "fi_tunnus" => CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FiTunnus,
+            "fr_siren" => CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FrSiren,
+            "fr_siret" => CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::FrSiret,
+            "it_rea" => CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::ItRea,
+            "nl_kvk" => CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NlKvk,
+            "no_org_number" => {
+                CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NoOrgNumber
+            }
+            "no_pno" => CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::NoPno,
+            "se_org_number" => {
+                CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::SeOrgNumber
+            }
+            "se_pno" => CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::SePno,
+            "uk_crn" => CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::UkCrn,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsBillieCompanyDetailsRegistrationType::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -7727,9 +7181,9 @@ pub struct CreatePaymentIntentParamsPaymentMethodOptionsCard {
     pub setup_future_usage:
         Option<crate::payment_intents::CreatePaymentIntentParamsPaymentMethodOptionsCardSetupFutureUsage>,
     #[doc = "Provides information about a card payment that customers see on their statements."]
-    pub statement_descriptor_suffix_kana: Option<serde_json::Value>,
+    pub statement_descriptor_suffix_kana: Option<json::OwnedValue>,
     #[doc = "Provides information about a card payment that customers see on their statements."]
-    pub statement_descriptor_suffix_kanji: Option<serde_json::Value>,
+    pub statement_descriptor_suffix_kanji: Option<json::OwnedValue>,
     #[doc = "If 3D Secure authentication was performed with a third-party provider, the authentication details to use for this pay..."]
     pub three_d_secure: Option<crate::payment_intents::CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecure>,
 }
@@ -7819,38 +7273,22 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanInterval {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "month" => CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanInterval::Month,
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanInterval::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanInterval::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanInterval::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "month" => CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanInterval::Month,
+            other => {
+                CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanInterval::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -7885,42 +7323,22 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanType {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "bonus" => CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanType::Bonus,
-                    "fixed_count" => CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanType::FixedCount,
-                    "revolving" => CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanType::Revolving,
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanType::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "bonus" => CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanType::Bonus,
+            "fixed_count" => CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanType::FixedCount,
+            "revolving" => CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanType::Revolving,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsCardInstallmentsPlanType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8005,42 +7423,24 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsInterval {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "day" => CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsInterval::Day,
-                    "month" => CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsInterval::Month,
-                    "sporadic" => CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsInterval::Sporadic,
-                    "week" => CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsInterval::Week,
-                    "year" => CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsInterval::Year,
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsInterval::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsInterval::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsInterval::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "day" => CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsInterval::Day,
+            "month" => CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsInterval::Month,
+            "sporadic" => CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsInterval::Sporadic,
+            "week" => CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsInterval::Week,
+            "year" => CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsInterval::Year,
+            other => {
+                CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsInterval::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -8071,46 +7471,24 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsSupportedTyp
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de>
-    for CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsSupportedTypesItem
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsSupportedTypesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "india" => CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsSupportedTypesItem::India,
-                    other => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsSupportedTypesItem::Unknown(
-                            other.to_string(),
-                        )
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsSupportedTypesItem::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsSupportedTypesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsSupportedTypesItem::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "india" => CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsSupportedTypesItem::India,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsCardMandateOptionsSupportedTypesItem::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -8165,48 +7543,30 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "amex" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Amex,
-                    "cartes_bancaires" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::CartesBancaires,
-                    "diners" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Diners,
-                    "discover" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Discover,
-                    "eftpos_au" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::EftposAu,
-                    "girocard" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Girocard,
-                    "interac" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Interac,
-                    "jcb" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Jcb,
-                    "link" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Link,
-                    "mastercard" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Mastercard,
-                    "unionpay" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Unionpay,
-                    "unknown" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::UnknownValue,
-                    "visa" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Visa,
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "amex" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Amex,
+            "cartes_bancaires" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::CartesBancaires,
+            "diners" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Diners,
+            "discover" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Discover,
+            "eftpos_au" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::EftposAu,
+            "girocard" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Girocard,
+            "interac" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Interac,
+            "jcb" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Jcb,
+            "link" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Link,
+            "mastercard" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Mastercard,
+            "unionpay" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Unionpay,
+            "unknown" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::UnknownValue,
+            "visa" => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Visa,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsCardNetwork::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8268,43 +7628,23 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsCardPresentCaptureMethod {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsCardPresentCaptureMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsCardPresentCaptureMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "manual" => CreatePaymentIntentParamsPaymentMethodOptionsCardPresentCaptureMethod::Manual,
-                    "manual_preferred" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsCardPresentCaptureMethod::ManualPreferred
-                    }
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsCardPresentCaptureMethod::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsCardPresentCaptureMethod::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsCardPresentCaptureMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodOptionsCardPresentCaptureMethod::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "manual" => CreatePaymentIntentParamsPaymentMethodOptionsCardPresentCaptureMethod::Manual,
+            "manual_preferred" => {
+                CreatePaymentIntentParamsPaymentMethodOptionsCardPresentCaptureMethod::ManualPreferred
+            }
+            other => CreatePaymentIntentParamsPaymentMethodOptionsCardPresentCaptureMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8355,47 +7695,25 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsCardPresentRoutingRequestedPri
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsCardPresentRoutingRequestedPriority {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsCardPresentRoutingRequestedPriority;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "domestic" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsCardPresentRoutingRequestedPriority::Domestic
-                    }
-                    "international" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsCardPresentRoutingRequestedPriority::International
-                    }
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsCardPresentRoutingRequestedPriority::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreatePaymentIntentParamsPaymentMethodOptionsCardPresentRoutingRequestedPriority::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsCardPresentRoutingRequestedPriority {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsCardPresentRoutingRequestedPriority::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "domestic" => CreatePaymentIntentParamsPaymentMethodOptionsCardPresentRoutingRequestedPriority::Domestic,
+            "international" => {
+                CreatePaymentIntentParamsPaymentMethodOptionsCardPresentRoutingRequestedPriority::International
+            }
+            other => CreatePaymentIntentParamsPaymentMethodOptionsCardPresentRoutingRequestedPriority::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -8430,45 +7748,25 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsCardRequestExtendedAuthorizati
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsCardRequestExtendedAuthorization {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsCardRequestExtendedAuthorization;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "if_available" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsCardRequestExtendedAuthorization::IfAvailable
-                    }
-                    "never" => CreatePaymentIntentParamsPaymentMethodOptionsCardRequestExtendedAuthorization::Never,
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsCardRequestExtendedAuthorization::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreatePaymentIntentParamsPaymentMethodOptionsCardRequestExtendedAuthorization::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsCardRequestExtendedAuthorization {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsCardRequestExtendedAuthorization::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "if_available" => {
+                CreatePaymentIntentParamsPaymentMethodOptionsCardRequestExtendedAuthorization::IfAvailable
+            }
+            "never" => CreatePaymentIntentParamsPaymentMethodOptionsCardRequestExtendedAuthorization::Never,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsCardRequestExtendedAuthorization::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -8515,42 +7813,22 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsCardRequestThreeDSecure {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsCardRequestThreeDSecure {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsCardRequestThreeDSecure;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "any" => CreatePaymentIntentParamsPaymentMethodOptionsCardRequestThreeDSecure::Any,
-                    "automatic" => CreatePaymentIntentParamsPaymentMethodOptionsCardRequestThreeDSecure::Automatic,
-                    "challenge" => CreatePaymentIntentParamsPaymentMethodOptionsCardRequestThreeDSecure::Challenge,
-                    other => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsCardRequestThreeDSecure::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsCardRequestThreeDSecure::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsCardRequestThreeDSecure {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodOptionsCardRequestThreeDSecure::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "any" => CreatePaymentIntentParamsPaymentMethodOptionsCardRequestThreeDSecure::Any,
+            "automatic" => CreatePaymentIntentParamsPaymentMethodOptionsCardRequestThreeDSecure::Automatic,
+            "challenge" => CreatePaymentIntentParamsPaymentMethodOptionsCardRequestThreeDSecure::Challenge,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsCardRequestThreeDSecure::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8632,44 +7910,28 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatu
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "A" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatus::A,
-                    "C" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatus::C,
-                    "I" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatus::I,
-                    "N" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatus::N,
-                    "R" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatus::R,
-                    "U" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatus::U,
-                    "Y" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatus::Y,
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatus::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatus::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "A" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatus::A,
+            "C" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatus::C,
+            "I" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatus::I,
+            "N" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatus::N,
+            "R" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatus::R,
+            "U" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatus::U,
+            "Y" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatus::Y,
+            other => {
+                CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureAresTransStatus::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -8710,46 +7972,30 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureElectronicComm
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureElectronicCommerceIndicator
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureElectronicCommerceIndicator;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "01" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureElectronicCommerceIndicator::N01,
-                    "02" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureElectronicCommerceIndicator::N02,
-                    "05" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureElectronicCommerceIndicator::N05,
-                    "06" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureElectronicCommerceIndicator::N06,
-                    "07" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureElectronicCommerceIndicator::N07,
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureElectronicCommerceIndicator::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureElectronicCommerceIndicator::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureElectronicCommerceIndicator::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "01" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureElectronicCommerceIndicator::N01,
+            "02" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureElectronicCommerceIndicator::N02,
+            "05" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureElectronicCommerceIndicator::N05,
+            "06" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureElectronicCommerceIndicator::N06,
+            "07" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureElectronicCommerceIndicator::N07,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureElectronicCommerceIndicator::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -8784,45 +8030,23 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureExemptionIndic
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureExemptionIndicator {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureExemptionIndicator;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "low_risk" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureExemptionIndicator::LowRisk
-                    }
-                    "none" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureExemptionIndicator::None,
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureExemptionIndicator::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureExemptionIndicator::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureExemptionIndicator {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureExemptionIndicator::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "low_risk" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureExemptionIndicator::LowRisk,
+            "none" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureExemptionIndicator::None,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureExemptionIndicator::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -8899,44 +8123,25 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureNetworkOptions
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureNetworkOptionsCartesBancairesCbAvalgo
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value =
-                CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureNetworkOptionsCartesBancairesCbAvalgo;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "0" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureNetworkOptionsCartesBancairesCbAvalgo::N0,
-                    "1" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureNetworkOptionsCartesBancairesCbAvalgo::N1,
-                    "2" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureNetworkOptionsCartesBancairesCbAvalgo::N2,
-                    "3" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureNetworkOptionsCartesBancairesCbAvalgo::N3,
-                    "4" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureNetworkOptionsCartesBancairesCbAvalgo::N4,
-                    "A" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureNetworkOptionsCartesBancairesCbAvalgo::A,
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureNetworkOptionsCartesBancairesCbAvalgo::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureNetworkOptionsCartesBancairesCbAvalgo::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureNetworkOptionsCartesBancairesCbAvalgo::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "0" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureNetworkOptionsCartesBancairesCbAvalgo::N0,
+            "1" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureNetworkOptionsCartesBancairesCbAvalgo::N1,
+            "2" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureNetworkOptionsCartesBancairesCbAvalgo::N2,
+            "3" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureNetworkOptionsCartesBancairesCbAvalgo::N3,
+            "4" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureNetworkOptionsCartesBancairesCbAvalgo::N4,
+            "A" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureNetworkOptionsCartesBancairesCbAvalgo::A,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureNetworkOptionsCartesBancairesCbAvalgo::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8977,44 +8182,24 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureVersion {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureVersion {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureVersion;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "1.0.2" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureVersion::N102,
-                    "2.1.0" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureVersion::N210,
-                    "2.2.0" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureVersion::N220,
-                    "2.3.0" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureVersion::N230,
-                    "2.3.1" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureVersion::N231,
-                    other => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureVersion::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureVersion::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureVersion {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureVersion::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "1.0.2" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureVersion::N102,
+            "2.1.0" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureVersion::N210,
+            "2.2.0" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureVersion::N220,
+            "2.3.0" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureVersion::N230,
+            "2.3.1" => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureVersion::N231,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecureVersion::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -9164,45 +8349,26 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferReq
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value =
-                CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "aba" => CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Aba,
-                    "iban" => CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Iban,
-                    "sepa" => CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Sepa,
-                    "sort_code" => CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::SortCode,
-                    "spei" => CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Spei,
-                    "swift" => CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Swift,
-                    "zengin" => CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Zengin,
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "aba" => CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Aba,
+            "iban" => CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Iban,
+            "sepa" => CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Sepa,
+            "sort_code" => CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::SortCode,
+            "spei" => CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Spei,
+            "swift" => CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Swift,
+            "zengin" => CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Zengin,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferRequestedAddressTypesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -9253,52 +8419,36 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferTyp
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "eu_bank_transfer" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferType::EuBankTransfer
-                    }
-                    "gb_bank_transfer" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferType::GbBankTransfer
-                    }
-                    "jp_bank_transfer" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferType::JpBankTransfer
-                    }
-                    "mx_bank_transfer" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferType::MxBankTransfer
-                    }
-                    "us_bank_transfer" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferType::UsBankTransfer
-                    }
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferType::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferType::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "eu_bank_transfer" => {
+                CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferType::EuBankTransfer
+            }
+            "gb_bank_transfer" => {
+                CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferType::GbBankTransfer
+            }
+            "jp_bank_transfer" => {
+                CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferType::JpBankTransfer
+            }
+            "mx_bank_transfer" => {
+                CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferType::MxBankTransfer
+            }
+            "us_bank_transfer" => {
+                CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferType::UsBankTransfer
+            }
+            other => {
+                CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceBankTransferType::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -9329,40 +8479,20 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceFundingType {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceFundingType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceFundingType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "bank_transfer" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceFundingType::BankTransfer
-                    }
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceFundingType::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceFundingType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceFundingType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceFundingType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "bank_transfer" => CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceFundingType::BankTransfer,
+            other => {
+                CreatePaymentIntentParamsPaymentMethodOptionsCustomerBalanceFundingType::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -9518,7 +8648,7 @@ pub struct CreatePaymentIntentParamsPaymentMethodOptionsKlarna {
     pub setup_future_usage:
         Option<crate::payment_intents::CreatePaymentIntentParamsPaymentMethodOptionsKlarnaSetupFutureUsage>,
     #[doc = "Subscription details if setting up or charging a subscription."]
-    pub subscriptions: Option<serde_json::Value>,
+    pub subscriptions: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "payment_intents")]
@@ -9588,41 +8718,25 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsKlarnaOnDemandPurchaseInterval
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsKlarnaOnDemandPurchaseInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsKlarnaOnDemandPurchaseInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "day" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaOnDemandPurchaseInterval::Day,
-                    "month" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaOnDemandPurchaseInterval::Month,
-                    "week" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaOnDemandPurchaseInterval::Week,
-                    "year" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaOnDemandPurchaseInterval::Year,
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaOnDemandPurchaseInterval::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsKlarnaOnDemandPurchaseInterval::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsKlarnaOnDemandPurchaseInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsKlarnaOnDemandPurchaseInterval::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "day" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaOnDemandPurchaseInterval::Day,
+            "month" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaOnDemandPurchaseInterval::Month,
+            "week" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaOnDemandPurchaseInterval::Week,
+            "year" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaOnDemandPurchaseInterval::Year,
+            other => {
+                CreatePaymentIntentParamsPaymentMethodOptionsKlarnaOnDemandPurchaseInterval::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -9743,85 +8857,65 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cs-CZ" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::CsCZ,
-                    "da-DK" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::DaDK,
-                    "de-AT" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::DeAT,
-                    "de-CH" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::DeCH,
-                    "de-DE" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::DeDE,
-                    "el-GR" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::ElGR,
-                    "en-AT" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnAT,
-                    "en-AU" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnAU,
-                    "en-BE" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnBE,
-                    "en-CA" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnCA,
-                    "en-CH" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnCH,
-                    "en-CZ" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnCZ,
-                    "en-DE" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnDE,
-                    "en-DK" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnDK,
-                    "en-ES" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnES,
-                    "en-FI" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnFI,
-                    "en-FR" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnFR,
-                    "en-GB" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnGB,
-                    "en-GR" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnGR,
-                    "en-IE" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnIE,
-                    "en-IT" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnIT,
-                    "en-NL" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnNL,
-                    "en-NO" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnNO,
-                    "en-NZ" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnNZ,
-                    "en-PL" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnPL,
-                    "en-PT" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnPT,
-                    "en-RO" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnRO,
-                    "en-SE" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnSE,
-                    "en-US" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnUS,
-                    "es-ES" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EsES,
-                    "es-US" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EsUS,
-                    "fi-FI" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::FiFI,
-                    "fr-BE" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::FrBE,
-                    "fr-CA" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::FrCA,
-                    "fr-CH" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::FrCH,
-                    "fr-FR" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::FrFR,
-                    "it-CH" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::ItCH,
-                    "it-IT" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::ItIT,
-                    "nb-NO" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::NbNO,
-                    "nl-BE" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::NlBE,
-                    "nl-NL" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::NlNL,
-                    "pl-PL" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::PlPL,
-                    "pt-PT" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::PtPT,
-                    "ro-RO" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::RoRO,
-                    "sv-FI" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::SvFI,
-                    "sv-SE" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::SvSE,
-                    other => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cs-CZ" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::CsCZ,
+            "da-DK" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::DaDK,
+            "de-AT" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::DeAT,
+            "de-CH" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::DeCH,
+            "de-DE" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::DeDE,
+            "el-GR" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::ElGR,
+            "en-AT" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnAT,
+            "en-AU" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnAU,
+            "en-BE" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnBE,
+            "en-CA" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnCA,
+            "en-CH" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnCH,
+            "en-CZ" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnCZ,
+            "en-DE" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnDE,
+            "en-DK" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnDK,
+            "en-ES" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnES,
+            "en-FI" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnFI,
+            "en-FR" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnFR,
+            "en-GB" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnGB,
+            "en-GR" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnGR,
+            "en-IE" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnIE,
+            "en-IT" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnIT,
+            "en-NL" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnNL,
+            "en-NO" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnNO,
+            "en-NZ" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnNZ,
+            "en-PL" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnPL,
+            "en-PT" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnPT,
+            "en-RO" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnRO,
+            "en-SE" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnSE,
+            "en-US" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EnUS,
+            "es-ES" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EsES,
+            "es-US" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::EsUS,
+            "fi-FI" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::FiFI,
+            "fr-BE" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::FrBE,
+            "fr-CA" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::FrCA,
+            "fr-CH" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::FrCH,
+            "fr-FR" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::FrFR,
+            "it-CH" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::ItCH,
+            "it-IT" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::ItIT,
+            "nb-NO" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::NbNO,
+            "nl-BE" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::NlBE,
+            "nl-NL" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::NlNL,
+            "pl-PL" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::PlPL,
+            "pt-PT" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::PtPT,
+            "ro-RO" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::RoRO,
+            "sv-FI" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::SvFI,
+            "sv-SE" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::SvSE,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaPreferredLocale::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -9856,42 +8950,22 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsKlarnaSetupFutureUsage {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsKlarnaSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsKlarnaSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "none" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaSetupFutureUsage::None,
-                    "off_session" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaSetupFutureUsage::OffSession,
-                    "on_session" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaSetupFutureUsage::OnSession,
-                    other => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsKlarnaSetupFutureUsage::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsKlarnaSetupFutureUsage::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsKlarnaSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodOptionsKlarnaSetupFutureUsage::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "none" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaSetupFutureUsage::None,
+            "off_session" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaSetupFutureUsage::OffSession,
+            "on_session" => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaSetupFutureUsage::OnSession,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsKlarnaSetupFutureUsage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -9906,13 +8980,13 @@ impl crate::params::FormEncode for CreatePaymentIntentParamsPaymentMethodOptions
 #[derive(Debug, Clone, Default)]
 pub struct CreatePaymentIntentParamsPaymentMethodOptionsKonbini {
     #[doc = "An optional 10 to 11 digit numeric-only string determining the confirmation code at applicable convenience stores."]
-    pub confirmation_number: Option<serde_json::Value>,
+    pub confirmation_number: Option<json::OwnedValue>,
     #[doc = "The number of calendar days (between 1 and 60) after which Konbini payment instructions will expire."]
-    pub expires_after_days: Option<serde_json::Value>,
+    pub expires_after_days: Option<json::OwnedValue>,
     #[doc = "The timestamp at which the Konbini payment instructions will expire."]
-    pub expires_at: Option<serde_json::Value>,
+    pub expires_at: Option<json::OwnedValue>,
     #[doc = "A product descriptor of up to 22 characters, which will appear to customers at the convenience store."]
-    pub product_description: Option<serde_json::Value>,
+    pub product_description: Option<json::OwnedValue>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
     pub setup_future_usage:
         Option<crate::payment_intents::CreatePaymentIntentParamsPaymentMethodOptionsKonbiniSetupFutureUsage>,
@@ -10285,60 +9359,40 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cs-CZ" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::CsCZ,
-                    "da-DK" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::DaDK,
-                    "de-AT" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::DeAT,
-                    "de-DE" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::DeDE,
-                    "de-LU" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::DeLU,
-                    "el-GR" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::ElGR,
-                    "en-GB" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::EnGB,
-                    "en-US" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::EnUS,
-                    "es-ES" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::EsES,
-                    "fi-FI" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::FiFI,
-                    "fr-BE" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::FrBE,
-                    "fr-FR" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::FrFR,
-                    "fr-LU" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::FrLU,
-                    "hu-HU" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::HuHU,
-                    "it-IT" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::ItIT,
-                    "nl-BE" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::NlBE,
-                    "nl-NL" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::NlNL,
-                    "pl-PL" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::PlPL,
-                    "pt-PT" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::PtPT,
-                    "sk-SK" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::SkSK,
-                    "sv-SE" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::SvSE,
-                    other => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cs-CZ" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::CsCZ,
+            "da-DK" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::DaDK,
+            "de-AT" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::DeAT,
+            "de-DE" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::DeDE,
+            "de-LU" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::DeLU,
+            "el-GR" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::ElGR,
+            "en-GB" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::EnGB,
+            "en-US" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::EnUS,
+            "es-ES" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::EsES,
+            "fi-FI" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::FiFI,
+            "fr-BE" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::FrBE,
+            "fr-FR" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::FrFR,
+            "fr-LU" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::FrLU,
+            "hu-HU" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::HuHU,
+            "it-IT" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::ItIT,
+            "nl-BE" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::NlBE,
+            "nl-NL" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::NlNL,
+            "pl-PL" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::PlPL,
+            "pt-PT" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::PtPT,
+            "sk-SK" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::SkSK,
+            "sv-SE" => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::SvSE,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsPaypalPreferredLocale::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -10380,17 +9434,17 @@ impl crate::params::FormEncode for CreatePaymentIntentParamsPaymentMethodOptions
 #[derive(Debug, Clone, Default)]
 pub struct CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptions {
     #[doc = "Amount that will be collected."]
-    pub amount: Option<serde_json::Value>,
+    pub amount: Option<json::OwnedValue>,
     #[doc = "The type of amount that will be collected."]
     pub amount_type:
         Option<crate::payment_intents::CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsAmountType>,
     #[doc = "Date, in YYYY-MM-DD format, after which payments will not be collected."]
-    pub end_date: Option<serde_json::Value>,
+    pub end_date: Option<json::OwnedValue>,
     #[doc = "The periodicity at which payments will be collected."]
     pub payment_schedule:
         Option<crate::payment_intents::CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule>,
     #[doc = "The number of payments that will be made during a payment period."]
-    pub payments_per_period: Option<serde_json::Value>,
+    pub payments_per_period: Option<json::OwnedValue>,
     #[doc = "The purpose for which payments are made."]
     pub purpose:
         Option<crate::payment_intents::CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose>,
@@ -10429,40 +9483,24 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsAmountType 
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsAmountType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsAmountType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsAmountType::Unnamed,
-                    "fixed" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsAmountType::Fixed,
-                    "maximum" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsAmountType::Maximum,
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsAmountType::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsAmountType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsAmountType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsAmountType::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsAmountType::Unnamed,
+            "fixed" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsAmountType::Fixed,
+            "maximum" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsAmountType::Maximum,
+            other => {
+                CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsAmountType::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -10513,58 +9551,34 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSche
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Unnamed,
-                    "adhoc" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Adhoc,
-                    "annual" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Annual,
-                    "daily" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Daily,
-                    "fortnightly" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Fortnightly
-                    }
-                    "monthly" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Monthly
-                    }
-                    "quarterly" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Quarterly
-                    }
-                    "semi_annual" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::SemiAnnual
-                    }
-                    "weekly" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Weekly,
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Unnamed,
+            "adhoc" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Adhoc,
+            "annual" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Annual,
+            "daily" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Daily,
+            "fortnightly" => {
+                CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Fortnightly
+            }
+            "monthly" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Monthly,
+            "quarterly" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Quarterly,
+            "semi_annual" => {
+                CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::SemiAnnual
+            }
+            "weekly" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Weekly,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -10619,51 +9633,33 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Unnamed,
-                    "dependant_support" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::DependantSupport
-                    }
-                    "government" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Government,
-                    "loan" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Loan,
-                    "mortgage" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Mortgage,
-                    "other" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Other,
-                    "pension" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Pension,
-                    "personal" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Personal,
-                    "retail" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Retail,
-                    "salary" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Salary,
-                    "tax" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Tax,
-                    "utility" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Utility,
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Unnamed,
+            "dependant_support" => {
+                CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::DependantSupport
+            }
+            "government" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Government,
+            "loan" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Loan,
+            "mortgage" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Mortgage,
+            "other" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Other,
+            "pension" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Pension,
+            "personal" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Personal,
+            "retail" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Retail,
+            "salary" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Salary,
+            "tax" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Tax,
+            "utility" => CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Utility,
+            other => {
+                CreatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -10784,50 +9780,26 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedu
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "halfyearly" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Halfyearly
-                    }
-                    "monthly" => CreatePaymentIntentParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Monthly,
-                    "quarterly" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Quarterly
-                    }
-                    "weekly" => CreatePaymentIntentParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Weekly,
-                    "yearly" => CreatePaymentIntentParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Yearly,
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreatePaymentIntentParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "halfyearly" => CreatePaymentIntentParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Halfyearly,
+            "monthly" => CreatePaymentIntentParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Monthly,
+            "quarterly" => CreatePaymentIntentParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Quarterly,
+            "weekly" => CreatePaymentIntentParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Weekly,
+            "yearly" => CreatePaymentIntentParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Yearly,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsPixMandateOptionsPaymentSchedule::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -10860,41 +9832,21 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsPixSetupFutureUsage {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsPixSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsPixSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "none" => CreatePaymentIntentParamsPaymentMethodOptionsPixSetupFutureUsage::None,
-                    "off_session" => CreatePaymentIntentParamsPaymentMethodOptionsPixSetupFutureUsage::OffSession,
-                    other => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsPixSetupFutureUsage::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsPixSetupFutureUsage::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsPixSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodOptionsPixSetupFutureUsage::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "none" => CreatePaymentIntentParamsPaymentMethodOptionsPixSetupFutureUsage::None,
+            "off_session" => CreatePaymentIntentParamsPaymentMethodOptionsPixSetupFutureUsage::OffSession,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsPixSetupFutureUsage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -11134,47 +10086,27 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage::Unnamed,
-                    "de" => CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage::De,
-                    "en" => CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage::En,
-                    "es" => CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage::Es,
-                    "fr" => CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage::Fr,
-                    "it" => CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage::It,
-                    "nl" => CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage::Nl,
-                    "pl" => CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage::Pl,
-                    other => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage::Unnamed,
+            "de" => CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage::De,
+            "en" => CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage::En,
+            "es" => CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage::Es,
+            "fr" => CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage::Fr,
+            "it" => CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage::It,
+            "nl" => CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage::Nl,
+            "pl" => CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage::Pl,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsSofortPreferredLanguage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -11220,7 +10152,7 @@ pub type CreatePaymentIntentParamsPaymentMethodOptionsSunbitSetupFutureUsage =
 #[derive(Debug, Clone, Default)]
 pub struct CreatePaymentIntentParamsPaymentMethodOptionsSwish {
     #[doc = "A reference for this payment to be displayed in the Swish app."]
-    pub reference: Option<serde_json::Value>,
+    pub reference: Option<json::OwnedValue>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
     pub setup_future_usage:
         Option<crate::payment_intents::CreatePaymentIntentParamsPaymentMethodOptionsSwishSetupFutureUsage>,
@@ -11419,41 +10351,27 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnecti
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "balances" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Balances,
-                    "ownership" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Ownership,
-                    "payment_method" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::PaymentMethod,
-                    "transactions" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Transactions,
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "balances" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Balances,
+            "ownership" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Ownership,
+            "payment_method" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::PaymentMethod,
+            "transactions" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Transactions,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPermissionsItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -11490,44 +10408,36 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnecti
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Unknown(
+                    String::new(),
+                ),
+            );
+        }
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "balances" => {
+                CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Balances
             }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "balances" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Balances,
-                    "ownership" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Ownership,
-                    "transactions" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Transactions,
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Unknown(other.to_string()),
-                })
+            "ownership" => {
+                CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Ownership
             }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Unknown(
-                        String::new(),
-                    ),
+            "transactions" => {
+                CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Transactions
+            }
+            other => {
+                CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountFinancialConnectionsPrefetchItem::Unknown(
+                    other.to_string(),
                 )
             }
-        }
-        deserializer.deserialize_any(EnumVisitor)
+        })
     }
 }
 
@@ -11578,43 +10488,27 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountMandateOptionsCol
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountMandateOptionsCollectionMethod
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountMandateOptionsCollectionMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountMandateOptionsCollectionMethod::Unnamed,
-                    "paper" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountMandateOptionsCollectionMethod::Paper,
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountMandateOptionsCollectionMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountMandateOptionsCollectionMethod::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountMandateOptionsCollectionMethod::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountMandateOptionsCollectionMethod::Unnamed,
+            "paper" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountMandateOptionsCollectionMethod::Paper,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountMandateOptionsCollectionMethod::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -11669,45 +10563,25 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountNetworksRequested
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountNetworksRequestedItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountNetworksRequestedItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ach" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountNetworksRequestedItem::Ach,
-                    "us_domestic_wire" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountNetworksRequestedItem::UsDomesticWire
-                    }
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountNetworksRequestedItem::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountNetworksRequestedItem::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountNetworksRequestedItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountNetworksRequestedItem::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ach" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountNetworksRequestedItem::Ach,
+            "us_domestic_wire" => {
+                CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountNetworksRequestedItem::UsDomesticWire
+            }
+            other => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountNetworksRequestedItem::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -11750,46 +10624,26 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountTransactionPurpos
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountTransactionPurpose {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountTransactionPurpose;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountTransactionPurpose::Unnamed,
-                    "goods" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountTransactionPurpose::Goods,
-                    "other" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountTransactionPurpose::Other,
-                    "services" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountTransactionPurpose::Services
-                    }
-                    "unspecified" => {
-                        CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountTransactionPurpose::Unspecified
-                    }
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountTransactionPurpose::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountTransactionPurpose::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountTransactionPurpose {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountTransactionPurpose::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountTransactionPurpose::Unnamed,
+            "goods" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountTransactionPurpose::Goods,
+            "other" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountTransactionPurpose::Other,
+            "services" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountTransactionPurpose::Services,
+            "unspecified" => CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountTransactionPurpose::Unspecified,
+            other => {
+                CreatePaymentIntentParamsPaymentMethodOptionsUsBankAccountTransactionPurpose::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -11849,40 +10703,22 @@ impl CreatePaymentIntentParamsPaymentMethodOptionsWechatPayClient {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsPaymentMethodOptionsWechatPayClient {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsPaymentMethodOptionsWechatPayClient;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "android" => CreatePaymentIntentParamsPaymentMethodOptionsWechatPayClient::Android,
-                    "ios" => CreatePaymentIntentParamsPaymentMethodOptionsWechatPayClient::Ios,
-                    "web" => CreatePaymentIntentParamsPaymentMethodOptionsWechatPayClient::Web,
-                    other => CreatePaymentIntentParamsPaymentMethodOptionsWechatPayClient::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsPaymentMethodOptionsWechatPayClient::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsPaymentMethodOptionsWechatPayClient {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsPaymentMethodOptionsWechatPayClient::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "android" => CreatePaymentIntentParamsPaymentMethodOptionsWechatPayClient::Android,
+            "ios" => CreatePaymentIntentParamsPaymentMethodOptionsWechatPayClient::Ios,
+            "web" => CreatePaymentIntentParamsPaymentMethodOptionsWechatPayClient::Web,
+            other => CreatePaymentIntentParamsPaymentMethodOptionsWechatPayClient::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -11920,7 +10756,7 @@ pub type CreatePaymentIntentParamsPaymentMethodOptionsZipSetupFutureUsage =
 #[derive(Debug, Clone, Default)]
 pub struct CreatePaymentIntentParamsRadarOptions {
     #[doc = "The referrer URL of the current checkout session."]
-    pub referrer: Option<serde_json::Value>,
+    pub referrer: Option<json::OwnedValue>,
     #[doc = "A [Radar Session](https://docs.stripe.com/radar/radar-session) is a snapshot of the browser metadata and device detai..."]
     pub session: Option<String>,
 }
@@ -11954,37 +10790,19 @@ impl CreatePaymentIntentParamsSetupFutureUsage {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for CreatePaymentIntentParamsSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePaymentIntentParamsSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "off_session" => CreatePaymentIntentParamsSetupFutureUsage::OffSession,
-                    "on_session" => CreatePaymentIntentParamsSetupFutureUsage::OnSession,
-                    other => CreatePaymentIntentParamsSetupFutureUsage::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePaymentIntentParamsSetupFutureUsage::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePaymentIntentParamsSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePaymentIntentParamsSetupFutureUsage::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "off_session" => CreatePaymentIntentParamsSetupFutureUsage::OffSession,
+            "on_session" => CreatePaymentIntentParamsSetupFutureUsage::OnSession,
+            other => CreatePaymentIntentParamsSetupFutureUsage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -12077,35 +10895,37 @@ impl crate::params::FormEncode for CreatePaymentIntentParamsTransferDataPaymentD
 }
 
 #[cfg(feature = "customers")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct FundingInstructions {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_transfer: Option<crate::payment_intents::FundingInstructionsBankTransfer>,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "The `funding_type` of the returned instructions"]
-    #[serde(default)]
+    #[json(default)]
     pub funding_type: crate::payment_intents::FundingInstructionsFundingType,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::payment_intents::FundingInstructionsObject,
 }
 
 #[cfg(feature = "customers")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct FundingInstructionsBankTransfer {
     #[doc = "The country of the bank account to fund"]
-    #[serde(default)]
+    #[json(default)]
     pub country: String,
     #[doc = "A list of financial addresses that can be used to fund a particular balance"]
-    #[serde(default)]
+    #[json(default)]
     pub financial_addresses: Vec<crate::payment_intents::FundingInstructionsBankTransferFinancialAddress>,
     #[doc = "The bank_transfer type"]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::payment_intents::FundingInstructionsBankTransferType,
 }
 
@@ -12154,26 +10974,27 @@ pub struct FundingInstructionsBankTransfer {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct FundingInstructionsBankTransferAbaRecord {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_holder_address: Option<crate::common::Address>,
     #[doc = "The account holder name"]
-    #[serde(default)]
+    #[json(default)]
     pub account_holder_name: String,
     #[doc = "The ABA account number"]
-    #[serde(default)]
+    #[json(default)]
     pub account_number: String,
     #[doc = "The account type"]
-    #[serde(default)]
+    #[json(default)]
     pub account_type: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_address: Option<crate::common::Address>,
     #[doc = "The bank name"]
-    #[serde(default)]
+    #[json(default)]
     pub bank_name: String,
     #[doc = "The ABA routing number"]
-    #[serde(default)]
+    #[json(default)]
     pub routing_number: String,
 }
 
@@ -12222,26 +11043,27 @@ pub struct FundingInstructionsBankTransferAbaRecord {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct FundingInstructionsBankTransferFinancialAddress {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub aba: Option<crate::payment_intents::FundingInstructionsBankTransferAbaRecord>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub iban: Option<crate::payment_intents::FundingInstructionsBankTransferIbanRecord>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sort_code: Option<crate::payment_intents::FundingInstructionsBankTransferSortCodeRecord>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub spei: Option<crate::payment_intents::FundingInstructionsBankTransferSpeiRecord>,
     #[doc = "The payment networks supported by this FinancialAddress"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub supported_networks:
         Option<Vec<crate::payment_intents::FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub swift: Option<crate::payment_intents::FundingInstructionsBankTransferSwiftRecord>,
     #[doc = "The type of financial address"]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::payment_intents::FundingInstructionsBankTransferFinancialAddressType,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub zengin: Option<crate::payment_intents::FundingInstructionsBankTransferZenginRecord>,
 }
 
@@ -12413,50 +11235,28 @@ impl FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ach" => FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::Ach,
-                    "bacs" => FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::Bacs,
-                    "chaps" => FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::Chaps,
-                    "domestic_wire_us" => {
-                        FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::DomesticWireUs
-                    }
-                    "fps" => FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::Fps,
-                    "sepa" => FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::Sepa,
-                    "spei" => FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::Spei,
-                    "swift" => FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::Swift,
-                    "zengin" => FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::Zengin,
-                    other => {
-                        FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ach" => FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::Ach,
+            "bacs" => FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::Bacs,
+            "chaps" => FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::Chaps,
+            "domestic_wire_us" => FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::DomesticWireUs,
+            "fps" => FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::Fps,
+            "sepa" => FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::Sepa,
+            "spei" => FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::Spei,
+            "swift" => FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::Swift,
+            "zengin" => FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::Zengin,
+            other => FundingInstructionsBankTransferFinancialAddressSupportedNetworksItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -12673,41 +11473,23 @@ impl Default for FundingInstructionsBankTransferFinancialAddressType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for FundingInstructionsBankTransferFinancialAddressType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FundingInstructionsBankTransferFinancialAddressType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "aba" => FundingInstructionsBankTransferFinancialAddressType::Aba,
-                    "iban" => FundingInstructionsBankTransferFinancialAddressType::Iban,
-                    "sort_code" => FundingInstructionsBankTransferFinancialAddressType::SortCode,
-                    "spei" => FundingInstructionsBankTransferFinancialAddressType::Spei,
-                    "swift" => FundingInstructionsBankTransferFinancialAddressType::Swift,
-                    "zengin" => FundingInstructionsBankTransferFinancialAddressType::Zengin,
-                    other => FundingInstructionsBankTransferFinancialAddressType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FundingInstructionsBankTransferFinancialAddressType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for FundingInstructionsBankTransferFinancialAddressType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FundingInstructionsBankTransferFinancialAddressType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "aba" => FundingInstructionsBankTransferFinancialAddressType::Aba,
+            "iban" => FundingInstructionsBankTransferFinancialAddressType::Iban,
+            "sort_code" => FundingInstructionsBankTransferFinancialAddressType::SortCode,
+            "spei" => FundingInstructionsBankTransferFinancialAddressType::Spei,
+            "swift" => FundingInstructionsBankTransferFinancialAddressType::Swift,
+            "zengin" => FundingInstructionsBankTransferFinancialAddressType::Zengin,
+            other => FundingInstructionsBankTransferFinancialAddressType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -12756,23 +11538,24 @@ impl<'de> serde::Deserialize<'de> for FundingInstructionsBankTransferFinancialAd
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct FundingInstructionsBankTransferIbanRecord {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_holder_address: Option<crate::common::Address>,
     #[doc = "The name of the person or business that owns the bank account"]
-    #[serde(default)]
+    #[json(default)]
     pub account_holder_name: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_address: Option<crate::common::Address>,
     #[doc = "The BIC/SWIFT code of the account."]
-    #[serde(default)]
+    #[json(default)]
     pub bic: String,
     #[doc = "Two-letter country code ([ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2))."]
-    #[serde(default)]
+    #[json(default)]
     pub country: String,
     #[doc = "The IBAN of the account."]
-    #[serde(default)]
+    #[json(default)]
     pub iban: String,
 }
 
@@ -12821,20 +11604,21 @@ pub struct FundingInstructionsBankTransferIbanRecord {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct FundingInstructionsBankTransferSortCodeRecord {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_holder_address: Option<crate::common::Address>,
     #[doc = "The name of the person or business that owns the bank account"]
-    #[serde(default)]
+    #[json(default)]
     pub account_holder_name: String,
     #[doc = "The account number"]
-    #[serde(default)]
+    #[json(default)]
     pub account_number: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_address: Option<crate::common::Address>,
     #[doc = "The six-digit sort code"]
-    #[serde(default)]
+    #[json(default)]
     pub sort_code: String,
 }
 
@@ -12883,23 +11667,24 @@ pub struct FundingInstructionsBankTransferSortCodeRecord {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct FundingInstructionsBankTransferSpeiRecord {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_holder_address: Option<crate::common::Address>,
     #[doc = "The account holder name"]
-    #[serde(default)]
+    #[json(default)]
     pub account_holder_name: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_address: Option<crate::common::Address>,
     #[doc = "The three-digit bank code"]
-    #[serde(default)]
+    #[json(default)]
     pub bank_code: String,
     #[doc = "The short banking institution name"]
-    #[serde(default)]
+    #[json(default)]
     pub bank_name: String,
     #[doc = "The CLABE number"]
-    #[serde(default)]
+    #[json(default)]
     pub clabe: String,
 }
 
@@ -12948,26 +11733,27 @@ pub struct FundingInstructionsBankTransferSpeiRecord {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct FundingInstructionsBankTransferSwiftRecord {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_holder_address: Option<crate::common::Address>,
     #[doc = "The account holder name"]
-    #[serde(default)]
+    #[json(default)]
     pub account_holder_name: String,
     #[doc = "The account number"]
-    #[serde(default)]
+    #[json(default)]
     pub account_number: String,
     #[doc = "The account type"]
-    #[serde(default)]
+    #[json(default)]
     pub account_type: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_address: Option<crate::common::Address>,
     #[doc = "The bank name"]
-    #[serde(default)]
+    #[json(default)]
     pub bank_name: String,
     #[doc = "The SWIFT code"]
-    #[serde(default)]
+    #[json(default)]
     pub swift_code: String,
 }
 
@@ -13000,37 +11786,19 @@ impl Default for FundingInstructionsBankTransferType {
 }
 
 #[cfg(feature = "customers")]
-impl<'de> serde::Deserialize<'de> for FundingInstructionsBankTransferType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FundingInstructionsBankTransferType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "eu_bank_transfer" => FundingInstructionsBankTransferType::EuBankTransfer,
-                    "jp_bank_transfer" => FundingInstructionsBankTransferType::JpBankTransfer,
-                    other => FundingInstructionsBankTransferType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FundingInstructionsBankTransferType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for FundingInstructionsBankTransferType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FundingInstructionsBankTransferType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "eu_bank_transfer" => FundingInstructionsBankTransferType::EuBankTransfer,
+            "jp_bank_transfer" => FundingInstructionsBankTransferType::JpBankTransfer,
+            other => FundingInstructionsBankTransferType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -13079,32 +11847,33 @@ impl<'de> serde::Deserialize<'de> for FundingInstructionsBankTransferType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct FundingInstructionsBankTransferZenginRecord {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_holder_address: Option<crate::common::Address>,
     #[doc = "The account holder name"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_holder_name: Option<String>,
     #[doc = "The account number"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_number: Option<String>,
     #[doc = "The bank account type."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_type: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_address: Option<crate::common::Address>,
     #[doc = "The bank code of the account"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_code: Option<String>,
     #[doc = "The bank name of the account"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bank_name: Option<String>,
     #[doc = "The branch code of the account"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub branch_code: Option<String>,
     #[doc = "The branch name of the account"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub branch_name: Option<String>,
 }
 
@@ -13135,36 +11904,18 @@ impl Default for FundingInstructionsFundingType {
 }
 
 #[cfg(feature = "customers")]
-impl<'de> serde::Deserialize<'de> for FundingInstructionsFundingType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FundingInstructionsFundingType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "bank_transfer" => FundingInstructionsFundingType::BankTransfer,
-                    other => FundingInstructionsFundingType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FundingInstructionsFundingType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for FundingInstructionsFundingType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FundingInstructionsFundingType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "bank_transfer" => FundingInstructionsFundingType::BankTransfer,
+            other => FundingInstructionsFundingType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -13195,36 +11946,18 @@ impl Default for FundingInstructionsObject {
 }
 
 #[cfg(feature = "customers")]
-impl<'de> serde::Deserialize<'de> for FundingInstructionsObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FundingInstructionsObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "funding_instructions" => FundingInstructionsObject::FundingInstructions,
-                    other => FundingInstructionsObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FundingInstructionsObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for FundingInstructionsObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FundingInstructionsObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "funding_instructions" => FundingInstructionsObject::FundingInstructions,
+            other => FundingInstructionsObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -13296,11 +12029,11 @@ impl crate::params::FormEncode for IncrementAuthorizationParams {
 #[derive(Debug, Clone, Default)]
 pub struct IncrementAuthorizationParamsAmountDetails {
     #[doc = "The total discount applied on the transaction represented in the [smallest currency unit](https://docs.stripe.com/cur..."]
-    pub discount_amount: Option<serde_json::Value>,
+    pub discount_amount: Option<json::OwnedValue>,
     #[doc = "Set to `false` to return arithmetic validation errors in the response without failing the request."]
     pub enforce_arithmetic_validation: Option<bool>,
     #[doc = "A list of line items, each containing information about a product in the PaymentIntent."]
-    pub line_items: Option<serde_json::Value>,
+    pub line_items: Option<json::OwnedValue>,
     #[doc = "Contains information about the shipping portion of the amount."]
     pub shipping: Option<crate::payment_intents::IncrementAuthorizationParamsAmountDetailsShipping>,
     #[doc = "Contains information about the tax portion of the amount."]
@@ -13477,21 +12210,22 @@ impl crate::params::FormEncode for ListPaymentIntentsParamsCreated {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsAmountDetails {
     #[doc = "The total discount applied on the transaction represented in the [smallest currency unit](https://docs.stripe.com/cur..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub discount_amount: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<crate::payment_intents::PaymentFlowsAmountDetailsResourceError>,
     #[doc = "A list of line items, each containing information about a product in the PaymentIntent."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line_items: Option<crate::List<crate::payment_intents::PaymentIntentAmountDetailsLineItem>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping: Option<crate::payment_intents::PaymentFlowsAmountDetailsResourceShipping>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax: Option<crate::payment_intents::PaymentFlowsAmountDetailsResourceTax>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tip: Option<crate::payment_intents::PaymentFlowsAmountDetailsClientResourceTip>,
 }
 
@@ -13540,10 +12274,11 @@ pub struct PaymentFlowsAmountDetails {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsAmountDetailsClientResourceTip {
     #[doc = "Portion of the amount that corresponds to a tip."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
 }
 
@@ -13592,13 +12327,14 @@ pub struct PaymentFlowsAmountDetailsClientResourceTip {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsAmountDetailsResourceError {
     #[doc = "The code of the error that occurred when validating the current amount details."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub code: Option<crate::payment_intents::PaymentFlowsAmountDetailsResourceErrorCode>,
     #[doc = "A message providing more details about the error."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
 }
 
@@ -13758,41 +12494,21 @@ impl PaymentFlowsAmountDetailsResourceErrorCode {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentFlowsAmountDetailsResourceErrorCode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentFlowsAmountDetailsResourceErrorCode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "amount_details_amount_mismatch" => {
-                        PaymentFlowsAmountDetailsResourceErrorCode::AmountDetailsAmountMismatch
-                    }
-                    "amount_details_tax_shipping_discount_greater_than_amount" => {
-                        PaymentFlowsAmountDetailsResourceErrorCode::AmountDetailsTaxShippingDiscountGreaterThanAmount
-                    }
-                    other => PaymentFlowsAmountDetailsResourceErrorCode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentFlowsAmountDetailsResourceErrorCode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentFlowsAmountDetailsResourceErrorCode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentFlowsAmountDetailsResourceErrorCode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "amount_details_amount_mismatch" => PaymentFlowsAmountDetailsResourceErrorCode::AmountDetailsAmountMismatch,
+            "amount_details_tax_shipping_discount_greater_than_amount" => {
+                PaymentFlowsAmountDetailsResourceErrorCode::AmountDetailsTaxShippingDiscountGreaterThanAmount
+            }
+            other => PaymentFlowsAmountDetailsResourceErrorCode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -13841,15 +12557,16 @@ impl<'de> serde::Deserialize<'de> for PaymentFlowsAmountDetailsResourceErrorCode
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsAmountDetailsResourceLineItemsListResourceLineItemResourcePaymentMethodOptions {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsCardPaymentIntentAmountDetailsLineItemPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card_present: Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsCardPresentAmountDetailsLineItemPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub klarna: Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsKlarnaPaymentIntentAmountDetailsLineItemPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paypal: Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsPaypalAmountDetailsLineItemPaymentMethodOptions>,
 }
 
@@ -13898,10 +12615,11 @@ pub struct PaymentFlowsAmountDetailsResourceLineItemsListResourceLineItemResourc
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsAmountDetailsResourceLineItemsListResourceLineItemResourceTax {
     #[doc = "The total amount of tax on a single line item represented in the [smallest currency unit](https://docs.stripe.com/cur..."]
-    #[serde(default)]
+    #[json(default)]
     pub total_tax_amount: i64,
 }
 
@@ -13950,16 +12668,17 @@ pub struct PaymentFlowsAmountDetailsResourceLineItemsListResourceLineItemResourc
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsAmountDetailsResourceShipping {
     #[doc = "If a physical good is being shipped, the cost of shipping represented in the [smallest currency unit](https://docs.st..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
     #[doc = "If a physical good is being shipped, the postal code of where it is being shipped from."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub from_postal_code: Option<String>,
     #[doc = "If a physical good is being shipped, the postal code of where it is being shipped to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub to_postal_code: Option<String>,
 }
 
@@ -14008,10 +12727,11 @@ pub struct PaymentFlowsAmountDetailsResourceShipping {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsAmountDetailsResourceTax {
     #[doc = "The total amount of tax on the transaction represented in the [smallest currency unit](https://docs.stripe.com/curren..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub total_tax_amount: Option<i64>,
 }
 
@@ -14060,13 +12780,14 @@ pub struct PaymentFlowsAmountDetailsResourceTax {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsAutomaticPaymentMethodsPaymentIntent {
     #[doc = "Controls whether this PaymentIntent will accept redirect-based payment methods."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub allow_redirects: Option<crate::payment_intents::PaymentFlowsAutomaticPaymentMethodsPaymentIntentAllowRedirects>,
     #[doc = "Automatically calculates compatible payment methods"]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
 }
 
@@ -14224,39 +12945,21 @@ impl PaymentFlowsAutomaticPaymentMethodsPaymentIntentAllowRedirects {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentFlowsAutomaticPaymentMethodsPaymentIntentAllowRedirects {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentFlowsAutomaticPaymentMethodsPaymentIntentAllowRedirects;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => PaymentFlowsAutomaticPaymentMethodsPaymentIntentAllowRedirects::Always,
-                    "never" => PaymentFlowsAutomaticPaymentMethodsPaymentIntentAllowRedirects::Never,
-                    other => PaymentFlowsAutomaticPaymentMethodsPaymentIntentAllowRedirects::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentFlowsAutomaticPaymentMethodsPaymentIntentAllowRedirects::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for PaymentFlowsAutomaticPaymentMethodsPaymentIntentAllowRedirects {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentFlowsAutomaticPaymentMethodsPaymentIntentAllowRedirects::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => PaymentFlowsAutomaticPaymentMethodsPaymentIntentAllowRedirects::Always,
+            "never" => PaymentFlowsAutomaticPaymentMethodsPaymentIntentAllowRedirects::Never,
+            other => PaymentFlowsAutomaticPaymentMethodsPaymentIntentAllowRedirects::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -14305,13 +13008,14 @@ impl<'de> serde::Deserialize<'de> for PaymentFlowsAutomaticPaymentMethodsPayment
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsAutomaticPaymentMethodsSetupIntent {
     #[doc = "Controls whether this SetupIntent will accept redirect-based payment methods."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub allow_redirects: Option<crate::payment_intents::PaymentFlowsAutomaticPaymentMethodsPaymentIntentAllowRedirects>,
     #[doc = "Automatically calculates compatible payment methods"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub enabled: Option<bool>,
 }
 
@@ -14360,13 +13064,14 @@ pub struct PaymentFlowsAutomaticPaymentMethodsSetupIntent {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPaymentDetails {
     #[doc = "A unique value to identify the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_reference: Option<String>,
     #[doc = "A unique value assigned by the business to identify the transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub order_reference: Option<String>,
 }
 
@@ -14415,9 +13120,10 @@ pub struct PaymentFlowsPaymentDetails {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPaymentIntentAsyncWorkflows {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub inputs: Option<crate::payment_intents::PaymentFlowsPaymentIntentAsyncWorkflowsResourceInputs>,
 }
 
@@ -14466,9 +13172,10 @@ pub struct PaymentFlowsPaymentIntentAsyncWorkflows {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPaymentIntentAsyncWorkflowsResourceInputs {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax: Option<crate::payment_intents::PaymentFlowsPaymentIntentAsyncWorkflowsResourceInputsResourceTax>,
 }
 
@@ -14517,10 +13224,11 @@ pub struct PaymentFlowsPaymentIntentAsyncWorkflowsResourceInputs {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPaymentIntentAsyncWorkflowsResourceInputsResourceTax {
     #[doc = "The [TaxCalculation](https://docs.stripe.com/api/tax/calculations) id"]
-    #[serde(default)]
+    #[json(default)]
     pub calculation: String,
 }
 
@@ -14569,13 +13277,14 @@ pub struct PaymentFlowsPaymentIntentAsyncWorkflowsResourceInputsResourceTax {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPaymentIntentPresentmentDetails {
     #[doc = "Amount intended to be collected by this payment, denominated in `presentment_currency`."]
-    #[serde(default)]
+    #[json(default)]
     pub presentment_amount: i64,
     #[doc = "Currency presented to the customer during payment."]
-    #[serde(default)]
+    #[json(default)]
     pub presentment_currency: String,
 }
 
@@ -14624,7 +13333,8 @@ pub struct PaymentFlowsPaymentIntentPresentmentDetails {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPrivatePaymentMethodsAlipay {}
 
 #[cfg(any(
@@ -14672,10 +13382,11 @@ pub struct PaymentFlowsPrivatePaymentMethodsAlipay {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPrivatePaymentMethodsAlmaDetailsResourceInstallments {
     #[doc = "The number of installments."]
-    #[serde(default)]
+    #[json(default)]
     pub count: i64,
 }
 
@@ -14724,21 +13435,22 @@ pub struct PaymentFlowsPrivatePaymentMethodsAlmaDetailsResourceInstallments {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub registered_address: Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsResourceCompanyDetailsRegisteredAddress>,
     #[doc = "Company or entity name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub registered_name: Option<String>,
     #[doc = "The official registration number for the given registration type."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub registration_number: Option<String>,
     #[doc = "Type of registration the company or entity holds in their registered country."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub registration_type: Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType>,
     #[doc = "VAT id number"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub vat: Option<String>,
 }
 
@@ -14920,52 +13632,33 @@ impl PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyD
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value =
-                PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ch_ein" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::ChEin,
-                    "de_hrb" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::DeHrb,
-                    "dk_cvr" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::DkCvr,
-                    "es_cif" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::EsCif,
-                    "fi_tunnus" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::FiTunnus,
-                    "fr_siren" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::FrSiren,
-                    "fr_siret" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::FrSiret,
-                    "it_rea" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::ItRea,
-                    "nl_kvk" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::NlKvk,
-                    "no_org_number" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::NoOrgNumber,
-                    "no_pno" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::NoPno,
-                    "se_org_number" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::SeOrgNumber,
-                    "se_pno" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::SePno,
-                    "uk_crn" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::UkCrn,
-                    other => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ch_ein" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::ChEin,
+            "de_hrb" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::DeHrb,
+            "dk_cvr" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::DkCvr,
+            "es_cif" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::EsCif,
+            "fi_tunnus" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::FiTunnus,
+            "fr_siren" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::FrSiren,
+            "fr_siret" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::FrSiret,
+            "it_rea" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::ItRea,
+            "nl_kvk" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::NlKvk,
+            "no_org_number" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::NoOrgNumber,
+            "no_pno" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::NoPno,
+            "se_org_number" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::SeOrgNumber,
+            "se_pno" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::SePno,
+            "uk_crn" => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::UkCrn,
+            other => PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsRegistrationType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -15014,26 +13707,27 @@ impl<'de> serde::Deserialize<'de>
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCompanyDetailsResourceCompanyDetailsRegisteredAddress
 {
     #[doc = "City, district, suburb, town, or village."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
     #[doc = "Two-letter country code."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[doc = "Address line 1 (e.g., street, PO Box, or company name)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line1: Option<String>,
     #[doc = "Address line 2 (e.g., apartment, suite, unit, or building)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line2: Option<String>,
     #[doc = "ZIP or postal code."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub postal_code: Option<String>,
     #[doc = "State, county, province, or region."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
 }
 
@@ -15082,10 +13776,11 @@ pub struct PaymentFlowsPrivatePaymentMethodsBilliePaymentMethodOptionsResourceCo
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesExtendedAuthorizationExtendedAuthorization {
     #[doc = "Indicates whether or not the capture window is extended beyond the standard authorization."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::payment_intents::PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesExtendedAuthorizationExtendedAuthorizationStatus,
 }
 
@@ -15295,37 +13990,19 @@ impl Default for PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpri
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesExtendedAuthorizationExtendedAuthorizationStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesExtendedAuthorizationExtendedAuthorizationStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "disabled" => PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesExtendedAuthorizationExtendedAuthorizationStatus::Disabled,
-                    "enabled" => PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesExtendedAuthorizationExtendedAuthorizationStatus::Enabled,
-                    other => PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesExtendedAuthorizationExtendedAuthorizationStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesExtendedAuthorizationExtendedAuthorizationStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesExtendedAuthorizationExtendedAuthorizationStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesExtendedAuthorizationExtendedAuthorizationStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "disabled" => PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesExtendedAuthorizationExtendedAuthorizationStatus::Disabled,
+            "enabled" => PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesExtendedAuthorizationExtendedAuthorizationStatus::Enabled,
+            other => PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesExtendedAuthorizationExtendedAuthorizationStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -15374,10 +14051,11 @@ impl<'de> serde::Deserialize<'de> for PaymentFlowsPrivatePaymentMethodsCardDetai
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesIncrementalAuthorizationIncrementalAuthorization {
     #[doc = "Indicates whether or not the incremental authorization feature is supported."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::payment_intents::PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesIncrementalAuthorizationIncrementalAuthorizationStatus,
 }
 
@@ -15587,37 +14265,19 @@ impl Default for PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpri
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesIncrementalAuthorizationIncrementalAuthorizationStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesIncrementalAuthorizationIncrementalAuthorizationStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "available" => PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesIncrementalAuthorizationIncrementalAuthorizationStatus::Available,
-                    "unavailable" => PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesIncrementalAuthorizationIncrementalAuthorizationStatus::Unavailable,
-                    other => PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesIncrementalAuthorizationIncrementalAuthorizationStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesIncrementalAuthorizationIncrementalAuthorizationStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesIncrementalAuthorizationIncrementalAuthorizationStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesIncrementalAuthorizationIncrementalAuthorizationStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "available" => PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesIncrementalAuthorizationIncrementalAuthorizationStatus::Available,
+            "unavailable" => PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesIncrementalAuthorizationIncrementalAuthorizationStatus::Unavailable,
+            other => PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesIncrementalAuthorizationIncrementalAuthorizationStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -15666,13 +14326,14 @@ impl<'de> serde::Deserialize<'de> for PaymentFlowsPrivatePaymentMethodsCardDetai
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesOvercaptureOvercapture {
     #[doc = "The maximum amount that can be captured."]
-    #[serde(default)]
+    #[json(default)]
     pub maximum_amount_capturable: i64,
     #[doc = "Indicates whether or not the authorized amount can be over-captured."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::payment_intents::PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesIncrementalAuthorizationIncrementalAuthorizationStatus,
 }
 
@@ -15721,10 +14382,11 @@ pub struct PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeat
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceMulticapture {
     #[doc = "Indicates whether or not multiple captures are supported."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::payment_intents::PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceEnterpriseFeaturesIncrementalAuthorizationIncrementalAuthorizationStatus,
 }
 
@@ -15773,9 +14435,10 @@ pub struct PaymentFlowsPrivatePaymentMethodsCardDetailsApiResourceMulticapture {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPrivatePaymentMethodsCardPaymentIntentAmountDetailsLineItemPaymentMethodOptions {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub commodity_code: Option<String>,
 }
 
@@ -15824,9 +14487,10 @@ pub struct PaymentFlowsPrivatePaymentMethodsCardPaymentIntentAmountDetailsLineIt
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPrivatePaymentMethodsCardPresentAmountDetailsLineItemPaymentMethodOptions {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub commodity_code: Option<String>,
 }
 
@@ -15875,10 +14539,11 @@ pub struct PaymentFlowsPrivatePaymentMethodsCardPresentAmountDetailsLineItemPaym
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPrivatePaymentMethodsCardPresentCommonWallet {
     #[doc = "The type of mobile wallet, one of `apple_pay`, `google_pay`, `samsung_pay`, or `unknown`."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::payment_intents::PaymentFlowsPrivatePaymentMethodsCardPresentCommonWalletType,
 }
 
@@ -16091,41 +14756,23 @@ impl Default for PaymentFlowsPrivatePaymentMethodsCardPresentCommonWalletType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentFlowsPrivatePaymentMethodsCardPresentCommonWalletType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentFlowsPrivatePaymentMethodsCardPresentCommonWalletType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "apple_pay" => PaymentFlowsPrivatePaymentMethodsCardPresentCommonWalletType::ApplePay,
-                    "google_pay" => PaymentFlowsPrivatePaymentMethodsCardPresentCommonWalletType::GooglePay,
-                    "samsung_pay" => PaymentFlowsPrivatePaymentMethodsCardPresentCommonWalletType::SamsungPay,
-                    "unknown" => PaymentFlowsPrivatePaymentMethodsCardPresentCommonWalletType::UnknownValue,
-                    other => PaymentFlowsPrivatePaymentMethodsCardPresentCommonWalletType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentFlowsPrivatePaymentMethodsCardPresentCommonWalletType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for PaymentFlowsPrivatePaymentMethodsCardPresentCommonWalletType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentFlowsPrivatePaymentMethodsCardPresentCommonWalletType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "apple_pay" => PaymentFlowsPrivatePaymentMethodsCardPresentCommonWalletType::ApplePay,
+            "google_pay" => PaymentFlowsPrivatePaymentMethodsCardPresentCommonWalletType::GooglePay,
+            "samsung_pay" => PaymentFlowsPrivatePaymentMethodsCardPresentCommonWalletType::SamsungPay,
+            "unknown" => PaymentFlowsPrivatePaymentMethodsCardPresentCommonWalletType::UnknownValue,
+            other => PaymentFlowsPrivatePaymentMethodsCardPresentCommonWalletType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -16174,10 +14821,11 @@ impl<'de> serde::Deserialize<'de> for PaymentFlowsPrivatePaymentMethodsCardPrese
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPrivatePaymentMethodsFinancialConnectionsCommonLinkedAccountOptionsFilters {
     #[doc = "The account subcategories to use to filter for possible accounts to link."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub account_subcategories: Option<Vec<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsFinancialConnectionsCommonLinkedAccountOptionsFiltersAccountSubcategoriesItem>>,
 }
 
@@ -16336,39 +14984,21 @@ impl PaymentFlowsPrivatePaymentMethodsFinancialConnectionsCommonLinkedAccountOpt
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for PaymentFlowsPrivatePaymentMethodsFinancialConnectionsCommonLinkedAccountOptionsFiltersAccountSubcategoriesItem
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentFlowsPrivatePaymentMethodsFinancialConnectionsCommonLinkedAccountOptionsFiltersAccountSubcategoriesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "checking" => PaymentFlowsPrivatePaymentMethodsFinancialConnectionsCommonLinkedAccountOptionsFiltersAccountSubcategoriesItem::Checking,
-                    "savings" => PaymentFlowsPrivatePaymentMethodsFinancialConnectionsCommonLinkedAccountOptionsFiltersAccountSubcategoriesItem::Savings,
-                    other => PaymentFlowsPrivatePaymentMethodsFinancialConnectionsCommonLinkedAccountOptionsFiltersAccountSubcategoriesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentFlowsPrivatePaymentMethodsFinancialConnectionsCommonLinkedAccountOptionsFiltersAccountSubcategoriesItem::Unknown(String::new()))
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentFlowsPrivatePaymentMethodsFinancialConnectionsCommonLinkedAccountOptionsFiltersAccountSubcategoriesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "checking" => PaymentFlowsPrivatePaymentMethodsFinancialConnectionsCommonLinkedAccountOptionsFiltersAccountSubcategoriesItem::Checking,
+            "savings" => PaymentFlowsPrivatePaymentMethodsFinancialConnectionsCommonLinkedAccountOptionsFiltersAccountSubcategoriesItem::Savings,
+            other => PaymentFlowsPrivatePaymentMethodsFinancialConnectionsCommonLinkedAccountOptionsFiltersAccountSubcategoriesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -16417,14 +15047,15 @@ impl<'de> serde::Deserialize<'de>
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method:
         Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsCaptureMethod>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage:
         Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsSetupFutureUsage>,
 }
@@ -16581,38 +15212,22 @@ impl PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsCaptureMethod 
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsCaptureMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsCaptureMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "manual" => PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsCaptureMethod::Manual,
-                    other => PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsCaptureMethod::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsCaptureMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsCaptureMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsCaptureMethod::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "manual" => PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsCaptureMethod::Manual,
+            other => {
+                PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsCaptureMethod::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -16770,45 +15385,23 @@ impl PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsSetupFutureUsa
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "none" => PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsSetupFutureUsage::None,
-                    "off_session" => {
-                        PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsSetupFutureUsage::OffSession
-                    }
-                    other => PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsSetupFutureUsage::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsSetupFutureUsage::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+impl<'json> json::Decode<'json> for PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsSetupFutureUsage::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "none" => PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsSetupFutureUsage::None,
+            "off_session" => PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsSetupFutureUsage::OffSession,
+            other => PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsSetupFutureUsage::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -16857,16 +15450,17 @@ impl<'de> serde::Deserialize<'de> for PaymentFlowsPrivatePaymentMethodsKakaoPayP
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPrivatePaymentMethodsKlarnaDob {
     #[doc = "The day of birth, between 1 and 31."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub day: Option<i64>,
     #[doc = "The month of birth, between 1 and 12."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub month: Option<i64>,
     #[doc = "The four-digit year of birth."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub year: Option<i64>,
 }
 
@@ -16915,15 +15509,16 @@ pub struct PaymentFlowsPrivatePaymentMethodsKlarnaDob {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPrivatePaymentMethodsKlarnaPaymentIntentAmountDetailsLineItemPaymentMethodOptions {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub image_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub product_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription_reference: Option<String>,
 }
 
@@ -16972,10 +15567,11 @@ pub struct PaymentFlowsPrivatePaymentMethodsKlarnaPaymentIntentAmountDetailsLine
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPrivatePaymentMethodsKonbiniDetailsResourceStore {
     #[doc = "The name of the convenience store chain where the payment was completed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub chain: Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsKonbiniDetailsResourceStoreChain>,
 }
 
@@ -17137,43 +15733,23 @@ impl PaymentFlowsPrivatePaymentMethodsKonbiniDetailsResourceStoreChain {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentFlowsPrivatePaymentMethodsKonbiniDetailsResourceStoreChain {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentFlowsPrivatePaymentMethodsKonbiniDetailsResourceStoreChain;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "familymart" => PaymentFlowsPrivatePaymentMethodsKonbiniDetailsResourceStoreChain::Familymart,
-                    "lawson" => PaymentFlowsPrivatePaymentMethodsKonbiniDetailsResourceStoreChain::Lawson,
-                    "ministop" => PaymentFlowsPrivatePaymentMethodsKonbiniDetailsResourceStoreChain::Ministop,
-                    "seicomart" => PaymentFlowsPrivatePaymentMethodsKonbiniDetailsResourceStoreChain::Seicomart,
-                    other => {
-                        PaymentFlowsPrivatePaymentMethodsKonbiniDetailsResourceStoreChain::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentFlowsPrivatePaymentMethodsKonbiniDetailsResourceStoreChain::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for PaymentFlowsPrivatePaymentMethodsKonbiniDetailsResourceStoreChain {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentFlowsPrivatePaymentMethodsKonbiniDetailsResourceStoreChain::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "familymart" => PaymentFlowsPrivatePaymentMethodsKonbiniDetailsResourceStoreChain::Familymart,
+            "lawson" => PaymentFlowsPrivatePaymentMethodsKonbiniDetailsResourceStoreChain::Lawson,
+            "ministop" => PaymentFlowsPrivatePaymentMethodsKonbiniDetailsResourceStoreChain::Ministop,
+            "seicomart" => PaymentFlowsPrivatePaymentMethodsKonbiniDetailsResourceStoreChain::Seicomart,
+            other => PaymentFlowsPrivatePaymentMethodsKonbiniDetailsResourceStoreChain::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -17222,14 +15798,15 @@ impl<'de> serde::Deserialize<'de> for PaymentFlowsPrivatePaymentMethodsKonbiniDe
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPrivatePaymentMethodsNaverPayPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method:
         Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsCaptureMethod>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage:
         Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsSetupFutureUsage>,
 }
@@ -17279,14 +15856,15 @@ pub struct PaymentFlowsPrivatePaymentMethodsNaverPayPaymentMethodOptions {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPrivatePaymentMethodsPaycoPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method:
         Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsCaptureMethod>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage:
         Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsPaycoPaymentMethodOptionsSetupFutureUsage>,
 }
@@ -17443,38 +16021,22 @@ impl PaymentFlowsPrivatePaymentMethodsPaycoPaymentMethodOptionsSetupFutureUsage 
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentFlowsPrivatePaymentMethodsPaycoPaymentMethodOptionsSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentFlowsPrivatePaymentMethodsPaycoPaymentMethodOptionsSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "none" => PaymentFlowsPrivatePaymentMethodsPaycoPaymentMethodOptionsSetupFutureUsage::None,
-                    other => PaymentFlowsPrivatePaymentMethodsPaycoPaymentMethodOptionsSetupFutureUsage::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentFlowsPrivatePaymentMethodsPaycoPaymentMethodOptionsSetupFutureUsage::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentFlowsPrivatePaymentMethodsPaycoPaymentMethodOptionsSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                PaymentFlowsPrivatePaymentMethodsPaycoPaymentMethodOptionsSetupFutureUsage::Unknown(String::new()),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "none" => PaymentFlowsPrivatePaymentMethodsPaycoPaymentMethodOptionsSetupFutureUsage::None,
+            other => {
+                PaymentFlowsPrivatePaymentMethodsPaycoPaymentMethodOptionsSetupFutureUsage::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -17523,16 +16085,17 @@ impl<'de> serde::Deserialize<'de> for PaymentFlowsPrivatePaymentMethodsPaycoPaym
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPrivatePaymentMethodsPaypalAmountDetailsLineItemPaymentMethodOptions {
     #[doc = "Type of the line item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub category: Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsPaypalAmountDetailsLineItemPaymentMethodOptionsCategory>,
     #[doc = "Description of the line item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "The Stripe account ID of the connected account that sells the item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sold_by: Option<String>,
 }
 
@@ -17700,44 +16263,34 @@ impl PaymentFlowsPrivatePaymentMethodsPaypalAmountDetailsLineItemPaymentMethodOp
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de>
+impl<'json> json::Decode<'json>
     for PaymentFlowsPrivatePaymentMethodsPaypalAmountDetailsLineItemPaymentMethodOptionsCategory
 {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentFlowsPrivatePaymentMethodsPaypalAmountDetailsLineItemPaymentMethodOptionsCategory;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "digital_goods" => PaymentFlowsPrivatePaymentMethodsPaypalAmountDetailsLineItemPaymentMethodOptionsCategory::DigitalGoods,
-                    "donation" => PaymentFlowsPrivatePaymentMethodsPaypalAmountDetailsLineItemPaymentMethodOptionsCategory::Donation,
-                    "physical_goods" => PaymentFlowsPrivatePaymentMethodsPaypalAmountDetailsLineItemPaymentMethodOptionsCategory::PhysicalGoods,
-                    other => PaymentFlowsPrivatePaymentMethodsPaypalAmountDetailsLineItemPaymentMethodOptionsCategory::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(
-                    PaymentFlowsPrivatePaymentMethodsPaypalAmountDetailsLineItemPaymentMethodOptionsCategory::Unknown(
-                        String::new(),
-                    ),
-                )
-            }
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(
+                PaymentFlowsPrivatePaymentMethodsPaypalAmountDetailsLineItemPaymentMethodOptionsCategory::Unknown(
+                    String::new(),
+                ),
+            );
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "digital_goods" => {
+                PaymentFlowsPrivatePaymentMethodsPaypalAmountDetailsLineItemPaymentMethodOptionsCategory::DigitalGoods
+            }
+            "donation" => {
+                PaymentFlowsPrivatePaymentMethodsPaypalAmountDetailsLineItemPaymentMethodOptionsCategory::Donation
+            }
+            "physical_goods" => {
+                PaymentFlowsPrivatePaymentMethodsPaypalAmountDetailsLineItemPaymentMethodOptionsCategory::PhysicalGoods
+            }
+            other => PaymentFlowsPrivatePaymentMethodsPaypalAmountDetailsLineItemPaymentMethodOptionsCategory::Unknown(
+                other.to_string(),
+            ),
+        })
     }
 }
 
@@ -17786,14 +16339,15 @@ impl<'de> serde::Deserialize<'de>
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPrivatePaymentMethodsSamsungPayPaymentMethodOptions {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method:
         Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsCaptureMethod>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage:
         Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsPaycoPaymentMethodOptionsSetupFutureUsage>,
 }
@@ -17843,7 +16397,8 @@ pub struct PaymentFlowsPrivatePaymentMethodsSamsungPayPaymentMethodOptions {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentFlowsPrivatePaymentMethodsSatispaySetupAttemptDetails {}
 
 #[cfg(any(
@@ -17891,145 +16446,146 @@ pub struct PaymentFlowsPrivatePaymentMethodsSatispaySetupAttemptDetails {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntent {
     #[doc = "The list of payment method types allowed for use with this payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub allowed_payment_method_types: Option<Vec<crate::payment_intents::PaymentIntentAllowedPaymentMethodTypesItem>>,
     #[doc = "Amount intended to be collected by this PaymentIntent."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Amount that can be captured from this PaymentIntent."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_capturable: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_details: Option<crate::payment_intents::PaymentFlowsAmountDetails>,
     #[doc = "Amount that this PaymentIntent collects."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_received: i64,
     #[doc = "ID of the Connect application that created the PaymentIntent."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application: Option<crate::Expandable<crate::common::Application>>,
     #[doc = "The amount of the application fee (if any) that will be requested to be applied to the payment and transferred to the..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application_fee_amount: Option<i64>,
     #[doc = "Settings to configure compatible payment methods from the [Stripe Dashboard](https://dashboard.stripe.com/settings/pa..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub automatic_payment_methods: Option<crate::payment_intents::PaymentFlowsAutomaticPaymentMethodsPaymentIntent>,
     #[doc = "Populated when `status` is `canceled`, this is the time at which the PaymentIntent was canceled."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub canceled_at: Option<i64>,
     #[doc = "Reason for cancellation of this PaymentIntent, either user-provided (`duplicate`, `fraudulent`, `requested_by_custome..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cancellation_reason: Option<crate::payment_intents::PaymentIntentCancellationReason>,
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default)]
+    #[json(default)]
     pub capture_method: crate::payment_intents::PaymentIntentCaptureMethod,
     #[doc = "The client secret of this PaymentIntent."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub client_secret: Option<String>,
     #[doc = "Describes whether we can confirm this PaymentIntent automatically, or if it requires customer action to confirm the p..."]
-    #[serde(default)]
+    #[json(default)]
     pub confirmation_method: crate::payment_intents::PaymentIntentConfirmationMethod,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "ID of the Customer this PaymentIntent belongs to, if one exists."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<crate::Expandable<crate::payment_intents::PaymentIntentCustomerExpanded>>,
     #[doc = "ID of the Account representing the customer that this PaymentIntent belongs to, if one exists."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_account: Option<String>,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "The list of payment method types to exclude from use with this payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub excluded_payment_method_types: Option<Vec<crate::payment_intents::PaymentIntentExcludedPaymentMethodTypesItem>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hooks: Option<crate::payment_intents::PaymentFlowsPaymentIntentAsyncWorkflows>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The payment error encountered in the previous PaymentIntent confirmation."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub last_payment_error: Option<Box<crate::common::ApiErrors>>,
     #[doc = "ID of the latest [Charge object](https://docs.stripe.com/api/charges) created by this PaymentIntent."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub latest_charge: Option<crate::Expandable<crate::charges::Charge>>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Settings for Managed Payments."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub managed_payments: Option<crate::common::SmorResourceManagedPayments>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "If present, this property tells you what actions you need to take in order for your customer to fulfill a payment usi..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub next_action: Option<crate::payment_intents::PaymentIntentNextAction>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::payment_intents::PaymentIntentObject,
     #[doc = "You can specify the settlement merchant as the connected account using the `on_behalf_of` attribute on the charge."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub on_behalf_of: Option<crate::Expandable<crate::account::Account>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_details: Option<crate::payment_intents::PaymentFlowsPaymentDetails>,
     #[doc = "ID of the payment method used in this PaymentIntent."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method: Option<crate::Expandable<crate::payment_methods::PaymentMethod>>,
     #[doc = "Information about the [payment method configuration](https://docs.stripe.com/api/payment_method_configurations) used ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_configuration_details:
         Option<crate::payment_methods::PaymentMethodConfigBizPaymentMethodConfigurationDetails>,
     #[doc = "Payment-method-specific configuration for this PaymentIntent."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_options: Option<crate::payment_intents::PaymentIntentPaymentMethodOptions>,
     #[doc = "The list of payment method types (e.g."]
-    #[serde(default)]
+    #[json(default)]
     pub payment_method_types: Vec<String>,
     #[doc = "ID of the [Payment Record object](https://docs.stripe.com/api/payment-record) created by this PaymentIntent."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_record: Option<crate::Expandable<crate::payment_records::PaymentRecord>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub presentment_details: Option<crate::payment_intents::PaymentFlowsPaymentIntentPresentmentDetails>,
     #[doc = "If present, this property tells you about the processing state of the payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub processing: Option<crate::payment_intents::PaymentIntentProcessing>,
     #[doc = "Email address that the receipt for the resulting payment will be sent to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub receipt_email: Option<String>,
     #[doc = "ID of the review associated with this PaymentIntent, if any."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub review: Option<crate::Expandable<crate::reviews::Review>>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::payment_intents::PaymentIntentSetupFutureUsage>,
     #[doc = "Shipping information for this PaymentIntent."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping: Option<crate::common::Shipping>,
     #[doc = "This is a legacy field that will be removed in the future."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<crate::Expandable<crate::payment_intents::PaymentIntentSourceExpanded>>,
     #[doc = "Text that appears on the customer's statement as the statement descriptor for a non-card charge."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
     #[doc = "Provides information about a card charge."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor_suffix: Option<String>,
     #[doc = "Status of this PaymentIntent, one of `requires_payment_method`, `requires_confirmation`, `requires_action`, `processi..."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::payment_intents::PaymentIntentStatus,
     #[doc = "The data that automatically creates a Transfer after the payment finalizes."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transfer_data: Option<crate::transfers::TransferData>,
     #[doc = "A string that identifies the resulting payment as part of a group."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transfer_group: Option<String>,
 }
 
@@ -18432,134 +16988,116 @@ impl PaymentIntentAllowedPaymentMethodTypesItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentAllowedPaymentMethodTypesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentAllowedPaymentMethodTypesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "acss_debit" => PaymentIntentAllowedPaymentMethodTypesItem::AcssDebit,
-                    "affirm" => PaymentIntentAllowedPaymentMethodTypesItem::Affirm,
-                    "afterpay_clearpay" => PaymentIntentAllowedPaymentMethodTypesItem::AfterpayClearpay,
-                    "alipay" => PaymentIntentAllowedPaymentMethodTypesItem::Alipay,
-                    "alma" => PaymentIntentAllowedPaymentMethodTypesItem::Alma,
-                    "amazon_pay" => PaymentIntentAllowedPaymentMethodTypesItem::AmazonPay,
-                    "au_becs_debit" => PaymentIntentAllowedPaymentMethodTypesItem::AuBecsDebit,
-                    "bacs_debit" => PaymentIntentAllowedPaymentMethodTypesItem::BacsDebit,
-                    "bancontact" => PaymentIntentAllowedPaymentMethodTypesItem::Bancontact,
-                    "billie" => PaymentIntentAllowedPaymentMethodTypesItem::Billie,
-                    "bizum" => PaymentIntentAllowedPaymentMethodTypesItem::Bizum,
-                    "blik" => PaymentIntentAllowedPaymentMethodTypesItem::Blik,
-                    "boku_promptpay" => PaymentIntentAllowedPaymentMethodTypesItem::BokuPromptpay,
-                    "boleto" => PaymentIntentAllowedPaymentMethodTypesItem::Boleto,
-                    "capchase_pay" => PaymentIntentAllowedPaymentMethodTypesItem::CapchasePay,
-                    "card" => PaymentIntentAllowedPaymentMethodTypesItem::Card,
-                    "card_present" => PaymentIntentAllowedPaymentMethodTypesItem::CardPresent,
-                    "cashapp" => PaymentIntentAllowedPaymentMethodTypesItem::Cashapp,
-                    "check_scan" => PaymentIntentAllowedPaymentMethodTypesItem::CheckScan,
-                    "click_to_pay" => PaymentIntentAllowedPaymentMethodTypesItem::ClickToPay,
-                    "crypto" => PaymentIntentAllowedPaymentMethodTypesItem::Crypto,
-                    "customer_balance" => PaymentIntentAllowedPaymentMethodTypesItem::CustomerBalance,
-                    "demo_pay" => PaymentIntentAllowedPaymentMethodTypesItem::DemoPay,
-                    "duitnow" => PaymentIntentAllowedPaymentMethodTypesItem::Duitnow,
-                    "dummy_auth_push" => PaymentIntentAllowedPaymentMethodTypesItem::DummyAuthPush,
-                    "dummy_passthrough_card" => PaymentIntentAllowedPaymentMethodTypesItem::DummyPassthroughCard,
-                    "edenred" => PaymentIntentAllowedPaymentMethodTypesItem::Edenred,
-                    "eps" => PaymentIntentAllowedPaymentMethodTypesItem::Eps,
-                    "fpx" => PaymentIntentAllowedPaymentMethodTypesItem::Fpx,
-                    "gcash" => PaymentIntentAllowedPaymentMethodTypesItem::Gcash,
-                    "getbalance" => PaymentIntentAllowedPaymentMethodTypesItem::Getbalance,
-                    "gift_card" => PaymentIntentAllowedPaymentMethodTypesItem::GiftCard,
-                    "giropay" => PaymentIntentAllowedPaymentMethodTypesItem::Giropay,
-                    "gopay" => PaymentIntentAllowedPaymentMethodTypesItem::Gopay,
-                    "grabpay" => PaymentIntentAllowedPaymentMethodTypesItem::Grabpay,
-                    "id_bank_transfer" => PaymentIntentAllowedPaymentMethodTypesItem::IdBankTransfer,
-                    "ideal" => PaymentIntentAllowedPaymentMethodTypesItem::Ideal,
-                    "interac_present" => PaymentIntentAllowedPaymentMethodTypesItem::InteracPresent,
-                    "kakao_pay" => PaymentIntentAllowedPaymentMethodTypesItem::KakaoPay,
-                    "klarna" => PaymentIntentAllowedPaymentMethodTypesItem::Klarna,
-                    "knet" => PaymentIntentAllowedPaymentMethodTypesItem::Knet,
-                    "konbini" => PaymentIntentAllowedPaymentMethodTypesItem::Konbini,
-                    "kr_card" => PaymentIntentAllowedPaymentMethodTypesItem::KrCard,
-                    "kr_market" => PaymentIntentAllowedPaymentMethodTypesItem::KrMarket,
-                    "kriya" => PaymentIntentAllowedPaymentMethodTypesItem::Kriya,
-                    "link" => PaymentIntentAllowedPaymentMethodTypesItem::Link,
-                    "mb_way" => PaymentIntentAllowedPaymentMethodTypesItem::MbWay,
-                    "mobilepay" => PaymentIntentAllowedPaymentMethodTypesItem::Mobilepay,
-                    "momo" => PaymentIntentAllowedPaymentMethodTypesItem::Momo,
-                    "mondu" => PaymentIntentAllowedPaymentMethodTypesItem::Mondu,
-                    "multibanco" => PaymentIntentAllowedPaymentMethodTypesItem::Multibanco,
-                    "naver_pay" => PaymentIntentAllowedPaymentMethodTypesItem::NaverPay,
-                    "netbanking" => PaymentIntentAllowedPaymentMethodTypesItem::Netbanking,
-                    "ng_bank" => PaymentIntentAllowedPaymentMethodTypesItem::NgBank,
-                    "ng_bank_transfer" => PaymentIntentAllowedPaymentMethodTypesItem::NgBankTransfer,
-                    "ng_card" => PaymentIntentAllowedPaymentMethodTypesItem::NgCard,
-                    "ng_market" => PaymentIntentAllowedPaymentMethodTypesItem::NgMarket,
-                    "ng_ussd" => PaymentIntentAllowedPaymentMethodTypesItem::NgUssd,
-                    "ng_wallet" => PaymentIntentAllowedPaymentMethodTypesItem::NgWallet,
-                    "nz_bank_account" => PaymentIntentAllowedPaymentMethodTypesItem::NzBankAccount,
-                    "octopus" => PaymentIntentAllowedPaymentMethodTypesItem::Octopus,
-                    "oxxo" => PaymentIntentAllowedPaymentMethodTypesItem::Oxxo,
-                    "p24" => PaymentIntentAllowedPaymentMethodTypesItem::P24,
-                    "paper_check" => PaymentIntentAllowedPaymentMethodTypesItem::PaperCheck,
-                    "pay_by_bank" => PaymentIntentAllowedPaymentMethodTypesItem::PayByBank,
-                    "payco" => PaymentIntentAllowedPaymentMethodTypesItem::Payco,
-                    "paynow" => PaymentIntentAllowedPaymentMethodTypesItem::Paynow,
-                    "paypal" => PaymentIntentAllowedPaymentMethodTypesItem::Paypal,
-                    "paypay" => PaymentIntentAllowedPaymentMethodTypesItem::Paypay,
-                    "payto" => PaymentIntentAllowedPaymentMethodTypesItem::Payto,
-                    "pix" => PaymentIntentAllowedPaymentMethodTypesItem::Pix,
-                    "promptpay" => PaymentIntentAllowedPaymentMethodTypesItem::Promptpay,
-                    "qris" => PaymentIntentAllowedPaymentMethodTypesItem::Qris,
-                    "rechnung" => PaymentIntentAllowedPaymentMethodTypesItem::Rechnung,
-                    "revolut_pay" => PaymentIntentAllowedPaymentMethodTypesItem::RevolutPay,
-                    "samsung_pay" => PaymentIntentAllowedPaymentMethodTypesItem::SamsungPay,
-                    "satispay" => PaymentIntentAllowedPaymentMethodTypesItem::Satispay,
-                    "scalapay" => PaymentIntentAllowedPaymentMethodTypesItem::Scalapay,
-                    "sepa_debit" => PaymentIntentAllowedPaymentMethodTypesItem::SepaDebit,
-                    "sequra" => PaymentIntentAllowedPaymentMethodTypesItem::Sequra,
-                    "shop_pay" => PaymentIntentAllowedPaymentMethodTypesItem::ShopPay,
-                    "shopeepay" => PaymentIntentAllowedPaymentMethodTypesItem::Shopeepay,
-                    "sofort" => PaymentIntentAllowedPaymentMethodTypesItem::Sofort,
-                    "south_korea_market" => PaymentIntentAllowedPaymentMethodTypesItem::SouthKoreaMarket,
-                    "stripe_balance" => PaymentIntentAllowedPaymentMethodTypesItem::StripeBalance,
-                    "sunbit" => PaymentIntentAllowedPaymentMethodTypesItem::Sunbit,
-                    "swish" => PaymentIntentAllowedPaymentMethodTypesItem::Swish,
-                    "tamara" => PaymentIntentAllowedPaymentMethodTypesItem::Tamara,
-                    "test_pay" => PaymentIntentAllowedPaymentMethodTypesItem::TestPay,
-                    "touch_n_go" => PaymentIntentAllowedPaymentMethodTypesItem::TouchNGo,
-                    "truemoney" => PaymentIntentAllowedPaymentMethodTypesItem::Truemoney,
-                    "twint" => PaymentIntentAllowedPaymentMethodTypesItem::Twint,
-                    "upi" => PaymentIntentAllowedPaymentMethodTypesItem::Upi,
-                    "us_bank_account" => PaymentIntentAllowedPaymentMethodTypesItem::UsBankAccount,
-                    "us_cash_voucher" => PaymentIntentAllowedPaymentMethodTypesItem::UsCashVoucher,
-                    "vipps" => PaymentIntentAllowedPaymentMethodTypesItem::Vipps,
-                    "wechat_pay" => PaymentIntentAllowedPaymentMethodTypesItem::WechatPay,
-                    "wero" => PaymentIntentAllowedPaymentMethodTypesItem::Wero,
-                    "zip" => PaymentIntentAllowedPaymentMethodTypesItem::Zip,
-                    other => PaymentIntentAllowedPaymentMethodTypesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentAllowedPaymentMethodTypesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentAllowedPaymentMethodTypesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentAllowedPaymentMethodTypesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "acss_debit" => PaymentIntentAllowedPaymentMethodTypesItem::AcssDebit,
+            "affirm" => PaymentIntentAllowedPaymentMethodTypesItem::Affirm,
+            "afterpay_clearpay" => PaymentIntentAllowedPaymentMethodTypesItem::AfterpayClearpay,
+            "alipay" => PaymentIntentAllowedPaymentMethodTypesItem::Alipay,
+            "alma" => PaymentIntentAllowedPaymentMethodTypesItem::Alma,
+            "amazon_pay" => PaymentIntentAllowedPaymentMethodTypesItem::AmazonPay,
+            "au_becs_debit" => PaymentIntentAllowedPaymentMethodTypesItem::AuBecsDebit,
+            "bacs_debit" => PaymentIntentAllowedPaymentMethodTypesItem::BacsDebit,
+            "bancontact" => PaymentIntentAllowedPaymentMethodTypesItem::Bancontact,
+            "billie" => PaymentIntentAllowedPaymentMethodTypesItem::Billie,
+            "bizum" => PaymentIntentAllowedPaymentMethodTypesItem::Bizum,
+            "blik" => PaymentIntentAllowedPaymentMethodTypesItem::Blik,
+            "boku_promptpay" => PaymentIntentAllowedPaymentMethodTypesItem::BokuPromptpay,
+            "boleto" => PaymentIntentAllowedPaymentMethodTypesItem::Boleto,
+            "capchase_pay" => PaymentIntentAllowedPaymentMethodTypesItem::CapchasePay,
+            "card" => PaymentIntentAllowedPaymentMethodTypesItem::Card,
+            "card_present" => PaymentIntentAllowedPaymentMethodTypesItem::CardPresent,
+            "cashapp" => PaymentIntentAllowedPaymentMethodTypesItem::Cashapp,
+            "check_scan" => PaymentIntentAllowedPaymentMethodTypesItem::CheckScan,
+            "click_to_pay" => PaymentIntentAllowedPaymentMethodTypesItem::ClickToPay,
+            "crypto" => PaymentIntentAllowedPaymentMethodTypesItem::Crypto,
+            "customer_balance" => PaymentIntentAllowedPaymentMethodTypesItem::CustomerBalance,
+            "demo_pay" => PaymentIntentAllowedPaymentMethodTypesItem::DemoPay,
+            "duitnow" => PaymentIntentAllowedPaymentMethodTypesItem::Duitnow,
+            "dummy_auth_push" => PaymentIntentAllowedPaymentMethodTypesItem::DummyAuthPush,
+            "dummy_passthrough_card" => PaymentIntentAllowedPaymentMethodTypesItem::DummyPassthroughCard,
+            "edenred" => PaymentIntentAllowedPaymentMethodTypesItem::Edenred,
+            "eps" => PaymentIntentAllowedPaymentMethodTypesItem::Eps,
+            "fpx" => PaymentIntentAllowedPaymentMethodTypesItem::Fpx,
+            "gcash" => PaymentIntentAllowedPaymentMethodTypesItem::Gcash,
+            "getbalance" => PaymentIntentAllowedPaymentMethodTypesItem::Getbalance,
+            "gift_card" => PaymentIntentAllowedPaymentMethodTypesItem::GiftCard,
+            "giropay" => PaymentIntentAllowedPaymentMethodTypesItem::Giropay,
+            "gopay" => PaymentIntentAllowedPaymentMethodTypesItem::Gopay,
+            "grabpay" => PaymentIntentAllowedPaymentMethodTypesItem::Grabpay,
+            "id_bank_transfer" => PaymentIntentAllowedPaymentMethodTypesItem::IdBankTransfer,
+            "ideal" => PaymentIntentAllowedPaymentMethodTypesItem::Ideal,
+            "interac_present" => PaymentIntentAllowedPaymentMethodTypesItem::InteracPresent,
+            "kakao_pay" => PaymentIntentAllowedPaymentMethodTypesItem::KakaoPay,
+            "klarna" => PaymentIntentAllowedPaymentMethodTypesItem::Klarna,
+            "knet" => PaymentIntentAllowedPaymentMethodTypesItem::Knet,
+            "konbini" => PaymentIntentAllowedPaymentMethodTypesItem::Konbini,
+            "kr_card" => PaymentIntentAllowedPaymentMethodTypesItem::KrCard,
+            "kr_market" => PaymentIntentAllowedPaymentMethodTypesItem::KrMarket,
+            "kriya" => PaymentIntentAllowedPaymentMethodTypesItem::Kriya,
+            "link" => PaymentIntentAllowedPaymentMethodTypesItem::Link,
+            "mb_way" => PaymentIntentAllowedPaymentMethodTypesItem::MbWay,
+            "mobilepay" => PaymentIntentAllowedPaymentMethodTypesItem::Mobilepay,
+            "momo" => PaymentIntentAllowedPaymentMethodTypesItem::Momo,
+            "mondu" => PaymentIntentAllowedPaymentMethodTypesItem::Mondu,
+            "multibanco" => PaymentIntentAllowedPaymentMethodTypesItem::Multibanco,
+            "naver_pay" => PaymentIntentAllowedPaymentMethodTypesItem::NaverPay,
+            "netbanking" => PaymentIntentAllowedPaymentMethodTypesItem::Netbanking,
+            "ng_bank" => PaymentIntentAllowedPaymentMethodTypesItem::NgBank,
+            "ng_bank_transfer" => PaymentIntentAllowedPaymentMethodTypesItem::NgBankTransfer,
+            "ng_card" => PaymentIntentAllowedPaymentMethodTypesItem::NgCard,
+            "ng_market" => PaymentIntentAllowedPaymentMethodTypesItem::NgMarket,
+            "ng_ussd" => PaymentIntentAllowedPaymentMethodTypesItem::NgUssd,
+            "ng_wallet" => PaymentIntentAllowedPaymentMethodTypesItem::NgWallet,
+            "nz_bank_account" => PaymentIntentAllowedPaymentMethodTypesItem::NzBankAccount,
+            "octopus" => PaymentIntentAllowedPaymentMethodTypesItem::Octopus,
+            "oxxo" => PaymentIntentAllowedPaymentMethodTypesItem::Oxxo,
+            "p24" => PaymentIntentAllowedPaymentMethodTypesItem::P24,
+            "paper_check" => PaymentIntentAllowedPaymentMethodTypesItem::PaperCheck,
+            "pay_by_bank" => PaymentIntentAllowedPaymentMethodTypesItem::PayByBank,
+            "payco" => PaymentIntentAllowedPaymentMethodTypesItem::Payco,
+            "paynow" => PaymentIntentAllowedPaymentMethodTypesItem::Paynow,
+            "paypal" => PaymentIntentAllowedPaymentMethodTypesItem::Paypal,
+            "paypay" => PaymentIntentAllowedPaymentMethodTypesItem::Paypay,
+            "payto" => PaymentIntentAllowedPaymentMethodTypesItem::Payto,
+            "pix" => PaymentIntentAllowedPaymentMethodTypesItem::Pix,
+            "promptpay" => PaymentIntentAllowedPaymentMethodTypesItem::Promptpay,
+            "qris" => PaymentIntentAllowedPaymentMethodTypesItem::Qris,
+            "rechnung" => PaymentIntentAllowedPaymentMethodTypesItem::Rechnung,
+            "revolut_pay" => PaymentIntentAllowedPaymentMethodTypesItem::RevolutPay,
+            "samsung_pay" => PaymentIntentAllowedPaymentMethodTypesItem::SamsungPay,
+            "satispay" => PaymentIntentAllowedPaymentMethodTypesItem::Satispay,
+            "scalapay" => PaymentIntentAllowedPaymentMethodTypesItem::Scalapay,
+            "sepa_debit" => PaymentIntentAllowedPaymentMethodTypesItem::SepaDebit,
+            "sequra" => PaymentIntentAllowedPaymentMethodTypesItem::Sequra,
+            "shop_pay" => PaymentIntentAllowedPaymentMethodTypesItem::ShopPay,
+            "shopeepay" => PaymentIntentAllowedPaymentMethodTypesItem::Shopeepay,
+            "sofort" => PaymentIntentAllowedPaymentMethodTypesItem::Sofort,
+            "south_korea_market" => PaymentIntentAllowedPaymentMethodTypesItem::SouthKoreaMarket,
+            "stripe_balance" => PaymentIntentAllowedPaymentMethodTypesItem::StripeBalance,
+            "sunbit" => PaymentIntentAllowedPaymentMethodTypesItem::Sunbit,
+            "swish" => PaymentIntentAllowedPaymentMethodTypesItem::Swish,
+            "tamara" => PaymentIntentAllowedPaymentMethodTypesItem::Tamara,
+            "test_pay" => PaymentIntentAllowedPaymentMethodTypesItem::TestPay,
+            "touch_n_go" => PaymentIntentAllowedPaymentMethodTypesItem::TouchNGo,
+            "truemoney" => PaymentIntentAllowedPaymentMethodTypesItem::Truemoney,
+            "twint" => PaymentIntentAllowedPaymentMethodTypesItem::Twint,
+            "upi" => PaymentIntentAllowedPaymentMethodTypesItem::Upi,
+            "us_bank_account" => PaymentIntentAllowedPaymentMethodTypesItem::UsBankAccount,
+            "us_cash_voucher" => PaymentIntentAllowedPaymentMethodTypesItem::UsCashVoucher,
+            "vipps" => PaymentIntentAllowedPaymentMethodTypesItem::Vipps,
+            "wechat_pay" => PaymentIntentAllowedPaymentMethodTypesItem::WechatPay,
+            "wero" => PaymentIntentAllowedPaymentMethodTypesItem::Wero,
+            "zip" => PaymentIntentAllowedPaymentMethodTypesItem::Zip,
+            other => PaymentIntentAllowedPaymentMethodTypesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -18608,37 +17146,38 @@ impl<'de> serde::Deserialize<'de> for PaymentIntentAllowedPaymentMethodTypesItem
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentAmountDetailsLineItem {
     #[doc = "The discount applied on this line item represented in the [smallest currency unit](https://docs.stripe.com/currencies..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub discount_amount: Option<i64>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::payment_intents::PaymentIntentAmountDetailsLineItemObject,
     #[doc = "Payment method-specific information for line items."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_options: Option<crate::payment_intents::PaymentFlowsAmountDetailsResourceLineItemsListResourceLineItemResourcePaymentMethodOptions>,
     #[doc = "The product code of the line item, such as an SKU."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub product_code: Option<String>,
     #[doc = "The product name of the line item."]
-    #[serde(default)]
+    #[json(default)]
     pub product_name: String,
     #[doc = "The quantity of items."]
-    #[serde(default)]
+    #[json(default)]
     pub quantity: i64,
     #[doc = "Contains information about the tax on the item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax: Option<crate::payment_intents::PaymentFlowsAmountDetailsResourceLineItemsListResourceLineItemResourceTax>,
     #[doc = "The unit cost of the line item represented in the [smallest currency unit](https://docs.stripe.com/currencies#zero-de..."]
-    #[serde(default)]
+    #[json(default)]
     pub unit_cost: i64,
     #[doc = "A unit of measure for the line item, such as gallons, feet, meters, etc."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unit_of_measure: Option<String>,
 }
 
@@ -18898,38 +17437,20 @@ impl Default for PaymentIntentAmountDetailsLineItemObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentAmountDetailsLineItemObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentAmountDetailsLineItemObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "payment_intent_amount_details_line_item" => {
-                        PaymentIntentAmountDetailsLineItemObject::PaymentIntentAmountDetailsLineItem
-                    }
-                    other => PaymentIntentAmountDetailsLineItemObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentAmountDetailsLineItemObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentAmountDetailsLineItemObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentAmountDetailsLineItemObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "payment_intent_amount_details_line_item" => {
+                PaymentIntentAmountDetailsLineItemObject::PaymentIntentAmountDetailsLineItem
+            }
+            other => PaymentIntentAmountDetailsLineItemObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -19099,43 +17620,25 @@ impl PaymentIntentCancellationReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentCancellationReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentCancellationReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "abandoned" => PaymentIntentCancellationReason::Abandoned,
-                    "automatic" => PaymentIntentCancellationReason::Automatic,
-                    "duplicate" => PaymentIntentCancellationReason::Duplicate,
-                    "expired" => PaymentIntentCancellationReason::Expired,
-                    "failed_invoice" => PaymentIntentCancellationReason::FailedInvoice,
-                    "fraudulent" => PaymentIntentCancellationReason::Fraudulent,
-                    "requested_by_customer" => PaymentIntentCancellationReason::RequestedByCustomer,
-                    "void_invoice" => PaymentIntentCancellationReason::VoidInvoice,
-                    other => PaymentIntentCancellationReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentCancellationReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentCancellationReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentCancellationReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "abandoned" => PaymentIntentCancellationReason::Abandoned,
+            "automatic" => PaymentIntentCancellationReason::Automatic,
+            "duplicate" => PaymentIntentCancellationReason::Duplicate,
+            "expired" => PaymentIntentCancellationReason::Expired,
+            "failed_invoice" => PaymentIntentCancellationReason::FailedInvoice,
+            "fraudulent" => PaymentIntentCancellationReason::Fraudulent,
+            "requested_by_customer" => PaymentIntentCancellationReason::RequestedByCustomer,
+            "void_invoice" => PaymentIntentCancellationReason::VoidInvoice,
+            other => PaymentIntentCancellationReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -19346,38 +17849,20 @@ impl Default for PaymentIntentCaptureMethod {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentCaptureMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentCaptureMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "automatic" => PaymentIntentCaptureMethod::Automatic,
-                    "automatic_async" => PaymentIntentCaptureMethod::AutomaticAsync,
-                    "manual" => PaymentIntentCaptureMethod::Manual,
-                    other => PaymentIntentCaptureMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentCaptureMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentCaptureMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentCaptureMethod::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "automatic" => PaymentIntentCaptureMethod::Automatic,
+            "automatic_async" => PaymentIntentCaptureMethod::AutomaticAsync,
+            "manual" => PaymentIntentCaptureMethod::Manual,
+            other => PaymentIntentCaptureMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -19426,9 +17911,10 @@ impl<'de> serde::Deserialize<'de> for PaymentIntentCaptureMethod {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentCardProcessing {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_notification: Option<crate::payment_intents::PaymentIntentProcessingCustomerNotification>,
 }
 
@@ -19637,37 +18123,19 @@ impl Default for PaymentIntentConfirmationMethod {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentConfirmationMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentConfirmationMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "automatic" => PaymentIntentConfirmationMethod::Automatic,
-                    "manual" => PaymentIntentConfirmationMethod::Manual,
-                    other => PaymentIntentConfirmationMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentConfirmationMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentConfirmationMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentConfirmationMethod::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "automatic" => PaymentIntentConfirmationMethod::Automatic,
+            "manual" => PaymentIntentConfirmationMethod::Manual,
+            other => PaymentIntentConfirmationMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -19721,7 +18189,7 @@ pub enum PaymentIntentCustomerExpanded {
     /// Expanded `customer`.
     Customer(Box<crate::customers::Customer>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -19769,17 +18237,15 @@ pub enum PaymentIntentCustomerExpanded {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentCustomerExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for PaymentIntentCustomerExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "customer" => PaymentIntentCustomerExpanded::Customer(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "customer" => {
+                PaymentIntentCustomerExpanded::Customer(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
             _ => PaymentIntentCustomerExpanded::Other(value),
         })
     }
@@ -20045,90 +18511,72 @@ impl PaymentIntentExcludedPaymentMethodTypesItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentExcludedPaymentMethodTypesItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentExcludedPaymentMethodTypesItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "acss_debit" => PaymentIntentExcludedPaymentMethodTypesItem::AcssDebit,
-                    "affirm" => PaymentIntentExcludedPaymentMethodTypesItem::Affirm,
-                    "afterpay_clearpay" => PaymentIntentExcludedPaymentMethodTypesItem::AfterpayClearpay,
-                    "alipay" => PaymentIntentExcludedPaymentMethodTypesItem::Alipay,
-                    "alma" => PaymentIntentExcludedPaymentMethodTypesItem::Alma,
-                    "amazon_pay" => PaymentIntentExcludedPaymentMethodTypesItem::AmazonPay,
-                    "au_becs_debit" => PaymentIntentExcludedPaymentMethodTypesItem::AuBecsDebit,
-                    "bacs_debit" => PaymentIntentExcludedPaymentMethodTypesItem::BacsDebit,
-                    "bancontact" => PaymentIntentExcludedPaymentMethodTypesItem::Bancontact,
-                    "billie" => PaymentIntentExcludedPaymentMethodTypesItem::Billie,
-                    "bizum" => PaymentIntentExcludedPaymentMethodTypesItem::Bizum,
-                    "blik" => PaymentIntentExcludedPaymentMethodTypesItem::Blik,
-                    "boleto" => PaymentIntentExcludedPaymentMethodTypesItem::Boleto,
-                    "card" => PaymentIntentExcludedPaymentMethodTypesItem::Card,
-                    "cashapp" => PaymentIntentExcludedPaymentMethodTypesItem::Cashapp,
-                    "crypto" => PaymentIntentExcludedPaymentMethodTypesItem::Crypto,
-                    "customer_balance" => PaymentIntentExcludedPaymentMethodTypesItem::CustomerBalance,
-                    "eps" => PaymentIntentExcludedPaymentMethodTypesItem::Eps,
-                    "fpx" => PaymentIntentExcludedPaymentMethodTypesItem::Fpx,
-                    "giropay" => PaymentIntentExcludedPaymentMethodTypesItem::Giropay,
-                    "grabpay" => PaymentIntentExcludedPaymentMethodTypesItem::Grabpay,
-                    "ideal" => PaymentIntentExcludedPaymentMethodTypesItem::Ideal,
-                    "kakao_pay" => PaymentIntentExcludedPaymentMethodTypesItem::KakaoPay,
-                    "klarna" => PaymentIntentExcludedPaymentMethodTypesItem::Klarna,
-                    "konbini" => PaymentIntentExcludedPaymentMethodTypesItem::Konbini,
-                    "kr_card" => PaymentIntentExcludedPaymentMethodTypesItem::KrCard,
-                    "mb_way" => PaymentIntentExcludedPaymentMethodTypesItem::MbWay,
-                    "mobilepay" => PaymentIntentExcludedPaymentMethodTypesItem::Mobilepay,
-                    "multibanco" => PaymentIntentExcludedPaymentMethodTypesItem::Multibanco,
-                    "naver_pay" => PaymentIntentExcludedPaymentMethodTypesItem::NaverPay,
-                    "nz_bank_account" => PaymentIntentExcludedPaymentMethodTypesItem::NzBankAccount,
-                    "oxxo" => PaymentIntentExcludedPaymentMethodTypesItem::Oxxo,
-                    "p24" => PaymentIntentExcludedPaymentMethodTypesItem::P24,
-                    "pay_by_bank" => PaymentIntentExcludedPaymentMethodTypesItem::PayByBank,
-                    "payco" => PaymentIntentExcludedPaymentMethodTypesItem::Payco,
-                    "paynow" => PaymentIntentExcludedPaymentMethodTypesItem::Paynow,
-                    "paypal" => PaymentIntentExcludedPaymentMethodTypesItem::Paypal,
-                    "paypay" => PaymentIntentExcludedPaymentMethodTypesItem::Paypay,
-                    "payto" => PaymentIntentExcludedPaymentMethodTypesItem::Payto,
-                    "pix" => PaymentIntentExcludedPaymentMethodTypesItem::Pix,
-                    "promptpay" => PaymentIntentExcludedPaymentMethodTypesItem::Promptpay,
-                    "revolut_pay" => PaymentIntentExcludedPaymentMethodTypesItem::RevolutPay,
-                    "samsung_pay" => PaymentIntentExcludedPaymentMethodTypesItem::SamsungPay,
-                    "satispay" => PaymentIntentExcludedPaymentMethodTypesItem::Satispay,
-                    "scalapay" => PaymentIntentExcludedPaymentMethodTypesItem::Scalapay,
-                    "sepa_debit" => PaymentIntentExcludedPaymentMethodTypesItem::SepaDebit,
-                    "sequra" => PaymentIntentExcludedPaymentMethodTypesItem::Sequra,
-                    "sofort" => PaymentIntentExcludedPaymentMethodTypesItem::Sofort,
-                    "sunbit" => PaymentIntentExcludedPaymentMethodTypesItem::Sunbit,
-                    "swish" => PaymentIntentExcludedPaymentMethodTypesItem::Swish,
-                    "twint" => PaymentIntentExcludedPaymentMethodTypesItem::Twint,
-                    "upi" => PaymentIntentExcludedPaymentMethodTypesItem::Upi,
-                    "us_bank_account" => PaymentIntentExcludedPaymentMethodTypesItem::UsBankAccount,
-                    "wechat_pay" => PaymentIntentExcludedPaymentMethodTypesItem::WechatPay,
-                    "zip" => PaymentIntentExcludedPaymentMethodTypesItem::Zip,
-                    other => PaymentIntentExcludedPaymentMethodTypesItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentExcludedPaymentMethodTypesItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentExcludedPaymentMethodTypesItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentExcludedPaymentMethodTypesItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "acss_debit" => PaymentIntentExcludedPaymentMethodTypesItem::AcssDebit,
+            "affirm" => PaymentIntentExcludedPaymentMethodTypesItem::Affirm,
+            "afterpay_clearpay" => PaymentIntentExcludedPaymentMethodTypesItem::AfterpayClearpay,
+            "alipay" => PaymentIntentExcludedPaymentMethodTypesItem::Alipay,
+            "alma" => PaymentIntentExcludedPaymentMethodTypesItem::Alma,
+            "amazon_pay" => PaymentIntentExcludedPaymentMethodTypesItem::AmazonPay,
+            "au_becs_debit" => PaymentIntentExcludedPaymentMethodTypesItem::AuBecsDebit,
+            "bacs_debit" => PaymentIntentExcludedPaymentMethodTypesItem::BacsDebit,
+            "bancontact" => PaymentIntentExcludedPaymentMethodTypesItem::Bancontact,
+            "billie" => PaymentIntentExcludedPaymentMethodTypesItem::Billie,
+            "bizum" => PaymentIntentExcludedPaymentMethodTypesItem::Bizum,
+            "blik" => PaymentIntentExcludedPaymentMethodTypesItem::Blik,
+            "boleto" => PaymentIntentExcludedPaymentMethodTypesItem::Boleto,
+            "card" => PaymentIntentExcludedPaymentMethodTypesItem::Card,
+            "cashapp" => PaymentIntentExcludedPaymentMethodTypesItem::Cashapp,
+            "crypto" => PaymentIntentExcludedPaymentMethodTypesItem::Crypto,
+            "customer_balance" => PaymentIntentExcludedPaymentMethodTypesItem::CustomerBalance,
+            "eps" => PaymentIntentExcludedPaymentMethodTypesItem::Eps,
+            "fpx" => PaymentIntentExcludedPaymentMethodTypesItem::Fpx,
+            "giropay" => PaymentIntentExcludedPaymentMethodTypesItem::Giropay,
+            "grabpay" => PaymentIntentExcludedPaymentMethodTypesItem::Grabpay,
+            "ideal" => PaymentIntentExcludedPaymentMethodTypesItem::Ideal,
+            "kakao_pay" => PaymentIntentExcludedPaymentMethodTypesItem::KakaoPay,
+            "klarna" => PaymentIntentExcludedPaymentMethodTypesItem::Klarna,
+            "konbini" => PaymentIntentExcludedPaymentMethodTypesItem::Konbini,
+            "kr_card" => PaymentIntentExcludedPaymentMethodTypesItem::KrCard,
+            "mb_way" => PaymentIntentExcludedPaymentMethodTypesItem::MbWay,
+            "mobilepay" => PaymentIntentExcludedPaymentMethodTypesItem::Mobilepay,
+            "multibanco" => PaymentIntentExcludedPaymentMethodTypesItem::Multibanco,
+            "naver_pay" => PaymentIntentExcludedPaymentMethodTypesItem::NaverPay,
+            "nz_bank_account" => PaymentIntentExcludedPaymentMethodTypesItem::NzBankAccount,
+            "oxxo" => PaymentIntentExcludedPaymentMethodTypesItem::Oxxo,
+            "p24" => PaymentIntentExcludedPaymentMethodTypesItem::P24,
+            "pay_by_bank" => PaymentIntentExcludedPaymentMethodTypesItem::PayByBank,
+            "payco" => PaymentIntentExcludedPaymentMethodTypesItem::Payco,
+            "paynow" => PaymentIntentExcludedPaymentMethodTypesItem::Paynow,
+            "paypal" => PaymentIntentExcludedPaymentMethodTypesItem::Paypal,
+            "paypay" => PaymentIntentExcludedPaymentMethodTypesItem::Paypay,
+            "payto" => PaymentIntentExcludedPaymentMethodTypesItem::Payto,
+            "pix" => PaymentIntentExcludedPaymentMethodTypesItem::Pix,
+            "promptpay" => PaymentIntentExcludedPaymentMethodTypesItem::Promptpay,
+            "revolut_pay" => PaymentIntentExcludedPaymentMethodTypesItem::RevolutPay,
+            "samsung_pay" => PaymentIntentExcludedPaymentMethodTypesItem::SamsungPay,
+            "satispay" => PaymentIntentExcludedPaymentMethodTypesItem::Satispay,
+            "scalapay" => PaymentIntentExcludedPaymentMethodTypesItem::Scalapay,
+            "sepa_debit" => PaymentIntentExcludedPaymentMethodTypesItem::SepaDebit,
+            "sequra" => PaymentIntentExcludedPaymentMethodTypesItem::Sequra,
+            "sofort" => PaymentIntentExcludedPaymentMethodTypesItem::Sofort,
+            "sunbit" => PaymentIntentExcludedPaymentMethodTypesItem::Sunbit,
+            "swish" => PaymentIntentExcludedPaymentMethodTypesItem::Swish,
+            "twint" => PaymentIntentExcludedPaymentMethodTypesItem::Twint,
+            "upi" => PaymentIntentExcludedPaymentMethodTypesItem::Upi,
+            "us_bank_account" => PaymentIntentExcludedPaymentMethodTypesItem::UsBankAccount,
+            "wechat_pay" => PaymentIntentExcludedPaymentMethodTypesItem::WechatPay,
+            "zip" => PaymentIntentExcludedPaymentMethodTypesItem::Zip,
+            other => PaymentIntentExcludedPaymentMethodTypesItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -20177,58 +18625,59 @@ impl<'de> serde::Deserialize<'de> for PaymentIntentExcludedPaymentMethodTypesIte
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextAction {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub alipay_handle_redirect: Option<crate::payment_intents::PaymentIntentNextActionAlipayHandleRedirect>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub blik_authorize: Option<crate::payment_intents::PaymentIntentNextActionBlikAuthorize>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub boleto_display_details: Option<crate::payment_intents::PaymentIntentNextActionBoleto>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card_await_notification: Option<crate::payment_intents::PaymentIntentNextActionCardAwaitNotification>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cashapp_handle_redirect_or_display_qr_code:
         Option<crate::payment_intents::PaymentIntentNextActionCashappHandleRedirectOrDisplayQrCode>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub display_bank_transfer_instructions:
         Option<crate::payment_intents::PaymentIntentNextActionDisplayBankTransferInstructions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub klarna_display_qr_code: Option<crate::payment_intents::PaymentIntentNextActionKlarnaDisplayQrCode>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub konbini_display_details: Option<crate::payment_intents::PaymentIntentNextActionKonbini>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub multibanco_display_details: Option<crate::payment_intents::PaymentIntentNextActionDisplayMultibancoDetails>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub oxxo_display_details: Option<crate::payment_intents::PaymentIntentNextActionDisplayOxxoDetails>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paynow_display_qr_code: Option<crate::payment_intents::PaymentIntentNextActionPaynowDisplayQrCode>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pix_display_qr_code: Option<crate::payment_intents::PaymentIntentNextActionPixDisplayQrCode>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub promptpay_display_qr_code: Option<crate::payment_intents::PaymentIntentNextActionPromptpayDisplayQrCode>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub redirect_to_url: Option<crate::payment_intents::PaymentIntentNextActionRedirectToUrl>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub swish_handle_redirect_or_display_qr_code:
         Option<crate::payment_intents::PaymentIntentNextActionSwishHandleRedirectOrDisplayQrCode>,
     #[doc = "Type of the next action to perform."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub upi_handle_redirect_or_display_qr_code:
         Option<crate::payment_intents::PaymentIntentNextActionUpiHandleRedirectOrDisplayQrCode>,
     #[doc = "When confirming a PaymentIntent with Stripe.js, Stripe.js depends on the contents of this dictionary to invoke authen..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub use_stripe_sdk: Option<std::collections::HashMap<String, serde_json::Value>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
+    pub use_stripe_sdk: Option<std::collections::HashMap<String, json::OwnedValue>>,
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verify_with_microdeposits: Option<crate::payment_intents::PaymentIntentNextActionVerifyWithMicrodeposits>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub wechat_pay_display_qr_code: Option<crate::payment_intents::PaymentIntentNextActionWechatPayDisplayQrCode>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub wechat_pay_redirect_to_android_app:
         Option<crate::payment_intents::PaymentIntentNextActionWechatPayRedirectToAndroidApp>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub wechat_pay_redirect_to_ios_app:
         Option<crate::payment_intents::PaymentIntentNextActionWechatPayRedirectToIosApp>,
 }
@@ -20278,19 +18727,20 @@ pub struct PaymentIntentNextAction {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionAlipayHandleRedirect {
     #[doc = "The native data to be used with Alipay SDK you must redirect your customer to in order to authenticate the payment in..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub native_data: Option<String>,
     #[doc = "The native URL you must redirect your customer to in order to authenticate the payment in an iOS App."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub native_url: Option<String>,
     #[doc = "If the customer does not exit their browser while authenticating, they will be redirected to this specified URL after..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub return_url: Option<String>,
     #[doc = "The URL you must redirect your customer to in order to authenticate the payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 }
 
@@ -20339,7 +18789,8 @@ pub struct PaymentIntentNextActionAlipayHandleRedirect {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionBlikAuthorize {}
 
 #[cfg(any(
@@ -20387,19 +18838,20 @@ pub struct PaymentIntentNextActionBlikAuthorize {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionBoleto {
     #[doc = "The timestamp after which the boleto expires."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<i64>,
     #[doc = "The URL to the hosted boleto voucher page, which allows customers to view the boleto voucher."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hosted_voucher_url: Option<String>,
     #[doc = "The boleto number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub number: Option<String>,
     #[doc = "The URL to the downloadable boleto voucher PDF."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pdf: Option<String>,
 }
 
@@ -20448,13 +18900,14 @@ pub struct PaymentIntentNextActionBoleto {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionCardAwaitNotification {
     #[doc = "The time that payment will be attempted."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub charge_attempt_at: Option<i64>,
     #[doc = "For payments greater than INR 15000, the customer must provide explicit approval of the payment with their bank."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_approval_required: Option<bool>,
 }
 
@@ -20503,15 +18956,16 @@ pub struct PaymentIntentNextActionCardAwaitNotification {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionCashappHandleRedirectOrDisplayQrCode {
     #[doc = "The URL to the hosted Cash App Pay instructions page, which allows customers to view the QR code, and supports QR cod..."]
-    #[serde(default)]
+    #[json(default)]
     pub hosted_instructions_url: String,
     #[doc = "The url for mobile redirect based auth"]
-    #[serde(default)]
+    #[json(default)]
     pub mobile_auth_url: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub qr_code: Option<crate::payment_intents::PaymentIntentNextActionCashappQrCode>,
 }
 
@@ -20560,16 +19014,17 @@ pub struct PaymentIntentNextActionCashappHandleRedirectOrDisplayQrCode {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionCashappQrCode {
     #[doc = "The date (unix timestamp) when the QR code expires."]
-    #[serde(default)]
+    #[json(default)]
     pub expires_at: i64,
     #[doc = "The image_url_png string used to render QR code"]
-    #[serde(default)]
+    #[json(default)]
     pub image_url_png: String,
     #[doc = "The image_url_svg string used to render QR code"]
-    #[serde(default)]
+    #[json(default)]
     pub image_url_svg: String,
 }
 
@@ -20618,25 +19073,26 @@ pub struct PaymentIntentNextActionCashappQrCode {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionDisplayBankTransferInstructions {
     #[doc = "The remaining amount that needs to be transferred to complete the payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_remaining: Option<i64>,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub currency: Option<String>,
     #[doc = "A list of financial addresses that can be used to fund the customer balance"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub financial_addresses: Option<Vec<crate::payment_intents::FundingInstructionsBankTransferFinancialAddress>>,
     #[doc = "A link to a hosted page that guides your customer through completing the transfer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hosted_instructions_url: Option<String>,
     #[doc = "A string identifying this payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     #[doc = "Type of bank transfer"]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::payment_intents::PaymentIntentNextActionDisplayBankTransferInstructionsType,
 }
 
@@ -20851,42 +19307,24 @@ impl Default for PaymentIntentNextActionDisplayBankTransferInstructionsType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentNextActionDisplayBankTransferInstructionsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentNextActionDisplayBankTransferInstructionsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "eu_bank_transfer" => PaymentIntentNextActionDisplayBankTransferInstructionsType::EuBankTransfer,
-                    "gb_bank_transfer" => PaymentIntentNextActionDisplayBankTransferInstructionsType::GbBankTransfer,
-                    "jp_bank_transfer" => PaymentIntentNextActionDisplayBankTransferInstructionsType::JpBankTransfer,
-                    "mx_bank_transfer" => PaymentIntentNextActionDisplayBankTransferInstructionsType::MxBankTransfer,
-                    "us_bank_transfer" => PaymentIntentNextActionDisplayBankTransferInstructionsType::UsBankTransfer,
-                    other => PaymentIntentNextActionDisplayBankTransferInstructionsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentNextActionDisplayBankTransferInstructionsType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentNextActionDisplayBankTransferInstructionsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentNextActionDisplayBankTransferInstructionsType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "eu_bank_transfer" => PaymentIntentNextActionDisplayBankTransferInstructionsType::EuBankTransfer,
+            "gb_bank_transfer" => PaymentIntentNextActionDisplayBankTransferInstructionsType::GbBankTransfer,
+            "jp_bank_transfer" => PaymentIntentNextActionDisplayBankTransferInstructionsType::JpBankTransfer,
+            "mx_bank_transfer" => PaymentIntentNextActionDisplayBankTransferInstructionsType::MxBankTransfer,
+            "us_bank_transfer" => PaymentIntentNextActionDisplayBankTransferInstructionsType::UsBankTransfer,
+            other => PaymentIntentNextActionDisplayBankTransferInstructionsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -20935,19 +19373,20 @@ impl<'de> serde::Deserialize<'de> for PaymentIntentNextActionDisplayBankTransfer
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionDisplayMultibancoDetails {
     #[doc = "Entity number associated with this Multibanco payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub entity: Option<String>,
     #[doc = "The timestamp at which the Multibanco voucher expires."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<i64>,
     #[doc = "The URL for the hosted Multibanco voucher page, which allows customers to view a Multibanco voucher."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hosted_voucher_url: Option<String>,
     #[doc = "Reference number associated with this Multibanco payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
 }
 
@@ -20996,16 +19435,17 @@ pub struct PaymentIntentNextActionDisplayMultibancoDetails {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionDisplayOxxoDetails {
     #[doc = "The timestamp after which the OXXO voucher expires."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expires_after: Option<i64>,
     #[doc = "The URL for the hosted OXXO voucher page, which allows customers to view and print an OXXO voucher."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hosted_voucher_url: Option<String>,
     #[doc = "OXXO reference number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub number: Option<String>,
 }
 
@@ -21054,19 +19494,20 @@ pub struct PaymentIntentNextActionDisplayOxxoDetails {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionKlarnaDisplayQrCode {
     #[doc = "The data being used to generate QR code"]
-    #[serde(default)]
+    #[json(default)]
     pub data: String,
     #[doc = "The timestamp at which the QR code expires."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<i64>,
     #[doc = "The image_url_png string used to render QR code"]
-    #[serde(default)]
+    #[json(default)]
     pub image_url_png: String,
     #[doc = "The image_url_svg string used to render QR code"]
-    #[serde(default)]
+    #[json(default)]
     pub image_url_svg: String,
 }
 
@@ -21115,15 +19556,16 @@ pub struct PaymentIntentNextActionKlarnaDisplayQrCode {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionKonbini {
     #[doc = "The timestamp at which the pending Konbini payment expires."]
-    #[serde(default)]
+    #[json(default)]
     pub expires_at: i64,
     #[doc = "The URL for the Konbini payment instructions page, which allows customers to view and print a Konbini voucher."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hosted_voucher_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub stores: Option<crate::payment_intents::PaymentIntentNextActionKonbiniStores>,
 }
 
@@ -21172,13 +19614,14 @@ pub struct PaymentIntentNextActionKonbini {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionKonbiniFamilymart {
     #[doc = "The confirmation number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub confirmation_number: Option<String>,
     #[doc = "The payment code."]
-    #[serde(default)]
+    #[json(default)]
     pub payment_code: String,
 }
 
@@ -21227,13 +19670,14 @@ pub struct PaymentIntentNextActionKonbiniFamilymart {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionKonbiniLawson {
     #[doc = "The confirmation number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub confirmation_number: Option<String>,
     #[doc = "The payment code."]
-    #[serde(default)]
+    #[json(default)]
     pub payment_code: String,
 }
 
@@ -21282,13 +19726,14 @@ pub struct PaymentIntentNextActionKonbiniLawson {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionKonbiniMinistop {
     #[doc = "The confirmation number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub confirmation_number: Option<String>,
     #[doc = "The payment code."]
-    #[serde(default)]
+    #[json(default)]
     pub payment_code: String,
 }
 
@@ -21337,13 +19782,14 @@ pub struct PaymentIntentNextActionKonbiniMinistop {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionKonbiniSeicomart {
     #[doc = "The confirmation number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub confirmation_number: Option<String>,
     #[doc = "The payment code."]
-    #[serde(default)]
+    #[json(default)]
     pub payment_code: String,
 }
 
@@ -21392,19 +19838,20 @@ pub struct PaymentIntentNextActionKonbiniSeicomart {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionKonbiniStores {
     #[doc = "FamilyMart instruction details."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub familymart: Option<crate::payment_intents::PaymentIntentNextActionKonbiniFamilymart>,
     #[doc = "Lawson instruction details."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub lawson: Option<crate::payment_intents::PaymentIntentNextActionKonbiniLawson>,
     #[doc = "Ministop instruction details."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ministop: Option<crate::payment_intents::PaymentIntentNextActionKonbiniMinistop>,
     #[doc = "Seicomart instruction details."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub seicomart: Option<crate::payment_intents::PaymentIntentNextActionKonbiniSeicomart>,
 }
 
@@ -21453,19 +19900,20 @@ pub struct PaymentIntentNextActionKonbiniStores {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionPaynowDisplayQrCode {
     #[doc = "The raw data string used to generate QR code, it should be used together with QR code library."]
-    #[serde(default)]
+    #[json(default)]
     pub data: String,
     #[doc = "The URL to the hosted PayNow instructions page, which allows customers to view the PayNow QR code."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hosted_instructions_url: Option<String>,
     #[doc = "The image_url_png string used to render QR code"]
-    #[serde(default)]
+    #[json(default)]
     pub image_url_png: String,
     #[doc = "The image_url_svg string used to render QR code"]
-    #[serde(default)]
+    #[json(default)]
     pub image_url_svg: String,
 }
 
@@ -21514,22 +19962,23 @@ pub struct PaymentIntentNextActionPaynowDisplayQrCode {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionPixDisplayQrCode {
     #[doc = "The raw data string used to generate QR code, it should be used together with QR code library."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub data: Option<String>,
     #[doc = "The date (unix timestamp) when the PIX expires."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<i64>,
     #[doc = "The URL to the hosted pix instructions page, which allows customers to view the pix QR code."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub hosted_instructions_url: Option<String>,
     #[doc = "The image_url_png string used to render png QR code"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub image_url_png: Option<String>,
     #[doc = "The image_url_svg string used to render svg QR code"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub image_url_svg: Option<String>,
 }
 
@@ -21578,19 +20027,20 @@ pub struct PaymentIntentNextActionPixDisplayQrCode {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionPromptpayDisplayQrCode {
     #[doc = "The raw data string used to generate QR code, it should be used together with QR code library."]
-    #[serde(default)]
+    #[json(default)]
     pub data: String,
     #[doc = "The URL to the hosted PromptPay instructions page, which allows customers to view the PromptPay QR code."]
-    #[serde(default)]
+    #[json(default)]
     pub hosted_instructions_url: String,
     #[doc = "The PNG path used to render the QR code, can be used as the source in an HTML img tag"]
-    #[serde(default)]
+    #[json(default)]
     pub image_url_png: String,
     #[doc = "The SVG path used to render the QR code, can be used as the source in an HTML img tag"]
-    #[serde(default)]
+    #[json(default)]
     pub image_url_svg: String,
 }
 
@@ -21639,13 +20089,14 @@ pub struct PaymentIntentNextActionPromptpayDisplayQrCode {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionRedirectToUrl {
     #[doc = "If the customer does not exit their browser while authenticating, they will be redirected to this specified URL after..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub return_url: Option<String>,
     #[doc = "The URL you must redirect your customer to in order to authenticate the payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 }
 
@@ -21694,15 +20145,16 @@ pub struct PaymentIntentNextActionRedirectToUrl {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionSwishHandleRedirectOrDisplayQrCode {
     #[doc = "The URL to the hosted Swish instructions page, which allows customers to view the QR code."]
-    #[serde(default)]
+    #[json(default)]
     pub hosted_instructions_url: String,
     #[doc = "The url for mobile redirect based auth (for internal use only and not typically available in standard API requests)."]
-    #[serde(default)]
+    #[json(default)]
     pub mobile_auth_url: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub qr_code: Option<crate::payment_intents::PaymentIntentNextActionSwishQrCode>,
 }
 
@@ -21751,19 +20203,20 @@ pub struct PaymentIntentNextActionSwishHandleRedirectOrDisplayQrCode {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionSwishQrCode {
     #[doc = "The raw data string used to generate QR code, it should be used together with QR code library."]
-    #[serde(default)]
+    #[json(default)]
     pub data: String,
     #[doc = "The timestamp at which the QR code expires."]
-    #[serde(default)]
+    #[json(default)]
     pub expires_at: i64,
     #[doc = "The image_url_png string used to render QR code"]
-    #[serde(default)]
+    #[json(default)]
     pub image_url_png: String,
     #[doc = "The image_url_svg string used to render QR code"]
-    #[serde(default)]
+    #[json(default)]
     pub image_url_svg: String,
 }
 
@@ -21812,12 +20265,13 @@ pub struct PaymentIntentNextActionSwishQrCode {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionUpiHandleRedirectOrDisplayQrCode {
     #[doc = "The URL to the hosted UPI instructions page, which allows customers to view the QR code."]
-    #[serde(default)]
+    #[json(default)]
     pub hosted_instructions_url: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub qr_code: Option<crate::payment_intents::PaymentIntentNextActionUpiqrCode>,
 }
 
@@ -21866,16 +20320,17 @@ pub struct PaymentIntentNextActionUpiHandleRedirectOrDisplayQrCode {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionUpiqrCode {
     #[doc = "The date (unix timestamp) when the QR code expires."]
-    #[serde(default)]
+    #[json(default)]
     pub expires_at: i64,
     #[doc = "The image_url_png string used to render QR code"]
-    #[serde(default)]
+    #[json(default)]
     pub image_url_png: String,
     #[doc = "The image_url_svg string used to render QR code"]
-    #[serde(default)]
+    #[json(default)]
     pub image_url_svg: String,
 }
 
@@ -21924,16 +20379,17 @@ pub struct PaymentIntentNextActionUpiqrCode {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionVerifyWithMicrodeposits {
     #[doc = "The timestamp when the microdeposits are expected to land."]
-    #[serde(default)]
+    #[json(default)]
     pub arrival_date: i64,
     #[doc = "The URL for the hosted verification page, which allows customers to verify their bank account."]
-    #[serde(default)]
+    #[json(default)]
     pub hosted_verification_url: String,
     #[doc = "The type of the microdeposit sent to the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub microdeposit_type:
         Option<crate::payment_intents::PaymentIntentNextActionVerifyWithMicrodepositsMicrodepositType>,
 }
@@ -22092,39 +20548,21 @@ impl PaymentIntentNextActionVerifyWithMicrodepositsMicrodepositType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentNextActionVerifyWithMicrodepositsMicrodepositType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentNextActionVerifyWithMicrodepositsMicrodepositType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "amounts" => PaymentIntentNextActionVerifyWithMicrodepositsMicrodepositType::Amounts,
-                    "descriptor_code" => PaymentIntentNextActionVerifyWithMicrodepositsMicrodepositType::DescriptorCode,
-                    other => PaymentIntentNextActionVerifyWithMicrodepositsMicrodepositType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentNextActionVerifyWithMicrodepositsMicrodepositType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentNextActionVerifyWithMicrodepositsMicrodepositType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentNextActionVerifyWithMicrodepositsMicrodepositType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "amounts" => PaymentIntentNextActionVerifyWithMicrodepositsMicrodepositType::Amounts,
+            "descriptor_code" => PaymentIntentNextActionVerifyWithMicrodepositsMicrodepositType::DescriptorCode,
+            other => PaymentIntentNextActionVerifyWithMicrodepositsMicrodepositType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -22173,22 +20611,23 @@ impl<'de> serde::Deserialize<'de> for PaymentIntentNextActionVerifyWithMicrodepo
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionWechatPayDisplayQrCode {
     #[doc = "The data being used to generate QR code"]
-    #[serde(default)]
+    #[json(default)]
     pub data: String,
     #[doc = "The URL to the hosted WeChat Pay instructions page, which allows customers to view the WeChat Pay QR code."]
-    #[serde(default)]
+    #[json(default)]
     pub hosted_instructions_url: String,
     #[doc = "The base64 image data for a pre-generated QR code"]
-    #[serde(default)]
+    #[json(default)]
     pub image_data_url: String,
     #[doc = "The image_url_png string used to render QR code"]
-    #[serde(default)]
+    #[json(default)]
     pub image_url_png: String,
     #[doc = "The image_url_svg string used to render QR code"]
-    #[serde(default)]
+    #[json(default)]
     pub image_url_svg: String,
 }
 
@@ -22237,28 +20676,29 @@ pub struct PaymentIntentNextActionWechatPayDisplayQrCode {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionWechatPayRedirectToAndroidApp {
     #[doc = "app_id is the APP ID registered on WeChat open platform"]
-    #[serde(default)]
+    #[json(default)]
     pub app_id: String,
     #[doc = "nonce_str is a random string"]
-    #[serde(default)]
+    #[json(default)]
     pub nonce_str: String,
     #[doc = "package is static value"]
-    #[serde(default)]
+    #[json(default)]
     pub package: String,
     #[doc = "an unique merchant ID assigned by WeChat Pay"]
-    #[serde(default)]
+    #[json(default)]
     pub partner_id: String,
     #[doc = "an unique trading ID assigned by WeChat Pay"]
-    #[serde(default)]
+    #[json(default)]
     pub prepay_id: String,
     #[doc = "A signature"]
-    #[serde(default)]
+    #[json(default)]
     pub sign: String,
     #[doc = "Specifies the current time in epoch format"]
-    #[serde(default)]
+    #[json(default)]
     pub timestamp: String,
 }
 
@@ -22307,10 +20747,11 @@ pub struct PaymentIntentNextActionWechatPayRedirectToAndroidApp {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentNextActionWechatPayRedirectToIosApp {
     #[doc = "An universal link that redirect to WeChat Pay app"]
-    #[serde(default)]
+    #[json(default)]
     pub native_url: String,
 }
 
@@ -22517,36 +20958,18 @@ impl Default for PaymentIntentObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "payment_intent" => PaymentIntentObject::PaymentIntent,
-                    other => PaymentIntentObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "payment_intent" => PaymentIntentObject::PaymentIntent,
+            other => PaymentIntentObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -22595,123 +21018,124 @@ impl<'de> serde::Deserialize<'de> for PaymentIntentObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentPaymentMethodOptions {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub acss_debit: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsAcssDebit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub affirm: Option<crate::payment_methods::PaymentMethodOptionsAffirm>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub afterpay_clearpay: Option<crate::payment_methods::PaymentMethodOptionsAfterpayClearpay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub alipay: Option<crate::payment_methods::PaymentMethodOptionsAlipay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub alma: Option<crate::payment_methods::PaymentMethodOptionsAlma>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amazon_pay: Option<crate::payment_methods::PaymentMethodOptionsAmazonPay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub au_becs_debit: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsAuBecsDebit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bacs_debit: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsBacsDebit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bancontact: Option<crate::payment_methods::PaymentMethodOptionsBancontact>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billie: Option<crate::payment_methods::PaymentMethodOptionsBillie>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bizum: Option<crate::payment_methods::PaymentMethodOptionsBizum>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub blik: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsBlik>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub boleto: Option<crate::payment_methods::PaymentMethodOptionsBoleto>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsCard>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card_present: Option<crate::payment_methods::PaymentMethodOptionsCardPresent>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cashapp: Option<crate::payment_methods::PaymentMethodOptionsCashapp>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub crypto: Option<crate::payment_methods::PaymentMethodOptionsCrypto>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_balance: Option<crate::payment_methods::PaymentMethodOptionsCustomerBalance>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub eps: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsEps>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fpx: Option<crate::payment_methods::PaymentMethodOptionsFpx>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub giropay: Option<crate::payment_methods::PaymentMethodOptionsGiropay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub grabpay: Option<crate::payment_methods::PaymentMethodOptionsGrabpay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ideal: Option<crate::payment_methods::PaymentMethodOptionsIdeal>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub interac_present: Option<crate::payment_methods::PaymentMethodOptionsInteracPresent>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub kakao_pay: Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub klarna: Option<crate::payment_methods::PaymentMethodOptionsKlarna>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub konbini: Option<crate::payment_methods::PaymentMethodOptionsKonbini>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub kr_card: Option<crate::payment_methods::PaymentMethodOptionsKrCard>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub link: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsLink>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mb_way: Option<crate::payment_methods::PaymentMethodOptionsMbWay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mobilepay: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsMobilepay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub multibanco: Option<crate::payment_methods::PaymentMethodOptionsMultibanco>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub naver_pay: Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsNaverPayPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub nz_bank_account: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsNzBankAccount>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub oxxo: Option<crate::payment_methods::PaymentMethodOptionsOxxo>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub p24: Option<crate::payment_methods::PaymentMethodOptionsP24>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pay_by_bank: Option<crate::payment_methods::PaymentMethodOptionsPayByBank>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payco: Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsPaycoPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paynow: Option<crate::payment_methods::PaymentMethodOptionsPaynow>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paypal: Option<crate::payment_methods::PaymentMethodOptionsPaypal>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paypay: Option<crate::payment_methods::PaymentMethodOptionsPaypay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payto: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsPayto>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pix: Option<crate::payment_methods::PaymentMethodOptionsPix>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub promptpay: Option<crate::payment_methods::PaymentMethodOptionsPromptpay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub revolut_pay: Option<crate::payment_methods::PaymentMethodOptionsRevolutPay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub samsung_pay: Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsSamsungPayPaymentMethodOptions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub satispay: Option<crate::payment_methods::PaymentMethodOptionsSatispay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub scalapay: Option<crate::payment_methods::PaymentMethodOptionsScalapay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sepa_debit: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsSepaDebit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sequra: Option<crate::payment_methods::PaymentMethodOptionsSequra>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sofort: Option<crate::payment_methods::PaymentMethodOptionsSofort>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sunbit: Option<crate::payment_methods::PaymentMethodOptionsSunbit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub swish: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsSwish>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub twint: Option<crate::payment_methods::PaymentMethodOptionsTwint>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub upi: Option<crate::payment_methods::PaymentMethodOptionsUpi>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us_bank_account: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsUsBankAccount>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub wechat_pay: Option<crate::payment_methods::PaymentMethodOptionsWechatPay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub zip: Option<crate::payment_methods::PaymentMethodOptionsZip>,
 }
 
@@ -22760,18 +21184,19 @@ pub struct PaymentIntentPaymentMethodOptions {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentPaymentMethodOptionsAcssDebit {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate_options: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebit>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsAcssDebitSetupFutureUsage>,
     #[doc = "Controls when Stripe will attempt to debit the funds from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub target_date: Option<String>,
     #[doc = "Bank account verification method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verification_method:
         Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsAcssDebitVerificationMethod>,
 }
@@ -22932,40 +21357,22 @@ impl PaymentIntentPaymentMethodOptionsAcssDebitSetupFutureUsage {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentPaymentMethodOptionsAcssDebitSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentPaymentMethodOptionsAcssDebitSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "none" => PaymentIntentPaymentMethodOptionsAcssDebitSetupFutureUsage::None,
-                    "off_session" => PaymentIntentPaymentMethodOptionsAcssDebitSetupFutureUsage::OffSession,
-                    "on_session" => PaymentIntentPaymentMethodOptionsAcssDebitSetupFutureUsage::OnSession,
-                    other => PaymentIntentPaymentMethodOptionsAcssDebitSetupFutureUsage::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentPaymentMethodOptionsAcssDebitSetupFutureUsage::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentPaymentMethodOptionsAcssDebitSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentPaymentMethodOptionsAcssDebitSetupFutureUsage::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "none" => PaymentIntentPaymentMethodOptionsAcssDebitSetupFutureUsage::None,
+            "off_session" => PaymentIntentPaymentMethodOptionsAcssDebitSetupFutureUsage::OffSession,
+            "on_session" => PaymentIntentPaymentMethodOptionsAcssDebitSetupFutureUsage::OnSession,
+            other => PaymentIntentPaymentMethodOptionsAcssDebitSetupFutureUsage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -23125,40 +21532,22 @@ impl PaymentIntentPaymentMethodOptionsAcssDebitVerificationMethod {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentPaymentMethodOptionsAcssDebitVerificationMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentPaymentMethodOptionsAcssDebitVerificationMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "automatic" => PaymentIntentPaymentMethodOptionsAcssDebitVerificationMethod::Automatic,
-                    "instant" => PaymentIntentPaymentMethodOptionsAcssDebitVerificationMethod::Instant,
-                    "microdeposits" => PaymentIntentPaymentMethodOptionsAcssDebitVerificationMethod::Microdeposits,
-                    other => PaymentIntentPaymentMethodOptionsAcssDebitVerificationMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentPaymentMethodOptionsAcssDebitVerificationMethod::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentPaymentMethodOptionsAcssDebitVerificationMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentPaymentMethodOptionsAcssDebitVerificationMethod::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "automatic" => PaymentIntentPaymentMethodOptionsAcssDebitVerificationMethod::Automatic,
+            "instant" => PaymentIntentPaymentMethodOptionsAcssDebitVerificationMethod::Instant,
+            "microdeposits" => PaymentIntentPaymentMethodOptionsAcssDebitVerificationMethod::Microdeposits,
+            other => PaymentIntentPaymentMethodOptionsAcssDebitVerificationMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -23207,13 +21596,14 @@ impl<'de> serde::Deserialize<'de> for PaymentIntentPaymentMethodOptionsAcssDebit
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentPaymentMethodOptionsAuBecsDebit {
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsAcssDebitSetupFutureUsage>,
     #[doc = "Controls when Stripe will attempt to debit the funds from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub target_date: Option<String>,
 }
 
@@ -23262,15 +21652,16 @@ pub struct PaymentIntentPaymentMethodOptionsAuBecsDebit {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentPaymentMethodOptionsBacsDebit {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate_options: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsMandateOptionsBacsDebit>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsAcssDebitSetupFutureUsage>,
     #[doc = "Controls when Stripe will attempt to debit the funds from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub target_date: Option<String>,
 }
 
@@ -23319,12 +21710,13 @@ pub struct PaymentIntentPaymentMethodOptionsBacsDebit {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentPaymentMethodOptionsBlik {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate_options: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsMandateOptionsBlik>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage:
         Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsSetupFutureUsage>,
 }
@@ -23374,52 +21766,53 @@ pub struct PaymentIntentPaymentMethodOptionsBlik {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentPaymentMethodOptionsCard {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method:
         Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsCaptureMethod>,
     #[doc = "Installment details for this payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub installments: Option<crate::payment_methods::PaymentMethodOptionsCardInstallments>,
     #[doc = "Configuration options for setting up an eMandate for cards issued in India."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate_options: Option<crate::payment_methods::PaymentMethodOptionsCardMandateOptions>,
     #[doc = "Selected network to process this payment intent on."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub network: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsCardNetwork>,
     #[doc = "Request ability to [capture beyond the standard authorization validity window](https://docs.stripe.com/payments/exten..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub request_extended_authorization:
         Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization>,
     #[doc = "Request ability to [increment the authorization](https://docs.stripe.com/payments/incremental-authorization) for this..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub request_incremental_authorization:
         Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization>,
     #[doc = "Request ability to make [multiple captures](https://docs.stripe.com/payments/multicapture) for this PaymentIntent."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub request_multicapture:
         Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization>,
     #[doc = "Request ability to [overcapture](https://docs.stripe.com/payments/overcapture) for this PaymentIntent."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub request_overcapture:
         Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization>,
     #[doc = "We strongly recommend that you rely on our SCA Engine to automatically prompt your customers for authentication based..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub request_three_d_secure:
         Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsCardRequestThreeDSecure>,
     #[doc = "When enabled, using a card that is attached to a customer will require the CVC to be provided again (i.e."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub require_cvc_recollection: Option<bool>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsAcssDebitSetupFutureUsage>,
     #[doc = "Provides information about a card payment that customers see on their statements."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor_suffix_kana: Option<String>,
     #[doc = "Provides information about a card payment that customers see on their statements."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor_suffix_kanji: Option<String>,
 }
 
@@ -23599,48 +21992,30 @@ impl PaymentIntentPaymentMethodOptionsCardNetwork {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentPaymentMethodOptionsCardNetwork {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentPaymentMethodOptionsCardNetwork;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "amex" => PaymentIntentPaymentMethodOptionsCardNetwork::Amex,
-                    "cartes_bancaires" => PaymentIntentPaymentMethodOptionsCardNetwork::CartesBancaires,
-                    "diners" => PaymentIntentPaymentMethodOptionsCardNetwork::Diners,
-                    "discover" => PaymentIntentPaymentMethodOptionsCardNetwork::Discover,
-                    "eftpos_au" => PaymentIntentPaymentMethodOptionsCardNetwork::EftposAu,
-                    "girocard" => PaymentIntentPaymentMethodOptionsCardNetwork::Girocard,
-                    "interac" => PaymentIntentPaymentMethodOptionsCardNetwork::Interac,
-                    "jcb" => PaymentIntentPaymentMethodOptionsCardNetwork::Jcb,
-                    "link" => PaymentIntentPaymentMethodOptionsCardNetwork::Link,
-                    "mastercard" => PaymentIntentPaymentMethodOptionsCardNetwork::Mastercard,
-                    "unionpay" => PaymentIntentPaymentMethodOptionsCardNetwork::Unionpay,
-                    "unknown" => PaymentIntentPaymentMethodOptionsCardNetwork::UnknownValue,
-                    "visa" => PaymentIntentPaymentMethodOptionsCardNetwork::Visa,
-                    other => PaymentIntentPaymentMethodOptionsCardNetwork::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentPaymentMethodOptionsCardNetwork::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentPaymentMethodOptionsCardNetwork {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentPaymentMethodOptionsCardNetwork::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "amex" => PaymentIntentPaymentMethodOptionsCardNetwork::Amex,
+            "cartes_bancaires" => PaymentIntentPaymentMethodOptionsCardNetwork::CartesBancaires,
+            "diners" => PaymentIntentPaymentMethodOptionsCardNetwork::Diners,
+            "discover" => PaymentIntentPaymentMethodOptionsCardNetwork::Discover,
+            "eftpos_au" => PaymentIntentPaymentMethodOptionsCardNetwork::EftposAu,
+            "girocard" => PaymentIntentPaymentMethodOptionsCardNetwork::Girocard,
+            "interac" => PaymentIntentPaymentMethodOptionsCardNetwork::Interac,
+            "jcb" => PaymentIntentPaymentMethodOptionsCardNetwork::Jcb,
+            "link" => PaymentIntentPaymentMethodOptionsCardNetwork::Link,
+            "mastercard" => PaymentIntentPaymentMethodOptionsCardNetwork::Mastercard,
+            "unionpay" => PaymentIntentPaymentMethodOptionsCardNetwork::Unionpay,
+            "unknown" => PaymentIntentPaymentMethodOptionsCardNetwork::UnknownValue,
+            "visa" => PaymentIntentPaymentMethodOptionsCardNetwork::Visa,
+            other => PaymentIntentPaymentMethodOptionsCardNetwork::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -23798,41 +22173,21 @@ impl PaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "if_available" => PaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization::IfAvailable,
-                    "never" => PaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization::Never,
-                    other => {
-                        PaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "if_available" => PaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization::IfAvailable,
+            "never" => PaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization::Never,
+            other => PaymentIntentPaymentMethodOptionsCardRequestExtendedAuthorization::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -23992,38 +22347,20 @@ impl PaymentIntentPaymentMethodOptionsCardRequestThreeDSecure {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentPaymentMethodOptionsCardRequestThreeDSecure {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentPaymentMethodOptionsCardRequestThreeDSecure;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "any" => PaymentIntentPaymentMethodOptionsCardRequestThreeDSecure::Any,
-                    "automatic" => PaymentIntentPaymentMethodOptionsCardRequestThreeDSecure::Automatic,
-                    "challenge" => PaymentIntentPaymentMethodOptionsCardRequestThreeDSecure::Challenge,
-                    other => PaymentIntentPaymentMethodOptionsCardRequestThreeDSecure::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentPaymentMethodOptionsCardRequestThreeDSecure::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentPaymentMethodOptionsCardRequestThreeDSecure {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentPaymentMethodOptionsCardRequestThreeDSecure::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "any" => PaymentIntentPaymentMethodOptionsCardRequestThreeDSecure::Any,
+            "automatic" => PaymentIntentPaymentMethodOptionsCardRequestThreeDSecure::Automatic,
+            "challenge" => PaymentIntentPaymentMethodOptionsCardRequestThreeDSecure::Challenge,
+            other => PaymentIntentPaymentMethodOptionsCardRequestThreeDSecure::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -24072,10 +22409,11 @@ impl<'de> serde::Deserialize<'de> for PaymentIntentPaymentMethodOptionsCardReque
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentPaymentMethodOptionsEps {
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage:
         Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsPaycoPaymentMethodOptionsSetupFutureUsage>,
 }
@@ -24125,17 +22463,18 @@ pub struct PaymentIntentPaymentMethodOptionsEps {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentPaymentMethodOptionsLink {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method:
         Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsCaptureMethod>,
     #[doc = "[Deprecated] This is a legacy parameter that no longer has any function."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub persistent_token: Option<String>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage:
         Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsSetupFutureUsage>,
 }
@@ -24185,20 +22524,21 @@ pub struct PaymentIntentPaymentMethodOptionsLink {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebit {
     #[doc = "A URL for custom mandate text"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub custom_mandate_url: Option<String>,
     #[doc = "Description of the interval."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub interval_description: Option<String>,
     #[doc = "Payment schedule for the mandate."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_schedule:
         Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitPaymentSchedule>,
     #[doc = "Transaction type of the mandate."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transaction_type:
         Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitTransactionType>,
 }
@@ -24359,40 +22699,22 @@ impl PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitPaymentSchedule {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitPaymentSchedule {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitPaymentSchedule;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "combined" => PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitPaymentSchedule::Combined,
-                    "interval" => PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitPaymentSchedule::Interval,
-                    "sporadic" => PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitPaymentSchedule::Sporadic,
-                    other => PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitPaymentSchedule::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitPaymentSchedule::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitPaymentSchedule {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitPaymentSchedule::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "combined" => PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitPaymentSchedule::Combined,
+            "interval" => PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitPaymentSchedule::Interval,
+            "sporadic" => PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitPaymentSchedule::Sporadic,
+            other => {
+                PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitPaymentSchedule::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -24550,39 +22872,21 @@ impl PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitTransactionType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitTransactionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitTransactionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "business" => PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitTransactionType::Business,
-                    "personal" => PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitTransactionType::Personal,
-                    other => PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitTransactionType::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitTransactionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitTransactionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitTransactionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "business" => PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitTransactionType::Business,
+            "personal" => PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitTransactionType::Personal,
+            other => {
+                PaymentIntentPaymentMethodOptionsMandateOptionsAcssDebitTransactionType::Unknown(other.to_string())
+            }
+        })
     }
 }
 
@@ -24631,10 +22935,11 @@ impl<'de> serde::Deserialize<'de> for PaymentIntentPaymentMethodOptionsMandateOp
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentPaymentMethodOptionsMandateOptionsBacsDebit {
     #[doc = "Prefix used to generate the Mandate reference."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference_prefix: Option<String>,
 }
 
@@ -24683,13 +22988,14 @@ pub struct PaymentIntentPaymentMethodOptionsMandateOptionsBacsDebit {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentPaymentMethodOptionsMandateOptionsBlik {
     #[doc = "Date at which the mandate expires."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<i64>,
     #[doc = "Type of the mandate."]
-    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    #[json(rename = "type", default, skip_serializing_if = "Option::is_none")]
     pub r#type: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsMandateOptionsBlikType>,
 }
 
@@ -24845,36 +23151,18 @@ impl PaymentIntentPaymentMethodOptionsMandateOptionsBlikType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentPaymentMethodOptionsMandateOptionsBlikType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentPaymentMethodOptionsMandateOptionsBlikType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "off_session" => PaymentIntentPaymentMethodOptionsMandateOptionsBlikType::OffSession,
-                    other => PaymentIntentPaymentMethodOptionsMandateOptionsBlikType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentPaymentMethodOptionsMandateOptionsBlikType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentPaymentMethodOptionsMandateOptionsBlikType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentPaymentMethodOptionsMandateOptionsBlikType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "off_session" => PaymentIntentPaymentMethodOptionsMandateOptionsBlikType::OffSession,
+            other => PaymentIntentPaymentMethodOptionsMandateOptionsBlikType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -24923,26 +23211,27 @@ impl<'de> serde::Deserialize<'de> for PaymentIntentPaymentMethodOptionsMandateOp
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentPaymentMethodOptionsMandateOptionsPayto {
     #[doc = "Amount that will be collected."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
     #[doc = "The type of amount that will be collected."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_type: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsMandateOptionsPaytoAmountType>,
     #[doc = "Date, in YYYY-MM-DD format, after which payments will not be collected."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub end_date: Option<String>,
     #[doc = "The periodicity at which payments will be collected."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_schedule:
         Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule>,
     #[doc = "The number of payments that will be made during a payment period."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payments_per_period: Option<i64>,
     #[doc = "The purpose for which payments are made."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub purpose: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose>,
 }
 
@@ -25100,39 +23389,21 @@ impl PaymentIntentPaymentMethodOptionsMandateOptionsPaytoAmountType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentPaymentMethodOptionsMandateOptionsPaytoAmountType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentPaymentMethodOptionsMandateOptionsPaytoAmountType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "fixed" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoAmountType::Fixed,
-                    "maximum" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoAmountType::Maximum,
-                    other => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoAmountType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentPaymentMethodOptionsMandateOptionsPaytoAmountType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentPaymentMethodOptionsMandateOptionsPaytoAmountType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentPaymentMethodOptionsMandateOptionsPaytoAmountType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "fixed" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoAmountType::Fixed,
+            "maximum" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoAmountType::Maximum,
+            other => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoAmountType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -25302,47 +23573,27 @@ impl PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "adhoc" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule::Adhoc,
-                    "annual" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule::Annual,
-                    "daily" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule::Daily,
-                    "fortnightly" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule::Fortnightly,
-                    "monthly" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule::Monthly,
-                    "quarterly" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule::Quarterly,
-                    "semi_annual" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule::SemiAnnual,
-                    "weekly" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule::Weekly,
-                    other => {
-                        PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "adhoc" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule::Adhoc,
+            "annual" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule::Annual,
+            "daily" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule::Daily,
+            "fortnightly" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule::Fortnightly,
+            "monthly" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule::Monthly,
+            "quarterly" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule::Quarterly,
+            "semi_annual" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule::SemiAnnual,
+            "weekly" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule::Weekly,
+            other => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPaymentSchedule::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -25518,50 +23769,30 @@ impl PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "dependant_support" => {
-                        PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::DependantSupport
-                    }
-                    "government" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Government,
-                    "loan" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Loan,
-                    "mortgage" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Mortgage,
-                    "other" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Other,
-                    "pension" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Pension,
-                    "personal" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Personal,
-                    "retail" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Retail,
-                    "salary" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Salary,
-                    "tax" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Tax,
-                    "utility" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Utility,
-                    other => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "dependant_support" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::DependantSupport,
+            "government" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Government,
+            "loan" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Loan,
+            "mortgage" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Mortgage,
+            "other" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Other,
+            "pension" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Pension,
+            "personal" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Personal,
+            "retail" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Retail,
+            "salary" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Salary,
+            "tax" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Tax,
+            "utility" => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Utility,
+            other => PaymentIntentPaymentMethodOptionsMandateOptionsPaytoPurpose::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -25610,10 +23841,11 @@ impl<'de> serde::Deserialize<'de> for PaymentIntentPaymentMethodOptionsMandateOp
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentPaymentMethodOptionsMandateOptionsSepaDebit {
     #[doc = "Prefix used to generate the Mandate reference."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference_prefix: Option<String>,
 }
 
@@ -25662,14 +23894,15 @@ pub struct PaymentIntentPaymentMethodOptionsMandateOptionsSepaDebit {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentPaymentMethodOptionsMobilepay {
     #[doc = "Controls when the funds will be captured from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub capture_method:
         Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsCaptureMethod>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage:
         Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsPaycoPaymentMethodOptionsSetupFutureUsage>,
 }
@@ -25719,13 +23952,14 @@ pub struct PaymentIntentPaymentMethodOptionsMobilepay {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentPaymentMethodOptionsNzBankAccount {
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsAcssDebitSetupFutureUsage>,
     #[doc = "Controls when Stripe will attempt to debit the funds from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub target_date: Option<String>,
 }
 
@@ -25774,12 +24008,13 @@ pub struct PaymentIntentPaymentMethodOptionsNzBankAccount {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentPaymentMethodOptionsPayto {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate_options: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsMandateOptionsPayto>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage:
         Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsKakaoPayPaymentMethodOptionsSetupFutureUsage>,
 }
@@ -25829,15 +24064,16 @@ pub struct PaymentIntentPaymentMethodOptionsPayto {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentPaymentMethodOptionsSepaDebit {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate_options: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsMandateOptionsSepaDebit>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsAcssDebitSetupFutureUsage>,
     #[doc = "Controls when Stripe will attempt to debit the funds from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub target_date: Option<String>,
 }
 
@@ -25886,13 +24122,14 @@ pub struct PaymentIntentPaymentMethodOptionsSepaDebit {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentPaymentMethodOptionsSwish {
     #[doc = "A reference for this payment to be displayed in the Swish app."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reference: Option<String>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage:
         Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsPaycoPaymentMethodOptionsSetupFutureUsage>,
 }
@@ -25942,24 +24179,25 @@ pub struct PaymentIntentPaymentMethodOptionsSwish {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentPaymentMethodOptionsUsBankAccount {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub financial_connections: Option<crate::financial_connections::LinkedAccountOptionsCommon>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate_options: Option<crate::payment_methods::PaymentMethodOptionsUsBankAccountMandateOptions>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsAcssDebitSetupFutureUsage>,
     #[doc = "Controls when Stripe will attempt to debit the funds from the customer's account."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub target_date: Option<String>,
     #[doc = "The purpose of the transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transaction_purpose:
         Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsUsBankAccountTransactionPurpose>,
     #[doc = "Bank account verification method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub verification_method:
         Option<crate::payment_intents::PaymentIntentPaymentMethodOptionsAcssDebitVerificationMethod>,
 }
@@ -26122,43 +24360,23 @@ impl PaymentIntentPaymentMethodOptionsUsBankAccountTransactionPurpose {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentPaymentMethodOptionsUsBankAccountTransactionPurpose {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentPaymentMethodOptionsUsBankAccountTransactionPurpose;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "goods" => PaymentIntentPaymentMethodOptionsUsBankAccountTransactionPurpose::Goods,
-                    "other" => PaymentIntentPaymentMethodOptionsUsBankAccountTransactionPurpose::Other,
-                    "services" => PaymentIntentPaymentMethodOptionsUsBankAccountTransactionPurpose::Services,
-                    "unspecified" => PaymentIntentPaymentMethodOptionsUsBankAccountTransactionPurpose::Unspecified,
-                    other => {
-                        PaymentIntentPaymentMethodOptionsUsBankAccountTransactionPurpose::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentPaymentMethodOptionsUsBankAccountTransactionPurpose::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentPaymentMethodOptionsUsBankAccountTransactionPurpose {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentPaymentMethodOptionsUsBankAccountTransactionPurpose::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "goods" => PaymentIntentPaymentMethodOptionsUsBankAccountTransactionPurpose::Goods,
+            "other" => PaymentIntentPaymentMethodOptionsUsBankAccountTransactionPurpose::Other,
+            "services" => PaymentIntentPaymentMethodOptionsUsBankAccountTransactionPurpose::Services,
+            "unspecified" => PaymentIntentPaymentMethodOptionsUsBankAccountTransactionPurpose::Unspecified,
+            other => PaymentIntentPaymentMethodOptionsUsBankAccountTransactionPurpose::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -26207,12 +24425,13 @@ impl<'de> serde::Deserialize<'de> for PaymentIntentPaymentMethodOptionsUsBankAcc
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentProcessing {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::payment_intents::PaymentIntentCardProcessing>,
     #[doc = "Type of the payment method for which payment is in `processing` state, one of `card`."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::payment_intents::PaymentIntentProcessingType,
 }
 
@@ -26261,13 +24480,14 @@ pub struct PaymentIntentProcessing {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentIntentProcessingCustomerNotification {
     #[doc = "Whether customer approval has been requested for this payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub approval_requested: Option<bool>,
     #[doc = "If customer approval is required, they need to provide approval before this time."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub completes_at: Option<i64>,
 }
 
@@ -26474,36 +24694,18 @@ impl Default for PaymentIntentProcessingType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentProcessingType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentProcessingType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "card" => PaymentIntentProcessingType::Card,
-                    other => PaymentIntentProcessingType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentProcessingType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentProcessingType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentProcessingType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "card" => PaymentIntentProcessingType::Card,
+            other => PaymentIntentProcessingType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -26661,37 +24863,19 @@ impl PaymentIntentSetupFutureUsage {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "off_session" => PaymentIntentSetupFutureUsage::OffSession,
-                    "on_session" => PaymentIntentSetupFutureUsage::OnSession,
-                    other => PaymentIntentSetupFutureUsage::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentSetupFutureUsage::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentSetupFutureUsage::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "off_session" => PaymentIntentSetupFutureUsage::OffSession,
+            "on_session" => PaymentIntentSetupFutureUsage::OnSession,
+            other => PaymentIntentSetupFutureUsage::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -26747,7 +24931,7 @@ pub enum PaymentIntentSourceExpanded {
     /// Expanded `deleted_payment_source`.
     DeletedPaymentSource(Box<crate::common::DeletedPaymentSource>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -26795,19 +24979,17 @@ pub enum PaymentIntentSourceExpanded {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentSourceExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for PaymentIntentSourceExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "payment_source" => PaymentIntentSourceExpanded::PaymentSource(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "payment_source" => {
+                PaymentIntentSourceExpanded::PaymentSource(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
             "deleted_payment_source" => PaymentIntentSourceExpanded::DeletedPaymentSource(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
+                json::from_slice_owned(&json::to_vec(&value))?,
             )),
             _ => PaymentIntentSourceExpanded::Other(value),
         })
@@ -27029,42 +25211,24 @@ impl Default for PaymentIntentStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentIntentStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PaymentIntentStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "canceled" => PaymentIntentStatus::Canceled,
-                    "processing" => PaymentIntentStatus::Processing,
-                    "requires_action" => PaymentIntentStatus::RequiresAction,
-                    "requires_capture" => PaymentIntentStatus::RequiresCapture,
-                    "requires_confirmation" => PaymentIntentStatus::RequiresConfirmation,
-                    "requires_payment_method" => PaymentIntentStatus::RequiresPaymentMethod,
-                    "succeeded" => PaymentIntentStatus::Succeeded,
-                    other => PaymentIntentStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PaymentIntentStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PaymentIntentStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PaymentIntentStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "canceled" => PaymentIntentStatus::Canceled,
+            "processing" => PaymentIntentStatus::Processing,
+            "requires_action" => PaymentIntentStatus::RequiresAction,
+            "requires_capture" => PaymentIntentStatus::RequiresCapture,
+            "requires_confirmation" => PaymentIntentStatus::RequiresConfirmation,
+            "requires_payment_method" => PaymentIntentStatus::RequiresPaymentMethod,
+            "succeeded" => PaymentIntentStatus::Succeeded,
+            other => PaymentIntentStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -27100,7 +25264,7 @@ pub struct UpdatePaymentIntentParams {
     #[doc = "Provides industry-specific information about the amount."]
     pub amount_details: Option<crate::payment_intents::UpdatePaymentIntentParamsAmountDetails>,
     #[doc = "The amount of the application fee (if any) that will be requested to be applied to the payment and transferred to the..."]
-    pub application_fee_amount: Option<serde_json::Value>,
+    pub application_fee_amount: Option<json::OwnedValue>,
     #[doc = "Controls when the funds will be captured from the customer's account."]
     pub capture_method: Option<crate::payment_intents::UpdatePaymentIntentParamsCaptureMethod>,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
@@ -27112,7 +25276,7 @@ pub struct UpdatePaymentIntentParams {
     #[doc = "An arbitrary string attached to the object."]
     pub description: Option<String>,
     #[doc = "The list of payment method types to exclude from use with this payment."]
-    pub excluded_payment_method_types: Option<serde_json::Value>,
+    pub excluded_payment_method_types: Option<json::OwnedValue>,
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "Automations to be run during the PaymentIntent lifecycle"]
@@ -27130,7 +25294,7 @@ pub struct UpdatePaymentIntentParams {
     #[doc = "Payment-method-specific configuration for this PaymentIntent."]
     pub payment_method_options: Option<crate::payment_intents::UpdatePaymentIntentParamsPaymentMethodOptions>,
     #[doc = "Email address that the receipt for the resulting payment will be sent to."]
-    pub receipt_email: Option<serde_json::Value>,
+    pub receipt_email: Option<json::OwnedValue>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
     pub setup_future_usage: Option<crate::payment_intents::UpdatePaymentIntentParamsSetupFutureUsage>,
     #[doc = "Shipping information for this PaymentIntent."]
@@ -27191,11 +25355,11 @@ pub type UpdatePaymentIntentParamsAllowedPaymentMethodTypesItem =
 #[derive(Debug, Clone, Default)]
 pub struct UpdatePaymentIntentParamsAmountDetails {
     #[doc = "The total discount applied on the transaction represented in the [smallest currency unit](https://docs.stripe.com/cur..."]
-    pub discount_amount: Option<serde_json::Value>,
+    pub discount_amount: Option<json::OwnedValue>,
     #[doc = "Set to `false` to return arithmetic validation errors in the response without failing the request."]
     pub enforce_arithmetic_validation: Option<bool>,
     #[doc = "A list of line items, each containing information about a product in the PaymentIntent."]
-    pub line_items: Option<serde_json::Value>,
+    pub line_items: Option<json::OwnedValue>,
     #[doc = "Contains information about the shipping portion of the amount."]
     pub shipping: Option<crate::payment_intents::UpdatePaymentIntentParamsAmountDetailsShipping>,
     #[doc = "Contains information about the tax portion of the amount."]
@@ -27503,11 +25667,11 @@ pub struct UpdatePaymentIntentParamsPaymentMethodDataBillingDetails {
     #[doc = "Billing address."]
     pub address: Option<crate::payment_intents::UpdatePaymentIntentParamsPaymentMethodDataBillingDetailsAddress>,
     #[doc = "Email address."]
-    pub email: Option<serde_json::Value>,
+    pub email: Option<json::OwnedValue>,
     #[doc = "Full name."]
-    pub name: Option<serde_json::Value>,
+    pub name: Option<json::OwnedValue>,
     #[doc = "Billing phone number (including extension)."]
-    pub phone: Option<serde_json::Value>,
+    pub phone: Option<json::OwnedValue>,
     #[doc = "Taxpayer identification number."]
     pub tax_id: Option<String>,
 }
@@ -28108,7 +26272,7 @@ impl crate::params::FormEncode for UpdatePaymentIntentParamsPaymentMethodOptions
 #[derive(Debug, Clone, Default)]
 pub struct UpdatePaymentIntentParamsPaymentMethodOptionsAcssDebitMandateOptions {
     #[doc = "A URL for custom mandate text to render during confirmation step."]
-    pub custom_mandate_url: Option<serde_json::Value>,
+    pub custom_mandate_url: Option<json::OwnedValue>,
     #[doc = "Description of the mandate interval."]
     pub interval_description: Option<String>,
     #[doc = "Payment schedule for the mandate."]
@@ -28507,9 +26671,9 @@ pub struct UpdatePaymentIntentParamsPaymentMethodOptionsCard {
     pub setup_future_usage:
         Option<crate::payment_intents::UpdatePaymentIntentParamsPaymentMethodOptionsCardSetupFutureUsage>,
     #[doc = "Provides information about a card payment that customers see on their statements."]
-    pub statement_descriptor_suffix_kana: Option<serde_json::Value>,
+    pub statement_descriptor_suffix_kana: Option<json::OwnedValue>,
     #[doc = "Provides information about a card payment that customers see on their statements."]
-    pub statement_descriptor_suffix_kanji: Option<serde_json::Value>,
+    pub statement_descriptor_suffix_kanji: Option<json::OwnedValue>,
     #[doc = "If 3D Secure authentication was performed with a third-party provider, the authentication details to use for this pay..."]
     pub three_d_secure: Option<crate::payment_intents::UpdatePaymentIntentParamsPaymentMethodOptionsCardThreeDSecure>,
 }
@@ -29065,7 +27229,7 @@ pub struct UpdatePaymentIntentParamsPaymentMethodOptionsKlarna {
     pub setup_future_usage:
         Option<crate::payment_intents::UpdatePaymentIntentParamsPaymentMethodOptionsKlarnaSetupFutureUsage>,
     #[doc = "Subscription details if setting up or charging a subscription."]
-    pub subscriptions: Option<serde_json::Value>,
+    pub subscriptions: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "payment_intents")]
@@ -29125,13 +27289,13 @@ pub type UpdatePaymentIntentParamsPaymentMethodOptionsKlarnaSetupFutureUsage =
 #[derive(Debug, Clone, Default)]
 pub struct UpdatePaymentIntentParamsPaymentMethodOptionsKonbini {
     #[doc = "An optional 10 to 11 digit numeric-only string determining the confirmation code at applicable convenience stores."]
-    pub confirmation_number: Option<serde_json::Value>,
+    pub confirmation_number: Option<json::OwnedValue>,
     #[doc = "The number of calendar days (between 1 and 60) after which Konbini payment instructions will expire."]
-    pub expires_after_days: Option<serde_json::Value>,
+    pub expires_after_days: Option<json::OwnedValue>,
     #[doc = "The timestamp at which the Konbini payment instructions will expire."]
-    pub expires_at: Option<serde_json::Value>,
+    pub expires_at: Option<json::OwnedValue>,
     #[doc = "A product descriptor of up to 22 characters, which will appear to customers at the convenience store."]
-    pub product_description: Option<serde_json::Value>,
+    pub product_description: Option<json::OwnedValue>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
     pub setup_future_usage:
         Option<crate::payment_intents::UpdatePaymentIntentParamsPaymentMethodOptionsKonbiniSetupFutureUsage>,
@@ -29479,17 +27643,17 @@ impl crate::params::FormEncode for UpdatePaymentIntentParamsPaymentMethodOptions
 #[derive(Debug, Clone, Default)]
 pub struct UpdatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptions {
     #[doc = "Amount that will be collected."]
-    pub amount: Option<serde_json::Value>,
+    pub amount: Option<json::OwnedValue>,
     #[doc = "The type of amount that will be collected."]
     pub amount_type:
         Option<crate::payment_intents::UpdatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsAmountType>,
     #[doc = "Date, in YYYY-MM-DD format, after which payments will not be collected."]
-    pub end_date: Option<serde_json::Value>,
+    pub end_date: Option<json::OwnedValue>,
     #[doc = "The periodicity at which payments will be collected."]
     pub payment_schedule:
         Option<crate::payment_intents::UpdatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPaymentSchedule>,
     #[doc = "The number of payments that will be made during a payment period."]
-    pub payments_per_period: Option<serde_json::Value>,
+    pub payments_per_period: Option<json::OwnedValue>,
     #[doc = "The purpose for which payments are made."]
     pub purpose:
         Option<crate::payment_intents::UpdatePaymentIntentParamsPaymentMethodOptionsPaytoMandateOptionsPurpose>,
@@ -29840,7 +28004,7 @@ pub type UpdatePaymentIntentParamsPaymentMethodOptionsSunbitSetupFutureUsage =
 #[derive(Debug, Clone, Default)]
 pub struct UpdatePaymentIntentParamsPaymentMethodOptionsSwish {
     #[doc = "A reference for this payment to be displayed in the Swish app."]
-    pub reference: Option<serde_json::Value>,
+    pub reference: Option<json::OwnedValue>,
     #[doc = "Indicates that you intend to make future payments with this PaymentIntent's payment method."]
     pub setup_future_usage:
         Option<crate::payment_intents::UpdatePaymentIntentParamsPaymentMethodOptionsSwishSetupFutureUsage>,
@@ -30150,38 +28314,20 @@ impl UpdatePaymentIntentParamsSetupFutureUsage {
 }
 
 #[cfg(feature = "payment_intents")]
-impl<'de> serde::Deserialize<'de> for UpdatePaymentIntentParamsSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = UpdatePaymentIntentParamsSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => UpdatePaymentIntentParamsSetupFutureUsage::Unnamed,
-                    "off_session" => UpdatePaymentIntentParamsSetupFutureUsage::OffSession,
-                    "on_session" => UpdatePaymentIntentParamsSetupFutureUsage::OnSession,
-                    other => UpdatePaymentIntentParamsSetupFutureUsage::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(UpdatePaymentIntentParamsSetupFutureUsage::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for UpdatePaymentIntentParamsSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(UpdatePaymentIntentParamsSetupFutureUsage::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => UpdatePaymentIntentParamsSetupFutureUsage::Unnamed,
+            "off_session" => UpdatePaymentIntentParamsSetupFutureUsage::OffSession,
+            "on_session" => UpdatePaymentIntentParamsSetupFutureUsage::OnSession,
+            other => UpdatePaymentIntentParamsSetupFutureUsage::Unknown(other.to_string()),
+        })
     }
 }
 

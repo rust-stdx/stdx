@@ -275,21 +275,21 @@ fn civil_in_zone(naive: time::DateTime, zone: time::TimeZone) -> Result<time::Da
     )?)
 }
 
-/// Decodes a `json` / `jsonb` payload into any `serde` type.
+/// Decodes a `json` / `jsonb` payload into any `json::DecodeOwned` type.
 ///
 /// Returns an error if `oid` is not a JSON type, if a `jsonb` payload is
 /// missing its version byte or carries an unsupported one, or if the payload
 /// is not valid JSON for `T`.
-pub fn json_from_sql<T: serde::de::DeserializeOwned>(oid: Oid, buf: &[u8]) -> Result<T, Error> {
+pub fn json_from_sql<T: json::DecodeOwned>(oid: Oid, buf: &[u8]) -> Result<T, Error> {
     match oid {
         JSONBOID => {
             need(buf, 1, "jsonb")?;
             if buf[0] != 1 {
                 return Err(Error::Decode(format!("unsupported jsonb format version {}", buf[0])));
             }
-            Ok(serde_json::from_slice(&buf[1..])?)
+            Ok(T::decode_owned(&buf[1..])?)
         }
-        JSONOID => Ok(serde_json::from_slice(buf)?),
+        JSONOID => Ok(T::decode_owned(buf)?),
         other => Err(Error::Decode(format!("cannot decode OID {other} as JSON"))),
     }
 }
@@ -299,7 +299,7 @@ pub fn json_accepts(oid: Oid) -> bool {
     matches!(oid, JSONOID | JSONBOID)
 }
 
-impl FromSql for serde_json::Value {
+impl FromSql for json::Value<'static> {
     fn from_sql(oid: Oid, buf: &[u8]) -> Result<Self, Error> {
         json_from_sql(oid, buf)
     }
@@ -309,7 +309,28 @@ impl FromSql for serde_json::Value {
     }
 }
 
-impl<T: serde::de::DeserializeOwned> FromSql for Json<T> {
+impl FromSql for json::RawValueBuf {
+    fn from_sql(oid: Oid, buf: &[u8]) -> Result<Self, Error> {
+        let payload = match oid {
+            JSONBOID => {
+                need(buf, 1, "jsonb")?;
+                if buf[0] != 1 {
+                    return Err(Error::Decode(format!("unsupported jsonb format version {}", buf[0])));
+                }
+                &buf[1..]
+            }
+            JSONOID => buf,
+            other => return Err(Error::Decode(format!("cannot decode OID {other} as JSON"))),
+        };
+        json::RawValueBuf::new(payload.to_vec()).map_err(Into::into)
+    }
+
+    fn accepts(oid: Oid) -> bool {
+        json_accepts(oid)
+    }
+}
+
+impl<T: json::DecodeOwned> FromSql for Json<T> {
     fn from_sql(oid: Oid, buf: &[u8]) -> Result<Self, Error> {
         json_from_sql(oid, buf).map(Json)
     }
@@ -478,17 +499,17 @@ mod tests {
     fn jsonb_version_byte_is_validated() {
         // Version 1 is the only supported `jsonb` wire format.
         assert_eq!(
-            json_from_sql::<serde_json::Value>(JSONBOID, b"\x01{}").unwrap(),
-            serde_json::json!({})
+            json_from_sql::<::json::Value<'static>>(JSONBOID, b"\x01{}").unwrap(),
+            ::json::json!({})
         );
         // A different version must be rejected, not decoded.
-        assert!(json_from_sql::<serde_json::Value>(JSONBOID, b"\x02{}").is_err());
+        assert!(json_from_sql::<::json::Value<'static>>(JSONBOID, b"\x02{}").is_err());
         // A missing version byte is rejected too.
-        assert!(json_from_sql::<serde_json::Value>(JSONBOID, b"").is_err());
+        assert!(json_from_sql::<::json::Value<'static>>(JSONBOID, b"").is_err());
         // `json` (not `jsonb`) has no version byte.
         assert_eq!(
-            json_from_sql::<serde_json::Value>(JSONOID, b"{}").unwrap(),
-            serde_json::json!({})
+            json_from_sql::<::json::Value<'static>>(JSONOID, b"{}").unwrap(),
+            ::json::json!({})
         );
     }
 

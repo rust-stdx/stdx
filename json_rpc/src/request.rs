@@ -1,10 +1,4 @@
-use std::fmt;
-
-use serde::{
-    Deserialize, Deserializer, Serialize, Serializer,
-    de::{self, DeserializeOwned, MapAccess, SeqAccess, Visitor, value::MapAccessDeserializer},
-};
-use serde_json::value::RawValue;
+use json::{Decode, DecodeOwned, Decoder, Encode, Encoder, ErrorKind, RawValueBuf, Result, Write};
 
 use crate::Id;
 
@@ -34,80 +28,42 @@ impl RequestId {
     }
 }
 
-impl Serialize for RequestId {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+impl Encode for RequestId {
+    fn encode<W: Write>(&self, encoder: &mut Encoder<W>) -> core::result::Result<(), W::Error> {
         match &self.0 {
-            Some(id) => id.serialize(serializer),
-            None => serializer.serialize_none(),
+            Some(id) => id.encode(encoder),
+            None => encoder.null(),
         }
     }
 }
 
-impl<'de> Deserialize<'de> for RequestId {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct RequestIdVisitor;
-
-        impl<'de> Visitor<'de> for RequestIdVisitor {
-            type Value = RequestId;
-
-            fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.write_str("a JSON-RPC id: a string, an integer, or null")
-            }
-
-            fn visit_none<E: de::Error>(self) -> Result<Self::Value, E> {
-                Ok(RequestId(Some(Id::Null)))
-            }
-
-            fn visit_unit<E: de::Error>(self) -> Result<Self::Value, E> {
-                Ok(RequestId(Some(Id::Null)))
-            }
-
-            fn visit_i64<E: de::Error>(self, v: i64) -> Result<Self::Value, E> {
-                Ok(RequestId(Some(Id::Number(v))))
-            }
-
-            fn visit_u64<E: de::Error>(self, v: u64) -> Result<Self::Value, E> {
-                Ok(RequestId(Some(Id::Number(v as i64))))
-            }
-
-            fn visit_f64<E: de::Error>(self, v: f64) -> Result<Self::Value, E> {
-                if v.fract() == 0.0 {
-                    Ok(RequestId(Some(Id::Number(v as i64))))
-                } else {
-                    Err(de::Error::invalid_value(de::Unexpected::Float(v), &self))
-                }
-            }
-
-            fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
-                Ok(RequestId(Some(Id::String(v.to_owned()))))
-            }
-
-            fn visit_string<E: de::Error>(self, v: String) -> Result<Self::Value, E> {
-                Ok(RequestId(Some(Id::String(v))))
-            }
+impl<'a> Decode<'a> for RequestId {
+    fn decode(decoder: &mut Decoder<'a>) -> Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            Ok(RequestId(Some(Id::Null)))
+        } else {
+            Ok(RequestId(Some(decoder.decode::<Id>()?)))
         }
-
-        deserializer.deserialize_any(RequestIdVisitor)
     }
 }
 
 /// A JSON-RPC 2.0 request object.
 ///
-/// Params are stored as `Box<RawValue>` to defer deserialization
+/// Params are stored as an owned raw JSON value to defer deserialization
 /// until the method handler is known.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, json::Encode, json::Decode)]
 pub struct Request {
     /// The JSON-RPC version — must be `"2.0"`.
     pub jsonrpc: String,
     /// The name of the method to invoke.
     pub method: String,
     /// Structured parameters for the method (optional).
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub params: Option<Box<RawValue>>,
+    #[json(skip_serializing_if = "Option::is_none")]
+    pub params: Option<RawValueBuf>,
     /// Client-assigned identifier. Absent for notifications.
-    #[serde(default)]
-    #[serde(skip_serializing_if = "RequestId::is_notification")]
+    #[json(default, skip_serializing_if = "RequestId::is_notification")]
     pub id: RequestId,
 }
 
@@ -120,10 +76,10 @@ impl Request {
     /// Deserializes the params into a concrete type.
     ///
     /// Returns an error if the params are absent or fail to deserialize.
-    pub fn parse_params<P: DeserializeOwned>(&self) -> Result<P, serde_json::Error> {
+    pub fn parse_params<P: DecodeOwned>(&self) -> Result<P> {
         match &self.params {
-            Some(raw) => serde_json::from_str(raw.get()),
-            None => serde_json::from_str("{}"),
+            Some(raw) => P::decode_owned(raw.as_bytes()),
+            None => P::decode_owned(b"{}"),
         }
     }
 }
@@ -131,15 +87,12 @@ impl Request {
 /// A single JSON-RPC request message, or a batch of them.
 ///
 /// Per the spec, a client may send either a single `Request` object
-/// or an `Array` of request objects (a batch). Batch entries that are
-/// not valid request objects are preserved as raw JSON so the server
-/// can respond with individual `Invalid Request` errors.
+/// or an `Array` of request objects (a batch).
 #[derive(Clone, Debug)]
 pub enum RequestMessage {
     /// A single request.
     Single(Request),
-    /// A batch of raw request values. Each element is parsed individually
-    /// during dispatch, so invalid entries get individual error responses.
+    /// A batch of requests.
     Batch(Vec<Request>),
 }
 
@@ -172,54 +125,38 @@ impl From<Request> for RequestMessage {
     }
 }
 
-impl Serialize for RequestMessage {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+impl Encode for RequestMessage {
+    fn encode<W: Write>(&self, encoder: &mut Encoder<W>) -> core::result::Result<(), W::Error> {
         match self {
-            Self::Single(req) => req.serialize(serializer),
-            Self::Batch(entries) => entries.serialize(serializer),
+            Self::Single(req) => req.encode(encoder),
+            Self::Batch(entries) => entries.encode(encoder),
         }
     }
 }
 
-impl<'de> Deserialize<'de> for RequestMessage {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct RequestMessageVisitor;
-
-        impl<'de> Visitor<'de> for RequestMessageVisitor {
-            type Value = RequestMessage;
-
-            fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                f.write_str("a JSON-RPC request object or array")
-            }
-
-            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
-                let mut requests = Vec::with_capacity(seq.size_hint().unwrap_or(1));
-                while let Some(req) = seq.next_element::<Request>()? {
-                    requests.push(req);
-                }
-                Ok(RequestMessage::Batch(requests))
-            }
-
-            fn visit_map<M: MapAccess<'de>>(self, map: M) -> Result<Self::Value, M::Error> {
-                let req = Request::deserialize(MapAccessDeserializer::new(map))?;
-                Ok(RequestMessage::Single(req))
-            }
+impl<'a> Decode<'a> for RequestMessage {
+    fn decode(decoder: &mut Decoder<'a>) -> Result<Self> {
+        decoder.skip_ws()?;
+        match decoder.peek_byte() {
+            Some(b'[') => Ok(Self::Batch(decoder.decode::<Vec<Request>>()?)),
+            None => Err(decoder.error(ErrorKind::UnexpectedEof)),
+            Some(_) => Ok(Self::Single(decoder.decode::<Request>()?)),
         }
-
-        deserializer.deserialize_any(RequestMessageVisitor)
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use serde_json::json;
-
     use super::*;
+
+    fn raw(text: &str) -> RawValueBuf {
+        RawValueBuf::try_from_slice(text.as_bytes()).unwrap()
+    }
 
     #[test]
     fn test_deserialize_request() {
-        let json = r#"{"jsonrpc":"2.0","method":"subtract","params":[42,23],"id":1}"#;
-        let req: Request = serde_json::from_str(json).unwrap();
+        let text = r#"{"jsonrpc":"2.0","method":"subtract","params":[42,23],"id":1}"#;
+        let req: Request = json::from_str(text).unwrap();
         assert_eq!(req.jsonrpc, "2.0");
         assert_eq!(req.method, "subtract");
         assert!(req.params.is_some());
@@ -229,16 +166,16 @@ mod tests {
 
     #[test]
     fn test_deserialize_notification() {
-        let json = r#"{"jsonrpc":"2.0","method":"update","params":[1,2,3]}"#;
-        let req: Request = serde_json::from_str(json).unwrap();
+        let text = r#"{"jsonrpc":"2.0","method":"update","params":[1,2,3]}"#;
+        let req: Request = json::from_str(text).unwrap();
         assert!(req.is_notification());
         assert_eq!(req.id, RequestId(None));
     }
 
     #[test]
     fn test_deserialize_request_no_params() {
-        let json = r#"{"jsonrpc":"2.0","method":"foobar"}"#;
-        let req: Request = serde_json::from_str(json).unwrap();
+        let text = r#"{"jsonrpc":"2.0","method":"foobar"}"#;
+        let req: Request = json::from_str(text).unwrap();
         assert_eq!(req.method, "foobar");
         assert!(req.params.is_none());
         assert!(req.is_notification());
@@ -246,32 +183,32 @@ mod tests {
 
     #[test]
     fn test_deserialize_request_string_id() {
-        let json = r#"{"jsonrpc":"2.0","method":"get_data","id":"abc"}"#;
-        let req: Request = serde_json::from_str(json).unwrap();
+        let text = r#"{"jsonrpc":"2.0","method":"get_data","id":"abc"}"#;
+        let req: Request = json::from_str(text).unwrap();
         assert_eq!(req.id, RequestId(Some(Id::String("abc".into()))));
     }
 
     #[test]
     fn test_deserialize_request_null_id() {
-        let json = r#"{"jsonrpc":"2.0","method":"foo","id":null}"#;
-        let req: Request = serde_json::from_str(json).unwrap();
+        let text = r#"{"jsonrpc":"2.0","method":"foo","id":null}"#;
+        let req: Request = json::from_str(text).unwrap();
         assert_eq!(req.id, RequestId(Some(Id::Null)));
     }
 
     #[test]
     fn test_request_parse_params() {
-        let req: Request = serde_json::from_str(r#"{"jsonrpc":"2.0","method":"add","params":[1,2],"id":1}"#).unwrap();
+        let req: Request = json::from_str(r#"{"jsonrpc":"2.0","method":"add","params":[1,2],"id":1}"#).unwrap();
         let (a, b): (i64, i64) = req.parse_params().unwrap();
         assert_eq!((a, b), (1, 2));
     }
 
     #[test]
     fn test_request_parse_params_absent() {
-        #[derive(Deserialize)]
+        #[derive(json::Decode)]
         struct PingParams {
             _extra: Option<String>,
         }
-        let req: Request = serde_json::from_str(r#"{"jsonrpc":"2.0","method":"ping","id":1}"#).unwrap();
+        let req: Request = json::from_str(r#"{"jsonrpc":"2.0","method":"ping","id":1}"#).unwrap();
         let p: PingParams = req.parse_params().unwrap();
         assert!(p._extra.is_none());
     }
@@ -286,8 +223,8 @@ mod tests {
 
     #[test]
     fn test_deserialize_single_request_message() {
-        let json = r#"{"jsonrpc":"2.0","method":"test","id":1}"#;
-        let message: RequestMessage = serde_json::from_str(json).unwrap();
+        let text = r#"{"jsonrpc":"2.0","method":"test","id":1}"#;
+        let message: RequestMessage = json::from_str(text).unwrap();
         assert!(!message.is_batch());
         assert_eq!(message.len(), 1);
         assert!(!message.is_empty());
@@ -295,32 +232,19 @@ mod tests {
 
     #[test]
     fn test_deserialize_batch_request_message() {
-        let json = r#"[
+        let text = r#"[
             {"jsonrpc":"2.0","method":"a","id":1},
             {"jsonrpc":"2.0","method":"b","id":2}
         ]"#;
-        let message: RequestMessage = serde_json::from_str(json).unwrap();
+        let message: RequestMessage = json::from_str(text).unwrap();
         assert!(message.is_batch());
         assert_eq!(message.len(), 2);
         assert!(!message.is_empty());
     }
 
-    // #[test]
-    // fn test_deserialize_batch_with_invalid_entries() {
-    //     let json = r#"[
-    //         {"jsonrpc":"2.0","method":"a","id":1},
-    //         42,
-    //         {"jsonrpc":"2.0","method":"b","id":2}
-    //     ]"#;
-    //     let message: RequestMessage = serde_json::from_str(json).unwrap();
-    //     assert!(message.is_batch());
-    //     assert_eq!(message.len(), 2);
-    // }
-
     #[test]
     fn test_deserialize_empty_array() {
-        let json = "[]";
-        let message: RequestMessage = serde_json::from_str(json).unwrap();
+        let message: RequestMessage = json::from_str("[]").unwrap();
         assert!(message.is_batch());
         assert!(message.is_empty());
         assert_eq!(message.len(), 0);
@@ -328,7 +252,7 @@ mod tests {
 
     #[test]
     fn test_request_message_from_request() {
-        let req: Request = serde_json::from_str(r#"{"jsonrpc":"2.0","method":"x","id":1}"#).unwrap();
+        let req: Request = json::from_str(r#"{"jsonrpc":"2.0","method":"x","id":1}"#).unwrap();
         let message: RequestMessage = req.into();
         assert!(!message.is_batch());
     }
@@ -338,12 +262,12 @@ mod tests {
         let req = Request {
             jsonrpc: "2.0".into(),
             method: "subtract".into(),
-            params: Some(RawValue::from_string("[42,23]".into()).unwrap()),
+            params: Some(raw("[42,23]")),
             id: RequestId(Some(Id::Number(1))),
         };
-        let json = serde_json::to_string(&req).unwrap();
-        let expected = json!({"jsonrpc":"2.0","method":"subtract","params":[42,23],"id":1});
-        let actual: serde_json::Value = serde_json::from_str(&json).unwrap();
+        let text = json::to_string(&req);
+        let actual: json::Value = json::from_str(&text).unwrap();
+        let expected = json::json!({"jsonrpc":"2.0","method":"subtract","params":[42,23],"id":1});
         assert_eq!(actual, expected);
     }
 
@@ -365,9 +289,8 @@ mod tests {
         ];
         let message = RequestMessage::Batch(reqs);
         assert!(message.is_batch());
-        let json = serde_json::to_string(&message).unwrap();
-        let actual: serde_json::Value = serde_json::from_str(&json).unwrap();
-        assert!(actual.is_array());
+        let text = json::to_string(&message);
+        let actual: json::Value = json::from_str(&text).unwrap();
         assert_eq!(actual.as_array().unwrap().len(), 2);
     }
 }

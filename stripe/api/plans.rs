@@ -104,37 +104,19 @@ impl CreatePlanParamsBillingScheme {
 }
 
 #[cfg(feature = "plans")]
-impl<'de> serde::Deserialize<'de> for CreatePlanParamsBillingScheme {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePlanParamsBillingScheme;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "per_unit" => CreatePlanParamsBillingScheme::PerUnit,
-                    "tiered" => CreatePlanParamsBillingScheme::Tiered,
-                    other => CreatePlanParamsBillingScheme::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePlanParamsBillingScheme::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePlanParamsBillingScheme {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePlanParamsBillingScheme::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "per_unit" => CreatePlanParamsBillingScheme::PerUnit,
+            "tiered" => CreatePlanParamsBillingScheme::Tiered,
+            other => CreatePlanParamsBillingScheme::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -171,39 +153,21 @@ impl CreatePlanParamsInterval {
 }
 
 #[cfg(feature = "plans")]
-impl<'de> serde::Deserialize<'de> for CreatePlanParamsInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePlanParamsInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "day" => CreatePlanParamsInterval::Day,
-                    "month" => CreatePlanParamsInterval::Month,
-                    "week" => CreatePlanParamsInterval::Week,
-                    "year" => CreatePlanParamsInterval::Year,
-                    other => CreatePlanParamsInterval::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePlanParamsInterval::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePlanParamsInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePlanParamsInterval::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "day" => CreatePlanParamsInterval::Day,
+            "month" => CreatePlanParamsInterval::Month,
+            "week" => CreatePlanParamsInterval::Week,
+            "year" => CreatePlanParamsInterval::Year,
+            other => CreatePlanParamsInterval::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -259,7 +223,7 @@ pub struct CreatePlanParamsProductTaxDetails {
     #[doc = "A tax location ID."]
     pub performance_location: Option<String>,
     #[doc = "A [tax code](https://docs.stripe.com/tax/tax-categories) ID."]
-    pub tax_code: Option<serde_json::Value>,
+    pub tax_code: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "plans")]
@@ -281,7 +245,7 @@ pub struct CreatePlanParamsTiersItem {
     #[doc = "Same as `unit_amount`, but accepts a decimal value in cents (or local equivalent) with at most 12 decimal places."]
     pub unit_amount_decimal: Option<String>,
     #[doc = "Specifies the upper bound of this tier."]
-    pub up_to: serde_json::Value,
+    pub up_to: json::OwnedValue,
 }
 
 #[cfg(feature = "plans")]
@@ -316,37 +280,19 @@ impl CreatePlanParamsTiersMode {
 }
 
 #[cfg(feature = "plans")]
-impl<'de> serde::Deserialize<'de> for CreatePlanParamsTiersMode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePlanParamsTiersMode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "graduated" => CreatePlanParamsTiersMode::Graduated,
-                    "volume" => CreatePlanParamsTiersMode::Volume,
-                    other => CreatePlanParamsTiersMode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePlanParamsTiersMode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePlanParamsTiersMode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePlanParamsTiersMode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "graduated" => CreatePlanParamsTiersMode::Graduated,
+            "volume" => CreatePlanParamsTiersMode::Volume,
+            other => CreatePlanParamsTiersMode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -396,37 +342,19 @@ impl CreatePlanParamsTransformUsageRound {
 }
 
 #[cfg(feature = "plans")]
-impl<'de> serde::Deserialize<'de> for CreatePlanParamsTransformUsageRound {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePlanParamsTransformUsageRound;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "down" => CreatePlanParamsTransformUsageRound::Down,
-                    "up" => CreatePlanParamsTransformUsageRound::Up,
-                    other => CreatePlanParamsTransformUsageRound::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePlanParamsTransformUsageRound::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePlanParamsTransformUsageRound {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePlanParamsTransformUsageRound::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "down" => CreatePlanParamsTransformUsageRound::Down,
+            "up" => CreatePlanParamsTransformUsageRound::Up,
+            other => CreatePlanParamsTransformUsageRound::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -459,37 +387,19 @@ impl CreatePlanParamsUsageType {
 }
 
 #[cfg(feature = "plans")]
-impl<'de> serde::Deserialize<'de> for CreatePlanParamsUsageType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePlanParamsUsageType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "licensed" => CreatePlanParamsUsageType::Licensed,
-                    "metered" => CreatePlanParamsUsageType::Metered,
-                    other => CreatePlanParamsUsageType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePlanParamsUsageType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePlanParamsUsageType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePlanParamsUsageType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "licensed" => CreatePlanParamsUsageType::Licensed,
+            "metered" => CreatePlanParamsUsageType::Metered,
+            other => CreatePlanParamsUsageType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -501,16 +411,17 @@ impl crate::params::FormEncode for CreatePlanParamsUsageType {
 }
 
 #[cfg(feature = "plans")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DeletedPlan {
     #[doc = "Always true for a deleted object"]
-    #[serde(default)]
+    #[json(default)]
     pub deleted: bool,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::plans::PlanObject,
 }
 
@@ -632,67 +543,68 @@ impl crate::params::FormEncode for ListPlansParamsCreated {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Plan {
     #[doc = "Whether the plan can be used for new purchases."]
-    #[serde(default)]
+    #[json(default)]
     pub active: bool,
     #[doc = "The unit amount in cents (or local equivalent) to be charged, represented as a whole integer if possible."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<i64>,
     #[doc = "The unit amount in cents (or local equivalent) to be charged, represented as a decimal string with at most 12 decimal..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount_decimal: Option<String>,
     #[doc = "Describes how to compute the price per period."]
-    #[serde(default)]
+    #[json(default)]
     pub billing_scheme: crate::plans::PlanBillingScheme,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The frequency at which a subscription is billed."]
-    #[serde(default)]
+    #[json(default)]
     pub interval: crate::plans::PlanInterval,
     #[doc = "The number of intervals (specified in the `interval` attribute) between subscription billings."]
-    #[serde(default)]
+    #[json(default)]
     pub interval_count: i64,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "The meter tracking the usage of a metered price"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub meter: Option<String>,
     #[doc = "A brief description of the plan, hidden from customers."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub nickname: Option<String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::plans::PlanObject,
     #[doc = "The product whose pricing this plan determines."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub product: Option<crate::Expandable<crate::plans::PlanProductExpanded>>,
     #[doc = "Each element represents a pricing tier."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tiers: Option<Vec<crate::plans::PlanTier>>,
     #[doc = "Defines if the tiering price should be `graduated` or `volume` based."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tiers_mode: Option<crate::plans::PlanTiersMode>,
     #[doc = "Apply a transformation to the reported usage or set quantity before computing the amount billed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transform_usage: Option<crate::prices::TransformUsage>,
     #[doc = "Default number of trial days when subscribing a customer to this plan using [`trial_from_plan=true`](https://docs.str..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub trial_period_days: Option<i64>,
     #[doc = "Configures how the quantity per period should be determined."]
-    #[serde(default)]
+    #[json(default)]
     pub usage_type: crate::plans::PlanUsageType,
 }
 
@@ -957,37 +869,19 @@ impl Default for PlanBillingScheme {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PlanBillingScheme {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PlanBillingScheme;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "per_unit" => PlanBillingScheme::PerUnit,
-                    "tiered" => PlanBillingScheme::Tiered,
-                    other => PlanBillingScheme::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PlanBillingScheme::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PlanBillingScheme {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PlanBillingScheme::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "per_unit" => PlanBillingScheme::PerUnit,
+            "tiered" => PlanBillingScheme::Tiered,
+            other => PlanBillingScheme::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1204,39 +1098,21 @@ impl Default for PlanInterval {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PlanInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PlanInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "day" => PlanInterval::Day,
-                    "month" => PlanInterval::Month,
-                    "week" => PlanInterval::Week,
-                    "year" => PlanInterval::Year,
-                    other => PlanInterval::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PlanInterval::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PlanInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PlanInterval::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "day" => PlanInterval::Day,
+            "month" => PlanInterval::Month,
+            "week" => PlanInterval::Week,
+            "year" => PlanInterval::Year,
+            other => PlanInterval::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1447,36 +1323,18 @@ impl Default for PlanObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PlanObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PlanObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "plan" => PlanObject::Plan,
-                    other => PlanObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PlanObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PlanObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PlanObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "plan" => PlanObject::Plan,
+            other => PlanObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1531,7 +1389,7 @@ pub enum PlanProductExpanded {
     /// Expanded `product`.
     Product(Box<crate::products::Product>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -1580,17 +1438,13 @@ pub enum PlanProductExpanded {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PlanProductExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for PlanProductExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "product" => {
-                PlanProductExpanded::Product(Box::new(serde_json::from_value(value).map_err(serde::de::Error::custom)?))
-            }
+            "product" => PlanProductExpanded::Product(Box::new(json::from_slice_owned(&json::to_vec(&value))?)),
             _ => PlanProductExpanded::Other(value),
         })
     }
@@ -1642,22 +1496,23 @@ impl<'de> serde::Deserialize<'de> for PlanProductExpanded {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PlanTier {
     #[doc = "Price for the entire tier."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub flat_amount: Option<i64>,
     #[doc = "Same as `flat_amount`, but contains a decimal value with at most 12 decimal places."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub flat_amount_decimal: Option<String>,
     #[doc = "Per unit price for units relevant to the tier."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unit_amount: Option<i64>,
     #[doc = "Same as `unit_amount`, but contains a decimal value with at most 12 decimal places."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unit_amount_decimal: Option<String>,
     #[doc = "Up to and including to this quantity will be contained in the tier."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub up_to: Option<i64>,
 }
 
@@ -1818,37 +1673,19 @@ impl PlanTiersMode {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PlanTiersMode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PlanTiersMode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "graduated" => PlanTiersMode::Graduated,
-                    "volume" => PlanTiersMode::Volume,
-                    other => PlanTiersMode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PlanTiersMode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PlanTiersMode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PlanTiersMode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "graduated" => PlanTiersMode::Graduated,
+            "volume" => PlanTiersMode::Volume,
+            other => PlanTiersMode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2061,37 +1898,19 @@ impl Default for PlanUsageType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PlanUsageType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PlanUsageType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "licensed" => PlanUsageType::Licensed,
-                    "metered" => PlanUsageType::Metered,
-                    other => PlanUsageType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PlanUsageType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PlanUsageType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PlanUsageType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "licensed" => PlanUsageType::Licensed,
+            "metered" => PlanUsageType::Metered,
+            other => PlanUsageType::Unknown(other.to_string()),
+        })
     }
 }
 

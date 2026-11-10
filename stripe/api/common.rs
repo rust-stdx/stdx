@@ -56,25 +56,26 @@
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Address {
     #[doc = "City, district, suburb, town, or village."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
     #[doc = "Two-letter country code ([ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2))."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub country: Option<String>,
     #[doc = "Address line 1, such as the street, PO Box, or company name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line1: Option<String>,
     #[doc = "Address line 2, such as the apartment, suite, unit, or building."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub line2: Option<String>,
     #[doc = "ZIP or postal code."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub postal_code: Option<String>,
     #[doc = "State, county, province, or region ([ISO 3166-2](https://en.wikipedia.org/wiki/ISO_3166-2))."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
 }
 
@@ -123,51 +124,52 @@ pub struct Address {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ApiErrors {
     #[doc = "For card errors resulting from a card issuer decline, a short string indicating [how to proceed with an error](https:..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub advice_code: Option<String>,
     #[doc = "For card errors, the ID of the failed charge."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub charge: Option<String>,
     #[doc = "For some errors that could be handled programmatically, a short string indicating the [error code](https://docs.strip..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub code: Option<crate::common::ApiErrorsCode>,
     #[doc = "For card errors resulting from a card issuer decline, a short string indicating the [card issuer's reason for the dec..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub decline_code: Option<String>,
     #[doc = "A URL to more information about the [error code](https://docs.stripe.com/error-codes) reported."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub doc_url: Option<String>,
     #[doc = "A human-readable message providing more details about the error."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
     #[doc = "For card errors resulting from a card issuer decline, a 2 digit code which indicates the advice given to merchant by ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub network_advice_code: Option<String>,
     #[doc = "For payments declined by the network, an alphanumeric code which indicates the reason the payment failed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub network_decline_code: Option<String>,
     #[doc = "If the error is parameter-specific, the parameter related to the error."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub param: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_intent: Option<Box<crate::payment_intents::PaymentIntent>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method: Option<crate::payment_methods::PaymentMethod>,
     #[doc = "If the error is specific to the type of payment method, the payment method type that had a problem."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_type: Option<String>,
     #[doc = "A URL to the request log entry in your dashboard."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub request_log_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_intent: Option<Box<crate::setup_intents::SetupIntent>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<crate::common::PaymentSource>,
     #[doc = "The type of error returned."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::common::ApiErrorsType,
 }
 
@@ -763,286 +765,254 @@ impl ApiErrorsCode {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ApiErrorsCode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ApiErrorsCode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account_closed" => ApiErrorsCode::AccountClosed,
-                    "account_country_invalid_address" => ApiErrorsCode::AccountCountryInvalidAddress,
-                    "account_error_country_change_requires_additional_steps" => {
-                        ApiErrorsCode::AccountErrorCountryChangeRequiresAdditionalSteps
-                    }
-                    "account_information_mismatch" => ApiErrorsCode::AccountInformationMismatch,
-                    "account_invalid" => ApiErrorsCode::AccountInvalid,
-                    "account_number_invalid" => ApiErrorsCode::AccountNumberInvalid,
-                    "account_token_required_for_v2_account" => ApiErrorsCode::AccountTokenRequiredForV2Account,
-                    "acss_debit_session_incomplete" => ApiErrorsCode::AcssDebitSessionIncomplete,
-                    "action_blocked" => ApiErrorsCode::ActionBlocked,
-                    "alipay_upgrade_required" => ApiErrorsCode::AlipayUpgradeRequired,
-                    "amount_too_large" => ApiErrorsCode::AmountTooLarge,
-                    "amount_too_small" => ApiErrorsCode::AmountTooSmall,
-                    "anomalous_money_movement_request" => ApiErrorsCode::AnomalousMoneyMovementRequest,
-                    "api_key_expired" => ApiErrorsCode::ApiKeyExpired,
-                    "application_fees_not_allowed" => ApiErrorsCode::ApplicationFeesNotAllowed,
-                    "approval_required" => ApiErrorsCode::ApprovalRequired,
-                    "authentication_failure" => ApiErrorsCode::AuthenticationFailure,
-                    "authentication_required" => ApiErrorsCode::AuthenticationRequired,
-                    "balance_insufficient" => ApiErrorsCode::BalanceInsufficient,
-                    "balance_invalid_parameter" => ApiErrorsCode::BalanceInvalidParameter,
-                    "bank_account_bad_routing_numbers" => ApiErrorsCode::BankAccountBadRoutingNumbers,
-                    "bank_account_declined" => ApiErrorsCode::BankAccountDeclined,
-                    "bank_account_exists" => ApiErrorsCode::BankAccountExists,
-                    "bank_account_restricted" => ApiErrorsCode::BankAccountRestricted,
-                    "bank_account_unusable" => ApiErrorsCode::BankAccountUnusable,
-                    "bank_account_unverified" => ApiErrorsCode::BankAccountUnverified,
-                    "bank_account_verification_failed" => ApiErrorsCode::BankAccountVerificationFailed,
-                    "billing_invalid_mandate" => ApiErrorsCode::BillingInvalidMandate,
-                    "bitcoin_upgrade_required" => ApiErrorsCode::BitcoinUpgradeRequired,
-                    "capability_not_active" => ApiErrorsCode::CapabilityNotActive,
-                    "capture_charge_authorization_expired" => ApiErrorsCode::CaptureChargeAuthorizationExpired,
-                    "capture_unauthorized_payment" => ApiErrorsCode::CaptureUnauthorizedPayment,
-                    "card_decline_rate_limit_exceeded" => ApiErrorsCode::CardDeclineRateLimitExceeded,
-                    "card_declined" => ApiErrorsCode::CardDeclined,
-                    "cardholder_phone_number_required" => ApiErrorsCode::CardholderPhoneNumberRequired,
-                    "charge_already_captured" => ApiErrorsCode::ChargeAlreadyCaptured,
-                    "charge_already_refunded" => ApiErrorsCode::ChargeAlreadyRefunded,
-                    "charge_disputed" => ApiErrorsCode::ChargeDisputed,
-                    "charge_exceeds_source_limit" => ApiErrorsCode::ChargeExceedsSourceLimit,
-                    "charge_exceeds_transaction_limit" => ApiErrorsCode::ChargeExceedsTransactionLimit,
-                    "charge_expired_for_capture" => ApiErrorsCode::ChargeExpiredForCapture,
-                    "charge_invalid_parameter" => ApiErrorsCode::ChargeInvalidParameter,
-                    "charge_not_refundable" => ApiErrorsCode::ChargeNotRefundable,
-                    "clearing_code_unsupported" => ApiErrorsCode::ClearingCodeUnsupported,
-                    "country_code_invalid" => ApiErrorsCode::CountryCodeInvalid,
-                    "country_unsupported" => ApiErrorsCode::CountryUnsupported,
-                    "coupon_expired" => ApiErrorsCode::CouponExpired,
-                    "customer_max_payment_methods" => ApiErrorsCode::CustomerMaxPaymentMethods,
-                    "customer_max_subscriptions" => ApiErrorsCode::CustomerMaxSubscriptions,
-                    "customer_session_expired" => ApiErrorsCode::CustomerSessionExpired,
-                    "customer_tax_location_invalid" => ApiErrorsCode::CustomerTaxLocationInvalid,
-                    "debit_not_authorized" => ApiErrorsCode::DebitNotAuthorized,
-                    "dispute_evidence_page_limit_exceeded" => ApiErrorsCode::DisputeEvidencePageLimitExceeded,
-                    "email_invalid" => ApiErrorsCode::EmailInvalid,
-                    "expired_card" => ApiErrorsCode::ExpiredCard,
-                    "expired_payment_method" => ApiErrorsCode::ExpiredPaymentMethod,
-                    "failed_tax_calculation" => ApiErrorsCode::FailedTaxCalculation,
-                    "financial_account_balance_does_not_support_currency" => {
-                        ApiErrorsCode::FinancialAccountBalanceDoesNotSupportCurrency
-                    }
-                    "financial_account_capability_not_enabled" => ApiErrorsCode::FinancialAccountCapabilityNotEnabled,
-                    "financial_account_capability_restricted" => ApiErrorsCode::FinancialAccountCapabilityRestricted,
-                    "financial_connections_account_inactive" => ApiErrorsCode::FinancialConnectionsAccountInactive,
-                    "financial_connections_account_pending_account_numbers" => {
-                        ApiErrorsCode::FinancialConnectionsAccountPendingAccountNumbers
-                    }
-                    "financial_connections_account_unavailable_account_numbers" => {
-                        ApiErrorsCode::FinancialConnectionsAccountUnavailableAccountNumbers
-                    }
-                    "financial_connections_consent_locale_invalid" => {
-                        ApiErrorsCode::FinancialConnectionsConsentLocaleInvalid
-                    }
-                    "financial_connections_consent_locale_unsupported" => {
-                        ApiErrorsCode::FinancialConnectionsConsentLocaleUnsupported
-                    }
-                    "financial_connections_no_successful_transaction_refresh" => {
-                        ApiErrorsCode::FinancialConnectionsNoSuccessfulTransactionRefresh
-                    }
-                    "forwarding_api_inactive" => ApiErrorsCode::ForwardingApiInactive,
-                    "forwarding_api_invalid_parameter" => ApiErrorsCode::ForwardingApiInvalidParameter,
-                    "forwarding_api_retryable_upstream_error" => ApiErrorsCode::ForwardingApiRetryableUpstreamError,
-                    "forwarding_api_upstream_connection_error" => ApiErrorsCode::ForwardingApiUpstreamConnectionError,
-                    "forwarding_api_upstream_connection_timeout" => {
-                        ApiErrorsCode::ForwardingApiUpstreamConnectionTimeout
-                    }
-                    "forwarding_api_upstream_error" => ApiErrorsCode::ForwardingApiUpstreamError,
-                    "idempotency_key_in_use" => ApiErrorsCode::IdempotencyKeyInUse,
-                    "incorrect_address" => ApiErrorsCode::IncorrectAddress,
-                    "incorrect_cvc" => ApiErrorsCode::IncorrectCvc,
-                    "incorrect_number" => ApiErrorsCode::IncorrectNumber,
-                    "incorrect_postal_code" => ApiErrorsCode::IncorrectPostalCode,
-                    "incorrect_zip" => ApiErrorsCode::IncorrectZip,
-                    "india_recurring_payment_mandate_canceled" => ApiErrorsCode::IndiaRecurringPaymentMandateCanceled,
-                    "instant_payouts_config_disabled" => ApiErrorsCode::InstantPayoutsConfigDisabled,
-                    "instant_payouts_currency_disabled" => ApiErrorsCode::InstantPayoutsCurrencyDisabled,
-                    "instant_payouts_limit_exceeded" => ApiErrorsCode::InstantPayoutsLimitExceeded,
-                    "instant_payouts_unsupported" => ApiErrorsCode::InstantPayoutsUnsupported,
-                    "insufficient_funds" => ApiErrorsCode::InsufficientFunds,
-                    "intent_invalid_state" => ApiErrorsCode::IntentInvalidState,
-                    "intent_verification_method_missing" => ApiErrorsCode::IntentVerificationMethodMissing,
-                    "invalid_canceled_subscription_fields" => ApiErrorsCode::InvalidCanceledSubscriptionFields,
-                    "invalid_card_type" => ApiErrorsCode::InvalidCardType,
-                    "invalid_characters" => ApiErrorsCode::InvalidCharacters,
-                    "invalid_charge_amount" => ApiErrorsCode::InvalidChargeAmount,
-                    "invalid_cvc" => ApiErrorsCode::InvalidCvc,
-                    "invalid_expiry_month" => ApiErrorsCode::InvalidExpiryMonth,
-                    "invalid_expiry_year" => ApiErrorsCode::InvalidExpiryYear,
-                    "invalid_mandate_reference_prefix_format" => ApiErrorsCode::InvalidMandateReferencePrefixFormat,
-                    "invalid_number" => ApiErrorsCode::InvalidNumber,
-                    "invalid_source_usage" => ApiErrorsCode::InvalidSourceUsage,
-                    "invalid_tax_location" => ApiErrorsCode::InvalidTaxLocation,
-                    "invoice_no_customer_line_items" => ApiErrorsCode::InvoiceNoCustomerLineItems,
-                    "invoice_no_payment_method_types" => ApiErrorsCode::InvoiceNoPaymentMethodTypes,
-                    "invoice_no_subscription_line_items" => ApiErrorsCode::InvoiceNoSubscriptionLineItems,
-                    "invoice_not_editable" => ApiErrorsCode::InvoiceNotEditable,
-                    "invoice_on_behalf_of_not_editable" => ApiErrorsCode::InvoiceOnBehalfOfNotEditable,
-                    "invoice_payment_intent_requires_action" => ApiErrorsCode::InvoicePaymentIntentRequiresAction,
-                    "invoice_upcoming_none" => ApiErrorsCode::InvoiceUpcomingNone,
-                    "livemode_mismatch" => ApiErrorsCode::LivemodeMismatch,
-                    "lock_timeout" => ApiErrorsCode::LockTimeout,
-                    "missing" => ApiErrorsCode::Missing,
-                    "no_account" => ApiErrorsCode::NoAccount,
-                    "not_allowed_on_standard_account" => ApiErrorsCode::NotAllowedOnStandardAccount,
-                    "out_of_inventory" => ApiErrorsCode::OutOfInventory,
-                    "ownership_declaration_not_allowed" => ApiErrorsCode::OwnershipDeclarationNotAllowed,
-                    "parameter_invalid_empty" => ApiErrorsCode::ParameterInvalidEmpty,
-                    "parameter_invalid_integer" => ApiErrorsCode::ParameterInvalidInteger,
-                    "parameter_invalid_string_blank" => ApiErrorsCode::ParameterInvalidStringBlank,
-                    "parameter_invalid_string_empty" => ApiErrorsCode::ParameterInvalidStringEmpty,
-                    "parameter_missing" => ApiErrorsCode::ParameterMissing,
-                    "parameter_unknown" => ApiErrorsCode::ParameterUnknown,
-                    "parameters_exclusive" => ApiErrorsCode::ParametersExclusive,
-                    "payment_evaluation_on_api_version_not_supported" => {
-                        ApiErrorsCode::PaymentEvaluationOnApiVersionNotSupported
-                    }
-                    "payment_intent_action_required" => ApiErrorsCode::PaymentIntentActionRequired,
-                    "payment_intent_authentication_failure" => ApiErrorsCode::PaymentIntentAuthenticationFailure,
-                    "payment_intent_incompatible_payment_method" => {
-                        ApiErrorsCode::PaymentIntentIncompatiblePaymentMethod
-                    }
-                    "payment_intent_invalid_parameter" => ApiErrorsCode::PaymentIntentInvalidParameter,
-                    "payment_intent_konbini_rejected_confirmation_number" => {
-                        ApiErrorsCode::PaymentIntentKonbiniRejectedConfirmationNumber
-                    }
-                    "payment_intent_mandate_invalid" => ApiErrorsCode::PaymentIntentMandateInvalid,
-                    "payment_intent_payment_attempt_expired" => ApiErrorsCode::PaymentIntentPaymentAttemptExpired,
-                    "payment_intent_payment_attempt_failed" => ApiErrorsCode::PaymentIntentPaymentAttemptFailed,
-                    "payment_intent_rate_limit_exceeded" => ApiErrorsCode::PaymentIntentRateLimitExceeded,
-                    "payment_intent_unexpected_state" => ApiErrorsCode::PaymentIntentUnexpectedState,
-                    "payment_method_bank_account_already_verified" => {
-                        ApiErrorsCode::PaymentMethodBankAccountAlreadyVerified
-                    }
-                    "payment_method_bank_account_blocked" => ApiErrorsCode::PaymentMethodBankAccountBlocked,
-                    "payment_method_billing_details_address_missing" => {
-                        ApiErrorsCode::PaymentMethodBillingDetailsAddressMissing
-                    }
-                    "payment_method_configuration_failures" => ApiErrorsCode::PaymentMethodConfigurationFailures,
-                    "payment_method_currency_mismatch" => ApiErrorsCode::PaymentMethodCurrencyMismatch,
-                    "payment_method_customer_decline" => ApiErrorsCode::PaymentMethodCustomerDecline,
-                    "payment_method_invalid_parameter" => ApiErrorsCode::PaymentMethodInvalidParameter,
-                    "payment_method_invalid_parameter_testmode" => ApiErrorsCode::PaymentMethodInvalidParameterTestmode,
-                    "payment_method_microdeposit_failed" => ApiErrorsCode::PaymentMethodMicrodepositFailed,
-                    "payment_method_microdeposit_processing_error" => {
-                        ApiErrorsCode::PaymentMethodMicrodepositProcessingError
-                    }
-                    "payment_method_microdeposit_verification_amounts_invalid" => {
-                        ApiErrorsCode::PaymentMethodMicrodepositVerificationAmountsInvalid
-                    }
-                    "payment_method_microdeposit_verification_amounts_mismatch" => {
-                        ApiErrorsCode::PaymentMethodMicrodepositVerificationAmountsMismatch
-                    }
-                    "payment_method_microdeposit_verification_attempts_exceeded" => {
-                        ApiErrorsCode::PaymentMethodMicrodepositVerificationAttemptsExceeded
-                    }
-                    "payment_method_microdeposit_verification_descriptor_code_mismatch" => {
-                        ApiErrorsCode::PaymentMethodMicrodepositVerificationDescriptorCodeMismatch
-                    }
-                    "payment_method_microdeposit_verification_timeout" => {
-                        ApiErrorsCode::PaymentMethodMicrodepositVerificationTimeout
-                    }
-                    "payment_method_not_available" => ApiErrorsCode::PaymentMethodNotAvailable,
-                    "payment_method_provider_decline" => ApiErrorsCode::PaymentMethodProviderDecline,
-                    "payment_method_provider_timeout" => ApiErrorsCode::PaymentMethodProviderTimeout,
-                    "payment_method_restricted" => ApiErrorsCode::PaymentMethodRestricted,
-                    "payment_method_unactivated" => ApiErrorsCode::PaymentMethodUnactivated,
-                    "payment_method_unexpected_state" => ApiErrorsCode::PaymentMethodUnexpectedState,
-                    "payment_method_unsupported_type" => ApiErrorsCode::PaymentMethodUnsupportedType,
-                    "payout_reconciliation_not_ready" => ApiErrorsCode::PayoutReconciliationNotReady,
-                    "payouts_limit_exceeded" => ApiErrorsCode::PayoutsLimitExceeded,
-                    "payouts_not_allowed" => ApiErrorsCode::PayoutsNotAllowed,
-                    "platform_account_required" => ApiErrorsCode::PlatformAccountRequired,
-                    "platform_api_key_expired" => ApiErrorsCode::PlatformApiKeyExpired,
-                    "postal_code_invalid" => ApiErrorsCode::PostalCodeInvalid,
-                    "processing_error" => ApiErrorsCode::ProcessingError,
-                    "product_inactive" => ApiErrorsCode::ProductInactive,
-                    "progressive_onboarding_limit_exceeded" => ApiErrorsCode::ProgressiveOnboardingLimitExceeded,
-                    "rate_limit" => ApiErrorsCode::RateLimit,
-                    "refer_to_customer" => ApiErrorsCode::ReferToCustomer,
-                    "refund_disputed_payment" => ApiErrorsCode::RefundDisputedPayment,
-                    "request_blocked" => ApiErrorsCode::RequestBlocked,
-                    "resource_already_exists" => ApiErrorsCode::ResourceAlreadyExists,
-                    "resource_missing" => ApiErrorsCode::ResourceMissing,
-                    "return_intent_already_processed" => ApiErrorsCode::ReturnIntentAlreadyProcessed,
-                    "routing_number_invalid" => ApiErrorsCode::RoutingNumberInvalid,
-                    "secret_key_required" => ApiErrorsCode::SecretKeyRequired,
-                    "sepa_unsupported_account" => ApiErrorsCode::SepaUnsupportedAccount,
-                    "service_period_coupon_with_metered_tiered_item_unsupported" => {
-                        ApiErrorsCode::ServicePeriodCouponWithMeteredTieredItemUnsupported
-                    }
-                    "setup_attempt_failed" => ApiErrorsCode::SetupAttemptFailed,
-                    "setup_intent_authentication_failure" => ApiErrorsCode::SetupIntentAuthenticationFailure,
-                    "setup_intent_invalid_parameter" => ApiErrorsCode::SetupIntentInvalidParameter,
-                    "setup_intent_mandate_invalid" => ApiErrorsCode::SetupIntentMandateInvalid,
-                    "setup_intent_mobile_wallet_unsupported" => ApiErrorsCode::SetupIntentMobileWalletUnsupported,
-                    "setup_intent_setup_attempt_expired" => ApiErrorsCode::SetupIntentSetupAttemptExpired,
-                    "setup_intent_unexpected_state" => ApiErrorsCode::SetupIntentUnexpectedState,
-                    "shipping_address_invalid" => ApiErrorsCode::ShippingAddressInvalid,
-                    "shipping_calculation_failed" => ApiErrorsCode::ShippingCalculationFailed,
-                    "siret_invalid" => ApiErrorsCode::SiretInvalid,
-                    "sku_inactive" => ApiErrorsCode::SkuInactive,
-                    "state_unsupported" => ApiErrorsCode::StateUnsupported,
-                    "status_transition_invalid" => ApiErrorsCode::StatusTransitionInvalid,
-                    "storer_capability_missing" => ApiErrorsCode::StorerCapabilityMissing,
-                    "storer_capability_not_active" => ApiErrorsCode::StorerCapabilityNotActive,
-                    "stripe_tax_inactive" => ApiErrorsCode::StripeTaxInactive,
-                    "tax_id_invalid" => ApiErrorsCode::TaxIdInvalid,
-                    "tax_id_prohibited" => ApiErrorsCode::TaxIdProhibited,
-                    "taxes_calculation_failed" => ApiErrorsCode::TaxesCalculationFailed,
-                    "terminal_location_country_unsupported" => ApiErrorsCode::TerminalLocationCountryUnsupported,
-                    "terminal_reader_busy" => ApiErrorsCode::TerminalReaderBusy,
-                    "terminal_reader_hardware_fault" => ApiErrorsCode::TerminalReaderHardwareFault,
-                    "terminal_reader_invalid_location_for_activation" => {
-                        ApiErrorsCode::TerminalReaderInvalidLocationForActivation
-                    }
-                    "terminal_reader_invalid_location_for_payment" => {
-                        ApiErrorsCode::TerminalReaderInvalidLocationForPayment
-                    }
-                    "terminal_reader_offline" => ApiErrorsCode::TerminalReaderOffline,
-                    "terminal_reader_timeout" => ApiErrorsCode::TerminalReaderTimeout,
-                    "testmode_charges_only" => ApiErrorsCode::TestmodeChargesOnly,
-                    "tls_version_unsupported" => ApiErrorsCode::TlsVersionUnsupported,
-                    "token_already_used" => ApiErrorsCode::TokenAlreadyUsed,
-                    "token_card_network_invalid" => ApiErrorsCode::TokenCardNetworkInvalid,
-                    "token_in_use" => ApiErrorsCode::TokenInUse,
-                    "transfer_source_balance_parameters_mismatch" => {
-                        ApiErrorsCode::TransferSourceBalanceParametersMismatch
-                    }
-                    "transfers_not_allowed" => ApiErrorsCode::TransfersNotAllowed,
-                    "url_invalid" => ApiErrorsCode::UrlInvalid,
-                    other => ApiErrorsCode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ApiErrorsCode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ApiErrorsCode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ApiErrorsCode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account_closed" => ApiErrorsCode::AccountClosed,
+            "account_country_invalid_address" => ApiErrorsCode::AccountCountryInvalidAddress,
+            "account_error_country_change_requires_additional_steps" => {
+                ApiErrorsCode::AccountErrorCountryChangeRequiresAdditionalSteps
+            }
+            "account_information_mismatch" => ApiErrorsCode::AccountInformationMismatch,
+            "account_invalid" => ApiErrorsCode::AccountInvalid,
+            "account_number_invalid" => ApiErrorsCode::AccountNumberInvalid,
+            "account_token_required_for_v2_account" => ApiErrorsCode::AccountTokenRequiredForV2Account,
+            "acss_debit_session_incomplete" => ApiErrorsCode::AcssDebitSessionIncomplete,
+            "action_blocked" => ApiErrorsCode::ActionBlocked,
+            "alipay_upgrade_required" => ApiErrorsCode::AlipayUpgradeRequired,
+            "amount_too_large" => ApiErrorsCode::AmountTooLarge,
+            "amount_too_small" => ApiErrorsCode::AmountTooSmall,
+            "anomalous_money_movement_request" => ApiErrorsCode::AnomalousMoneyMovementRequest,
+            "api_key_expired" => ApiErrorsCode::ApiKeyExpired,
+            "application_fees_not_allowed" => ApiErrorsCode::ApplicationFeesNotAllowed,
+            "approval_required" => ApiErrorsCode::ApprovalRequired,
+            "authentication_failure" => ApiErrorsCode::AuthenticationFailure,
+            "authentication_required" => ApiErrorsCode::AuthenticationRequired,
+            "balance_insufficient" => ApiErrorsCode::BalanceInsufficient,
+            "balance_invalid_parameter" => ApiErrorsCode::BalanceInvalidParameter,
+            "bank_account_bad_routing_numbers" => ApiErrorsCode::BankAccountBadRoutingNumbers,
+            "bank_account_declined" => ApiErrorsCode::BankAccountDeclined,
+            "bank_account_exists" => ApiErrorsCode::BankAccountExists,
+            "bank_account_restricted" => ApiErrorsCode::BankAccountRestricted,
+            "bank_account_unusable" => ApiErrorsCode::BankAccountUnusable,
+            "bank_account_unverified" => ApiErrorsCode::BankAccountUnverified,
+            "bank_account_verification_failed" => ApiErrorsCode::BankAccountVerificationFailed,
+            "billing_invalid_mandate" => ApiErrorsCode::BillingInvalidMandate,
+            "bitcoin_upgrade_required" => ApiErrorsCode::BitcoinUpgradeRequired,
+            "capability_not_active" => ApiErrorsCode::CapabilityNotActive,
+            "capture_charge_authorization_expired" => ApiErrorsCode::CaptureChargeAuthorizationExpired,
+            "capture_unauthorized_payment" => ApiErrorsCode::CaptureUnauthorizedPayment,
+            "card_decline_rate_limit_exceeded" => ApiErrorsCode::CardDeclineRateLimitExceeded,
+            "card_declined" => ApiErrorsCode::CardDeclined,
+            "cardholder_phone_number_required" => ApiErrorsCode::CardholderPhoneNumberRequired,
+            "charge_already_captured" => ApiErrorsCode::ChargeAlreadyCaptured,
+            "charge_already_refunded" => ApiErrorsCode::ChargeAlreadyRefunded,
+            "charge_disputed" => ApiErrorsCode::ChargeDisputed,
+            "charge_exceeds_source_limit" => ApiErrorsCode::ChargeExceedsSourceLimit,
+            "charge_exceeds_transaction_limit" => ApiErrorsCode::ChargeExceedsTransactionLimit,
+            "charge_expired_for_capture" => ApiErrorsCode::ChargeExpiredForCapture,
+            "charge_invalid_parameter" => ApiErrorsCode::ChargeInvalidParameter,
+            "charge_not_refundable" => ApiErrorsCode::ChargeNotRefundable,
+            "clearing_code_unsupported" => ApiErrorsCode::ClearingCodeUnsupported,
+            "country_code_invalid" => ApiErrorsCode::CountryCodeInvalid,
+            "country_unsupported" => ApiErrorsCode::CountryUnsupported,
+            "coupon_expired" => ApiErrorsCode::CouponExpired,
+            "customer_max_payment_methods" => ApiErrorsCode::CustomerMaxPaymentMethods,
+            "customer_max_subscriptions" => ApiErrorsCode::CustomerMaxSubscriptions,
+            "customer_session_expired" => ApiErrorsCode::CustomerSessionExpired,
+            "customer_tax_location_invalid" => ApiErrorsCode::CustomerTaxLocationInvalid,
+            "debit_not_authorized" => ApiErrorsCode::DebitNotAuthorized,
+            "dispute_evidence_page_limit_exceeded" => ApiErrorsCode::DisputeEvidencePageLimitExceeded,
+            "email_invalid" => ApiErrorsCode::EmailInvalid,
+            "expired_card" => ApiErrorsCode::ExpiredCard,
+            "expired_payment_method" => ApiErrorsCode::ExpiredPaymentMethod,
+            "failed_tax_calculation" => ApiErrorsCode::FailedTaxCalculation,
+            "financial_account_balance_does_not_support_currency" => {
+                ApiErrorsCode::FinancialAccountBalanceDoesNotSupportCurrency
+            }
+            "financial_account_capability_not_enabled" => ApiErrorsCode::FinancialAccountCapabilityNotEnabled,
+            "financial_account_capability_restricted" => ApiErrorsCode::FinancialAccountCapabilityRestricted,
+            "financial_connections_account_inactive" => ApiErrorsCode::FinancialConnectionsAccountInactive,
+            "financial_connections_account_pending_account_numbers" => {
+                ApiErrorsCode::FinancialConnectionsAccountPendingAccountNumbers
+            }
+            "financial_connections_account_unavailable_account_numbers" => {
+                ApiErrorsCode::FinancialConnectionsAccountUnavailableAccountNumbers
+            }
+            "financial_connections_consent_locale_invalid" => ApiErrorsCode::FinancialConnectionsConsentLocaleInvalid,
+            "financial_connections_consent_locale_unsupported" => {
+                ApiErrorsCode::FinancialConnectionsConsentLocaleUnsupported
+            }
+            "financial_connections_no_successful_transaction_refresh" => {
+                ApiErrorsCode::FinancialConnectionsNoSuccessfulTransactionRefresh
+            }
+            "forwarding_api_inactive" => ApiErrorsCode::ForwardingApiInactive,
+            "forwarding_api_invalid_parameter" => ApiErrorsCode::ForwardingApiInvalidParameter,
+            "forwarding_api_retryable_upstream_error" => ApiErrorsCode::ForwardingApiRetryableUpstreamError,
+            "forwarding_api_upstream_connection_error" => ApiErrorsCode::ForwardingApiUpstreamConnectionError,
+            "forwarding_api_upstream_connection_timeout" => ApiErrorsCode::ForwardingApiUpstreamConnectionTimeout,
+            "forwarding_api_upstream_error" => ApiErrorsCode::ForwardingApiUpstreamError,
+            "idempotency_key_in_use" => ApiErrorsCode::IdempotencyKeyInUse,
+            "incorrect_address" => ApiErrorsCode::IncorrectAddress,
+            "incorrect_cvc" => ApiErrorsCode::IncorrectCvc,
+            "incorrect_number" => ApiErrorsCode::IncorrectNumber,
+            "incorrect_postal_code" => ApiErrorsCode::IncorrectPostalCode,
+            "incorrect_zip" => ApiErrorsCode::IncorrectZip,
+            "india_recurring_payment_mandate_canceled" => ApiErrorsCode::IndiaRecurringPaymentMandateCanceled,
+            "instant_payouts_config_disabled" => ApiErrorsCode::InstantPayoutsConfigDisabled,
+            "instant_payouts_currency_disabled" => ApiErrorsCode::InstantPayoutsCurrencyDisabled,
+            "instant_payouts_limit_exceeded" => ApiErrorsCode::InstantPayoutsLimitExceeded,
+            "instant_payouts_unsupported" => ApiErrorsCode::InstantPayoutsUnsupported,
+            "insufficient_funds" => ApiErrorsCode::InsufficientFunds,
+            "intent_invalid_state" => ApiErrorsCode::IntentInvalidState,
+            "intent_verification_method_missing" => ApiErrorsCode::IntentVerificationMethodMissing,
+            "invalid_canceled_subscription_fields" => ApiErrorsCode::InvalidCanceledSubscriptionFields,
+            "invalid_card_type" => ApiErrorsCode::InvalidCardType,
+            "invalid_characters" => ApiErrorsCode::InvalidCharacters,
+            "invalid_charge_amount" => ApiErrorsCode::InvalidChargeAmount,
+            "invalid_cvc" => ApiErrorsCode::InvalidCvc,
+            "invalid_expiry_month" => ApiErrorsCode::InvalidExpiryMonth,
+            "invalid_expiry_year" => ApiErrorsCode::InvalidExpiryYear,
+            "invalid_mandate_reference_prefix_format" => ApiErrorsCode::InvalidMandateReferencePrefixFormat,
+            "invalid_number" => ApiErrorsCode::InvalidNumber,
+            "invalid_source_usage" => ApiErrorsCode::InvalidSourceUsage,
+            "invalid_tax_location" => ApiErrorsCode::InvalidTaxLocation,
+            "invoice_no_customer_line_items" => ApiErrorsCode::InvoiceNoCustomerLineItems,
+            "invoice_no_payment_method_types" => ApiErrorsCode::InvoiceNoPaymentMethodTypes,
+            "invoice_no_subscription_line_items" => ApiErrorsCode::InvoiceNoSubscriptionLineItems,
+            "invoice_not_editable" => ApiErrorsCode::InvoiceNotEditable,
+            "invoice_on_behalf_of_not_editable" => ApiErrorsCode::InvoiceOnBehalfOfNotEditable,
+            "invoice_payment_intent_requires_action" => ApiErrorsCode::InvoicePaymentIntentRequiresAction,
+            "invoice_upcoming_none" => ApiErrorsCode::InvoiceUpcomingNone,
+            "livemode_mismatch" => ApiErrorsCode::LivemodeMismatch,
+            "lock_timeout" => ApiErrorsCode::LockTimeout,
+            "missing" => ApiErrorsCode::Missing,
+            "no_account" => ApiErrorsCode::NoAccount,
+            "not_allowed_on_standard_account" => ApiErrorsCode::NotAllowedOnStandardAccount,
+            "out_of_inventory" => ApiErrorsCode::OutOfInventory,
+            "ownership_declaration_not_allowed" => ApiErrorsCode::OwnershipDeclarationNotAllowed,
+            "parameter_invalid_empty" => ApiErrorsCode::ParameterInvalidEmpty,
+            "parameter_invalid_integer" => ApiErrorsCode::ParameterInvalidInteger,
+            "parameter_invalid_string_blank" => ApiErrorsCode::ParameterInvalidStringBlank,
+            "parameter_invalid_string_empty" => ApiErrorsCode::ParameterInvalidStringEmpty,
+            "parameter_missing" => ApiErrorsCode::ParameterMissing,
+            "parameter_unknown" => ApiErrorsCode::ParameterUnknown,
+            "parameters_exclusive" => ApiErrorsCode::ParametersExclusive,
+            "payment_evaluation_on_api_version_not_supported" => {
+                ApiErrorsCode::PaymentEvaluationOnApiVersionNotSupported
+            }
+            "payment_intent_action_required" => ApiErrorsCode::PaymentIntentActionRequired,
+            "payment_intent_authentication_failure" => ApiErrorsCode::PaymentIntentAuthenticationFailure,
+            "payment_intent_incompatible_payment_method" => ApiErrorsCode::PaymentIntentIncompatiblePaymentMethod,
+            "payment_intent_invalid_parameter" => ApiErrorsCode::PaymentIntentInvalidParameter,
+            "payment_intent_konbini_rejected_confirmation_number" => {
+                ApiErrorsCode::PaymentIntentKonbiniRejectedConfirmationNumber
+            }
+            "payment_intent_mandate_invalid" => ApiErrorsCode::PaymentIntentMandateInvalid,
+            "payment_intent_payment_attempt_expired" => ApiErrorsCode::PaymentIntentPaymentAttemptExpired,
+            "payment_intent_payment_attempt_failed" => ApiErrorsCode::PaymentIntentPaymentAttemptFailed,
+            "payment_intent_rate_limit_exceeded" => ApiErrorsCode::PaymentIntentRateLimitExceeded,
+            "payment_intent_unexpected_state" => ApiErrorsCode::PaymentIntentUnexpectedState,
+            "payment_method_bank_account_already_verified" => ApiErrorsCode::PaymentMethodBankAccountAlreadyVerified,
+            "payment_method_bank_account_blocked" => ApiErrorsCode::PaymentMethodBankAccountBlocked,
+            "payment_method_billing_details_address_missing" => {
+                ApiErrorsCode::PaymentMethodBillingDetailsAddressMissing
+            }
+            "payment_method_configuration_failures" => ApiErrorsCode::PaymentMethodConfigurationFailures,
+            "payment_method_currency_mismatch" => ApiErrorsCode::PaymentMethodCurrencyMismatch,
+            "payment_method_customer_decline" => ApiErrorsCode::PaymentMethodCustomerDecline,
+            "payment_method_invalid_parameter" => ApiErrorsCode::PaymentMethodInvalidParameter,
+            "payment_method_invalid_parameter_testmode" => ApiErrorsCode::PaymentMethodInvalidParameterTestmode,
+            "payment_method_microdeposit_failed" => ApiErrorsCode::PaymentMethodMicrodepositFailed,
+            "payment_method_microdeposit_processing_error" => ApiErrorsCode::PaymentMethodMicrodepositProcessingError,
+            "payment_method_microdeposit_verification_amounts_invalid" => {
+                ApiErrorsCode::PaymentMethodMicrodepositVerificationAmountsInvalid
+            }
+            "payment_method_microdeposit_verification_amounts_mismatch" => {
+                ApiErrorsCode::PaymentMethodMicrodepositVerificationAmountsMismatch
+            }
+            "payment_method_microdeposit_verification_attempts_exceeded" => {
+                ApiErrorsCode::PaymentMethodMicrodepositVerificationAttemptsExceeded
+            }
+            "payment_method_microdeposit_verification_descriptor_code_mismatch" => {
+                ApiErrorsCode::PaymentMethodMicrodepositVerificationDescriptorCodeMismatch
+            }
+            "payment_method_microdeposit_verification_timeout" => {
+                ApiErrorsCode::PaymentMethodMicrodepositVerificationTimeout
+            }
+            "payment_method_not_available" => ApiErrorsCode::PaymentMethodNotAvailable,
+            "payment_method_provider_decline" => ApiErrorsCode::PaymentMethodProviderDecline,
+            "payment_method_provider_timeout" => ApiErrorsCode::PaymentMethodProviderTimeout,
+            "payment_method_restricted" => ApiErrorsCode::PaymentMethodRestricted,
+            "payment_method_unactivated" => ApiErrorsCode::PaymentMethodUnactivated,
+            "payment_method_unexpected_state" => ApiErrorsCode::PaymentMethodUnexpectedState,
+            "payment_method_unsupported_type" => ApiErrorsCode::PaymentMethodUnsupportedType,
+            "payout_reconciliation_not_ready" => ApiErrorsCode::PayoutReconciliationNotReady,
+            "payouts_limit_exceeded" => ApiErrorsCode::PayoutsLimitExceeded,
+            "payouts_not_allowed" => ApiErrorsCode::PayoutsNotAllowed,
+            "platform_account_required" => ApiErrorsCode::PlatformAccountRequired,
+            "platform_api_key_expired" => ApiErrorsCode::PlatformApiKeyExpired,
+            "postal_code_invalid" => ApiErrorsCode::PostalCodeInvalid,
+            "processing_error" => ApiErrorsCode::ProcessingError,
+            "product_inactive" => ApiErrorsCode::ProductInactive,
+            "progressive_onboarding_limit_exceeded" => ApiErrorsCode::ProgressiveOnboardingLimitExceeded,
+            "rate_limit" => ApiErrorsCode::RateLimit,
+            "refer_to_customer" => ApiErrorsCode::ReferToCustomer,
+            "refund_disputed_payment" => ApiErrorsCode::RefundDisputedPayment,
+            "request_blocked" => ApiErrorsCode::RequestBlocked,
+            "resource_already_exists" => ApiErrorsCode::ResourceAlreadyExists,
+            "resource_missing" => ApiErrorsCode::ResourceMissing,
+            "return_intent_already_processed" => ApiErrorsCode::ReturnIntentAlreadyProcessed,
+            "routing_number_invalid" => ApiErrorsCode::RoutingNumberInvalid,
+            "secret_key_required" => ApiErrorsCode::SecretKeyRequired,
+            "sepa_unsupported_account" => ApiErrorsCode::SepaUnsupportedAccount,
+            "service_period_coupon_with_metered_tiered_item_unsupported" => {
+                ApiErrorsCode::ServicePeriodCouponWithMeteredTieredItemUnsupported
+            }
+            "setup_attempt_failed" => ApiErrorsCode::SetupAttemptFailed,
+            "setup_intent_authentication_failure" => ApiErrorsCode::SetupIntentAuthenticationFailure,
+            "setup_intent_invalid_parameter" => ApiErrorsCode::SetupIntentInvalidParameter,
+            "setup_intent_mandate_invalid" => ApiErrorsCode::SetupIntentMandateInvalid,
+            "setup_intent_mobile_wallet_unsupported" => ApiErrorsCode::SetupIntentMobileWalletUnsupported,
+            "setup_intent_setup_attempt_expired" => ApiErrorsCode::SetupIntentSetupAttemptExpired,
+            "setup_intent_unexpected_state" => ApiErrorsCode::SetupIntentUnexpectedState,
+            "shipping_address_invalid" => ApiErrorsCode::ShippingAddressInvalid,
+            "shipping_calculation_failed" => ApiErrorsCode::ShippingCalculationFailed,
+            "siret_invalid" => ApiErrorsCode::SiretInvalid,
+            "sku_inactive" => ApiErrorsCode::SkuInactive,
+            "state_unsupported" => ApiErrorsCode::StateUnsupported,
+            "status_transition_invalid" => ApiErrorsCode::StatusTransitionInvalid,
+            "storer_capability_missing" => ApiErrorsCode::StorerCapabilityMissing,
+            "storer_capability_not_active" => ApiErrorsCode::StorerCapabilityNotActive,
+            "stripe_tax_inactive" => ApiErrorsCode::StripeTaxInactive,
+            "tax_id_invalid" => ApiErrorsCode::TaxIdInvalid,
+            "tax_id_prohibited" => ApiErrorsCode::TaxIdProhibited,
+            "taxes_calculation_failed" => ApiErrorsCode::TaxesCalculationFailed,
+            "terminal_location_country_unsupported" => ApiErrorsCode::TerminalLocationCountryUnsupported,
+            "terminal_reader_busy" => ApiErrorsCode::TerminalReaderBusy,
+            "terminal_reader_hardware_fault" => ApiErrorsCode::TerminalReaderHardwareFault,
+            "terminal_reader_invalid_location_for_activation" => {
+                ApiErrorsCode::TerminalReaderInvalidLocationForActivation
+            }
+            "terminal_reader_invalid_location_for_payment" => ApiErrorsCode::TerminalReaderInvalidLocationForPayment,
+            "terminal_reader_offline" => ApiErrorsCode::TerminalReaderOffline,
+            "terminal_reader_timeout" => ApiErrorsCode::TerminalReaderTimeout,
+            "testmode_charges_only" => ApiErrorsCode::TestmodeChargesOnly,
+            "tls_version_unsupported" => ApiErrorsCode::TlsVersionUnsupported,
+            "token_already_used" => ApiErrorsCode::TokenAlreadyUsed,
+            "token_card_network_invalid" => ApiErrorsCode::TokenCardNetworkInvalid,
+            "token_in_use" => ApiErrorsCode::TokenInUse,
+            "transfer_source_balance_parameters_mismatch" => ApiErrorsCode::TransferSourceBalanceParametersMismatch,
+            "transfers_not_allowed" => ApiErrorsCode::TransfersNotAllowed,
+            "url_invalid" => ApiErrorsCode::UrlInvalid,
+            other => ApiErrorsCode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1255,39 +1225,21 @@ impl Default for ApiErrorsType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ApiErrorsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ApiErrorsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "api_error" => ApiErrorsType::ApiError,
-                    "card_error" => ApiErrorsType::CardError,
-                    "idempotency_error" => ApiErrorsType::IdempotencyError,
-                    "invalid_request_error" => ApiErrorsType::InvalidRequestError,
-                    other => ApiErrorsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ApiErrorsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ApiErrorsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ApiErrorsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "api_error" => ApiErrorsType::ApiError,
+            "card_error" => ApiErrorsType::CardError,
+            "idempotency_error" => ApiErrorsType::IdempotencyError,
+            "invalid_request_error" => ApiErrorsType::InvalidRequestError,
+            other => ApiErrorsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1337,16 +1289,17 @@ impl<'de> serde::Deserialize<'de> for ApiErrorsType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Application {
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The name of the application."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::common::ApplicationObject,
 }
 
@@ -1609,36 +1562,18 @@ impl Default for ApplicationObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ApplicationObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ApplicationObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "application" => ApplicationObject::Application,
-                    other => ApplicationObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ApplicationObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ApplicationObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ApplicationObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "application" => ApplicationObject::Application,
+            other => ApplicationObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1687,22 +1622,23 @@ impl<'de> serde::Deserialize<'de> for ApplicationObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct AutomaticTax {
     #[doc = "If Stripe disabled automatic tax, this enum describes why."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub disabled_reason: Option<crate::common::AutomaticTaxDisabledReason>,
     #[doc = "Whether Stripe automatically computes tax on this invoice."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
     #[doc = "The account that's liable for tax."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub liability: Option<crate::accounts::ConnectAccountReference>,
     #[doc = "The tax provider powering automatic tax."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
     #[doc = "The status of the most recent automated tax calculation for this invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<crate::common::AutomaticTaxStatus>,
 }
 
@@ -1860,39 +1796,19 @@ impl AutomaticTaxDisabledReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for AutomaticTaxDisabledReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AutomaticTaxDisabledReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "finalization_requires_location_inputs" => {
-                        AutomaticTaxDisabledReason::FinalizationRequiresLocationInputs
-                    }
-                    "finalization_system_error" => AutomaticTaxDisabledReason::FinalizationSystemError,
-                    other => AutomaticTaxDisabledReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AutomaticTaxDisabledReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AutomaticTaxDisabledReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AutomaticTaxDisabledReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "finalization_requires_location_inputs" => AutomaticTaxDisabledReason::FinalizationRequiresLocationInputs,
+            "finalization_system_error" => AutomaticTaxDisabledReason::FinalizationSystemError,
+            other => AutomaticTaxDisabledReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2052,38 +1968,20 @@ impl AutomaticTaxStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for AutomaticTaxStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = AutomaticTaxStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "complete" => AutomaticTaxStatus::Complete,
-                    "failed" => AutomaticTaxStatus::Failed,
-                    "requires_location_inputs" => AutomaticTaxStatus::RequiresLocationInputs,
-                    other => AutomaticTaxStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(AutomaticTaxStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for AutomaticTaxStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(AutomaticTaxStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "complete" => AutomaticTaxStatus::Complete,
+            "failed" => AutomaticTaxStatus::Failed,
+            "requires_location_inputs" => AutomaticTaxStatus::RequiresLocationInputs,
+            other => AutomaticTaxStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2132,19 +2030,20 @@ impl<'de> serde::Deserialize<'de> for AutomaticTaxStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CancellationDetails {
     #[doc = "Additional comments about why the user canceled the subscription, if the subscription was canceled explicitly by the ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
     #[doc = "The customer submitted reason for why they canceled, if the subscription was canceled explicitly by the user."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub feedback: Option<crate::common::CancellationDetailsFeedback>,
     #[doc = "Customized feedback options that provide deeper insight into why the subscription was canceled, if the subscription w..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub feedback_option: Option<crate::Expandable<crate::billing::BillingFeedbackOption>>,
     #[doc = "Why this subscription was canceled."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reason: Option<crate::common::CancellationDetailsReason>,
 }
 
@@ -2314,43 +2213,25 @@ impl CancellationDetailsFeedback {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for CancellationDetailsFeedback {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CancellationDetailsFeedback;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "customer_service" => CancellationDetailsFeedback::CustomerService,
-                    "low_quality" => CancellationDetailsFeedback::LowQuality,
-                    "missing_features" => CancellationDetailsFeedback::MissingFeatures,
-                    "other" => CancellationDetailsFeedback::Other,
-                    "switched_service" => CancellationDetailsFeedback::SwitchedService,
-                    "too_complex" => CancellationDetailsFeedback::TooComplex,
-                    "too_expensive" => CancellationDetailsFeedback::TooExpensive,
-                    "unused" => CancellationDetailsFeedback::Unused,
-                    other => CancellationDetailsFeedback::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CancellationDetailsFeedback::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CancellationDetailsFeedback {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CancellationDetailsFeedback::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "customer_service" => CancellationDetailsFeedback::CustomerService,
+            "low_quality" => CancellationDetailsFeedback::LowQuality,
+            "missing_features" => CancellationDetailsFeedback::MissingFeatures,
+            "other" => CancellationDetailsFeedback::Other,
+            "switched_service" => CancellationDetailsFeedback::SwitchedService,
+            "too_complex" => CancellationDetailsFeedback::TooComplex,
+            "too_expensive" => CancellationDetailsFeedback::TooExpensive,
+            "unused" => CancellationDetailsFeedback::Unused,
+            other => CancellationDetailsFeedback::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2512,39 +2393,21 @@ impl CancellationDetailsReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for CancellationDetailsReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CancellationDetailsReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "canceled_by_retention_policy" => CancellationDetailsReason::CanceledByRetentionPolicy,
-                    "cancellation_requested" => CancellationDetailsReason::CancellationRequested,
-                    "payment_disputed" => CancellationDetailsReason::PaymentDisputed,
-                    "payment_failed" => CancellationDetailsReason::PaymentFailed,
-                    other => CancellationDetailsReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CancellationDetailsReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CancellationDetailsReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CancellationDetailsReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "canceled_by_retention_policy" => CancellationDetailsReason::CanceledByRetentionPolicy,
+            "cancellation_requested" => CancellationDetailsReason::CancellationRequested,
+            "payment_disputed" => CancellationDetailsReason::PaymentDisputed,
+            "payment_failed" => CancellationDetailsReason::PaymentFailed,
+            other => CancellationDetailsReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2597,22 +2460,23 @@ impl<'de> serde::Deserialize<'de> for CancellationDetailsReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CurrencyOption {
     #[doc = "When set, provides configuration for the amount to be adjusted by the customer during Checkout Sessions and Payment L..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub custom_unit_amount: Option<crate::common::CustomUnitAmount>,
     #[doc = "Only required if a [default tax behavior](https://docs.stripe.com/tax/products-prices-tax-categories-tax-behavior#set..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_behavior: Option<crate::common::CurrencyOptionTaxBehavior>,
     #[doc = "Each element represents a pricing tier."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tiers: Option<Vec<crate::prices::PriceTier>>,
     #[doc = "The unit amount in cents (or local equivalent) to be charged, represented as a whole integer if possible."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unit_amount: Option<i64>,
     #[doc = "The unit amount in cents (or local equivalent) to be charged, represented as a decimal string with at most 12 decimal..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unit_amount_decimal: Option<String>,
 }
 
@@ -2784,38 +2648,20 @@ impl CurrencyOptionTaxBehavior {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for CurrencyOptionTaxBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CurrencyOptionTaxBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exclusive" => CurrencyOptionTaxBehavior::Exclusive,
-                    "inclusive" => CurrencyOptionTaxBehavior::Inclusive,
-                    "unspecified" => CurrencyOptionTaxBehavior::Unspecified,
-                    other => CurrencyOptionTaxBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CurrencyOptionTaxBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CurrencyOptionTaxBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CurrencyOptionTaxBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exclusive" => CurrencyOptionTaxBehavior::Exclusive,
+            "inclusive" => CurrencyOptionTaxBehavior::Inclusive,
+            "unspecified" => CurrencyOptionTaxBehavior::Unspecified,
+            other => CurrencyOptionTaxBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2864,13 +2710,14 @@ impl<'de> serde::Deserialize<'de> for CurrencyOptionTaxBehavior {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CustomLogo {
     #[doc = "Content type of the Dashboard-only CustomPaymentMethodType logo."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub content_type: Option<String>,
     #[doc = "URL of the Dashboard-only CustomPaymentMethodType logo."]
-    #[serde(default)]
+    #[json(default)]
     pub url: String,
 }
 
@@ -2923,16 +2770,17 @@ pub struct CustomLogo {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CustomUnitAmount {
     #[doc = "The maximum unit amount the customer can specify for this item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub maximum: Option<i64>,
     #[doc = "The minimum unit amount the customer can specify for this item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub minimum: Option<i64>,
     #[doc = "The starting unit amount which can be updated by the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub preset: Option<i64>,
 }
 
@@ -2988,7 +2836,7 @@ pub enum DeletedPaymentSource {
     /// Expanded `card`.
     Card(Box<crate::payment_methods::DeletedCard>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -3036,20 +2884,16 @@ pub enum DeletedPaymentSource {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for DeletedPaymentSource {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for DeletedPaymentSource {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "bank_account" => DeletedPaymentSource::BankAccount(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
-            "card" => {
-                DeletedPaymentSource::Card(Box::new(serde_json::from_value(value).map_err(serde::de::Error::custom)?))
+            "bank_account" => {
+                DeletedPaymentSource::BankAccount(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
             }
+            "card" => DeletedPaymentSource::Card(Box::new(json::from_slice_owned(&json::to_vec(&value))?)),
             _ => DeletedPaymentSource::Other(value),
         })
     }
@@ -3100,7 +2944,8 @@ impl<'de> serde::Deserialize<'de> for DeletedPaymentSource {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DestinationDetailsUnimplemented {}
 
 #[cfg(any(
@@ -3148,13 +2993,14 @@ pub struct DestinationDetailsUnimplemented {}
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DiscountsResourceDiscountAmount {
     #[doc = "The amount, in cents (or local equivalent), of the discount."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "The discount that was applied to get this discount amount."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub discount: Option<crate::Expandable<crate::common::DiscountsResourceDiscountAmountDiscountExpanded>>,
 }
 
@@ -3208,7 +3054,7 @@ pub enum DiscountsResourceDiscountAmountDiscountExpanded {
     /// Expanded `discount`.
     Discount(Box<crate::coupons::Discount>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -3256,17 +3102,15 @@ pub enum DiscountsResourceDiscountAmountDiscountExpanded {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for DiscountsResourceDiscountAmountDiscountExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for DiscountsResourceDiscountAmountDiscountExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "discount" => DiscountsResourceDiscountAmountDiscountExpanded::Discount(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "discount" => DiscountsResourceDiscountAmountDiscountExpanded::Discount(Box::new(json::from_slice_owned(
+                &json::to_vec(&value),
+            )?)),
             _ => DiscountsResourceDiscountAmountDiscountExpanded::Other(value),
         })
     }
@@ -3317,16 +3161,17 @@ impl<'de> serde::Deserialize<'de> for DiscountsResourceDiscountAmountDiscountExp
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DiscountsResourceStackableDiscountWithDiscountEnd {
     #[doc = "ID of the coupon to create a new discount for."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub coupon: Option<crate::Expandable<crate::coupons::Coupon>>,
     #[doc = "ID of an existing discount on the object (or one of its ancestors) to reuse."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub discount: Option<crate::Expandable<crate::coupons::Discount>>,
     #[doc = "ID of the promotion code to create a new discount for."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub promotion_code: Option<crate::Expandable<crate::promotion_codes::PromotionCode>>,
 }
 
@@ -3375,13 +3220,14 @@ pub struct DiscountsResourceStackableDiscountWithDiscountEnd {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct EmailSent {
     #[doc = "The timestamp when the email was sent."]
-    #[serde(default)]
+    #[json(default)]
     pub email_sent_at: i64,
     #[doc = "The recipient's email address."]
-    #[serde(default)]
+    #[json(default)]
     pub email_sent_to: String,
 }
 
@@ -3430,22 +3276,23 @@ pub struct EmailSent {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Fee {
     #[doc = "Amount of the fee, in cents."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "ID of the Connect application that earned the fee."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application: Option<String>,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "Type of the fee, one of: `application_fee`, `payment_method_passthrough_fee`, `stripe_fee`, `tax`, or `withheld_tax`."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: String,
 }
 
@@ -3494,31 +3341,32 @@ pub struct Fee {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct FeeRefund {
     #[doc = "Amount, in cents (or local equivalent)."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Balance transaction that describes the impact on your account balance."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub balance_transaction: Option<crate::Expandable<crate::balance_transactions::BalanceTransaction>>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "ID of the application fee that was refunded."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fee: Option<crate::Expandable<crate::application_fees::ApplicationFee>>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::common::FeeRefundObject,
 }
 
@@ -3776,36 +3624,18 @@ impl Default for FeeRefundObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for FeeRefundObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FeeRefundObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "fee_refund" => FeeRefundObject::FeeRefund,
-                    other => FeeRefundObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FeeRefundObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for FeeRefundObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FeeRefundObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "fee_refund" => FeeRefundObject::FeeRefund,
+            other => FeeRefundObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3855,10 +3685,11 @@ impl<'de> serde::Deserialize<'de> for FeeRefundObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct FeedbackOptionsStatusTransitions {
     #[doc = "The time the feedback option was deactivated, if any."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub deactivated_at: Option<i64>,
 }
 
@@ -3870,48 +3701,49 @@ pub struct FeedbackOptionsStatusTransitions {
     feature = "payment_links",
     feature = "quotes"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Item {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub adjustable_quantity: Option<crate::common::LineItemsAdjustableQuantity>,
     #[doc = "Total discount amount applied."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_discount: i64,
     #[doc = "Total before any discounts or taxes are applied."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_subtotal: i64,
     #[doc = "Total tax amount applied."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_tax: i64,
     #[doc = "Total after discounts and taxes."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_total: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "The discounts applied to the line item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub discounts: Option<Vec<crate::common::LineItemsDiscountAmount>>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::common::ItemObject,
     #[doc = "The price used to generate the line item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub price: Option<crate::prices::Price>,
     #[doc = "The quantity of products being purchased."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub quantity: Option<i64>,
     #[doc = "The taxes applied to the line item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub taxes: Option<Vec<crate::common::LineItemsTaxAmount>>,
 }
 
@@ -3984,36 +3816,18 @@ impl Default for ItemObject {
     feature = "payment_links",
     feature = "quotes"
 ))]
-impl<'de> serde::Deserialize<'de> for ItemObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ItemObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "item" => ItemObject::Item,
-                    other => ItemObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ItemObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ItemObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ItemObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "item" => ItemObject::Item,
+            other => ItemObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4025,13 +3839,14 @@ impl<'de> serde::Deserialize<'de> for ItemObject {
     feature = "payment_links",
     feature = "quotes"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct LineItemsAdjustableQuantity {
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub maximum: Option<i64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub minimum: Option<i64>,
 }
 
@@ -4043,12 +3858,13 @@ pub struct LineItemsAdjustableQuantity {
     feature = "payment_links",
     feature = "quotes"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct LineItemsDiscountAmount {
     #[doc = "The amount discounted."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub discount: Option<crate::coupons::Discount>,
 }
 
@@ -4097,18 +3913,19 @@ pub struct LineItemsDiscountAmount {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct LineItemsTaxAmount {
     #[doc = "Amount of tax applied for this rate."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub rate: Option<crate::tax_rates::TaxRate>,
     #[doc = "The reasoning behind this tax, for example, if the product is tax exempt."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub taxability_reason: Option<crate::common::LineItemsTaxAmountTaxabilityReason>,
     #[doc = "The amount on which tax is calculated, in cents (or local equivalent)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub taxable_amount: Option<i64>,
 }
 
@@ -4292,64 +4109,47 @@ impl LineItemsTaxAmountTaxabilityReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for LineItemsTaxAmountTaxabilityReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = LineItemsTaxAmountTaxabilityReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "customer_exempt" => LineItemsTaxAmountTaxabilityReason::CustomerExempt,
-                    "not_collecting" => LineItemsTaxAmountTaxabilityReason::NotCollecting,
-                    "not_subject_to_tax" => LineItemsTaxAmountTaxabilityReason::NotSubjectToTax,
-                    "not_supported" => LineItemsTaxAmountTaxabilityReason::NotSupported,
-                    "portion_product_exempt" => LineItemsTaxAmountTaxabilityReason::PortionProductExempt,
-                    "portion_reduced_rated" => LineItemsTaxAmountTaxabilityReason::PortionReducedRated,
-                    "portion_standard_rated" => LineItemsTaxAmountTaxabilityReason::PortionStandardRated,
-                    "product_exempt" => LineItemsTaxAmountTaxabilityReason::ProductExempt,
-                    "product_exempt_holiday" => LineItemsTaxAmountTaxabilityReason::ProductExemptHoliday,
-                    "proportionally_rated" => LineItemsTaxAmountTaxabilityReason::ProportionallyRated,
-                    "reduced_rated" => LineItemsTaxAmountTaxabilityReason::ReducedRated,
-                    "reverse_charge" => LineItemsTaxAmountTaxabilityReason::ReverseCharge,
-                    "standard_rated" => LineItemsTaxAmountTaxabilityReason::StandardRated,
-                    "taxable_basis_reduced" => LineItemsTaxAmountTaxabilityReason::TaxableBasisReduced,
-                    "zero_rated" => LineItemsTaxAmountTaxabilityReason::ZeroRated,
-                    other => LineItemsTaxAmountTaxabilityReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(LineItemsTaxAmountTaxabilityReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for LineItemsTaxAmountTaxabilityReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(LineItemsTaxAmountTaxabilityReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "customer_exempt" => LineItemsTaxAmountTaxabilityReason::CustomerExempt,
+            "not_collecting" => LineItemsTaxAmountTaxabilityReason::NotCollecting,
+            "not_subject_to_tax" => LineItemsTaxAmountTaxabilityReason::NotSubjectToTax,
+            "not_supported" => LineItemsTaxAmountTaxabilityReason::NotSupported,
+            "portion_product_exempt" => LineItemsTaxAmountTaxabilityReason::PortionProductExempt,
+            "portion_reduced_rated" => LineItemsTaxAmountTaxabilityReason::PortionReducedRated,
+            "portion_standard_rated" => LineItemsTaxAmountTaxabilityReason::PortionStandardRated,
+            "product_exempt" => LineItemsTaxAmountTaxabilityReason::ProductExempt,
+            "product_exempt_holiday" => LineItemsTaxAmountTaxabilityReason::ProductExemptHoliday,
+            "proportionally_rated" => LineItemsTaxAmountTaxabilityReason::ProportionallyRated,
+            "reduced_rated" => LineItemsTaxAmountTaxabilityReason::ReducedRated,
+            "reverse_charge" => LineItemsTaxAmountTaxabilityReason::ReverseCharge,
+            "standard_rated" => LineItemsTaxAmountTaxabilityReason::StandardRated,
+            "taxable_basis_reduced" => LineItemsTaxAmountTaxabilityReason::TaxableBasisReduced,
+            "zero_rated" => LineItemsTaxAmountTaxabilityReason::ZeroRated,
+            other => LineItemsTaxAmountTaxabilityReason::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "accounts")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct LoginLink {
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::common::LoginLinkObject,
     #[doc = "The URL for the login link."]
-    #[serde(default)]
+    #[json(default)]
     pub url: String,
 }
 
@@ -4380,36 +4180,18 @@ impl Default for LoginLinkObject {
 }
 
 #[cfg(feature = "accounts")]
-impl<'de> serde::Deserialize<'de> for LoginLinkObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = LoginLinkObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "login_link" => LoginLinkObject::LoginLink,
-                    other => LoginLinkObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(LoginLinkObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for LoginLinkObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(LoginLinkObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "login_link" => LoginLinkObject::LoginLink,
+            other => LoginLinkObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4462,19 +4244,20 @@ impl<'de> serde::Deserialize<'de> for LoginLinkObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PackageDimensions {
     #[doc = "Height, in inches."]
-    #[serde(default)]
+    #[json(default)]
     pub height: f64,
     #[doc = "Length, in inches."]
-    #[serde(default)]
+    #[json(default)]
     pub length: f64,
     #[doc = "Weight, in ounces."]
-    #[serde(default)]
+    #[json(default)]
     pub weight: f64,
     #[doc = "Width, in inches."]
-    #[serde(default)]
+    #[json(default)]
     pub width: f64,
 }
 
@@ -4523,13 +4306,14 @@ pub struct PackageDimensions {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PaymentData {
     #[doc = "An arbitrary string attached to the destination payment."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
 }
 
@@ -4589,7 +4373,7 @@ pub enum PaymentSource {
     /// Expanded `source`.
     Source(Box<crate::sources::Source>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -4637,24 +4421,16 @@ pub enum PaymentSource {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PaymentSource {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for PaymentSource {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "account" => {
-                PaymentSource::Account(Box::new(serde_json::from_value(value).map_err(serde::de::Error::custom)?))
-            }
-            "bank_account" => {
-                PaymentSource::BankAccount(Box::new(serde_json::from_value(value).map_err(serde::de::Error::custom)?))
-            }
-            "card" => PaymentSource::Card(Box::new(serde_json::from_value(value).map_err(serde::de::Error::custom)?)),
-            "source" => {
-                PaymentSource::Source(Box::new(serde_json::from_value(value).map_err(serde::de::Error::custom)?))
-            }
+            "account" => PaymentSource::Account(Box::new(json::from_slice_owned(&json::to_vec(&value))?)),
+            "bank_account" => PaymentSource::BankAccount(Box::new(json::from_slice_owned(&json::to_vec(&value))?)),
+            "card" => PaymentSource::Card(Box::new(json::from_slice_owned(&json::to_vec(&value))?)),
+            "source" => PaymentSource::Source(Box::new(json::from_slice_owned(&json::to_vec(&value))?)),
             _ => PaymentSource::Other(value),
         })
     }
@@ -4709,22 +4485,23 @@ impl<'de> serde::Deserialize<'de> for PaymentSource {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Recurring {
     #[doc = "The frequency at which a subscription is billed."]
-    #[serde(default)]
+    #[json(default)]
     pub interval: crate::common::RecurringInterval,
     #[doc = "The number of intervals (specified in the `interval` attribute) between subscription billings."]
-    #[serde(default)]
+    #[json(default)]
     pub interval_count: i64,
     #[doc = "The meter tracking the usage of a metered price"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub meter: Option<String>,
     #[doc = "Default number of trial days when subscribing a customer to this price using [`trial_from_plan=true`](https://docs.st..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub trial_period_days: Option<i64>,
     #[doc = "Configures how the quantity per period should be determined."]
-    #[serde(default)]
+    #[json(default)]
     pub usage_type: crate::common::RecurringUsageType,
 }
 
@@ -4953,39 +4730,21 @@ impl Default for RecurringInterval {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for RecurringInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = RecurringInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "day" => RecurringInterval::Day,
-                    "month" => RecurringInterval::Month,
-                    "week" => RecurringInterval::Week,
-                    "year" => RecurringInterval::Year,
-                    other => RecurringInterval::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(RecurringInterval::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for RecurringInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(RecurringInterval::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "day" => RecurringInterval::Day,
+            "month" => RecurringInterval::Month,
+            "week" => RecurringInterval::Week,
+            "year" => RecurringInterval::Year,
+            other => RecurringInterval::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5210,37 +4969,19 @@ impl Default for RecurringUsageType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for RecurringUsageType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = RecurringUsageType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "licensed" => RecurringUsageType::Licensed,
-                    "metered" => RecurringUsageType::Metered,
-                    other => RecurringUsageType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(RecurringUsageType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for RecurringUsageType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(RecurringUsageType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "licensed" => RecurringUsageType::Licensed,
+            "metered" => RecurringUsageType::Metered,
+            other => RecurringUsageType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5290,21 +5031,22 @@ impl<'de> serde::Deserialize<'de> for RecurringUsageType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Shipping {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<crate::common::Address>,
     #[doc = "The delivery service that shipped a physical product, such as Fedex, UPS, USPS, etc."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub carrier: Option<String>,
     #[doc = "Recipient name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[doc = "Recipient phone (including extension)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     #[doc = "The tracking number for a physical product, obtained from the delivery service."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tracking_number: Option<String>,
 }
 
@@ -5353,10 +5095,11 @@ pub struct Shipping {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct SmorResourceManagedPayments {
     #[doc = "Set to `true` to enable [Managed Payments](https://docs.stripe.com/payments/managed-payments), Stripe's merchant of r..."]
-    #[serde(default)]
+    #[json(default)]
     pub enabled: bool,
 }
 
@@ -5405,13 +5148,14 @@ pub struct SmorResourceManagedPayments {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct UsBankAccountNetworks {
     #[doc = "The preferred network."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub preferred: Option<String>,
     #[doc = "All supported networks."]
-    #[serde(default)]
+    #[json(default)]
     pub supported: Vec<crate::common::UsBankAccountNetworksSupportedItem>,
 }
 
@@ -5569,48 +5313,31 @@ impl UsBankAccountNetworksSupportedItem {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for UsBankAccountNetworksSupportedItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = UsBankAccountNetworksSupportedItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "ach" => UsBankAccountNetworksSupportedItem::Ach,
-                    "us_domestic_wire" => UsBankAccountNetworksSupportedItem::UsDomesticWire,
-                    other => UsBankAccountNetworksSupportedItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(UsBankAccountNetworksSupportedItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for UsBankAccountNetworksSupportedItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(UsBankAccountNetworksSupportedItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "ach" => UsBankAccountNetworksSupportedItem::Ach,
+            "us_domestic_wire" => UsBankAccountNetworksSupportedItem::UsDomesticWire,
+            other => UsBankAccountNetworksSupportedItem::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "v2_core")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct V2DeletedObject {
     #[doc = "The ID of the object that's being deleted."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the type of the object that has been deleted."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub object: Option<String>,
 }
 

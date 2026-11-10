@@ -90,36 +90,18 @@ impl CreateProductCatalogTrialOfferParamsDurationType {
 }
 
 #[cfg(feature = "product_catalog")]
-impl<'de> serde::Deserialize<'de> for CreateProductCatalogTrialOfferParamsDurationType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateProductCatalogTrialOfferParamsDurationType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "relative" => CreateProductCatalogTrialOfferParamsDurationType::Relative,
-                    other => CreateProductCatalogTrialOfferParamsDurationType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateProductCatalogTrialOfferParamsDurationType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateProductCatalogTrialOfferParamsDurationType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateProductCatalogTrialOfferParamsDurationType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "relative" => CreateProductCatalogTrialOfferParamsDurationType::Relative,
+            other => CreateProductCatalogTrialOfferParamsDurationType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -226,28 +208,31 @@ impl crate::params::FormEncode for ListProductCatalogTrialOffersParamsCreated {
 }
 
 #[cfg(feature = "product_catalog")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ProductCatalogImplEndpointsTrialOfferResourceRelativeDuration {
     #[doc = "The number of iterations of the price's interval for this trial offer."]
-    #[serde(default)]
+    #[json(default)]
     pub iterations: i64,
 }
 
 #[cfg(feature = "product_catalog")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ProductCatalogImplEndpointsTrialOfferResourceTransition {
     #[doc = "The new price to use at the end of the trial offer period."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub price: Option<crate::Expandable<crate::product_catalog::ProductCatalogTrialOfferPriceExpanded>>,
 }
 
 #[cfg(feature = "product_catalog")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ProductCatalogImplEndpointsTrialOfferResourceTrialOfferDuration {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub relative: Option<crate::product_catalog::ProductCatalogImplEndpointsTrialOfferResourceRelativeDuration>,
     #[doc = "The type of trial offer duration."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::product_catalog::ProductCatalogImplEndpointsTrialOfferResourceTrialOfferDurationType,
 }
 
@@ -278,50 +263,31 @@ impl Default for ProductCatalogImplEndpointsTrialOfferResourceTrialOfferDuration
 }
 
 #[cfg(feature = "product_catalog")]
-impl<'de> serde::Deserialize<'de> for ProductCatalogImplEndpointsTrialOfferResourceTrialOfferDurationType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ProductCatalogImplEndpointsTrialOfferResourceTrialOfferDurationType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "relative" => ProductCatalogImplEndpointsTrialOfferResourceTrialOfferDurationType::Relative,
-                    other => {
-                        ProductCatalogImplEndpointsTrialOfferResourceTrialOfferDurationType::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ProductCatalogImplEndpointsTrialOfferResourceTrialOfferDurationType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for ProductCatalogImplEndpointsTrialOfferResourceTrialOfferDurationType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ProductCatalogImplEndpointsTrialOfferResourceTrialOfferDurationType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "relative" => ProductCatalogImplEndpointsTrialOfferResourceTrialOfferDurationType::Relative,
+            other => ProductCatalogImplEndpointsTrialOfferResourceTrialOfferDurationType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "product_catalog")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ProductCatalogImplEndpointsTrialOfferResourceTrialOfferEndBehavior {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub transition: Option<crate::product_catalog::ProductCatalogImplEndpointsTrialOfferResourceTransition>,
     #[doc = "The type of behavior when the trial offer ends."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::product_catalog::ProductCatalogImplEndpointsTrialOfferResourceTrialOfferEndBehaviorType,
 }
 
@@ -352,68 +318,49 @@ impl Default for ProductCatalogImplEndpointsTrialOfferResourceTrialOfferEndBehav
 }
 
 #[cfg(feature = "product_catalog")]
-impl<'de> serde::Deserialize<'de> for ProductCatalogImplEndpointsTrialOfferResourceTrialOfferEndBehaviorType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ProductCatalogImplEndpointsTrialOfferResourceTrialOfferEndBehaviorType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "transition" => ProductCatalogImplEndpointsTrialOfferResourceTrialOfferEndBehaviorType::Transition,
-                    other => ProductCatalogImplEndpointsTrialOfferResourceTrialOfferEndBehaviorType::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ProductCatalogImplEndpointsTrialOfferResourceTrialOfferEndBehaviorType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for ProductCatalogImplEndpointsTrialOfferResourceTrialOfferEndBehaviorType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ProductCatalogImplEndpointsTrialOfferResourceTrialOfferEndBehaviorType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "transition" => ProductCatalogImplEndpointsTrialOfferResourceTrialOfferEndBehaviorType::Transition,
+            other => ProductCatalogImplEndpointsTrialOfferResourceTrialOfferEndBehaviorType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "product_catalog")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ProductCatalogTrialOffer {
     #[doc = "Whether the trial offer is active."]
-    #[serde(default)]
+    #[json(default)]
     pub active: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub duration: Option<crate::product_catalog::ProductCatalogImplEndpointsTrialOfferResourceTrialOfferDuration>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub end_behavior:
         Option<crate::product_catalog::ProductCatalogImplEndpointsTrialOfferResourceTrialOfferEndBehavior>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "A brief description of the trial offer, hidden from customers."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub nickname: Option<String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::product_catalog::ProductCatalogTrialOfferObject,
     #[doc = "The price during the trial offer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub price: Option<crate::Expandable<crate::product_catalog::ProductCatalogTrialOfferPriceExpanded>>,
 }
 
@@ -451,36 +398,18 @@ impl Default for ProductCatalogTrialOfferObject {
 }
 
 #[cfg(feature = "product_catalog")]
-impl<'de> serde::Deserialize<'de> for ProductCatalogTrialOfferObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ProductCatalogTrialOfferObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "product_catalog.trial_offer" => ProductCatalogTrialOfferObject::ProductCatalogTrialOffer,
-                    other => ProductCatalogTrialOfferObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ProductCatalogTrialOfferObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ProductCatalogTrialOfferObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ProductCatalogTrialOfferObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "product_catalog.trial_offer" => ProductCatalogTrialOfferObject::ProductCatalogTrialOffer,
+            other => ProductCatalogTrialOfferObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -490,21 +419,19 @@ pub enum ProductCatalogTrialOfferPriceExpanded {
     /// Expanded `price`.
     Price(Box<crate::prices::Price>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(feature = "product_catalog")]
-impl<'de> serde::Deserialize<'de> for ProductCatalogTrialOfferPriceExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for ProductCatalogTrialOfferPriceExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "price" => ProductCatalogTrialOfferPriceExpanded::Price(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "price" => {
+                ProductCatalogTrialOfferPriceExpanded::Price(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
             _ => ProductCatalogTrialOfferPriceExpanded::Other(value),
         })
     }

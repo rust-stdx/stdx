@@ -1,0 +1,35 @@
+[package]
+name = "json"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+description = "A fast, strict JSON parser and generator with native derive macros, no_std support and SIMD acceleration"
+
+[lints]
+workspace = true
+
+[lib]
+path = "./json.rs"
+
+[features]
+default = ["std"]
+std = ["alloc", "utf8/std"]
+alloc = []
+derive = ["dep:json_derive"]
+heapless = ["dep:heapless"]
+small_collections = ["dep:small_collections", "alloc"]
+bytes = ["dep:bytes", "alloc"]
+
+[dependencies]
+bytes = { workspace = true, optional = true }
+heapless = { workspace = true, optional = true }
+json_derive = { path = "./json_derive", optional = true }
+zmij = { workspace = true }
+small_collections = { path = "../small_collections", optional = true, default-features = false }
+utf8 = { workspace = true, default-features = false }
+
+[dev-dependencies]
+alloc_counter = { path = "../alloc_counter" }
+
+[package.metadata.docs.rs]
+all-features = true

@@ -80,37 +80,19 @@ impl CreatePayoutParamsMethod {
 }
 
 #[cfg(feature = "payouts")]
-impl<'de> serde::Deserialize<'de> for CreatePayoutParamsMethod {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePayoutParamsMethod;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "instant" => CreatePayoutParamsMethod::Instant,
-                    "standard" => CreatePayoutParamsMethod::Standard,
-                    other => CreatePayoutParamsMethod::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePayoutParamsMethod::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePayoutParamsMethod {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePayoutParamsMethod::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "instant" => CreatePayoutParamsMethod::Instant,
+            "standard" => CreatePayoutParamsMethod::Standard,
+            other => CreatePayoutParamsMethod::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -145,38 +127,20 @@ impl CreatePayoutParamsSourceType {
 }
 
 #[cfg(feature = "payouts")]
-impl<'de> serde::Deserialize<'de> for CreatePayoutParamsSourceType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreatePayoutParamsSourceType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "bank_account" => CreatePayoutParamsSourceType::BankAccount,
-                    "card" => CreatePayoutParamsSourceType::Card,
-                    "fpx" => CreatePayoutParamsSourceType::Fpx,
-                    other => CreatePayoutParamsSourceType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreatePayoutParamsSourceType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreatePayoutParamsSourceType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreatePayoutParamsSourceType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "bank_account" => CreatePayoutParamsSourceType::BankAccount,
+            "card" => CreatePayoutParamsSourceType::Card,
+            "fpx" => CreatePayoutParamsSourceType::Fpx,
+            other => CreatePayoutParamsSourceType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -302,88 +266,89 @@ pub type ListPayoutsParamsCreated = crate::payouts::ListPayoutsParamsArrivalDate
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Payout {
     #[doc = "The amount (in cents (or local equivalent)) that transfers to your bank account or debit card."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "The application fee (if any) for the payout."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application_fee: Option<crate::Expandable<crate::application_fees::ApplicationFee>>,
     #[doc = "The amount of the application fee (if any) requested for the payout."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub application_fee_amount: Option<i64>,
     #[doc = "Date that you can expect the payout to arrive in the bank."]
-    #[serde(default)]
+    #[json(default)]
     pub arrival_date: i64,
     #[doc = "Returns `true` if the payout is created by an [automated payout schedule](https://docs.stripe.com/payouts#payout-sche..."]
-    #[serde(default)]
+    #[json(default)]
     pub automatic: bool,
     #[doc = "ID of the balance transaction that describes the impact of this payout on your account balance."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub balance_transaction: Option<crate::Expandable<crate::balance_transactions::BalanceTransaction>>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "ID of the bank account or card the payout is sent to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub destination: Option<crate::Expandable<crate::payouts::PayoutDestinationExpanded>>,
     #[doc = "If the payout fails or cancels, this is the ID of the balance transaction that reverses the initial balance transacti..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub failure_balance_transaction: Option<crate::Expandable<crate::balance_transactions::BalanceTransaction>>,
     #[doc = "Error code that provides a reason for a payout failure, if available."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub failure_code: Option<String>,
     #[doc = "Message that provides the reason for a payout failure, if available."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub failure_message: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "The method used to send this payout, which can be `standard` or `instant`."]
-    #[serde(default)]
+    #[json(default)]
     pub method: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::payouts::PayoutObject,
     #[doc = "If the payout reverses another, this is the ID of the original payout."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub original_payout: Option<crate::Expandable<crate::payouts::Payout>>,
     #[doc = "ID of the v2 FinancialAccount the funds are sent to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payout_method: Option<String>,
     #[doc = "If `completed`, you can use the [Balance Transactions API](https://docs.stripe.com/api/balance_transactions/list#bala..."]
-    #[serde(default)]
+    #[json(default)]
     pub reconciliation_status: crate::payouts::PayoutReconciliationStatus,
     #[doc = "If the payout reverses, this is the ID of the payout that reverses this payout."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub reversed_by: Option<crate::Expandable<crate::payouts::Payout>>,
     #[doc = "The source balance this payout came from, which can be one of the following: `card`, `fpx`, or `bank_account`."]
-    #[serde(default)]
+    #[json(default)]
     pub source_type: String,
     #[doc = "Extra information about a payout that displays on the user's bank statement."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
     #[doc = "Current status of the payout: `paid`, `pending`, `in_transit`, `canceled` or `failed`."]
-    #[serde(default)]
+    #[json(default)]
     pub status: String,
     #[doc = "A value that generates from the beneficiary's bank that allows users to track payouts with their bank."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub trace_id: Option<crate::payouts::PayoutsTraceId>,
     #[doc = "Can be `bank_account` or `card`."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::payouts::PayoutType,
 }
 
@@ -490,7 +455,7 @@ pub enum PayoutDestinationExpanded {
     /// Expanded `deleted_external_account`.
     DeletedExternalAccount(Box<crate::accounts::DeletedExternalAccount>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -538,19 +503,17 @@ pub enum PayoutDestinationExpanded {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PayoutDestinationExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for PayoutDestinationExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "external_account" => PayoutDestinationExpanded::ExternalAccount(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "external_account" => {
+                PayoutDestinationExpanded::ExternalAccount(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
             "deleted_external_account" => PayoutDestinationExpanded::DeletedExternalAccount(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
+                json::from_slice_owned(&json::to_vec(&value))?,
             )),
             _ => PayoutDestinationExpanded::Other(value),
         })
@@ -760,36 +723,18 @@ impl Default for PayoutObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PayoutObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PayoutObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "payout" => PayoutObject::Payout,
-                    other => PayoutObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PayoutObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PayoutObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PayoutObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "payout" => PayoutObject::Payout,
+            other => PayoutObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1000,38 +945,20 @@ impl Default for PayoutReconciliationStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PayoutReconciliationStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PayoutReconciliationStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "completed" => PayoutReconciliationStatus::Completed,
-                    "in_progress" => PayoutReconciliationStatus::InProgress,
-                    "not_applicable" => PayoutReconciliationStatus::NotApplicable,
-                    other => PayoutReconciliationStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PayoutReconciliationStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PayoutReconciliationStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PayoutReconciliationStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "completed" => PayoutReconciliationStatus::Completed,
+            "in_progress" => PayoutReconciliationStatus::InProgress,
+            "not_applicable" => PayoutReconciliationStatus::NotApplicable,
+            other => PayoutReconciliationStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1240,37 +1167,19 @@ impl Default for PayoutType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for PayoutType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = PayoutType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "bank_account" => PayoutType::BankAccount,
-                    "card" => PayoutType::Card,
-                    other => PayoutType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(PayoutType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for PayoutType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(PayoutType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "bank_account" => PayoutType::BankAccount,
+            "card" => PayoutType::Card,
+            other => PayoutType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1319,13 +1228,14 @@ impl<'de> serde::Deserialize<'de> for PayoutType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct PayoutsTraceId {
     #[doc = "Possible values are `pending`, `supported`, and `unsupported`."]
-    #[serde(default)]
+    #[json(default)]
     pub status: String,
     #[doc = "The trace ID value if `trace_id.status` is `supported`, otherwise `nil`."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<String>,
 }
 

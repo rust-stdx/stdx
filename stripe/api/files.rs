@@ -105,50 +105,32 @@ impl CreateFileParamsPurpose {
 }
 
 #[cfg(feature = "files")]
-impl<'de> serde::Deserialize<'de> for CreateFileParamsPurpose {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateFileParamsPurpose;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account_requirement" => CreateFileParamsPurpose::AccountRequirement,
-                    "additional_verification" => CreateFileParamsPurpose::AdditionalVerification,
-                    "business_icon" => CreateFileParamsPurpose::BusinessIcon,
-                    "business_logo" => CreateFileParamsPurpose::BusinessLogo,
-                    "customer_signature" => CreateFileParamsPurpose::CustomerSignature,
-                    "dispute_evidence" => CreateFileParamsPurpose::DisputeEvidence,
-                    "identity_document" => CreateFileParamsPurpose::IdentityDocument,
-                    "issuing_regulatory_reporting" => CreateFileParamsPurpose::IssuingRegulatoryReporting,
-                    "pci_document" => CreateFileParamsPurpose::PciDocument,
-                    "platform_terms_of_service" => CreateFileParamsPurpose::PlatformTermsOfService,
-                    "tax_document_user_upload" => CreateFileParamsPurpose::TaxDocumentUserUpload,
-                    "terminal_android_apk" => CreateFileParamsPurpose::TerminalAndroidApk,
-                    "terminal_reader_splashscreen" => CreateFileParamsPurpose::TerminalReaderSplashscreen,
-                    "terminal_wifi_certificate" => CreateFileParamsPurpose::TerminalWifiCertificate,
-                    "terminal_wifi_private_key" => CreateFileParamsPurpose::TerminalWifiPrivateKey,
-                    other => CreateFileParamsPurpose::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateFileParamsPurpose::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateFileParamsPurpose {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateFileParamsPurpose::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account_requirement" => CreateFileParamsPurpose::AccountRequirement,
+            "additional_verification" => CreateFileParamsPurpose::AdditionalVerification,
+            "business_icon" => CreateFileParamsPurpose::BusinessIcon,
+            "business_logo" => CreateFileParamsPurpose::BusinessLogo,
+            "customer_signature" => CreateFileParamsPurpose::CustomerSignature,
+            "dispute_evidence" => CreateFileParamsPurpose::DisputeEvidence,
+            "identity_document" => CreateFileParamsPurpose::IdentityDocument,
+            "issuing_regulatory_reporting" => CreateFileParamsPurpose::IssuingRegulatoryReporting,
+            "pci_document" => CreateFileParamsPurpose::PciDocument,
+            "platform_terms_of_service" => CreateFileParamsPurpose::PlatformTermsOfService,
+            "tax_document_user_upload" => CreateFileParamsPurpose::TaxDocumentUserUpload,
+            "terminal_android_apk" => CreateFileParamsPurpose::TerminalAndroidApk,
+            "terminal_reader_splashscreen" => CreateFileParamsPurpose::TerminalReaderSplashscreen,
+            "terminal_wifi_certificate" => CreateFileParamsPurpose::TerminalWifiCertificate,
+            "terminal_wifi_private_key" => CreateFileParamsPurpose::TerminalWifiPrivateKey,
+            other => CreateFileParamsPurpose::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -208,40 +190,41 @@ impl crate::params::FormEncode for CreateFileParamsPurpose {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct File {
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "The file expires and isn't available at this time in epoch seconds."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<i64>,
     #[doc = "The suitable name for saving the file to a filesystem."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub filename: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "A list of [file links](https://docs.stripe.com/api#file_links) that point at this file."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub links: Option<crate::List<crate::file_links::FileLink>>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::files::FileObject,
     #[doc = "The [purpose](https://docs.stripe.com/file-upload#uploading-a-file) of the uploaded file."]
-    #[serde(default)]
+    #[json(default)]
     pub purpose: crate::files::FilePurpose,
     #[doc = "The size of the file object in bytes."]
-    #[serde(default)]
+    #[json(default)]
     pub size: i64,
     #[doc = "A suitable title for the document."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     #[doc = "The returned file type (for example, `csv`, `pdf`, `jpg`, or `png`)."]
-    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    #[json(rename = "type", default, skip_serializing_if = "Option::is_none")]
     pub r#type: Option<String>,
     #[doc = "Use your live secret API key to download the file from this URL."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 }
 
@@ -519,36 +502,18 @@ impl Default for FileObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for FileObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FileObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "file" => FileObject::File,
-                    other => FileObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FileObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for FileObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FileObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "file" => FileObject::File,
+            other => FileObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -811,56 +776,38 @@ impl Default for FilePurpose {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for FilePurpose {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = FilePurpose;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account_requirement" => FilePurpose::AccountRequirement,
-                    "additional_verification" => FilePurpose::AdditionalVerification,
-                    "business_icon" => FilePurpose::BusinessIcon,
-                    "business_logo" => FilePurpose::BusinessLogo,
-                    "customer_signature" => FilePurpose::CustomerSignature,
-                    "dispute_evidence" => FilePurpose::DisputeEvidence,
-                    "document_provider_identity_document" => FilePurpose::DocumentProviderIdentityDocument,
-                    "finance_report_run" => FilePurpose::FinanceReportRun,
-                    "financial_account_statement" => FilePurpose::FinancialAccountStatement,
-                    "identity_document" => FilePurpose::IdentityDocument,
-                    "identity_document_downloadable" => FilePurpose::IdentityDocumentDownloadable,
-                    "issuing_regulatory_reporting" => FilePurpose::IssuingRegulatoryReporting,
-                    "pci_document" => FilePurpose::PciDocument,
-                    "platform_terms_of_service" => FilePurpose::PlatformTermsOfService,
-                    "selfie" => FilePurpose::Selfie,
-                    "sigma_scheduled_query" => FilePurpose::SigmaScheduledQuery,
-                    "tax_document_user_upload" => FilePurpose::TaxDocumentUserUpload,
-                    "terminal_android_apk" => FilePurpose::TerminalAndroidApk,
-                    "terminal_reader_splashscreen" => FilePurpose::TerminalReaderSplashscreen,
-                    "terminal_wifi_certificate" => FilePurpose::TerminalWifiCertificate,
-                    "terminal_wifi_private_key" => FilePurpose::TerminalWifiPrivateKey,
-                    other => FilePurpose::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(FilePurpose::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for FilePurpose {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(FilePurpose::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account_requirement" => FilePurpose::AccountRequirement,
+            "additional_verification" => FilePurpose::AdditionalVerification,
+            "business_icon" => FilePurpose::BusinessIcon,
+            "business_logo" => FilePurpose::BusinessLogo,
+            "customer_signature" => FilePurpose::CustomerSignature,
+            "dispute_evidence" => FilePurpose::DisputeEvidence,
+            "document_provider_identity_document" => FilePurpose::DocumentProviderIdentityDocument,
+            "finance_report_run" => FilePurpose::FinanceReportRun,
+            "financial_account_statement" => FilePurpose::FinancialAccountStatement,
+            "identity_document" => FilePurpose::IdentityDocument,
+            "identity_document_downloadable" => FilePurpose::IdentityDocumentDownloadable,
+            "issuing_regulatory_reporting" => FilePurpose::IssuingRegulatoryReporting,
+            "pci_document" => FilePurpose::PciDocument,
+            "platform_terms_of_service" => FilePurpose::PlatformTermsOfService,
+            "selfie" => FilePurpose::Selfie,
+            "sigma_scheduled_query" => FilePurpose::SigmaScheduledQuery,
+            "tax_document_user_upload" => FilePurpose::TaxDocumentUserUpload,
+            "terminal_android_apk" => FilePurpose::TerminalAndroidApk,
+            "terminal_reader_splashscreen" => FilePurpose::TerminalReaderSplashscreen,
+            "terminal_wifi_certificate" => FilePurpose::TerminalWifiCertificate,
+            "terminal_wifi_private_key" => FilePurpose::TerminalWifiPrivateKey,
+            other => FilePurpose::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -987,56 +934,38 @@ impl ListFilesParamsPurpose {
 }
 
 #[cfg(feature = "files")]
-impl<'de> serde::Deserialize<'de> for ListFilesParamsPurpose {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListFilesParamsPurpose;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "account_requirement" => ListFilesParamsPurpose::AccountRequirement,
-                    "additional_verification" => ListFilesParamsPurpose::AdditionalVerification,
-                    "business_icon" => ListFilesParamsPurpose::BusinessIcon,
-                    "business_logo" => ListFilesParamsPurpose::BusinessLogo,
-                    "customer_signature" => ListFilesParamsPurpose::CustomerSignature,
-                    "dispute_evidence" => ListFilesParamsPurpose::DisputeEvidence,
-                    "document_provider_identity_document" => ListFilesParamsPurpose::DocumentProviderIdentityDocument,
-                    "finance_report_run" => ListFilesParamsPurpose::FinanceReportRun,
-                    "financial_account_statement" => ListFilesParamsPurpose::FinancialAccountStatement,
-                    "identity_document" => ListFilesParamsPurpose::IdentityDocument,
-                    "identity_document_downloadable" => ListFilesParamsPurpose::IdentityDocumentDownloadable,
-                    "issuing_regulatory_reporting" => ListFilesParamsPurpose::IssuingRegulatoryReporting,
-                    "pci_document" => ListFilesParamsPurpose::PciDocument,
-                    "platform_terms_of_service" => ListFilesParamsPurpose::PlatformTermsOfService,
-                    "selfie" => ListFilesParamsPurpose::Selfie,
-                    "sigma_scheduled_query" => ListFilesParamsPurpose::SigmaScheduledQuery,
-                    "tax_document_user_upload" => ListFilesParamsPurpose::TaxDocumentUserUpload,
-                    "terminal_android_apk" => ListFilesParamsPurpose::TerminalAndroidApk,
-                    "terminal_reader_splashscreen" => ListFilesParamsPurpose::TerminalReaderSplashscreen,
-                    "terminal_wifi_certificate" => ListFilesParamsPurpose::TerminalWifiCertificate,
-                    "terminal_wifi_private_key" => ListFilesParamsPurpose::TerminalWifiPrivateKey,
-                    other => ListFilesParamsPurpose::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListFilesParamsPurpose::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListFilesParamsPurpose {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListFilesParamsPurpose::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "account_requirement" => ListFilesParamsPurpose::AccountRequirement,
+            "additional_verification" => ListFilesParamsPurpose::AdditionalVerification,
+            "business_icon" => ListFilesParamsPurpose::BusinessIcon,
+            "business_logo" => ListFilesParamsPurpose::BusinessLogo,
+            "customer_signature" => ListFilesParamsPurpose::CustomerSignature,
+            "dispute_evidence" => ListFilesParamsPurpose::DisputeEvidence,
+            "document_provider_identity_document" => ListFilesParamsPurpose::DocumentProviderIdentityDocument,
+            "finance_report_run" => ListFilesParamsPurpose::FinanceReportRun,
+            "financial_account_statement" => ListFilesParamsPurpose::FinancialAccountStatement,
+            "identity_document" => ListFilesParamsPurpose::IdentityDocument,
+            "identity_document_downloadable" => ListFilesParamsPurpose::IdentityDocumentDownloadable,
+            "issuing_regulatory_reporting" => ListFilesParamsPurpose::IssuingRegulatoryReporting,
+            "pci_document" => ListFilesParamsPurpose::PciDocument,
+            "platform_terms_of_service" => ListFilesParamsPurpose::PlatformTermsOfService,
+            "selfie" => ListFilesParamsPurpose::Selfie,
+            "sigma_scheduled_query" => ListFilesParamsPurpose::SigmaScheduledQuery,
+            "tax_document_user_upload" => ListFilesParamsPurpose::TaxDocumentUserUpload,
+            "terminal_android_apk" => ListFilesParamsPurpose::TerminalAndroidApk,
+            "terminal_reader_splashscreen" => ListFilesParamsPurpose::TerminalReaderSplashscreen,
+            "terminal_wifi_certificate" => ListFilesParamsPurpose::TerminalWifiCertificate,
+            "terminal_wifi_private_key" => ListFilesParamsPurpose::TerminalWifiPrivateKey,
+            other => ListFilesParamsPurpose::Unknown(other.to_string()),
+        })
     }
 }
 

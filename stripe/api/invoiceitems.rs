@@ -24,7 +24,7 @@ pub struct CreateInvoiceitemParams {
     #[doc = "Controls whether discounts apply to this invoice item."]
     pub discountable: Option<bool>,
     #[doc = "The coupons and promotion codes to redeem into discounts for the invoice item or invoice line item."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "The ID of an existing invoice to add this invoice item to."]
@@ -46,7 +46,7 @@ pub struct CreateInvoiceitemParams {
     #[doc = "Only required if a [default tax behavior](https://docs.stripe.com/tax/products-prices-tax-categories-tax-behavior#set..."]
     pub tax_behavior: Option<crate::invoiceitems::CreateInvoiceitemParamsTaxBehavior>,
     #[doc = "A [tax code](https://docs.stripe.com/tax/tax-categories) ID."]
-    pub tax_code: Option<serde_json::Value>,
+    pub tax_code: Option<json::OwnedValue>,
     #[doc = "The tax rates which apply to the invoice item."]
     pub tax_rates: Option<Vec<String>>,
     #[doc = "The decimal unit amount in cents (or local equivalent) of the charge to be applied to the upcoming invoice."]
@@ -152,38 +152,20 @@ impl CreateInvoiceitemParamsPriceDataTaxBehavior {
 }
 
 #[cfg(feature = "invoiceitems")]
-impl<'de> serde::Deserialize<'de> for CreateInvoiceitemParamsPriceDataTaxBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateInvoiceitemParamsPriceDataTaxBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exclusive" => CreateInvoiceitemParamsPriceDataTaxBehavior::Exclusive,
-                    "inclusive" => CreateInvoiceitemParamsPriceDataTaxBehavior::Inclusive,
-                    "unspecified" => CreateInvoiceitemParamsPriceDataTaxBehavior::Unspecified,
-                    other => CreateInvoiceitemParamsPriceDataTaxBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateInvoiceitemParamsPriceDataTaxBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateInvoiceitemParamsPriceDataTaxBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateInvoiceitemParamsPriceDataTaxBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exclusive" => CreateInvoiceitemParamsPriceDataTaxBehavior::Exclusive,
+            "inclusive" => CreateInvoiceitemParamsPriceDataTaxBehavior::Inclusive,
+            "unspecified" => CreateInvoiceitemParamsPriceDataTaxBehavior::Unspecified,
+            other => CreateInvoiceitemParamsPriceDataTaxBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -212,16 +194,17 @@ impl crate::params::FormEncode for CreateInvoiceitemParamsPricing {
 pub type CreateInvoiceitemParamsTaxBehavior = crate::invoiceitems::CreateInvoiceitemParamsPriceDataTaxBehavior;
 
 #[cfg(feature = "invoiceitems")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DeletedInvoiceitem {
     #[doc = "Always true for a deleted object"]
-    #[serde(default)]
+    #[json(default)]
     pub deleted: bool,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::invoiceitems::InvoiceitemObject,
 }
 
@@ -248,80 +231,81 @@ impl crate::params::FormEncode for GetInvoiceitemParams {
 }
 
 #[cfg(any(feature = "events", feature = "invoiceitems"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Invoiceitem {
     #[doc = "Amount (in the `currency` specified) of the invoice item."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "The ID of the customer to bill for this invoice item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<crate::Expandable<crate::invoiceitems::InvoiceitemCustomerExpanded>>,
     #[doc = "The ID of the account to bill for this invoice item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_account: Option<String>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub date: i64,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "If true, discounts will apply to this invoice item."]
-    #[serde(default)]
+    #[json(default)]
     pub discountable: bool,
     #[doc = "The discounts which apply to the invoice item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub discounts: Option<Vec<crate::Expandable<crate::coupons::Discount>>>,
     #[doc = "Array of field names that can't be modified."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub frozen_fields: Option<Vec<crate::invoiceitems::InvoiceitemFrozenFieldsItem>>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The ID of the invoice this invoice item belongs to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice: Option<crate::Expandable<crate::invoices::Invoice>>,
     #[doc = "The rules that control when this invoice item is eligible for invoicing."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoicing_rules: Option<Vec<crate::invoices::InvoicingRule>>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "The amount after discounts, but before credits and taxes."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub net_amount: Option<i64>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::invoiceitems::InvoiceitemObject,
     #[doc = "The parent that generated this invoice item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub parent: Option<crate::billing::BillingBillResourceInvoiceItemParentsInvoiceItemParent>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub period: Option<crate::invoices::InvoiceLineItemPeriod>,
     #[doc = "The pricing information of the invoice item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pricing: Option<crate::billing::BillingBillResourceInvoicingPricingPricing>,
     #[doc = "Whether the invoice item was created automatically as a proration adjustment when the customer switched plans."]
-    #[serde(default)]
+    #[json(default)]
     pub proration: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub proration_details: Option<crate::invoices::ProrationDetails>,
     #[doc = "Quantity of units for the invoice item in integer format, with any decimal precision truncated."]
-    #[serde(default)]
+    #[json(default)]
     pub quantity: i64,
     #[doc = "Non-negative decimal with at most 12 decimal places."]
-    #[serde(default)]
+    #[json(default)]
     pub quantity_decimal: String,
     #[doc = "The tax rates which apply to the invoice item."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_rates: Option<Vec<crate::tax_rates::TaxRate>>,
     #[doc = "ID of the test clock this invoice item belongs to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub test_clock: Option<crate::Expandable<crate::test_helpers::TestHelpersTestClock>>,
 }
 
@@ -338,21 +322,19 @@ pub enum InvoiceitemCustomerExpanded {
     /// Expanded `customer`.
     Customer(Box<crate::customers::Customer>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(feature = "events", feature = "invoiceitems"))]
-impl<'de> serde::Deserialize<'de> for InvoiceitemCustomerExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for InvoiceitemCustomerExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "customer" => InvoiceitemCustomerExpanded::Customer(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "customer" => {
+                InvoiceitemCustomerExpanded::Customer(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
             _ => InvoiceitemCustomerExpanded::Other(value),
         })
     }
@@ -382,38 +364,20 @@ impl InvoiceitemFrozenFieldsItem {
 }
 
 #[cfg(any(feature = "events", feature = "invoiceitems"))]
-impl<'de> serde::Deserialize<'de> for InvoiceitemFrozenFieldsItem {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InvoiceitemFrozenFieldsItem;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "discounts" => InvoiceitemFrozenFieldsItem::Discounts,
-                    "pricing" => InvoiceitemFrozenFieldsItem::Pricing,
-                    "quantity" => InvoiceitemFrozenFieldsItem::Quantity,
-                    other => InvoiceitemFrozenFieldsItem::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InvoiceitemFrozenFieldsItem::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InvoiceitemFrozenFieldsItem {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InvoiceitemFrozenFieldsItem::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "discounts" => InvoiceitemFrozenFieldsItem::Discounts,
+            "pricing" => InvoiceitemFrozenFieldsItem::Pricing,
+            "quantity" => InvoiceitemFrozenFieldsItem::Quantity,
+            other => InvoiceitemFrozenFieldsItem::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -444,36 +408,18 @@ impl Default for InvoiceitemObject {
 }
 
 #[cfg(any(feature = "events", feature = "invoiceitems"))]
-impl<'de> serde::Deserialize<'de> for InvoiceitemObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = InvoiceitemObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "invoiceitem" => InvoiceitemObject::Invoiceitem,
-                    other => InvoiceitemObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(InvoiceitemObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for InvoiceitemObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(InvoiceitemObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "invoiceitem" => InvoiceitemObject::Invoiceitem,
+            other => InvoiceitemObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -541,7 +487,7 @@ pub struct UpdateInvoiceitemParams {
     #[doc = "Controls whether discounts apply to this invoice item."]
     pub discountable: Option<bool>,
     #[doc = "The coupons, promotion codes & existing discounts which apply to the invoice item or invoice line item."]
-    pub discounts: Option<serde_json::Value>,
+    pub discounts: Option<json::OwnedValue>,
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "Pass an empty string to remove previously-defined invoicing rules."]
@@ -561,9 +507,9 @@ pub struct UpdateInvoiceitemParams {
     #[doc = "Only required if a [default tax behavior](https://docs.stripe.com/tax/products-prices-tax-categories-tax-behavior#set..."]
     pub tax_behavior: Option<crate::invoiceitems::UpdateInvoiceitemParamsTaxBehavior>,
     #[doc = "A [tax code](https://docs.stripe.com/tax/tax-categories) ID."]
-    pub tax_code: Option<serde_json::Value>,
+    pub tax_code: Option<json::OwnedValue>,
     #[doc = "The tax rates which apply to the invoice item."]
-    pub tax_rates: Option<serde_json::Value>,
+    pub tax_rates: Option<json::OwnedValue>,
     #[doc = "The decimal unit amount in cents (or local equivalent) of the charge to be applied to the upcoming invoice."]
     pub unit_amount_decimal: Option<String>,
 }
@@ -613,36 +559,18 @@ impl UpdateInvoiceitemParamsInvoicingRules {
 }
 
 #[cfg(feature = "invoiceitems")]
-impl<'de> serde::Deserialize<'de> for UpdateInvoiceitemParamsInvoicingRules {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = UpdateInvoiceitemParamsInvoicingRules;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "" => UpdateInvoiceitemParamsInvoicingRules::Unnamed,
-                    other => UpdateInvoiceitemParamsInvoicingRules::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(UpdateInvoiceitemParamsInvoicingRules::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for UpdateInvoiceitemParamsInvoicingRules {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(UpdateInvoiceitemParamsInvoicingRules::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "" => UpdateInvoiceitemParamsInvoicingRules::Unnamed,
+            other => UpdateInvoiceitemParamsInvoicingRules::Unknown(other.to_string()),
+        })
     }
 }
 

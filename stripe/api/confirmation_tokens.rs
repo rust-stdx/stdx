@@ -9,52 +9,53 @@
 #![allow(non_camel_case_types)]
 
 #[cfg(any(feature = "confirmation_tokens", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConfirmationToken {
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Time at which this ConfirmationToken expires and can no longer be used to confirm a PaymentIntent or SetupIntent."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<i64>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Data used for generating a Mandate."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mandate_data: Option<crate::confirmation_tokens::ConfirmationTokensResourceMandateData>,
     #[doc = "Set of key-value pairs that you can attach to an object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::confirmation_tokens::ConfirmationTokenObject,
     #[doc = "ID of the PaymentIntent that this ConfirmationToken was used to confirm, or null if this ConfirmationToken has not ye..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_intent: Option<String>,
     #[doc = "Payment-method-specific configuration for this ConfirmationToken."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_options: Option<crate::confirmation_tokens::ConfirmationTokensResourcePaymentMethodOptions>,
     #[doc = "Payment details collected by the Payment Element, used to create a PaymentMethod when a PaymentIntent or SetupIntent ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payment_method_preview: Option<crate::confirmation_tokens::ConfirmationTokensResourcePaymentMethodPreview>,
     #[doc = "Return URL used to confirm the Intent."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub return_url: Option<String>,
     #[doc = "Indicates that you intend to make future payments with this ConfirmationToken's payment method."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_future_usage: Option<crate::confirmation_tokens::ConfirmationTokenSetupFutureUsage>,
     #[doc = "ID of the SetupIntent that this ConfirmationToken was used to confirm, or null if this ConfirmationToken has not yet ..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub setup_intent: Option<String>,
     #[doc = "Shipping information collected on this ConfirmationToken."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shipping: Option<crate::confirmation_tokens::ConfirmationTokensResourceShipping>,
     #[doc = "Indicates whether the Stripe SDK is used to handle confirmation flow."]
-    #[serde(default)]
+    #[json(default)]
     pub use_stripe_sdk: bool,
 }
 
@@ -92,36 +93,18 @@ impl Default for ConfirmationTokenObject {
 }
 
 #[cfg(any(feature = "confirmation_tokens", feature = "test_helpers"))]
-impl<'de> serde::Deserialize<'de> for ConfirmationTokenObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ConfirmationTokenObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "confirmation_token" => ConfirmationTokenObject::ConfirmationToken,
-                    other => ConfirmationTokenObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ConfirmationTokenObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ConfirmationTokenObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ConfirmationTokenObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "confirmation_token" => ConfirmationTokenObject::ConfirmationToken,
+            other => ConfirmationTokenObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -147,231 +130,220 @@ impl ConfirmationTokenSetupFutureUsage {
 }
 
 #[cfg(any(feature = "confirmation_tokens", feature = "test_helpers"))]
-impl<'de> serde::Deserialize<'de> for ConfirmationTokenSetupFutureUsage {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ConfirmationTokenSetupFutureUsage;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "off_session" => ConfirmationTokenSetupFutureUsage::OffSession,
-                    "on_session" => ConfirmationTokenSetupFutureUsage::OnSession,
-                    other => ConfirmationTokenSetupFutureUsage::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ConfirmationTokenSetupFutureUsage::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ConfirmationTokenSetupFutureUsage {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ConfirmationTokenSetupFutureUsage::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "off_session" => ConfirmationTokenSetupFutureUsage::OffSession,
+            "on_session" => ConfirmationTokenSetupFutureUsage::OnSession,
+            other => ConfirmationTokenSetupFutureUsage::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "confirmation_tokens", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConfirmationTokensResourceMandateData {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_acceptance:
         Option<crate::confirmation_tokens::ConfirmationTokensResourceMandateDataResourceCustomerAcceptance>,
 }
 
 #[cfg(any(feature = "confirmation_tokens", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConfirmationTokensResourceMandateDataResourceCustomerAcceptance {
     #[doc = "If this is a Mandate accepted online, this hash contains details about the online acceptance."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub online: Option<
         crate::confirmation_tokens::ConfirmationTokensResourceMandateDataResourceCustomerAcceptanceResourceOnline,
     >,
     #[doc = "The type of customer acceptance information included with the Mandate."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: String,
 }
 
 #[cfg(any(feature = "confirmation_tokens", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConfirmationTokensResourceMandateDataResourceCustomerAcceptanceResourceOnline {
     #[doc = "The IP address from which the Mandate was accepted by the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ip_address: Option<String>,
     #[doc = "The user agent of the browser from which the Mandate was accepted by the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub user_agent: Option<String>,
 }
 
 #[cfg(any(feature = "confirmation_tokens", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConfirmationTokensResourcePaymentMethodOptions {
     #[doc = "This hash contains the card payment method options."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::confirmation_tokens::ConfirmationTokensResourcePaymentMethodOptionsResourceCard>,
 }
 
 #[cfg(any(feature = "confirmation_tokens", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConfirmationTokensResourcePaymentMethodOptionsResourceCard {
     #[doc = "The `cvc_update` Token collected from the Payment Element."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cvc_token: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub installments: Option<
         crate::confirmation_tokens::ConfirmationTokensResourcePaymentMethodOptionsResourceCardResourceInstallment,
     >,
 }
 
 #[cfg(any(feature = "confirmation_tokens", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConfirmationTokensResourcePaymentMethodOptionsResourceCardResourceInstallment {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub plan: Option<crate::payment_methods::PaymentMethodDetailsCardInstallmentsPlan>,
 }
 
 #[cfg(any(feature = "confirmation_tokens", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConfirmationTokensResourcePaymentMethodPreview {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub acss_debit: Option<crate::payment_methods::PaymentMethodAcssDebit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub affirm: Option<crate::payment_methods::PaymentMethodAffirm>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub afterpay_clearpay: Option<crate::payment_methods::PaymentMethodAfterpayClearpay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub alipay: Option<crate::payment_intents::PaymentFlowsPrivatePaymentMethodsAlipay>,
     #[doc = "This field indicates whether this payment method can be shown again to its customer in a checkout flow."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub allow_redisplay:
         Option<crate::confirmation_tokens::ConfirmationTokensResourcePaymentMethodPreviewAllowRedisplay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub alma: Option<crate::payment_methods::PaymentMethodAlma>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amazon_pay: Option<crate::payment_methods::PaymentMethodAmazonPay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub au_becs_debit: Option<crate::payment_methods::PaymentMethodAuBecsDebit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bacs_debit: Option<crate::payment_methods::PaymentMethodBacsDebit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bancontact: Option<crate::payment_methods::PaymentMethodBancontact>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billie: Option<crate::payment_methods::PaymentMethodBillie>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub billing_details: Option<crate::billing::BillingDetails>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub bizum: Option<crate::payment_methods::PaymentMethodBizum>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub blik: Option<crate::payment_methods::PaymentMethodBlik>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub boleto: Option<crate::payment_methods::PaymentMethodBoleto>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card: Option<crate::payment_methods::PaymentMethodCard>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub card_present: Option<crate::payment_methods::PaymentMethodCardPresent>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cashapp: Option<crate::payment_methods::PaymentMethodCashapp>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub crypto: Option<crate::payment_methods::PaymentMethodCrypto>,
     #[doc = "The ID of the Customer to which this PaymentMethod is saved."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<crate::Expandable<crate::customers::Customer>>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_account: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_balance: Option<crate::payment_methods::PaymentMethodCustomerBalance>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub eps: Option<crate::payment_methods::PaymentMethodEps>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub fpx: Option<crate::payment_methods::PaymentMethodFpx>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub giropay: Option<crate::payment_methods::PaymentMethodGiropay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub grabpay: Option<crate::payment_methods::PaymentMethodGrabpay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ideal: Option<crate::payment_methods::PaymentMethodIdeal>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub interac_present: Option<crate::payment_methods::PaymentMethodInteracPresent>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub kakao_pay: Option<crate::payment_methods::PaymentMethodKakaoPay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub klarna: Option<crate::payment_methods::PaymentMethodKlarna>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub konbini: Option<crate::payment_methods::PaymentMethodKonbini>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub kr_card: Option<crate::payment_methods::PaymentMethodKrCard>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub link: Option<crate::payment_methods::PaymentMethodLink>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mb_way: Option<crate::payment_methods::PaymentMethodMbWay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub mobilepay: Option<crate::payment_methods::PaymentMethodMobilepay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub multibanco: Option<crate::payment_methods::PaymentMethodMultibanco>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub naver_pay: Option<crate::payment_methods::PaymentMethodNaverPay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub nz_bank_account: Option<crate::payment_methods::PaymentMethodNzBankAccount>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub oxxo: Option<crate::payment_methods::PaymentMethodOxxo>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub p24: Option<crate::payment_methods::PaymentMethodP24>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pay_by_bank: Option<crate::payment_methods::PaymentMethodPayByBank>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payco: Option<crate::payment_methods::PaymentMethodPayco>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paynow: Option<crate::payment_methods::PaymentMethodPaynow>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paypal: Option<crate::payment_methods::PaymentMethodPaypal>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub paypay: Option<crate::payment_methods::PaymentMethodPaypay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub payto: Option<crate::payment_methods::PaymentMethodPayto>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub pix: Option<crate::payment_methods::PaymentMethodPix>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub promptpay: Option<crate::payment_methods::PaymentMethodPromptpay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub revolut_pay: Option<crate::payment_methods::PaymentMethodRevolutPay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub samsung_pay: Option<crate::payment_methods::PaymentMethodSamsungPay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub satispay: Option<crate::payment_methods::PaymentMethodSatispay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub scalapay: Option<crate::payment_methods::PaymentMethodScalapay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sepa_debit: Option<crate::payment_methods::PaymentMethodSepaDebit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sequra: Option<crate::payment_methods::PaymentMethodSequra>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sofort: Option<crate::payment_methods::PaymentMethodSofort>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub sunbit: Option<crate::payment_methods::PaymentMethodSunbit>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub swish: Option<crate::payment_methods::PaymentMethodSwish>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub twint: Option<crate::payment_methods::PaymentMethodTwint>,
     #[doc = "The type of the PaymentMethod."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::confirmation_tokens::ConfirmationTokensResourcePaymentMethodPreviewType,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub upi: Option<crate::payment_methods::PaymentMethodUpi>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub us_bank_account: Option<crate::payment_methods::PaymentMethodUsBankAccount>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub wechat_pay: Option<crate::payment_methods::PaymentMethodWechatPay>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub zip: Option<crate::payment_methods::PaymentMethodZip>,
 }
 
@@ -399,40 +371,22 @@ impl ConfirmationTokensResourcePaymentMethodPreviewAllowRedisplay {
 }
 
 #[cfg(any(feature = "confirmation_tokens", feature = "test_helpers"))]
-impl<'de> serde::Deserialize<'de> for ConfirmationTokensResourcePaymentMethodPreviewAllowRedisplay {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ConfirmationTokensResourcePaymentMethodPreviewAllowRedisplay;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "always" => ConfirmationTokensResourcePaymentMethodPreviewAllowRedisplay::Always,
-                    "limited" => ConfirmationTokensResourcePaymentMethodPreviewAllowRedisplay::Limited,
-                    "unspecified" => ConfirmationTokensResourcePaymentMethodPreviewAllowRedisplay::Unspecified,
-                    other => ConfirmationTokensResourcePaymentMethodPreviewAllowRedisplay::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ConfirmationTokensResourcePaymentMethodPreviewAllowRedisplay::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for ConfirmationTokensResourcePaymentMethodPreviewAllowRedisplay {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ConfirmationTokensResourcePaymentMethodPreviewAllowRedisplay::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "always" => ConfirmationTokensResourcePaymentMethodPreviewAllowRedisplay::Always,
+            "limited" => ConfirmationTokensResourcePaymentMethodPreviewAllowRedisplay::Limited,
+            "unspecified" => ConfirmationTokensResourcePaymentMethodPreviewAllowRedisplay::Unspecified,
+            other => ConfirmationTokensResourcePaymentMethodPreviewAllowRedisplay::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -579,107 +533,90 @@ impl Default for ConfirmationTokensResourcePaymentMethodPreviewType {
 }
 
 #[cfg(any(feature = "confirmation_tokens", feature = "test_helpers"))]
-impl<'de> serde::Deserialize<'de> for ConfirmationTokensResourcePaymentMethodPreviewType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ConfirmationTokensResourcePaymentMethodPreviewType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "acss_debit" => ConfirmationTokensResourcePaymentMethodPreviewType::AcssDebit,
-                    "affirm" => ConfirmationTokensResourcePaymentMethodPreviewType::Affirm,
-                    "afterpay_clearpay" => ConfirmationTokensResourcePaymentMethodPreviewType::AfterpayClearpay,
-                    "alipay" => ConfirmationTokensResourcePaymentMethodPreviewType::Alipay,
-                    "alma" => ConfirmationTokensResourcePaymentMethodPreviewType::Alma,
-                    "amazon_pay" => ConfirmationTokensResourcePaymentMethodPreviewType::AmazonPay,
-                    "au_becs_debit" => ConfirmationTokensResourcePaymentMethodPreviewType::AuBecsDebit,
-                    "bacs_debit" => ConfirmationTokensResourcePaymentMethodPreviewType::BacsDebit,
-                    "bancontact" => ConfirmationTokensResourcePaymentMethodPreviewType::Bancontact,
-                    "billie" => ConfirmationTokensResourcePaymentMethodPreviewType::Billie,
-                    "bizum" => ConfirmationTokensResourcePaymentMethodPreviewType::Bizum,
-                    "blik" => ConfirmationTokensResourcePaymentMethodPreviewType::Blik,
-                    "boleto" => ConfirmationTokensResourcePaymentMethodPreviewType::Boleto,
-                    "card" => ConfirmationTokensResourcePaymentMethodPreviewType::Card,
-                    "card_present" => ConfirmationTokensResourcePaymentMethodPreviewType::CardPresent,
-                    "cashapp" => ConfirmationTokensResourcePaymentMethodPreviewType::Cashapp,
-                    "crypto" => ConfirmationTokensResourcePaymentMethodPreviewType::Crypto,
-                    "custom" => ConfirmationTokensResourcePaymentMethodPreviewType::Custom,
-                    "customer_balance" => ConfirmationTokensResourcePaymentMethodPreviewType::CustomerBalance,
-                    "eps" => ConfirmationTokensResourcePaymentMethodPreviewType::Eps,
-                    "fpx" => ConfirmationTokensResourcePaymentMethodPreviewType::Fpx,
-                    "giropay" => ConfirmationTokensResourcePaymentMethodPreviewType::Giropay,
-                    "grabpay" => ConfirmationTokensResourcePaymentMethodPreviewType::Grabpay,
-                    "ideal" => ConfirmationTokensResourcePaymentMethodPreviewType::Ideal,
-                    "interac_present" => ConfirmationTokensResourcePaymentMethodPreviewType::InteracPresent,
-                    "kakao_pay" => ConfirmationTokensResourcePaymentMethodPreviewType::KakaoPay,
-                    "klarna" => ConfirmationTokensResourcePaymentMethodPreviewType::Klarna,
-                    "konbini" => ConfirmationTokensResourcePaymentMethodPreviewType::Konbini,
-                    "kr_card" => ConfirmationTokensResourcePaymentMethodPreviewType::KrCard,
-                    "link" => ConfirmationTokensResourcePaymentMethodPreviewType::Link,
-                    "mb_way" => ConfirmationTokensResourcePaymentMethodPreviewType::MbWay,
-                    "mobilepay" => ConfirmationTokensResourcePaymentMethodPreviewType::Mobilepay,
-                    "multibanco" => ConfirmationTokensResourcePaymentMethodPreviewType::Multibanco,
-                    "naver_pay" => ConfirmationTokensResourcePaymentMethodPreviewType::NaverPay,
-                    "nz_bank_account" => ConfirmationTokensResourcePaymentMethodPreviewType::NzBankAccount,
-                    "oxxo" => ConfirmationTokensResourcePaymentMethodPreviewType::Oxxo,
-                    "p24" => ConfirmationTokensResourcePaymentMethodPreviewType::P24,
-                    "pay_by_bank" => ConfirmationTokensResourcePaymentMethodPreviewType::PayByBank,
-                    "payco" => ConfirmationTokensResourcePaymentMethodPreviewType::Payco,
-                    "paynow" => ConfirmationTokensResourcePaymentMethodPreviewType::Paynow,
-                    "paypal" => ConfirmationTokensResourcePaymentMethodPreviewType::Paypal,
-                    "paypay" => ConfirmationTokensResourcePaymentMethodPreviewType::Paypay,
-                    "payto" => ConfirmationTokensResourcePaymentMethodPreviewType::Payto,
-                    "pix" => ConfirmationTokensResourcePaymentMethodPreviewType::Pix,
-                    "promptpay" => ConfirmationTokensResourcePaymentMethodPreviewType::Promptpay,
-                    "revolut_pay" => ConfirmationTokensResourcePaymentMethodPreviewType::RevolutPay,
-                    "samsung_pay" => ConfirmationTokensResourcePaymentMethodPreviewType::SamsungPay,
-                    "satispay" => ConfirmationTokensResourcePaymentMethodPreviewType::Satispay,
-                    "scalapay" => ConfirmationTokensResourcePaymentMethodPreviewType::Scalapay,
-                    "sepa_debit" => ConfirmationTokensResourcePaymentMethodPreviewType::SepaDebit,
-                    "sequra" => ConfirmationTokensResourcePaymentMethodPreviewType::Sequra,
-                    "sofort" => ConfirmationTokensResourcePaymentMethodPreviewType::Sofort,
-                    "sunbit" => ConfirmationTokensResourcePaymentMethodPreviewType::Sunbit,
-                    "swish" => ConfirmationTokensResourcePaymentMethodPreviewType::Swish,
-                    "twint" => ConfirmationTokensResourcePaymentMethodPreviewType::Twint,
-                    "upi" => ConfirmationTokensResourcePaymentMethodPreviewType::Upi,
-                    "us_bank_account" => ConfirmationTokensResourcePaymentMethodPreviewType::UsBankAccount,
-                    "wechat_pay" => ConfirmationTokensResourcePaymentMethodPreviewType::WechatPay,
-                    "zip" => ConfirmationTokensResourcePaymentMethodPreviewType::Zip,
-                    other => ConfirmationTokensResourcePaymentMethodPreviewType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ConfirmationTokensResourcePaymentMethodPreviewType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ConfirmationTokensResourcePaymentMethodPreviewType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ConfirmationTokensResourcePaymentMethodPreviewType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "acss_debit" => ConfirmationTokensResourcePaymentMethodPreviewType::AcssDebit,
+            "affirm" => ConfirmationTokensResourcePaymentMethodPreviewType::Affirm,
+            "afterpay_clearpay" => ConfirmationTokensResourcePaymentMethodPreviewType::AfterpayClearpay,
+            "alipay" => ConfirmationTokensResourcePaymentMethodPreviewType::Alipay,
+            "alma" => ConfirmationTokensResourcePaymentMethodPreviewType::Alma,
+            "amazon_pay" => ConfirmationTokensResourcePaymentMethodPreviewType::AmazonPay,
+            "au_becs_debit" => ConfirmationTokensResourcePaymentMethodPreviewType::AuBecsDebit,
+            "bacs_debit" => ConfirmationTokensResourcePaymentMethodPreviewType::BacsDebit,
+            "bancontact" => ConfirmationTokensResourcePaymentMethodPreviewType::Bancontact,
+            "billie" => ConfirmationTokensResourcePaymentMethodPreviewType::Billie,
+            "bizum" => ConfirmationTokensResourcePaymentMethodPreviewType::Bizum,
+            "blik" => ConfirmationTokensResourcePaymentMethodPreviewType::Blik,
+            "boleto" => ConfirmationTokensResourcePaymentMethodPreviewType::Boleto,
+            "card" => ConfirmationTokensResourcePaymentMethodPreviewType::Card,
+            "card_present" => ConfirmationTokensResourcePaymentMethodPreviewType::CardPresent,
+            "cashapp" => ConfirmationTokensResourcePaymentMethodPreviewType::Cashapp,
+            "crypto" => ConfirmationTokensResourcePaymentMethodPreviewType::Crypto,
+            "custom" => ConfirmationTokensResourcePaymentMethodPreviewType::Custom,
+            "customer_balance" => ConfirmationTokensResourcePaymentMethodPreviewType::CustomerBalance,
+            "eps" => ConfirmationTokensResourcePaymentMethodPreviewType::Eps,
+            "fpx" => ConfirmationTokensResourcePaymentMethodPreviewType::Fpx,
+            "giropay" => ConfirmationTokensResourcePaymentMethodPreviewType::Giropay,
+            "grabpay" => ConfirmationTokensResourcePaymentMethodPreviewType::Grabpay,
+            "ideal" => ConfirmationTokensResourcePaymentMethodPreviewType::Ideal,
+            "interac_present" => ConfirmationTokensResourcePaymentMethodPreviewType::InteracPresent,
+            "kakao_pay" => ConfirmationTokensResourcePaymentMethodPreviewType::KakaoPay,
+            "klarna" => ConfirmationTokensResourcePaymentMethodPreviewType::Klarna,
+            "konbini" => ConfirmationTokensResourcePaymentMethodPreviewType::Konbini,
+            "kr_card" => ConfirmationTokensResourcePaymentMethodPreviewType::KrCard,
+            "link" => ConfirmationTokensResourcePaymentMethodPreviewType::Link,
+            "mb_way" => ConfirmationTokensResourcePaymentMethodPreviewType::MbWay,
+            "mobilepay" => ConfirmationTokensResourcePaymentMethodPreviewType::Mobilepay,
+            "multibanco" => ConfirmationTokensResourcePaymentMethodPreviewType::Multibanco,
+            "naver_pay" => ConfirmationTokensResourcePaymentMethodPreviewType::NaverPay,
+            "nz_bank_account" => ConfirmationTokensResourcePaymentMethodPreviewType::NzBankAccount,
+            "oxxo" => ConfirmationTokensResourcePaymentMethodPreviewType::Oxxo,
+            "p24" => ConfirmationTokensResourcePaymentMethodPreviewType::P24,
+            "pay_by_bank" => ConfirmationTokensResourcePaymentMethodPreviewType::PayByBank,
+            "payco" => ConfirmationTokensResourcePaymentMethodPreviewType::Payco,
+            "paynow" => ConfirmationTokensResourcePaymentMethodPreviewType::Paynow,
+            "paypal" => ConfirmationTokensResourcePaymentMethodPreviewType::Paypal,
+            "paypay" => ConfirmationTokensResourcePaymentMethodPreviewType::Paypay,
+            "payto" => ConfirmationTokensResourcePaymentMethodPreviewType::Payto,
+            "pix" => ConfirmationTokensResourcePaymentMethodPreviewType::Pix,
+            "promptpay" => ConfirmationTokensResourcePaymentMethodPreviewType::Promptpay,
+            "revolut_pay" => ConfirmationTokensResourcePaymentMethodPreviewType::RevolutPay,
+            "samsung_pay" => ConfirmationTokensResourcePaymentMethodPreviewType::SamsungPay,
+            "satispay" => ConfirmationTokensResourcePaymentMethodPreviewType::Satispay,
+            "scalapay" => ConfirmationTokensResourcePaymentMethodPreviewType::Scalapay,
+            "sepa_debit" => ConfirmationTokensResourcePaymentMethodPreviewType::SepaDebit,
+            "sequra" => ConfirmationTokensResourcePaymentMethodPreviewType::Sequra,
+            "sofort" => ConfirmationTokensResourcePaymentMethodPreviewType::Sofort,
+            "sunbit" => ConfirmationTokensResourcePaymentMethodPreviewType::Sunbit,
+            "swish" => ConfirmationTokensResourcePaymentMethodPreviewType::Swish,
+            "twint" => ConfirmationTokensResourcePaymentMethodPreviewType::Twint,
+            "upi" => ConfirmationTokensResourcePaymentMethodPreviewType::Upi,
+            "us_bank_account" => ConfirmationTokensResourcePaymentMethodPreviewType::UsBankAccount,
+            "wechat_pay" => ConfirmationTokensResourcePaymentMethodPreviewType::WechatPay,
+            "zip" => ConfirmationTokensResourcePaymentMethodPreviewType::Zip,
+            other => ConfirmationTokensResourcePaymentMethodPreviewType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "confirmation_tokens", feature = "test_helpers"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ConfirmationTokensResourceShipping {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<crate::common::Address>,
     #[doc = "Recipient name."]
-    #[serde(default)]
+    #[json(default)]
     pub name: String,
     #[doc = "Recipient phone (including extension)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
 }
 

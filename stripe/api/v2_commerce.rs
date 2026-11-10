@@ -9,7 +9,8 @@
 #![allow(non_camel_case_types)]
 
 #[cfg(feature = "v2_commerce")]
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, json::Encode)]
+#[json(deny_duplicate_fields)]
 pub struct CreateCommerceProductCatalogImportParams {
     #[doc = "The type of catalog data to import."]
     pub feed_type: crate::v2_commerce::CreateCommerceProductCatalogImportParamsFeedType,
@@ -45,49 +46,28 @@ impl CreateCommerceProductCatalogImportParamsFeedType {
 }
 
 #[cfg(feature = "v2_commerce")]
-impl serde::Serialize for CreateCommerceProductCatalogImportParamsFeedType {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(self.as_str())
+impl json::Encode for CreateCommerceProductCatalogImportParamsFeedType {
+    fn encode<W: json::Write>(&self, encoder: &mut json::Encoder<W>) -> Result<(), W::Error> {
+        encoder.string(self.as_str())
     }
 }
 
 #[cfg(feature = "v2_commerce")]
-impl<'de> serde::Deserialize<'de> for CreateCommerceProductCatalogImportParamsFeedType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCommerceProductCatalogImportParamsFeedType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "inventory" => CreateCommerceProductCatalogImportParamsFeedType::Inventory,
-                    "pricing" => CreateCommerceProductCatalogImportParamsFeedType::Pricing,
-                    "product" => CreateCommerceProductCatalogImportParamsFeedType::Product,
-                    "promotion" => CreateCommerceProductCatalogImportParamsFeedType::Promotion,
-                    other => CreateCommerceProductCatalogImportParamsFeedType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCommerceProductCatalogImportParamsFeedType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCommerceProductCatalogImportParamsFeedType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCommerceProductCatalogImportParamsFeedType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "inventory" => CreateCommerceProductCatalogImportParamsFeedType::Inventory,
+            "pricing" => CreateCommerceProductCatalogImportParamsFeedType::Pricing,
+            "product" => CreateCommerceProductCatalogImportParamsFeedType::Product,
+            "promotion" => CreateCommerceProductCatalogImportParamsFeedType::Promotion,
+            other => CreateCommerceProductCatalogImportParamsFeedType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -113,47 +93,26 @@ impl CreateCommerceProductCatalogImportParamsMode {
 }
 
 #[cfg(feature = "v2_commerce")]
-impl serde::Serialize for CreateCommerceProductCatalogImportParamsMode {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(self.as_str())
+impl json::Encode for CreateCommerceProductCatalogImportParamsMode {
+    fn encode<W: json::Write>(&self, encoder: &mut json::Encoder<W>) -> Result<(), W::Error> {
+        encoder.string(self.as_str())
     }
 }
 
 #[cfg(feature = "v2_commerce")]
-impl<'de> serde::Deserialize<'de> for CreateCommerceProductCatalogImportParamsMode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateCommerceProductCatalogImportParamsMode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "replace" => CreateCommerceProductCatalogImportParamsMode::Replace,
-                    "upsert" => CreateCommerceProductCatalogImportParamsMode::Upsert,
-                    other => CreateCommerceProductCatalogImportParamsMode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateCommerceProductCatalogImportParamsMode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateCommerceProductCatalogImportParamsMode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateCommerceProductCatalogImportParamsMode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "replace" => CreateCommerceProductCatalogImportParamsMode::Replace,
+            "upsert" => CreateCommerceProductCatalogImportParamsMode::Upsert,
+            other => CreateCommerceProductCatalogImportParamsMode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -210,39 +169,21 @@ impl ListCommerceProductCatalogImportsParamsFeedType {
 }
 
 #[cfg(feature = "v2_commerce")]
-impl<'de> serde::Deserialize<'de> for ListCommerceProductCatalogImportsParamsFeedType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListCommerceProductCatalogImportsParamsFeedType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "inventory" => ListCommerceProductCatalogImportsParamsFeedType::Inventory,
-                    "pricing" => ListCommerceProductCatalogImportsParamsFeedType::Pricing,
-                    "product" => ListCommerceProductCatalogImportsParamsFeedType::Product,
-                    "promotion" => ListCommerceProductCatalogImportsParamsFeedType::Promotion,
-                    other => ListCommerceProductCatalogImportsParamsFeedType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListCommerceProductCatalogImportsParamsFeedType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListCommerceProductCatalogImportsParamsFeedType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListCommerceProductCatalogImportsParamsFeedType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "inventory" => ListCommerceProductCatalogImportsParamsFeedType::Inventory,
+            "pricing" => ListCommerceProductCatalogImportsParamsFeedType::Pricing,
+            "product" => ListCommerceProductCatalogImportsParamsFeedType::Product,
+            "promotion" => ListCommerceProductCatalogImportsParamsFeedType::Promotion,
+            other => ListCommerceProductCatalogImportsParamsFeedType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -281,40 +222,22 @@ impl ListCommerceProductCatalogImportsParamsStatus {
 }
 
 #[cfg(feature = "v2_commerce")]
-impl<'de> serde::Deserialize<'de> for ListCommerceProductCatalogImportsParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListCommerceProductCatalogImportsParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "awaiting_upload" => ListCommerceProductCatalogImportsParamsStatus::AwaitingUpload,
-                    "failed" => ListCommerceProductCatalogImportsParamsStatus::Failed,
-                    "processing" => ListCommerceProductCatalogImportsParamsStatus::Processing,
-                    "succeeded" => ListCommerceProductCatalogImportsParamsStatus::Succeeded,
-                    "succeeded_with_errors" => ListCommerceProductCatalogImportsParamsStatus::SucceededWithErrors,
-                    other => ListCommerceProductCatalogImportsParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListCommerceProductCatalogImportsParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListCommerceProductCatalogImportsParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListCommerceProductCatalogImportsParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "awaiting_upload" => ListCommerceProductCatalogImportsParamsStatus::AwaitingUpload,
+            "failed" => ListCommerceProductCatalogImportsParamsStatus::Failed,
+            "processing" => ListCommerceProductCatalogImportsParamsStatus::Processing,
+            "succeeded" => ListCommerceProductCatalogImportsParamsStatus::Succeeded,
+            "succeeded_with_errors" => ListCommerceProductCatalogImportsParamsStatus::SucceededWithErrors,
+            other => ListCommerceProductCatalogImportsParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -326,34 +249,35 @@ impl crate::params::FormEncode for ListCommerceProductCatalogImportsParamsStatus
 }
 
 #[cfg(feature = "v2_commerce")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct V2CommerceProductCatalogImport {
     #[doc = "The time this ProductCatalogImport was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: String,
     #[doc = "The type of feed data being imported into the product catalog."]
-    #[serde(default)]
+    #[json(default)]
     pub feed_type: crate::v2_commerce::V2CommerceProductCatalogImportFeedType,
     #[doc = "The unique identifier for this ProductCatalogImport."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "Has the value `true` if the object exists in live mode or the value `false` if the object exists in test mode."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Additional information about the object in a structured format."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "The import strategy for handling existing catalog data."]
-    #[serde(default)]
+    #[json(default)]
     pub mode: crate::v2_commerce::V2CommerceProductCatalogImportMode,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::v2_commerce::V2CommerceProductCatalogImportObject,
     #[doc = "The current status of this ProductCatalogImport."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::v2_commerce::V2CommerceProductCatalogImportStatus,
     #[doc = "Details about the current import status."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status_details: Option<crate::v2_commerce::V2CommerceProductCatalogImportStatusDetails>,
 }
 
@@ -397,39 +321,21 @@ impl Default for V2CommerceProductCatalogImportFeedType {
 }
 
 #[cfg(feature = "v2_commerce")]
-impl<'de> serde::Deserialize<'de> for V2CommerceProductCatalogImportFeedType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = V2CommerceProductCatalogImportFeedType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "inventory" => V2CommerceProductCatalogImportFeedType::Inventory,
-                    "pricing" => V2CommerceProductCatalogImportFeedType::Pricing,
-                    "product" => V2CommerceProductCatalogImportFeedType::Product,
-                    "promotion" => V2CommerceProductCatalogImportFeedType::Promotion,
-                    other => V2CommerceProductCatalogImportFeedType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(V2CommerceProductCatalogImportFeedType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for V2CommerceProductCatalogImportFeedType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(V2CommerceProductCatalogImportFeedType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "inventory" => V2CommerceProductCatalogImportFeedType::Inventory,
+            "pricing" => V2CommerceProductCatalogImportFeedType::Pricing,
+            "product" => V2CommerceProductCatalogImportFeedType::Product,
+            "promotion" => V2CommerceProductCatalogImportFeedType::Promotion,
+            other => V2CommerceProductCatalogImportFeedType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -462,37 +368,19 @@ impl Default for V2CommerceProductCatalogImportMode {
 }
 
 #[cfg(feature = "v2_commerce")]
-impl<'de> serde::Deserialize<'de> for V2CommerceProductCatalogImportMode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = V2CommerceProductCatalogImportMode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "replace" => V2CommerceProductCatalogImportMode::Replace,
-                    "upsert" => V2CommerceProductCatalogImportMode::Upsert,
-                    other => V2CommerceProductCatalogImportMode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(V2CommerceProductCatalogImportMode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for V2CommerceProductCatalogImportMode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(V2CommerceProductCatalogImportMode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "replace" => V2CommerceProductCatalogImportMode::Replace,
+            "upsert" => V2CommerceProductCatalogImportMode::Upsert,
+            other => V2CommerceProductCatalogImportMode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -525,38 +413,20 @@ impl Default for V2CommerceProductCatalogImportObject {
 }
 
 #[cfg(feature = "v2_commerce")]
-impl<'de> serde::Deserialize<'de> for V2CommerceProductCatalogImportObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = V2CommerceProductCatalogImportObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "v2.commerce.product_catalog_import" => {
-                        V2CommerceProductCatalogImportObject::V2CommerceProductCatalogImport
-                    }
-                    other => V2CommerceProductCatalogImportObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(V2CommerceProductCatalogImportObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for V2CommerceProductCatalogImportObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(V2CommerceProductCatalogImportObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "v2.commerce.product_catalog_import" => {
+                V2CommerceProductCatalogImportObject::V2CommerceProductCatalogImport
+            }
+            other => V2CommerceProductCatalogImportObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -595,94 +465,80 @@ impl Default for V2CommerceProductCatalogImportStatus {
 }
 
 #[cfg(feature = "v2_commerce")]
-impl<'de> serde::Deserialize<'de> for V2CommerceProductCatalogImportStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = V2CommerceProductCatalogImportStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "awaiting_upload" => V2CommerceProductCatalogImportStatus::AwaitingUpload,
-                    "failed" => V2CommerceProductCatalogImportStatus::Failed,
-                    "processing" => V2CommerceProductCatalogImportStatus::Processing,
-                    "succeeded" => V2CommerceProductCatalogImportStatus::Succeeded,
-                    "succeeded_with_errors" => V2CommerceProductCatalogImportStatus::SucceededWithErrors,
-                    other => V2CommerceProductCatalogImportStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(V2CommerceProductCatalogImportStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for V2CommerceProductCatalogImportStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(V2CommerceProductCatalogImportStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "awaiting_upload" => V2CommerceProductCatalogImportStatus::AwaitingUpload,
+            "failed" => V2CommerceProductCatalogImportStatus::Failed,
+            "processing" => V2CommerceProductCatalogImportStatus::Processing,
+            "succeeded" => V2CommerceProductCatalogImportStatus::Succeeded,
+            "succeeded_with_errors" => V2CommerceProductCatalogImportStatus::SucceededWithErrors,
+            other => V2CommerceProductCatalogImportStatus::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "v2_commerce")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct V2CommerceProductCatalogImportStatusDetails {
     #[doc = "Details when the import is awaiting file upload."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub awaiting_upload: Option<crate::v2_commerce::V2CommerceProductCatalogImportStatusDetailsAwaitingUpload>,
     #[doc = "Details when the import didn't complete."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub failed: Option<crate::v2_commerce::V2CommerceProductCatalogImportStatusDetailsFailed>,
     #[doc = "Details when the import is processing."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub processing: Option<crate::v2_commerce::V2CommerceProductCatalogImportStatusDetailsProcessing>,
     #[doc = "Details when the import has succeeded."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub succeeded: Option<crate::v2_commerce::V2CommerceProductCatalogImportStatusDetailsSucceeded>,
     #[doc = "Details when the import completed but some records failed to process."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub succeeded_with_errors:
         Option<crate::v2_commerce::V2CommerceProductCatalogImportStatusDetailsSucceededWithErrors>,
 }
 
 #[cfg(feature = "v2_commerce")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct V2CommerceProductCatalogImportStatusDetailsAwaitingUpload {
     #[doc = "The pre-signed URL information for uploading the catalog file."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub upload_url: Option<crate::v2_commerce::V2CommerceProductCatalogImportStatusDetailsAwaitingUploadUploadUrl>,
 }
 
 #[cfg(feature = "v2_commerce")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct V2CommerceProductCatalogImportStatusDetailsAwaitingUploadUploadUrl {
     #[doc = "The timestamp when the upload URL expires."]
-    #[serde(default)]
+    #[json(default)]
     pub expires_at: String,
     #[doc = "The pre-signed URL for uploading the catalog file."]
-    #[serde(default)]
+    #[json(default)]
     pub url: String,
 }
 
 #[cfg(feature = "v2_commerce")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct V2CommerceProductCatalogImportStatusDetailsFailed {
     #[doc = "The error code for this product catalog processing failure."]
-    #[serde(default)]
+    #[json(default)]
     pub code: crate::v2_commerce::V2CommerceProductCatalogImportStatusDetailsFailedCode,
     #[doc = "A message explaining why the import failed."]
-    #[serde(default)]
+    #[json(default)]
     pub failure_message: String,
     #[doc = "The error type for this product catalog processing failure."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::v2_commerce::V2CommerceProductCatalogImportStatusDetailsFailedType,
 }
 
@@ -717,38 +573,20 @@ impl Default for V2CommerceProductCatalogImportStatusDetailsFailedCode {
 }
 
 #[cfg(feature = "v2_commerce")]
-impl<'de> serde::Deserialize<'de> for V2CommerceProductCatalogImportStatusDetailsFailedCode {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = V2CommerceProductCatalogImportStatusDetailsFailedCode;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "file_not_found" => V2CommerceProductCatalogImportStatusDetailsFailedCode::FileNotFound,
-                    "internal_error" => V2CommerceProductCatalogImportStatusDetailsFailedCode::InternalError,
-                    "invalid_file" => V2CommerceProductCatalogImportStatusDetailsFailedCode::InvalidFile,
-                    other => V2CommerceProductCatalogImportStatusDetailsFailedCode::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(V2CommerceProductCatalogImportStatusDetailsFailedCode::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for V2CommerceProductCatalogImportStatusDetailsFailedCode {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(V2CommerceProductCatalogImportStatusDetailsFailedCode::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "file_not_found" => V2CommerceProductCatalogImportStatusDetailsFailedCode::FileNotFound,
+            "internal_error" => V2CommerceProductCatalogImportStatusDetailsFailedCode::InternalError,
+            "invalid_file" => V2CommerceProductCatalogImportStatusDetailsFailedCode::InvalidFile,
+            other => V2CommerceProductCatalogImportStatusDetailsFailedCode::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -781,104 +619,91 @@ impl Default for V2CommerceProductCatalogImportStatusDetailsFailedType {
 }
 
 #[cfg(feature = "v2_commerce")]
-impl<'de> serde::Deserialize<'de> for V2CommerceProductCatalogImportStatusDetailsFailedType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = V2CommerceProductCatalogImportStatusDetailsFailedType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cannot_proceed" => V2CommerceProductCatalogImportStatusDetailsFailedType::CannotProceed,
-                    "transient_failure" => V2CommerceProductCatalogImportStatusDetailsFailedType::TransientFailure,
-                    other => V2CommerceProductCatalogImportStatusDetailsFailedType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(V2CommerceProductCatalogImportStatusDetailsFailedType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for V2CommerceProductCatalogImportStatusDetailsFailedType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(V2CommerceProductCatalogImportStatusDetailsFailedType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cannot_proceed" => V2CommerceProductCatalogImportStatusDetailsFailedType::CannotProceed,
+            "transient_failure" => V2CommerceProductCatalogImportStatusDetailsFailedType::TransientFailure,
+            other => V2CommerceProductCatalogImportStatusDetailsFailedType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "v2_commerce")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct V2CommerceProductCatalogImportStatusDetailsProcessing {
     #[doc = "The number of records that failed to process so far."]
-    #[serde(default)]
+    #[json(default)]
     pub error_count: String,
     #[doc = "The number of records processed so far."]
-    #[serde(default)]
+    #[json(default)]
     pub success_count: String,
 }
 
 #[cfg(feature = "v2_commerce")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct V2CommerceProductCatalogImportStatusDetailsSucceeded {
     #[doc = "The total number of records processed."]
-    #[serde(default)]
+    #[json(default)]
     pub success_count: String,
 }
 
 #[cfg(feature = "v2_commerce")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct V2CommerceProductCatalogImportStatusDetailsSucceededWithErrors {
     #[doc = "The total number of records that failed to process."]
-    #[serde(default)]
+    #[json(default)]
     pub error_count: String,
     #[doc = "A file containing details about all errors that occurred."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub error_file: Option<crate::v2_commerce::V2CommerceProductCatalogImportStatusDetailsSucceededWithErrorsErrorFile>,
     #[doc = "A sample of errors that occurred during processing."]
-    #[serde(default)]
+    #[json(default)]
     pub samples: Vec<crate::v2_commerce::V2CommerceProductCatalogImportStatusDetailsSucceededWithErrorsSamplesItem>,
     #[doc = "The total number of records processed."]
-    #[serde(default)]
+    #[json(default)]
     pub success_count: String,
 }
 
 #[cfg(feature = "v2_commerce")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct V2CommerceProductCatalogImportStatusDetailsSucceededWithErrorsErrorFile {
     #[doc = "The MIME type of the error file."]
-    #[serde(default)]
+    #[json(default)]
     pub content_type: String,
     #[doc = "The pre-signed URL information for downloading the error file."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub download_url: Option<crate::v2_commerce::V2CommerceProductCatalogImportStatusDetailsAwaitingUploadUploadUrl>,
     #[doc = "The size of the error file in bytes."]
-    #[serde(default)]
+    #[json(default)]
     pub size: String,
 }
 
 #[cfg(feature = "v2_commerce")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct V2CommerceProductCatalogImportStatusDetailsSucceededWithErrorsSamplesItem {
     #[doc = "A description of what went wrong with this record."]
-    #[serde(default)]
+    #[json(default)]
     pub error_message: String,
     #[doc = "The name of the field that caused the error."]
-    #[serde(default)]
+    #[json(default)]
     pub field: String,
     #[doc = "The identifier of the record that failed to process."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "The row number in the import file where the error occurred."]
-    #[serde(default)]
+    #[json(default)]
     pub row: String,
 }
 

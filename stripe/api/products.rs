@@ -224,42 +224,22 @@ impl CreateProductParamsDefaultPriceDataCurrencyOptionsValueTaxBehavior {
 }
 
 #[cfg(feature = "products")]
-impl<'de> serde::Deserialize<'de> for CreateProductParamsDefaultPriceDataCurrencyOptionsValueTaxBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateProductParamsDefaultPriceDataCurrencyOptionsValueTaxBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exclusive" => CreateProductParamsDefaultPriceDataCurrencyOptionsValueTaxBehavior::Exclusive,
-                    "inclusive" => CreateProductParamsDefaultPriceDataCurrencyOptionsValueTaxBehavior::Inclusive,
-                    "unspecified" => CreateProductParamsDefaultPriceDataCurrencyOptionsValueTaxBehavior::Unspecified,
-                    other => {
-                        CreateProductParamsDefaultPriceDataCurrencyOptionsValueTaxBehavior::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateProductParamsDefaultPriceDataCurrencyOptionsValueTaxBehavior::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for CreateProductParamsDefaultPriceDataCurrencyOptionsValueTaxBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateProductParamsDefaultPriceDataCurrencyOptionsValueTaxBehavior::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exclusive" => CreateProductParamsDefaultPriceDataCurrencyOptionsValueTaxBehavior::Exclusive,
+            "inclusive" => CreateProductParamsDefaultPriceDataCurrencyOptionsValueTaxBehavior::Inclusive,
+            "unspecified" => CreateProductParamsDefaultPriceDataCurrencyOptionsValueTaxBehavior::Unspecified,
+            other => CreateProductParamsDefaultPriceDataCurrencyOptionsValueTaxBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -282,7 +262,7 @@ pub struct CreateProductParamsDefaultPriceDataCurrencyOptionsValueTiersItem {
     #[doc = "Same as `unit_amount`, but accepts a decimal value in cents (or local equivalent) with at most 12 decimal places."]
     pub unit_amount_decimal: Option<String>,
     #[doc = "Specifies the upper bound of this tier."]
-    pub up_to: serde_json::Value,
+    pub up_to: json::OwnedValue,
 }
 
 #[cfg(feature = "products")]
@@ -342,39 +322,21 @@ impl CreateProductParamsDefaultPriceDataRecurringInterval {
 }
 
 #[cfg(feature = "products")]
-impl<'de> serde::Deserialize<'de> for CreateProductParamsDefaultPriceDataRecurringInterval {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateProductParamsDefaultPriceDataRecurringInterval;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "day" => CreateProductParamsDefaultPriceDataRecurringInterval::Day,
-                    "month" => CreateProductParamsDefaultPriceDataRecurringInterval::Month,
-                    "week" => CreateProductParamsDefaultPriceDataRecurringInterval::Week,
-                    "year" => CreateProductParamsDefaultPriceDataRecurringInterval::Year,
-                    other => CreateProductParamsDefaultPriceDataRecurringInterval::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateProductParamsDefaultPriceDataRecurringInterval::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateProductParamsDefaultPriceDataRecurringInterval {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateProductParamsDefaultPriceDataRecurringInterval::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "day" => CreateProductParamsDefaultPriceDataRecurringInterval::Day,
+            "month" => CreateProductParamsDefaultPriceDataRecurringInterval::Month,
+            "week" => CreateProductParamsDefaultPriceDataRecurringInterval::Week,
+            "year" => CreateProductParamsDefaultPriceDataRecurringInterval::Year,
+            other => CreateProductParamsDefaultPriceDataRecurringInterval::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -432,7 +394,7 @@ pub struct CreateProductParamsTaxDetails {
     #[doc = "A tax location ID."]
     pub performance_location: Option<String>,
     #[doc = "A [tax code](https://docs.stripe.com/tax/tax-categories) ID."]
-    pub tax_code: Option<serde_json::Value>,
+    pub tax_code: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "products")]
@@ -446,16 +408,17 @@ impl crate::params::FormEncode for CreateProductParamsTaxDetails {
 pub type CreateProductParamsType = crate::products::ListProductsParamsType;
 
 #[cfg(feature = "products")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DeletedProduct {
     #[doc = "Always true for a deleted object"]
-    #[serde(default)]
+    #[json(default)]
     pub deleted: bool,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::products::ProductObject,
 }
 
@@ -467,16 +430,17 @@ impl crate::PagedItem for DeletedProduct {
 }
 
 #[cfg(feature = "products")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct DeletedProductFeature {
     #[doc = "Always true for a deleted object"]
-    #[serde(default)]
+    #[json(default)]
     pub deleted: bool,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::products::ProductFeatureObject,
 }
 
@@ -606,37 +570,19 @@ impl ListProductsParamsType {
 }
 
 #[cfg(feature = "products")]
-impl<'de> serde::Deserialize<'de> for ListProductsParamsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListProductsParamsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "good" => ListProductsParamsType::Good,
-                    "service" => ListProductsParamsType::Service,
-                    other => ListProductsParamsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListProductsParamsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListProductsParamsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListProductsParamsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "good" => ListProductsParamsType::Good,
+            "service" => ListProductsParamsType::Service,
+            other => ListProductsParamsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -696,67 +642,68 @@ impl crate::params::FormEncode for ListProductsParamsType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct Product {
     #[doc = "Whether the product is currently available for purchase."]
-    #[serde(default)]
+    #[json(default)]
     pub active: bool,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "The ID of the [Price](https://docs.stripe.com/api/prices) object that is the default price for this product."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_price: Option<crate::Expandable<crate::prices::Price>>,
     #[doc = "The product's description, meant to be displayable to the customer."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "A list of up to 8 URLs of images for this product, meant to be displayable to the customer."]
-    #[serde(default)]
+    #[json(default)]
     pub images: Vec<String>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "A list of up to 15 marketing features for this product."]
-    #[serde(default)]
+    #[json(default)]
     pub marketing_features: Vec<crate::products::ProductMarketingFeature>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "The product's name, meant to be displayable to the customer."]
-    #[serde(default)]
+    #[json(default)]
     pub name: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::products::ProductObject,
     #[doc = "The dimensions of this product for shipping purposes."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub package_dimensions: Option<crate::common::PackageDimensions>,
     #[doc = "Whether this product is shipped (i.e., physical goods)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub shippable: Option<bool>,
     #[doc = "Extra information about a product which will appear on your customer's credit card statement."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub statement_descriptor: Option<String>,
     #[doc = "A [tax code](https://docs.stripe.com/tax/tax-categories) ID."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_code: Option<crate::Expandable<crate::tax_codes::TaxCode>>,
     #[doc = "Tax details for this product, including the [tax code](/tax/tax-codes) and an optional performance location."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_details: Option<crate::tax::TaxProductTaxDetailsResourceTaxDetails>,
     #[doc = "The type of the product."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::products::ProductType,
     #[doc = "A label that represents units of this product."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unit_label: Option<String>,
     #[doc = "Time at which the object was last updated."]
-    #[serde(default)]
+    #[json(default)]
     pub updated: i64,
     #[doc = "A URL of a publicly-accessible webpage for this product."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 }
 
@@ -816,18 +763,19 @@ impl crate::PagedItem for Product {
 }
 
 #[cfg(feature = "products")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ProductFeature {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub entitlement_feature: Option<crate::entitlements::EntitlementsFeature>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::products::ProductFeatureObject,
 }
 
@@ -865,36 +813,18 @@ impl Default for ProductFeatureObject {
 }
 
 #[cfg(feature = "products")]
-impl<'de> serde::Deserialize<'de> for ProductFeatureObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ProductFeatureObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "product_feature" => ProductFeatureObject::ProductFeature,
-                    other => ProductFeatureObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ProductFeatureObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ProductFeatureObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ProductFeatureObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "product_feature" => ProductFeatureObject::ProductFeature,
+            other => ProductFeatureObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -947,10 +877,11 @@ impl<'de> serde::Deserialize<'de> for ProductFeatureObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ProductMarketingFeature {
     #[doc = "The marketing feature name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }
 
@@ -1173,36 +1104,18 @@ impl Default for ProductObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ProductObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ProductObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "product" => ProductObject::Product,
-                    other => ProductObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ProductObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ProductObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ProductObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "product" => ProductObject::Product,
+            other => ProductObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1427,37 +1340,19 @@ impl Default for ProductType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for ProductType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ProductType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "good" => ProductType::Good,
-                    "service" => ProductType::Service,
-                    other => ProductType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ProductType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ProductType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ProductType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "good" => ProductType::Good,
+            "service" => ProductType::Service,
+            other => ProductType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1490,13 +1385,13 @@ pub struct UpdateProductParams {
     #[doc = "The ID of the [Price](https://docs.stripe.com/api/prices) object that is the default price for this product."]
     pub default_price: Option<String>,
     #[doc = "The product's description, meant to be displayable to the customer."]
-    pub description: Option<serde_json::Value>,
+    pub description: Option<json::OwnedValue>,
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "A list of up to 8 URLs of images for this product, meant to be displayable to the customer."]
-    pub images: Option<serde_json::Value>,
+    pub images: Option<json::OwnedValue>,
     #[doc = "A list of up to 15 marketing features for this product."]
-    pub marketing_features: Option<serde_json::Value>,
+    pub marketing_features: Option<json::OwnedValue>,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "The product's name, meant to be displayable to the customer."]
@@ -1508,13 +1403,13 @@ pub struct UpdateProductParams {
     #[doc = "An arbitrary string to be displayed on your customer's credit card or bank statement."]
     pub statement_descriptor: Option<String>,
     #[doc = "A [tax code](https://docs.stripe.com/tax/tax-categories) ID."]
-    pub tax_code: Option<serde_json::Value>,
+    pub tax_code: Option<json::OwnedValue>,
     #[doc = "Tax details for this product, including the [tax code](/tax/tax-codes) and an optional performance location."]
     pub tax_details: Option<crate::products::UpdateProductParamsTaxDetails>,
     #[doc = "A label that represents units of this product."]
-    pub unit_label: Option<serde_json::Value>,
+    pub unit_label: Option<json::OwnedValue>,
     #[doc = "A URL of a publicly-accessible webpage for this product."]
-    pub url: Option<serde_json::Value>,
+    pub url: Option<json::OwnedValue>,
 }
 
 #[cfg(feature = "products")]

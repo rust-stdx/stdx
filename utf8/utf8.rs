@@ -12,24 +12,22 @@
 //!   [`core::str::from_utf8`]. On success it returns a `&str`; on failure it
 //!   returns the same [`Utf8Error`] that the standard library would return.
 //!
-//! On supported targets, long ASCII inputs are checked with SIMD instructions
-//! before the `&str` is constructed with
-//! [`core::str::from_utf8_unchecked`]. If a block contains a non-ASCII byte,
-//! the standard library validates the input instead. Inputs shorter than 64
-//! bytes and targets without a SIMD kernel also use
+//! On supported targets, long inputs are validated with the same SIMD
+//! algorithm used by simdjson/simdutf8 before the `&str` is constructed with
+//! [`core::str::from_utf8_unchecked`]. ASCII runs keep a dedicated fast path.
+//! Inputs shorter than 64 bytes and targets without a SIMD kernel use
 //! [`core::str::from_utf8`] directly.
 //!
 //! # Supported acceleration
 //!
 //! | Target | Kernel |
 //! |--------|--------|
-//! | `aarch64` | NEON ASCII fast path |
-//! | `x86_64` | AVX2 ASCII fast path |
-//! | `wasm32` with `simd128` | WASM SIMD128 ASCII fast path |
+//! | `aarch64` | NEON full validator |
+//! | `x86_64` | AVX2 full validator |
+//! | `wasm32` with `simd128` | WASM SIMD128 full validator |
 //!
-//! There is deliberately no SSE kernel. Targets without one of the kernels
-//! above use the standard library implementation. Non-ASCII input is always
-//! validated by the standard library in this version.
+//! Targets without one of the kernels above use the standard library
+//! implementation.
 //!
 //! With the default `std` feature, the fastest available kernel is selected at
 //! runtime. Without `std` (`default-features = false`), the kernel is selected
@@ -37,12 +35,12 @@
 //!
 //! # Safety
 //!
-//! This crate contains unsafe code in two places only:
+//! This crate contains unsafe code in two areas:
 //!
-//! 1. SIMD intrinsic calls inside functions with the corresponding
-//!    `#[target_feature]` attribute.
+//! 1. The SIMD validation kernels, adapted from `simdutf8` (MIT OR
+//!    Apache-2.0).
 //! 2. The single `core::str::from_utf8_unchecked` call in [`from_utf8`], made
-//!    only after [`validate`] has returned `true`.
+//!    only after validation has succeeded.
 //!
 //! The public API is safe. A false positive from [`validate`] would be a
 //! soundness bug; the SIMD kernels are tested against the standard library
@@ -69,13 +67,23 @@ pub use core::str::Utf8Error;
 #[cfg(test)]
 extern crate std;
 
+#[allow(unsafe_code)]
+mod simd_helpers;
+
+#[macro_use]
+#[allow(unsafe_code)]
+mod simd_algorithm;
+
 #[cfg(target_arch = "aarch64")]
+#[allow(unsafe_code)]
 mod utf8_neon;
 
 #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
+#[allow(unsafe_code)]
 mod utf8_avx2;
 
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+#[allow(unsafe_code)]
 mod utf8_wasm_simd128;
 
 /// Inputs shorter than this use the standard library implementation.
@@ -152,37 +160,26 @@ fn validate_impl(bytes: &[u8]) -> bool {
     {
         if std::arch::is_x86_feature_detected!("avx2") {
             // SAFETY: the runtime check above guarantees AVX2.
-            return unsafe { utf8_avx2::validate(bytes) };
+            return unsafe { utf8_avx2::validate_utf8_basic(bytes) };
         }
     }
 
     #[cfg(all(not(feature = "std"), target_arch = "x86_64", target_feature = "avx2"))]
     {
         // SAFETY: the compile-time target feature guarantees AVX2.
-        return unsafe { utf8_avx2::validate(bytes) };
+        return unsafe { utf8_avx2::validate_utf8_basic(bytes) };
     }
 
     #[cfg(target_arch = "aarch64")]
     {
-        #[cfg(feature = "std")]
-        {
-            if std::arch::is_aarch64_feature_detected!("neon") {
-                // SAFETY: the runtime check above guarantees NEON.
-                return unsafe { utf8_neon::validate(bytes) };
-            }
-        }
-
-        #[cfg(not(feature = "std"))]
-        {
-            // SAFETY: NEON is mandatory on AArch64.
-            return unsafe { utf8_neon::validate(bytes) };
-        }
+        // SAFETY: NEON is mandatory on AArch64.
+        return unsafe { utf8_neon::validate_utf8_basic(bytes) };
     }
 
     #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
     {
         // SAFETY: the compile-time target feature guarantees SIMD128.
-        return unsafe { utf8_wasm_simd128::validate(bytes) };
+        return unsafe { utf8_wasm_simd128::validate_utf8_basic(bytes) };
     }
 
     scalar_validate(bytes)
@@ -362,6 +359,19 @@ mod tests {
             invalid.push(0xff);
             assert!(!validate(&invalid));
             assert!(from_utf8(&invalid).is_err());
+        }
+    }
+
+    #[test]
+    fn long_non_ascii_and_error_positions() {
+        let text = "aé€😀".repeat(512);
+        let bytes = text.as_bytes();
+        assert!(validate(bytes));
+        assert_eq!(from_utf8(bytes).unwrap(), text);
+        for position in (0..bytes.len()).step_by(17) {
+            let mut broken = bytes.to_vec();
+            broken[position] = 0xff;
+            assert_agrees(&broken);
         }
     }
 

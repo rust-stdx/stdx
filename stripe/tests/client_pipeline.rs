@@ -5,7 +5,7 @@ mod common;
 use std::time::Duration;
 
 use common::{Fields, MockClient};
-use serde_json::Value;
+use json::OwnedValue as Value;
 use stripe::{Client, DEFAULT_API_VERSION, Error, RequestOptions};
 
 fn client(mock: MockClient) -> Client {
@@ -145,7 +145,7 @@ async fn retries_server_errors_then_succeeds() {
         .get::<Value, _>("/v1/customers/cus_1", &Fields::new())
         .await
         .expect("eventually ok");
-    assert_eq!(value["id"], "cus_1");
+    assert_eq!(value["id"].as_str(), Some("cus_1"));
     assert_eq!(mock.request_count(), 2);
 }
 

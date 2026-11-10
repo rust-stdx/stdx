@@ -1,7 +1,7 @@
-//! `json` / `jsonb` support via `serde`.
+//! `json` / `jsonb` support via the stdx `json` crate.
 //!
-//! [`Json`] stores any `serde`-serializable value in a PostgreSQL `json` or
-//! `jsonb` column. It is the escape hatch for the cases where the preferred
+//! [`Json`] stores any `json::Encode`/`json::Decode` value in a PostgreSQL
+//! `json` or `jsonb` column. It is the escape hatch for the cases where the preferred
 //! `#[derive(Json)]` form cannot be used:
 //!
 //! * the type already derives [`FromRow`](crate::FromRow) and is row-shaped,

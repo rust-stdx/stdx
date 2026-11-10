@@ -53,55 +53,56 @@
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BalanceTransaction {
     #[doc = "Gross amount of this transaction (in cents (or local equivalent))."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "The date that the transaction's net funds become available in the Stripe balance."]
-    #[serde(default)]
+    #[json(default)]
     pub available_on: i64,
     #[doc = "The balance that this transaction impacts."]
-    #[serde(default)]
+    #[json(default)]
     pub balance_type: crate::balance_transactions::BalanceTransactionBalanceType,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[doc = "If applicable, this transaction uses an exchange rate."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub exchange_rate: Option<f64>,
     #[doc = "Fees (in cents (or local equivalent)) paid for this transaction."]
-    #[serde(default)]
+    #[json(default)]
     pub fee: i64,
     #[doc = "Detailed breakdown of fees (in cents (or local equivalent)) paid for this transaction."]
-    #[serde(default)]
+    #[json(default)]
     pub fee_details: Vec<crate::common::Fee>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "Net impact to a Stripe balance (in cents (or local equivalent))."]
-    #[serde(default)]
+    #[json(default)]
     pub net: i64,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::balance_transactions::BalanceTransactionObject,
     #[doc = "Learn more about how [reporting categories](https://stripe.com/docs/reports/reporting-categories) can help you unders..."]
-    #[serde(default)]
+    #[json(default)]
     pub reporting_category: String,
     #[doc = "This transaction relates to the Stripe object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<crate::Expandable<crate::balance_transactions::BalanceTransactionSource>>,
     #[doc = "The transaction's net funds status in the Stripe balance, which are either `available` or `pending`."]
-    #[serde(default)]
+    #[json(default)]
     pub status: String,
     #[doc = "Transaction type: `tax_fund`, `adjustment`, `advance`, `advance_funding`, `anticipation_repayment`, `application_fee`..."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::balance_transactions::BalanceTransactionType,
 }
 
@@ -365,39 +366,21 @@ impl Default for BalanceTransactionBalanceType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for BalanceTransactionBalanceType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BalanceTransactionBalanceType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "issuing" => BalanceTransactionBalanceType::Issuing,
-                    "payments" => BalanceTransactionBalanceType::Payments,
-                    "refund_and_dispute_prefunding" => BalanceTransactionBalanceType::RefundAndDisputePrefunding,
-                    "risk_reserved" => BalanceTransactionBalanceType::RiskReserved,
-                    other => BalanceTransactionBalanceType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BalanceTransactionBalanceType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BalanceTransactionBalanceType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BalanceTransactionBalanceType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "issuing" => BalanceTransactionBalanceType::Issuing,
+            "payments" => BalanceTransactionBalanceType::Payments,
+            "refund_and_dispute_prefunding" => BalanceTransactionBalanceType::RefundAndDisputePrefunding,
+            "risk_reserved" => BalanceTransactionBalanceType::RiskReserved,
+            other => BalanceTransactionBalanceType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -604,36 +587,18 @@ impl Default for BalanceTransactionObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for BalanceTransactionObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BalanceTransactionObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "balance_transaction" => BalanceTransactionObject::BalanceTransaction,
-                    other => BalanceTransactionObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BalanceTransactionObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BalanceTransactionObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BalanceTransactionObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "balance_transaction" => BalanceTransactionObject::BalanceTransaction,
+            other => BalanceTransactionObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -717,7 +682,7 @@ pub enum BalanceTransactionSource {
     /// Expanded `transfer_reversal`.
     TransferReversal(Box<crate::transfers::TransferReversal>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -765,62 +730,48 @@ pub enum BalanceTransactionSource {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for BalanceTransactionSource {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for BalanceTransactionSource {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "application_fee" => BalanceTransactionSource::ApplicationFee(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
-            "charge" => BalanceTransactionSource::Charge(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "application_fee" => {
+                BalanceTransactionSource::ApplicationFee(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
+            "charge" => BalanceTransactionSource::Charge(Box::new(json::from_slice_owned(&json::to_vec(&value))?)),
             "connect_collection_transfer" => BalanceTransactionSource::ConnectCollectionTransfer(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
+                json::from_slice_owned(&json::to_vec(&value))?,
             )),
             "customer_cash_balance_transaction" => BalanceTransactionSource::CustomerCashBalanceTransaction(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
+                json::from_slice_owned(&json::to_vec(&value))?,
             )),
-            "dispute" => BalanceTransactionSource::Dispute(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
-            "fee_refund" => BalanceTransactionSource::FeeRefund(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
-            "issuing.authorization" => BalanceTransactionSource::IssuingAuthorization(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
-            "issuing.dispute" => BalanceTransactionSource::IssuingDispute(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
-            "issuing.transaction" => BalanceTransactionSource::IssuingTransaction(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
-            "payout" => BalanceTransactionSource::Payout(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
-            "refund" => BalanceTransactionSource::Refund(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
-            "reserve_transaction" => BalanceTransactionSource::ReserveTransaction(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
-            "tax_deducted_at_source" => BalanceTransactionSource::TaxDeductedAtSource(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
-            "topup" => BalanceTransactionSource::Topup(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
-            "transfer" => BalanceTransactionSource::Transfer(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
-            "transfer_reversal" => BalanceTransactionSource::TransferReversal(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "dispute" => BalanceTransactionSource::Dispute(Box::new(json::from_slice_owned(&json::to_vec(&value))?)),
+            "fee_refund" => {
+                BalanceTransactionSource::FeeRefund(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
+            "issuing.authorization" => {
+                BalanceTransactionSource::IssuingAuthorization(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
+            "issuing.dispute" => {
+                BalanceTransactionSource::IssuingDispute(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
+            "issuing.transaction" => {
+                BalanceTransactionSource::IssuingTransaction(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
+            "payout" => BalanceTransactionSource::Payout(Box::new(json::from_slice_owned(&json::to_vec(&value))?)),
+            "refund" => BalanceTransactionSource::Refund(Box::new(json::from_slice_owned(&json::to_vec(&value))?)),
+            "reserve_transaction" => {
+                BalanceTransactionSource::ReserveTransaction(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
+            "tax_deducted_at_source" => {
+                BalanceTransactionSource::TaxDeductedAtSource(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
+            "topup" => BalanceTransactionSource::Topup(Box::new(json::from_slice_owned(&json::to_vec(&value))?)),
+            "transfer" => BalanceTransactionSource::Transfer(Box::new(json::from_slice_owned(&json::to_vec(&value))?)),
+            "transfer_reversal" => {
+                BalanceTransactionSource::TransferReversal(Box::new(json::from_slice_owned(&json::to_vec(&value))?))
+            }
             _ => BalanceTransactionSource::Other(value),
         })
     }
@@ -1133,91 +1084,71 @@ impl Default for BalanceTransactionType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for BalanceTransactionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BalanceTransactionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "adjustment" => BalanceTransactionType::Adjustment,
-                    "advance" => BalanceTransactionType::Advance,
-                    "advance_funding" => BalanceTransactionType::AdvanceFunding,
-                    "anticipation_repayment" => BalanceTransactionType::AnticipationRepayment,
-                    "application_fee" => BalanceTransactionType::ApplicationFee,
-                    "application_fee_refund" => BalanceTransactionType::ApplicationFeeRefund,
-                    "charge" => BalanceTransactionType::Charge,
-                    "climate_order_purchase" => BalanceTransactionType::ClimateOrderPurchase,
-                    "climate_order_refund" => BalanceTransactionType::ClimateOrderRefund,
-                    "connect_collection_transfer" => BalanceTransactionType::ConnectCollectionTransfer,
-                    "contribution" => BalanceTransactionType::Contribution,
-                    "fee_credit_funding" => BalanceTransactionType::FeeCreditFunding,
-                    "inbound_transfer" => BalanceTransactionType::InboundTransfer,
-                    "inbound_transfer_reversal" => BalanceTransactionType::InboundTransferReversal,
-                    "issuing_authorization_hold" => BalanceTransactionType::IssuingAuthorizationHold,
-                    "issuing_authorization_release" => BalanceTransactionType::IssuingAuthorizationRelease,
-                    "issuing_dispute" => BalanceTransactionType::IssuingDispute,
-                    "issuing_dispute_provisional_credit" => BalanceTransactionType::IssuingDisputeProvisionalCredit,
-                    "issuing_dispute_provisional_credit_reversal" => {
-                        BalanceTransactionType::IssuingDisputeProvisionalCreditReversal
-                    }
-                    "issuing_transaction" => BalanceTransactionType::IssuingTransaction,
-                    "obligation_outbound" => BalanceTransactionType::ObligationOutbound,
-                    "obligation_reversal_inbound" => BalanceTransactionType::ObligationReversalInbound,
-                    "payment" => BalanceTransactionType::Payment,
-                    "payment_failure_refund" => BalanceTransactionType::PaymentFailureRefund,
-                    "payment_network_reserve_hold" => BalanceTransactionType::PaymentNetworkReserveHold,
-                    "payment_network_reserve_release" => BalanceTransactionType::PaymentNetworkReserveRelease,
-                    "payment_refund" => BalanceTransactionType::PaymentRefund,
-                    "payment_reversal" => BalanceTransactionType::PaymentReversal,
-                    "payment_unreconciled" => BalanceTransactionType::PaymentUnreconciled,
-                    "payout" => BalanceTransactionType::Payout,
-                    "payout_cancel" => BalanceTransactionType::PayoutCancel,
-                    "payout_failure" => BalanceTransactionType::PayoutFailure,
-                    "payout_minimum_balance_hold" => BalanceTransactionType::PayoutMinimumBalanceHold,
-                    "payout_minimum_balance_release" => BalanceTransactionType::PayoutMinimumBalanceRelease,
-                    "refund" => BalanceTransactionType::Refund,
-                    "refund_failure" => BalanceTransactionType::RefundFailure,
-                    "reserve_hold" => BalanceTransactionType::ReserveHold,
-                    "reserve_release" => BalanceTransactionType::ReserveRelease,
-                    "reserve_transaction" => BalanceTransactionType::ReserveTransaction,
-                    "reserved_funds" => BalanceTransactionType::ReservedFunds,
-                    "stripe_balance_payment_debit" => BalanceTransactionType::StripeBalancePaymentDebit,
-                    "stripe_balance_payment_debit_reversal" => {
-                        BalanceTransactionType::StripeBalancePaymentDebitReversal
-                    }
-                    "stripe_fee" => BalanceTransactionType::StripeFee,
-                    "stripe_fx_fee" => BalanceTransactionType::StripeFxFee,
-                    "tax_fee" => BalanceTransactionType::TaxFee,
-                    "tax_fund" => BalanceTransactionType::TaxFund,
-                    "topup" => BalanceTransactionType::Topup,
-                    "topup_reversal" => BalanceTransactionType::TopupReversal,
-                    "transfer" => BalanceTransactionType::Transfer,
-                    "transfer_cancel" => BalanceTransactionType::TransferCancel,
-                    "transfer_failure" => BalanceTransactionType::TransferFailure,
-                    "transfer_refund" => BalanceTransactionType::TransferRefund,
-                    other => BalanceTransactionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BalanceTransactionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BalanceTransactionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BalanceTransactionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "adjustment" => BalanceTransactionType::Adjustment,
+            "advance" => BalanceTransactionType::Advance,
+            "advance_funding" => BalanceTransactionType::AdvanceFunding,
+            "anticipation_repayment" => BalanceTransactionType::AnticipationRepayment,
+            "application_fee" => BalanceTransactionType::ApplicationFee,
+            "application_fee_refund" => BalanceTransactionType::ApplicationFeeRefund,
+            "charge" => BalanceTransactionType::Charge,
+            "climate_order_purchase" => BalanceTransactionType::ClimateOrderPurchase,
+            "climate_order_refund" => BalanceTransactionType::ClimateOrderRefund,
+            "connect_collection_transfer" => BalanceTransactionType::ConnectCollectionTransfer,
+            "contribution" => BalanceTransactionType::Contribution,
+            "fee_credit_funding" => BalanceTransactionType::FeeCreditFunding,
+            "inbound_transfer" => BalanceTransactionType::InboundTransfer,
+            "inbound_transfer_reversal" => BalanceTransactionType::InboundTransferReversal,
+            "issuing_authorization_hold" => BalanceTransactionType::IssuingAuthorizationHold,
+            "issuing_authorization_release" => BalanceTransactionType::IssuingAuthorizationRelease,
+            "issuing_dispute" => BalanceTransactionType::IssuingDispute,
+            "issuing_dispute_provisional_credit" => BalanceTransactionType::IssuingDisputeProvisionalCredit,
+            "issuing_dispute_provisional_credit_reversal" => {
+                BalanceTransactionType::IssuingDisputeProvisionalCreditReversal
+            }
+            "issuing_transaction" => BalanceTransactionType::IssuingTransaction,
+            "obligation_outbound" => BalanceTransactionType::ObligationOutbound,
+            "obligation_reversal_inbound" => BalanceTransactionType::ObligationReversalInbound,
+            "payment" => BalanceTransactionType::Payment,
+            "payment_failure_refund" => BalanceTransactionType::PaymentFailureRefund,
+            "payment_network_reserve_hold" => BalanceTransactionType::PaymentNetworkReserveHold,
+            "payment_network_reserve_release" => BalanceTransactionType::PaymentNetworkReserveRelease,
+            "payment_refund" => BalanceTransactionType::PaymentRefund,
+            "payment_reversal" => BalanceTransactionType::PaymentReversal,
+            "payment_unreconciled" => BalanceTransactionType::PaymentUnreconciled,
+            "payout" => BalanceTransactionType::Payout,
+            "payout_cancel" => BalanceTransactionType::PayoutCancel,
+            "payout_failure" => BalanceTransactionType::PayoutFailure,
+            "payout_minimum_balance_hold" => BalanceTransactionType::PayoutMinimumBalanceHold,
+            "payout_minimum_balance_release" => BalanceTransactionType::PayoutMinimumBalanceRelease,
+            "refund" => BalanceTransactionType::Refund,
+            "refund_failure" => BalanceTransactionType::RefundFailure,
+            "reserve_hold" => BalanceTransactionType::ReserveHold,
+            "reserve_release" => BalanceTransactionType::ReserveRelease,
+            "reserve_transaction" => BalanceTransactionType::ReserveTransaction,
+            "reserved_funds" => BalanceTransactionType::ReservedFunds,
+            "stripe_balance_payment_debit" => BalanceTransactionType::StripeBalancePaymentDebit,
+            "stripe_balance_payment_debit_reversal" => BalanceTransactionType::StripeBalancePaymentDebitReversal,
+            "stripe_fee" => BalanceTransactionType::StripeFee,
+            "stripe_fx_fee" => BalanceTransactionType::StripeFxFee,
+            "tax_fee" => BalanceTransactionType::TaxFee,
+            "tax_fund" => BalanceTransactionType::TaxFund,
+            "topup" => BalanceTransactionType::Topup,
+            "topup_reversal" => BalanceTransactionType::TopupReversal,
+            "transfer" => BalanceTransactionType::Transfer,
+            "transfer_cancel" => BalanceTransactionType::TransferCancel,
+            "transfer_failure" => BalanceTransactionType::TransferFailure,
+            "transfer_refund" => BalanceTransactionType::TransferRefund,
+            other => BalanceTransactionType::Unknown(other.to_string()),
+        })
     }
 }
 

@@ -2,8 +2,6 @@
 
 use core::fmt;
 
-use serde::Deserialize;
-
 /// A transport-level error returned by an [`HttpClient`](crate::HttpClient).
 pub type HttpError = Box<dyn core::error::Error + Send + Sync>;
 
@@ -14,47 +12,47 @@ pub type HttpError = Box<dyn core::error::Error + Send + Sync>;
 /// never fail to *report its failure* because the client did not know a value.
 /// Unknown fields are ignored, and unknown values are preserved verbatim in the
 /// corresponding `String`.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, json::Decode)]
 pub struct ApiErrorBody {
     /// The kind of error: `api_error`, `card_error`, `invalid_request_error`,
     /// `idempotency_error`, or a newer value.
-    #[serde(default, rename = "type")]
+    #[json(default, rename = "type")]
     pub type_: Option<String>,
     /// A machine-readable error code, for example `card_declined`.
     ///
     /// Codes are not an enum here: Stripe introduces new codes regularly and
     /// clients must keep working when they do.
-    #[serde(default)]
+    #[json(default)]
     pub code: Option<String>,
     /// For card errors, the specific decline code returned by the issuer.
-    #[serde(default)]
+    #[json(default)]
     pub decline_code: Option<String>,
     /// A human-readable message describing the error.
-    #[serde(default)]
+    #[json(default)]
     pub message: Option<String>,
     /// The parameter that caused the error, when the error is tied to one.
-    #[serde(default)]
+    #[json(default)]
     pub param: Option<String>,
     /// A link to the API reference for the error.
-    #[serde(default)]
+    #[json(default)]
     pub doc_url: Option<String>,
     /// The ID of the failed charge, for card errors.
-    #[serde(default)]
+    #[json(default)]
     pub charge: Option<String>,
     /// The ID of the PaymentIntent, when the error is tied to one.
-    #[serde(default)]
+    #[json(default)]
     pub payment_intent: Option<String>,
     /// The ID of the SetupIntent, when the error is tied to one.
-    #[serde(default)]
+    #[json(default)]
     pub setup_intent: Option<String>,
     /// The ID of the PaymentMethod, when the error is tied to one.
-    #[serde(default)]
+    #[json(default)]
     pub payment_method: Option<String>,
     /// The ID of the Source, when the error is tied to one.
-    #[serde(default)]
+    #[json(default)]
     pub source: Option<String>,
     /// A URL to the request in the Stripe dashboard.
-    #[serde(default)]
+    #[json(default)]
     pub request_log_url: Option<String>,
 }
 
@@ -128,7 +126,7 @@ pub enum Error {
         /// The `Request-Id` header, when present.
         request_id: Option<String>,
         /// The underlying decoding error.
-        source: serde_json::Error,
+        source: json::Error,
     },
     /// A webhook signature could not be verified. See [`WebhookError`].
     Webhook(WebhookError),

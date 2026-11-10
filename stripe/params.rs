@@ -24,7 +24,7 @@
 //!   (`name=a&name=b`); the generated encoders pick the right one.
 //!
 //! The v2 JSON APIs take JSON bodies instead; those types implement
-//! `serde::Serialize` and are sent as `application/json`.
+//! `json::Encode` and are sent as `application/json`.
 
 use core::fmt::{self, Write as _};
 
@@ -325,7 +325,7 @@ impl<T: FormEncode + ?Sized> FormEncode for &T {
 }
 
 /// A parameter type with no fields, used by operations that take none.
-#[derive(Debug, Clone, Copy, Default, serde::Serialize)]
+#[derive(Debug, Clone, Copy, Default, json::Encode, json::Decode)]
 pub struct Empty;
 
 impl FormEncode for Empty {

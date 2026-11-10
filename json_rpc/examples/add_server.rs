@@ -15,8 +15,7 @@ async fn main() {
     // --- Single requests ---
 
     let call = |method, params| {
-        serde_json::from_str(&serde_json::json!({"jsonrpc":"2.0","method":method,"params":params,"id":1}).to_string())
-            .unwrap()
+        json::from_str(&json::json!({"jsonrpc":"2.0","method":method,"params":params,"id":1}).to_string()).unwrap()
     };
 
     let resp = server.handle((), RequestMessage::Single(call("add", [3, 4]))).await;
@@ -40,7 +39,7 @@ async fn main() {
 
     // --- Notification (no response expected) ---
 
-    let notif = serde_json::from_str(r#"{"jsonrpc":"2.0","method":"add","params":[1,1]}"#).unwrap();
+    let notif = json::from_str(r#"{"jsonrpc":"2.0","method":"add","params":[1,1]}"#).unwrap();
     let resp = server.handle((), RequestMessage::Single(notif)).await;
     println!("notif      => {:?}", resp); // None
 
@@ -49,7 +48,7 @@ async fn main() {
     let resp = server
         .handle(
             (),
-            RequestMessage::Single(serde_json::from_str(r#"{"jsonrpc":"2.0","method":"unknown","id":1}"#).unwrap()),
+            RequestMessage::Single(json::from_str(r#"{"jsonrpc":"2.0","method":"unknown","id":1}"#).unwrap()),
         )
         .await;
     println!("unknown    => {}", json_from_resp(&resp));
@@ -61,14 +60,14 @@ async fn main() {
         {"jsonrpc":"2.0","method":"multiply","params":[3,4],"id":"b"},
         {"jsonrpc":"2.0","method":"subtract","params":[10,7],"id":"c"}
     ]"#;
-    let message: RequestMessage = serde_json::from_str(batch_json).unwrap();
+    let message: RequestMessage = json::from_str(batch_json).unwrap();
     let resp = server.handle((), message).await;
     println!("batch      => {}", json_from_resp(&resp));
 }
 
 fn json_from_resp(message: &Option<json_rpc::ResponseMessage>) -> String {
     match message {
-        Some(m) => serde_json::to_string(m).unwrap(),
+        Some(m) => json::to_string(m),
         None => "nothing".to_string(),
     }
 }

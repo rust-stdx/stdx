@@ -16,7 +16,7 @@ pub enum TypeRef {
     F64,
     /// `String`
     Str,
-    /// `serde_json::Value`
+    /// `json::Value`
     Json,
     /// A generated type, stored as a fully-qualified path.
     Named(String),
@@ -42,7 +42,7 @@ impl TypeRef {
             TypeRef::U64 => "u64".to_string(),
             TypeRef::F64 => "f64".to_string(),
             TypeRef::Str => "String".to_string(),
-            TypeRef::Json => "serde_json::Value".to_string(),
+            TypeRef::Json => "json::OwnedValue".to_string(),
             TypeRef::Named(path) => path.clone(),
             TypeRef::Vec(inner) => format!("Vec<{}>", inner.render()),
             TypeRef::List(inner) => format!("crate::List<{}>", inner.render()),

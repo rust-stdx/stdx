@@ -1,3 +1,5 @@
+use alloc::{borrow::Cow, string::ToString};
+
 use crypto::{
     curve25519::ed25519,
     mldsa::{
@@ -5,12 +7,12 @@ use crypto::{
     },
     p256, p384, p521,
 };
-use serde::{Deserialize, Serialize};
+use json::{Decode, Decoder, Encode, Encoder, ErrorKind, Result, Write};
 use small_collections::{SmallString, SmallVec};
 
 use crate::{Algorithm, Error, RsaPublicKey, SecretKey};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, json::Encode, json::Decode)]
 pub struct Jwks {
     pub keys: SmallVec<Jwk, 5>,
 }
@@ -20,65 +22,247 @@ pub struct Jwks {
 /// https://www.rfc-editor.org/rfc/rfc8037
 /// https://www.ietf.org/archive/id/draft-ietf-jose-pqc-02.html
 /// Note: Jwk are not validated during deserialization
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Jwk {
     pub kid: SmallString<36>, // 36 = UUID length
     pub r#use: KeyUse,
-    #[serde(rename = "alg")]
     pub algorithm: Algorithm,
 
-    #[serde(flatten)]
     pub crypto: JwkCrypto,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE", tag = "kty")]
+impl Encode for Jwk {
+    fn encode<W: Write>(&self, encoder: &mut Encoder<W>) -> core::result::Result<(), W::Error> {
+        let mut map = json::Map::new();
+        map.push(Cow::Borrowed("kid"), json::Value::from(self.kid.as_str()));
+        map.push(
+            Cow::Borrowed("use"),
+            json::Value::from(match self.r#use {
+                KeyUse::Sign => "sig",
+                KeyUse::Encrypt => "enc",
+            }),
+        );
+        map.push(Cow::Borrowed("alg"), json::Value::from(self.algorithm.to_string()));
+        match &self.crypto {
+            JwkCrypto::Okp {
+                curve,
+                x,
+                d,
+            } => {
+                map.push(Cow::Borrowed("kty"), json::Value::from("OKP"));
+                map.push(Cow::Borrowed("crv"), json::Value::from(curve.to_string()));
+                map.push(
+                    Cow::Borrowed("x"),
+                    json::Value::from(base64::encode(x, base64::Alphabet::UrlNoPadding)),
+                );
+                if let Some(d) = d {
+                    map.push(
+                        Cow::Borrowed("d"),
+                        json::Value::from(base64::encode(d, base64::Alphabet::UrlNoPadding)),
+                    );
+                }
+            }
+            JwkCrypto::Ec {
+                curve,
+                x,
+                y,
+                d,
+            } => {
+                map.push(Cow::Borrowed("kty"), json::Value::from("EC"));
+                map.push(Cow::Borrowed("crv"), json::Value::from(curve.to_string()));
+                map.push(
+                    Cow::Borrowed("x"),
+                    json::Value::from(base64::encode(x, base64::Alphabet::UrlNoPadding)),
+                );
+                map.push(
+                    Cow::Borrowed("y"),
+                    json::Value::from(base64::encode(y, base64::Alphabet::UrlNoPadding)),
+                );
+                if let Some(d) = d {
+                    map.push(
+                        Cow::Borrowed("d"),
+                        json::Value::from(base64::encode(d, base64::Alphabet::UrlNoPadding)),
+                    );
+                }
+            }
+            JwkCrypto::Oct {
+                key,
+            } => {
+                map.push(Cow::Borrowed("kty"), json::Value::from("oct"));
+                map.push(
+                    Cow::Borrowed("key"),
+                    json::Value::from(base64::encode(key, base64::Alphabet::UrlNoPadding)),
+                );
+            }
+            JwkCrypto::Rsa {
+                n,
+                e,
+            } => {
+                map.push(Cow::Borrowed("kty"), json::Value::from("RSA"));
+                map.push(
+                    Cow::Borrowed("n"),
+                    json::Value::from(base64::encode(n, base64::Alphabet::UrlNoPadding)),
+                );
+                map.push(
+                    Cow::Borrowed("e"),
+                    json::Value::from(base64::encode(e, base64::Alphabet::UrlNoPadding)),
+                );
+            }
+            JwkCrypto::Akp {
+                pub_key,
+                private_key,
+            } => {
+                map.push(Cow::Borrowed("kty"), json::Value::from("AKP"));
+                map.push(
+                    Cow::Borrowed("pub"),
+                    json::Value::from(base64::encode(pub_key, base64::Alphabet::UrlNoPadding)),
+                );
+                if let Some(private) = private_key {
+                    map.push(
+                        Cow::Borrowed("priv"),
+                        json::Value::from(base64::encode(private, base64::Alphabet::UrlNoPadding)),
+                    );
+                }
+            }
+        }
+        json::Value::Object(map).encode(encoder)
+    }
+}
+
+impl<'a> Decode<'a> for Jwk {
+    fn decode(decoder: &mut Decoder<'a>) -> Result<Self> {
+        let value = decoder.decode::<json::Value<'a>>()?;
+        let object = value
+            .as_object()
+            .ok_or_else(|| decoder.error(ErrorKind::Message("JWK must be an object")))?;
+
+        let kid = field_str(object, "kid")?;
+        let key_use = match field_str(object, "use")? {
+            "sig" => KeyUse::Sign,
+            "enc" => KeyUse::Encrypt,
+            _ => return Err(decoder.error(ErrorKind::Message("invalid JWK use"))),
+        };
+        let algorithm = field_str(object, "alg")?
+            .parse::<Algorithm>()
+            .map_err(|_| decoder.error(ErrorKind::Message("invalid JWK algorithm")))?;
+
+        let crypto = match field_str(object, "kty")? {
+            "OKP" => JwkCrypto::Okp {
+                curve: field_str(object, "crv")?
+                    .parse::<OkpCurve>()
+                    .map_err(|_| decoder.error(ErrorKind::Message("invalid OKP curve")))?,
+                x: field_b64(object, "x")?,
+                d: field_b64_opt(object, "d")?,
+            },
+            "EC" => JwkCrypto::Ec {
+                curve: field_str(object, "crv")?
+                    .parse::<EcCurve>()
+                    .map_err(|_| decoder.error(ErrorKind::Message("invalid EC curve")))?,
+                x: field_b64(object, "x")?,
+                y: field_b64(object, "y")?,
+                d: field_b64_opt(object, "d")?,
+            },
+            "oct" => JwkCrypto::Oct {
+                key: field_b64(object, "key")?,
+            },
+            "RSA" => JwkCrypto::Rsa {
+                n: field_b64(object, "n")?,
+                e: field_b64(object, "e")?,
+            },
+            "AKP" => JwkCrypto::Akp {
+                pub_key: field_b64(object, "pub")?,
+                private_key: field_b64_opt(object, "priv")?,
+            },
+            _ => return Err(decoder.error(ErrorKind::Message("invalid JWK key type"))),
+        };
+
+        Ok(Jwk {
+            kid: SmallString::from_str(kid),
+            r#use: key_use,
+            algorithm,
+            crypto,
+        })
+    }
+}
+
+fn field_str<'a, 'v>(object: &'v json::Map<'a>, name: &'static str) -> Result<&'v str> {
+    object
+        .get(name)
+        .and_then(json::Value::as_str)
+        .ok_or_else(|| json::Error::message(name, 0))
+}
+
+fn field_b64<'a, 'v, const N: usize>(object: &'v json::Map<'a>, name: &'static str) -> Result<SmallVec<u8, N>> {
+    let text = field_str(object, name)?;
+    base64::decode(text.as_bytes(), base64::Alphabet::UrlNoPadding)
+        .map(SmallVec::from)
+        .map_err(|_| json::Error::message(name, 0))
+}
+
+fn field_b64_opt<'a, 'v, const N: usize>(
+    object: &'v json::Map<'a>,
+    name: &'static str,
+) -> Result<Option<SmallVec<u8, N>>> {
+    match object.get(name) {
+        None => Ok(None),
+        Some(value) => {
+            let text = value.as_str().ok_or_else(|| json::Error::message(name, 0))?;
+            base64::decode(text.as_bytes(), base64::Alphabet::UrlNoPadding)
+                .map(SmallVec::from)
+                .map(Some)
+                .map_err(|_| json::Error::message(name, 0))
+        }
+    }
+}
+
+#[derive(Debug, Clone, json::Encode, json::Decode)]
+#[json(rename_all = "UPPERCASE", tag = "kty")]
 pub enum JwkCrypto {
     /// EdDSA
     Okp {
-        #[serde(rename = "crv")]
+        #[json(rename = "crv")]
         curve: OkpCurve,
-        #[serde(with = "base64_url_no_padding")]
+        #[json(with = "base64_url_no_padding")]
         x: SmallVec<u8, 32>,
-        #[serde(with = "base64_url_no_padding::option", skip_serializing_if = "Option::is_none")]
+        #[json(with = "base64_url_no_padding::option", skip_serializing_if = "Option::is_none")]
         d: Option<SmallVec<u8, 32>>,
     },
     /// ECDSA
     Ec {
-        #[serde(rename = "crv")]
+        #[json(rename = "crv")]
         curve: EcCurve,
-        #[serde(with = "base64_url_no_padding")]
+        #[json(with = "base64_url_no_padding")]
         x: SmallVec<u8, 32>,
-        #[serde(with = "base64_url_no_padding")]
+        #[json(with = "base64_url_no_padding")]
         y: SmallVec<u8, 32>,
-        #[serde(with = "base64_url_no_padding::option", skip_serializing_if = "Option::is_none")]
+        #[json(with = "base64_url_no_padding::option", skip_serializing_if = "Option::is_none")]
         d: Option<SmallVec<u8, 32>>,
     },
     /// Static keys
-    #[serde(rename = "oct")]
+    #[json(rename = "oct")]
     Oct {
-        #[serde(with = "base64_url_no_padding")]
+        #[json(with = "base64_url_no_padding")]
         key: SmallVec<u8, 32>,
     },
     /// RSA public key
-    #[serde(rename = "RSA")]
+    #[json(rename = "RSA")]
     Rsa {
         // Always heap-allocated. We use a `SmallVec` to avoid needing a separate implmentation for
         // serde's `base64_url_no_padding`.
-        #[serde(with = "base64_url_no_padding")]
+        #[json(with = "base64_url_no_padding")]
         n: SmallVec<u8, 0>,
-        #[serde(with = "base64_url_no_padding")]
+        #[json(with = "base64_url_no_padding")]
         e: SmallVec<u8, 4>,
     },
     /// ML-DSA public key (draft "AKP" key type)
     ///
     /// `pub` holds the encoded public key and the optional `priv` holds the 32-byte seed the
     /// signing key was generated from.
-    #[serde(rename = "AKP")]
+    #[json(rename = "AKP")]
     Akp {
-        #[serde(rename = "pub", with = "base64_url_no_padding")]
+        #[json(rename = "pub", with = "base64_url_no_padding")]
         pub_key: SmallVec<u8, 0>,
-        #[serde(
+        #[json(
             rename = "priv",
             with = "base64_url_no_padding::option",
             skip_serializing_if = "Option::is_none"
@@ -87,18 +271,18 @@ pub enum JwkCrypto {
     },
 }
 
-#[derive(Copy, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Copy, Debug, Clone, json::Encode, json::Decode, PartialEq, Eq)]
 pub enum KeyUse {
-    #[serde(rename = "sig")]
+    #[json(rename = "sig")]
     Sign,
-    #[serde(rename = "enc")]
+    #[json(rename = "enc")]
     Encrypt,
 }
 
 // https://csrc.nist.gov/pubs/fips/186-5/final
 // https://csrc.nist.gov/pubs/sp/800/186/final
 // https://www.rfc-editor.org/rfc/rfc8032
-#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, json::Decode, json::Encode, PartialEq, Eq)]
 pub enum OkpCurve {
     Ed25519,
 }
@@ -120,19 +304,42 @@ impl core::fmt::Display for OkpCurve {
     }
 }
 
-#[derive(Copy, Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, json::Decode, json::Encode, PartialEq, Eq)]
 pub enum EcCurve {
     /// P-256 and SHA-256
-    #[serde(rename = "P-256")]
+    #[json(rename = "P-256")]
     P256,
 
     /// P-384 and SHA-384
-    #[serde(rename = "P-384")]
+    #[json(rename = "P-384")]
     P384,
 
     /// P-521 and SHA-512
-    #[serde(rename = "P-521")]
+    #[json(rename = "P-521")]
     P521,
+}
+
+impl core::str::FromStr for EcCurve {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "P-256" => Ok(EcCurve::P256),
+            "P-384" => Ok(EcCurve::P384),
+            "P-521" => Ok(EcCurve::P521),
+            _ => Err(Error::InvalidCurve),
+        }
+    }
+}
+
+impl core::fmt::Display for EcCurve {
+    fn fmt(&self, f: &mut alloc::fmt::Formatter<'_>) -> alloc::fmt::Result {
+        f.write_str(match self {
+            EcCurve::P256 => "P-256",
+            EcCurve::P384 => "P-384",
+            EcCurve::P521 => "P-521",
+        })
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -688,47 +895,48 @@ impl TryFrom<&Jwk> for MlDsa87SecretKey {
 
 mod base64_url_no_padding {
     use base64::{Alphabet, decode, encode};
-    use serde::{Deserializer, Serializer};
+    use json::{Decoder, Encoder, ErrorKind, Write};
 
     use super::*;
 
-    pub fn serialize<S: Serializer, const N: usize>(data: &SmallVec<u8, N>, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&encode(data, Alphabet::UrlNoPadding))
+    pub fn serialize<W: Write, const N: usize>(
+        data: &SmallVec<u8, N>,
+        encoder: &mut Encoder<W>,
+    ) -> core::result::Result<(), W::Error> {
+        encoder.string(&encode(data, Alphabet::UrlNoPadding))
     }
 
-    pub fn deserialize<'de, D: Deserializer<'de>, const N: usize>(
-        deserializer: D,
-    ) -> Result<SmallVec<u8, N>, D::Error> {
-        let s = <&str>::deserialize(deserializer)?;
-        let bytes = decode(s.as_bytes(), Alphabet::UrlNoPadding).map_err(serde::de::Error::custom)?;
-        Ok(SmallVec::from(bytes))
+    pub fn deserialize<'a, const N: usize>(decoder: &mut Decoder<'a>) -> Result<SmallVec<u8, N>> {
+        let text = decoder.decode_str()?;
+        decode(text.as_bytes(), Alphabet::UrlNoPadding)
+            .map(SmallVec::from)
+            .map_err(|_| decoder.error(ErrorKind::Message("invalid base64")))
     }
 
     pub(crate) mod option {
-        use alloc::string::String;
-
         use super::*;
 
-        pub fn serialize<S: Serializer, const N: usize>(
+        pub fn serialize<W: Write, const N: usize>(
             data: &Option<SmallVec<u8, N>>,
-            serializer: S,
-        ) -> Result<S::Ok, S::Error> {
+            encoder: &mut Encoder<W>,
+        ) -> core::result::Result<(), W::Error> {
             match data {
-                Some(val) => serializer.serialize_str(&encode(val, Alphabet::UrlNoPadding)),
-                None => serializer.serialize_none(),
+                Some(value) => encoder.string(&encode(value, Alphabet::UrlNoPadding)),
+                None => encoder.null(),
             }
         }
 
-        pub fn deserialize<'de, D: Deserializer<'de>, const N: usize>(
-            deserializer: D,
-        ) -> Result<Option<SmallVec<u8, N>>, D::Error> {
-            let opt: Option<String> = Option::deserialize(deserializer)?;
-            match opt {
-                Some(s) => {
-                    let bytes = decode(s.as_bytes(), Alphabet::UrlNoPadding).map_err(serde::de::Error::custom)?;
-                    Ok(Some(SmallVec::from(bytes)))
-                }
-                None => Ok(None),
+        pub fn deserialize<'a, const N: usize>(decoder: &mut Decoder<'a>) -> Result<Option<SmallVec<u8, N>>> {
+            decoder.skip_ws()?;
+            if decoder.peek_byte() == Some(b'n') {
+                decoder.decode_null()?;
+                Ok(None)
+            } else {
+                let text = decoder.decode_str()?;
+                decode(text.as_bytes(), Alphabet::UrlNoPadding)
+                    .map(SmallVec::from)
+                    .map(Some)
+                    .map_err(|_| decoder.error(ErrorKind::Message("invalid base64")))
             }
         }
     }

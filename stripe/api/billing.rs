@@ -15,28 +15,29 @@ pub type ActivateBillingAlertParams = crate::billing::GetBillingAlertParams;
 pub type ArchiveBillingAlertParams = crate::billing::GetBillingAlertParams;
 
 #[cfg(any(feature = "billing", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingAlert {
     #[doc = "Defines the type of the alert."]
-    #[serde(default)]
+    #[json(default)]
     pub alert_type: crate::billing::BillingAlertAlertType,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::billing::BillingAlertObject,
     #[doc = "Status of the alert."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<crate::billing::BillingAlertStatus>,
     #[doc = "Title of the alert."]
-    #[serde(default)]
+    #[json(default)]
     pub title: String,
     #[doc = "Encapsulates configuration of the alert to monitor usage on a specific [Billing Meter](https://docs.stripe.com/api/bi..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub usage_threshold: Option<crate::billing::ThresholdsResourceUsageThresholdConfig>,
 }
 
@@ -74,36 +75,18 @@ impl Default for BillingAlertAlertType {
 }
 
 #[cfg(any(feature = "billing", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for BillingAlertAlertType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingAlertAlertType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "usage_threshold" => BillingAlertAlertType::UsageThreshold,
-                    other => BillingAlertAlertType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingAlertAlertType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingAlertAlertType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingAlertAlertType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "usage_threshold" => BillingAlertAlertType::UsageThreshold,
+            other => BillingAlertAlertType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -134,36 +117,18 @@ impl Default for BillingAlertObject {
 }
 
 #[cfg(any(feature = "billing", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for BillingAlertObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingAlertObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "billing.alert" => BillingAlertObject::BillingAlert,
-                    other => BillingAlertObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingAlertObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingAlertObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingAlertObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "billing.alert" => BillingAlertObject::BillingAlert,
+            other => BillingAlertObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -191,60 +156,43 @@ impl BillingAlertStatus {
 }
 
 #[cfg(any(feature = "billing", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for BillingAlertStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingAlertStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => BillingAlertStatus::Active,
-                    "archived" => BillingAlertStatus::Archived,
-                    "inactive" => BillingAlertStatus::Inactive,
-                    other => BillingAlertStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingAlertStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingAlertStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingAlertStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => BillingAlertStatus::Active,
+            "archived" => BillingAlertStatus::Archived,
+            "inactive" => BillingAlertStatus::Inactive,
+            other => BillingAlertStatus::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "events")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingAlertTriggered {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub alert: Option<crate::billing::BillingAlert>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "ID of customer for which the alert triggered"]
-    #[serde(default)]
+    #[json(default)]
     pub customer: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::billing::BillingAlertTriggeredObject,
     #[doc = "The value triggering the alert"]
-    #[serde(default)]
+    #[json(default)]
     pub value: i64,
 }
 
@@ -275,48 +223,31 @@ impl Default for BillingAlertTriggeredObject {
 }
 
 #[cfg(feature = "events")]
-impl<'de> serde::Deserialize<'de> for BillingAlertTriggeredObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingAlertTriggeredObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "billing.alert_triggered" => BillingAlertTriggeredObject::BillingAlertTriggered,
-                    other => BillingAlertTriggeredObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingAlertTriggeredObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingAlertTriggeredObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingAlertTriggeredObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "billing.alert_triggered" => BillingAlertTriggeredObject::BillingAlertTriggered,
+            other => BillingAlertTriggeredObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "invoiceitems"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingBillResourceInvoiceItemParentsInvoiceItemParent {
     #[doc = "Details about the subscription that generated this invoice item"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription_details:
         Option<crate::billing::BillingBillResourceInvoiceItemParentsInvoiceItemSubscriptionParent>,
     #[doc = "The type of parent that generated this invoice item"]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::billing::BillingBillResourceInvoiceItemParentsInvoiceItemParentType,
 }
 
@@ -347,51 +278,32 @@ impl Default for BillingBillResourceInvoiceItemParentsInvoiceItemParentType {
 }
 
 #[cfg(any(feature = "events", feature = "invoiceitems"))]
-impl<'de> serde::Deserialize<'de> for BillingBillResourceInvoiceItemParentsInvoiceItemParentType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingBillResourceInvoiceItemParentsInvoiceItemParentType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "subscription_details" => {
-                        BillingBillResourceInvoiceItemParentsInvoiceItemParentType::SubscriptionDetails
-                    }
-                    other => BillingBillResourceInvoiceItemParentsInvoiceItemParentType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingBillResourceInvoiceItemParentsInvoiceItemParentType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for BillingBillResourceInvoiceItemParentsInvoiceItemParentType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingBillResourceInvoiceItemParentsInvoiceItemParentType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "subscription_details" => BillingBillResourceInvoiceItemParentsInvoiceItemParentType::SubscriptionDetails,
+            other => BillingBillResourceInvoiceItemParentsInvoiceItemParentType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "events", feature = "invoiceitems"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingBillResourceInvoiceItemParentsInvoiceItemSubscriptionParent {
     #[doc = "The subscription that generated this invoice item"]
-    #[serde(default)]
+    #[json(default)]
     pub subscription: String,
     #[doc = "The subscription item that generated this invoice item"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription_item: Option<String>,
 }
 
@@ -440,13 +352,14 @@ pub struct BillingBillResourceInvoiceItemParentsInvoiceItemSubscriptionParent {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingBillResourceInvoicingLinesCommonCreditedItems {
     #[doc = "Invoice containing the credited invoice line items"]
-    #[serde(default)]
+    #[json(default)]
     pub invoice: String,
     #[doc = "Credited invoice line items"]
-    #[serde(default)]
+    #[json(default)]
     pub invoice_line_items: Vec<String>,
 }
 
@@ -495,10 +408,11 @@ pub struct BillingBillResourceInvoicingLinesCommonCreditedItems {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingBillResourceInvoicingLinesCommonProrationDetails {
     #[doc = "For a credit proration `line_item`, the original debit line_items to which the credit proration applies."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub credited_items: Option<crate::billing::BillingBillResourceInvoicingLinesCommonCreditedItems>,
 }
 
@@ -547,19 +461,20 @@ pub struct BillingBillResourceInvoicingLinesCommonProrationDetails {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingBillResourceInvoicingLinesParentsInvoiceLineItemInvoiceItemParent {
     #[doc = "The invoice item that generated this line item"]
-    #[serde(default)]
+    #[json(default)]
     pub invoice_item: String,
     #[doc = "Whether this is a proration"]
-    #[serde(default)]
+    #[json(default)]
     pub proration: bool,
     #[doc = "Additional details for proration line items"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub proration_details: Option<crate::billing::BillingBillResourceInvoicingLinesCommonProrationDetails>,
     #[doc = "The subscription that the invoice item belongs to"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription: Option<String>,
 }
 
@@ -608,18 +523,19 @@ pub struct BillingBillResourceInvoicingLinesParentsInvoiceLineItemInvoiceItemPar
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingBillResourceInvoicingLinesParentsInvoiceLineItemParent {
     #[doc = "Details about the invoice item that generated this line item"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice_item_details:
         Option<crate::billing::BillingBillResourceInvoicingLinesParentsInvoiceLineItemInvoiceItemParent>,
     #[doc = "Details about the subscription item that generated this line item"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription_item_details:
         Option<crate::billing::BillingBillResourceInvoicingLinesParentsInvoiceLineItemSubscriptionItemParent>,
     #[doc = "The type of parent that generated this line item"]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::billing::BillingBillResourceInvoicingLinesParentsInvoiceLineItemParentType,
 }
 
@@ -832,45 +748,25 @@ impl Default for BillingBillResourceInvoicingLinesParentsInvoiceLineItemParentTy
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for BillingBillResourceInvoicingLinesParentsInvoiceLineItemParentType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingBillResourceInvoicingLinesParentsInvoiceLineItemParentType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "invoice_item_details" => {
-                        BillingBillResourceInvoicingLinesParentsInvoiceLineItemParentType::InvoiceItemDetails
-                    }
-                    "subscription_item_details" => {
-                        BillingBillResourceInvoicingLinesParentsInvoiceLineItemParentType::SubscriptionItemDetails
-                    }
-                    other => {
-                        BillingBillResourceInvoicingLinesParentsInvoiceLineItemParentType::Unknown(other.to_string())
-                    }
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingBillResourceInvoicingLinesParentsInvoiceLineItemParentType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for BillingBillResourceInvoicingLinesParentsInvoiceLineItemParentType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingBillResourceInvoicingLinesParentsInvoiceLineItemParentType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "invoice_item_details" => {
+                BillingBillResourceInvoicingLinesParentsInvoiceLineItemParentType::InvoiceItemDetails
+            }
+            "subscription_item_details" => {
+                BillingBillResourceInvoicingLinesParentsInvoiceLineItemParentType::SubscriptionItemDetails
+            }
+            other => BillingBillResourceInvoicingLinesParentsInvoiceLineItemParentType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -919,22 +815,23 @@ impl<'de> serde::Deserialize<'de> for BillingBillResourceInvoicingLinesParentsIn
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingBillResourceInvoicingLinesParentsInvoiceLineItemSubscriptionItemParent {
     #[doc = "The invoice item that generated this line item"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice_item: Option<String>,
     #[doc = "Whether this is a proration"]
-    #[serde(default)]
+    #[json(default)]
     pub proration: bool,
     #[doc = "Additional details for proration line items"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub proration_details: Option<crate::billing::BillingBillResourceInvoicingLinesCommonProrationDetails>,
     #[doc = "The subscription that the subscription item belongs to"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription: Option<String>,
     #[doc = "The subscription item that generated this line item"]
-    #[serde(default)]
+    #[json(default)]
     pub subscription_item: String,
 }
 
@@ -983,16 +880,17 @@ pub struct BillingBillResourceInvoicingLinesParentsInvoiceLineItemSubscriptionIt
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingBillResourceInvoicingParentsInvoiceParent {
     #[doc = "Details about the quote that generated this invoice"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub quote_details: Option<crate::billing::BillingBillResourceInvoicingParentsInvoiceQuoteParent>,
     #[doc = "Details about the subscription that generated this invoice"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription_details: Option<crate::billing::BillingBillResourceInvoicingParentsInvoiceSubscriptionParent>,
     #[doc = "The type of parent that generated this invoice"]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::billing::BillingBillResourceInvoicingParentsInvoiceParentType,
 }
 
@@ -1201,37 +1099,19 @@ impl Default for BillingBillResourceInvoicingParentsInvoiceParentType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for BillingBillResourceInvoicingParentsInvoiceParentType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingBillResourceInvoicingParentsInvoiceParentType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "quote_details" => BillingBillResourceInvoicingParentsInvoiceParentType::QuoteDetails,
-                    "subscription_details" => BillingBillResourceInvoicingParentsInvoiceParentType::SubscriptionDetails,
-                    other => BillingBillResourceInvoicingParentsInvoiceParentType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingBillResourceInvoicingParentsInvoiceParentType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingBillResourceInvoicingParentsInvoiceParentType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingBillResourceInvoicingParentsInvoiceParentType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "quote_details" => BillingBillResourceInvoicingParentsInvoiceParentType::QuoteDetails,
+            "subscription_details" => BillingBillResourceInvoicingParentsInvoiceParentType::SubscriptionDetails,
+            other => BillingBillResourceInvoicingParentsInvoiceParentType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1280,10 +1160,11 @@ impl<'de> serde::Deserialize<'de> for BillingBillResourceInvoicingParentsInvoice
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingBillResourceInvoicingParentsInvoiceQuoteParent {
     #[doc = "The quote that generated this invoice"]
-    #[serde(default)]
+    #[json(default)]
     pub quote: String,
 }
 
@@ -1332,16 +1213,17 @@ pub struct BillingBillResourceInvoicingParentsInvoiceQuoteParent {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingBillResourceInvoicingParentsInvoiceSubscriptionParent {
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) defined as subscription metadata when an invoice is cr..."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<std::collections::HashMap<String, String>>,
     #[doc = "The subscription that generated this invoice"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription: Option<crate::Expandable<crate::subscriptions::Subscription>>,
     #[doc = "Only set for upcoming invoices that preview prorations."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub subscription_proration_date: Option<i64>,
 }
 
@@ -1390,15 +1272,16 @@ pub struct BillingBillResourceInvoicingParentsInvoiceSubscriptionParent {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingBillResourceInvoicingPricingPricing {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub price_details: Option<crate::billing::BillingBillResourceInvoicingPricingPricingPriceDetails>,
     #[doc = "The type of the pricing details."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::billing::BillingBillResourceInvoicingPricingPricingType,
     #[doc = "The unit amount (in the `currency` specified) of the item which contains a decimal value with at most 12 decimal places."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub unit_amount_decimal: Option<String>,
 }
 
@@ -1447,13 +1330,14 @@ pub struct BillingBillResourceInvoicingPricingPricing {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingBillResourceInvoicingPricingPricingPriceDetails {
     #[doc = "The ID of the price this item is associated with."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub price: Option<crate::Expandable<crate::prices::Price>>,
     #[doc = "The ID of the product this item is associated with."]
-    #[serde(default)]
+    #[json(default)]
     pub product: String,
 }
 
@@ -1660,36 +1544,18 @@ impl Default for BillingBillResourceInvoicingPricingPricingType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for BillingBillResourceInvoicingPricingPricingType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingBillResourceInvoicingPricingPricingType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "price_details" => BillingBillResourceInvoicingPricingPricingType::PriceDetails,
-                    other => BillingBillResourceInvoicingPricingPricingType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingBillResourceInvoicingPricingPricingType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingBillResourceInvoicingPricingPricingType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingBillResourceInvoicingPricingPricingType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "price_details" => BillingBillResourceInvoicingPricingPricingType::PriceDetails,
+            other => BillingBillResourceInvoicingPricingPricingType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -1738,25 +1604,26 @@ impl<'de> serde::Deserialize<'de> for BillingBillResourceInvoicingPricingPricing
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingBillResourceInvoicingTaxesTax {
     #[doc = "The amount of the tax, in cents (or local equivalent)."]
-    #[serde(default)]
+    #[json(default)]
     pub amount: i64,
     #[doc = "Whether this tax is inclusive or exclusive."]
-    #[serde(default)]
+    #[json(default)]
     pub tax_behavior: crate::billing::BillingBillResourceInvoicingTaxesTaxTaxBehavior,
     #[doc = "Additional details about the tax rate."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_rate_details: Option<crate::billing::BillingBillResourceInvoicingTaxesTaxRateDetails>,
     #[doc = "The reasoning behind this tax, for example, if the product is tax exempt."]
-    #[serde(default)]
+    #[json(default)]
     pub taxability_reason: crate::billing::BillingBillResourceInvoicingTaxesTaxTaxabilityReason,
     #[doc = "The amount on which tax is calculated, in cents (or local equivalent)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub taxable_amount: Option<i64>,
     #[doc = "The type of tax information."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::billing::BillingBillResourceInvoicingTaxesTaxType,
 }
 
@@ -1805,10 +1672,11 @@ pub struct BillingBillResourceInvoicingTaxesTax {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingBillResourceInvoicingTaxesTaxRateDetails {
     #[doc = "ID of the tax rate"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_rate: Option<crate::Expandable<crate::tax_rates::TaxRate>>,
 }
 
@@ -2017,37 +1885,19 @@ impl Default for BillingBillResourceInvoicingTaxesTaxTaxBehavior {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for BillingBillResourceInvoicingTaxesTaxTaxBehavior {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingBillResourceInvoicingTaxesTaxTaxBehavior;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exclusive" => BillingBillResourceInvoicingTaxesTaxTaxBehavior::Exclusive,
-                    "inclusive" => BillingBillResourceInvoicingTaxesTaxTaxBehavior::Inclusive,
-                    other => BillingBillResourceInvoicingTaxesTaxTaxBehavior::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingBillResourceInvoicingTaxesTaxTaxBehavior::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingBillResourceInvoicingTaxesTaxTaxBehavior {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingBillResourceInvoicingTaxesTaxTaxBehavior::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exclusive" => BillingBillResourceInvoicingTaxesTaxTaxBehavior::Exclusive,
+            "inclusive" => BillingBillResourceInvoicingTaxesTaxTaxBehavior::Inclusive,
+            other => BillingBillResourceInvoicingTaxesTaxTaxBehavior::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2284,61 +2134,33 @@ impl Default for BillingBillResourceInvoicingTaxesTaxTaxabilityReason {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for BillingBillResourceInvoicingTaxesTaxTaxabilityReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingBillResourceInvoicingTaxesTaxTaxabilityReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "customer_exempt" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::CustomerExempt,
-                    "not_available" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::NotAvailable,
-                    "not_collecting" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::NotCollecting,
-                    "not_subject_to_tax" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::NotSubjectToTax,
-                    "not_supported" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::NotSupported,
-                    "portion_product_exempt" => {
-                        BillingBillResourceInvoicingTaxesTaxTaxabilityReason::PortionProductExempt
-                    }
-                    "portion_reduced_rated" => {
-                        BillingBillResourceInvoicingTaxesTaxTaxabilityReason::PortionReducedRated
-                    }
-                    "portion_standard_rated" => {
-                        BillingBillResourceInvoicingTaxesTaxTaxabilityReason::PortionStandardRated
-                    }
-                    "product_exempt" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::ProductExempt,
-                    "product_exempt_holiday" => {
-                        BillingBillResourceInvoicingTaxesTaxTaxabilityReason::ProductExemptHoliday
-                    }
-                    "proportionally_rated" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::ProportionallyRated,
-                    "reduced_rated" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::ReducedRated,
-                    "reverse_charge" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::ReverseCharge,
-                    "standard_rated" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::StandardRated,
-                    "taxable_basis_reduced" => {
-                        BillingBillResourceInvoicingTaxesTaxTaxabilityReason::TaxableBasisReduced
-                    }
-                    "zero_rated" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::ZeroRated,
-                    other => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingBillResourceInvoicingTaxesTaxTaxabilityReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingBillResourceInvoicingTaxesTaxTaxabilityReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingBillResourceInvoicingTaxesTaxTaxabilityReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "customer_exempt" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::CustomerExempt,
+            "not_available" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::NotAvailable,
+            "not_collecting" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::NotCollecting,
+            "not_subject_to_tax" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::NotSubjectToTax,
+            "not_supported" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::NotSupported,
+            "portion_product_exempt" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::PortionProductExempt,
+            "portion_reduced_rated" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::PortionReducedRated,
+            "portion_standard_rated" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::PortionStandardRated,
+            "product_exempt" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::ProductExempt,
+            "product_exempt_holiday" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::ProductExemptHoliday,
+            "proportionally_rated" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::ProportionallyRated,
+            "reduced_rated" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::ReducedRated,
+            "reverse_charge" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::ReverseCharge,
+            "standard_rated" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::StandardRated,
+            "taxable_basis_reduced" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::TaxableBasisReduced,
+            "zero_rated" => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::ZeroRated,
+            other => BillingBillResourceInvoicingTaxesTaxTaxabilityReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2545,36 +2367,18 @@ impl Default for BillingBillResourceInvoicingTaxesTaxType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for BillingBillResourceInvoicingTaxesTaxType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingBillResourceInvoicingTaxesTaxType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "tax_rate_details" => BillingBillResourceInvoicingTaxesTaxType::TaxRateDetails,
-                    other => BillingBillResourceInvoicingTaxesTaxType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingBillResourceInvoicingTaxesTaxType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingBillResourceInvoicingTaxesTaxType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingBillResourceInvoicingTaxesTaxType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "tax_rate_details" => BillingBillResourceInvoicingTaxesTaxType::TaxRateDetails,
+            other => BillingBillResourceInvoicingTaxesTaxType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2623,10 +2427,11 @@ impl<'de> serde::Deserialize<'de> for BillingBillResourceInvoicingTaxesTaxType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingClocksResourceStatusDetailsAdvancingStatusDetails {
     #[doc = "The `frozen_time` that the Test Clock is advancing towards."]
-    #[serde(default)]
+    #[json(default)]
     pub target_frozen_time: i64,
 }
 
@@ -2675,29 +2480,31 @@ pub struct BillingClocksResourceStatusDetailsAdvancingStatusDetails {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingClocksResourceStatusDetailsStatusDetails {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub advancing: Option<crate::billing::BillingClocksResourceStatusDetailsAdvancingStatusDetails>,
 }
 
 #[cfg(feature = "billing")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingCreditBalanceSummary {
     #[doc = "The billing credit balances."]
-    #[serde(default)]
+    #[json(default)]
     pub balances: Vec<crate::billing::CreditBalance>,
     #[doc = "The customer the balance is for."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<crate::Expandable<crate::billing::BillingCreditBalanceSummaryCustomerExpanded>>,
     #[doc = "The account the balance is for."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_account: Option<String>,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::billing::BillingCreditBalanceSummaryObject,
 }
 
@@ -2751,7 +2558,7 @@ pub enum BillingCreditBalanceSummaryCustomerExpanded {
     /// Expanded `customer`.
     Customer(Box<crate::customers::Customer>),
     /// An object type not known to this version of the crate.
-    Other(serde_json::Value),
+    Other(json::OwnedValue),
 }
 
 #[cfg(any(
@@ -2799,17 +2606,15 @@ pub enum BillingCreditBalanceSummaryCustomerExpanded {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for BillingCreditBalanceSummaryCustomerExpanded {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let value: serde_json::Value = serde::Deserialize::deserialize(deserializer)?;
-        let tag = value.get("object").and_then(serde_json::Value::as_str).unwrap_or("");
+impl<'json> json::Decode<'json> for BillingCreditBalanceSummaryCustomerExpanded {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        let raw = decoder.raw_value()?;
+        let value: json::OwnedValue = json::from_slice_owned(raw.get())?;
+        let tag = value.get("object").and_then(json::Value::as_str).unwrap_or("");
         Ok(match tag {
-            "customer" => BillingCreditBalanceSummaryCustomerExpanded::Customer(Box::new(
-                serde_json::from_value(value).map_err(serde::de::Error::custom)?,
-            )),
+            "customer" => BillingCreditBalanceSummaryCustomerExpanded::Customer(Box::new(json::from_slice_owned(
+                &json::to_vec(&value),
+            )?)),
             _ => BillingCreditBalanceSummaryCustomerExpanded::Other(value),
         })
     }
@@ -2842,36 +2647,18 @@ impl Default for BillingCreditBalanceSummaryObject {
 }
 
 #[cfg(feature = "billing")]
-impl<'de> serde::Deserialize<'de> for BillingCreditBalanceSummaryObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingCreditBalanceSummaryObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "billing.credit_balance_summary" => BillingCreditBalanceSummaryObject::BillingCreditBalanceSummary,
-                    other => BillingCreditBalanceSummaryObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingCreditBalanceSummaryObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingCreditBalanceSummaryObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingCreditBalanceSummaryObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "billing.credit_balance_summary" => BillingCreditBalanceSummaryObject::BillingCreditBalanceSummary,
+            other => BillingCreditBalanceSummaryObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -2920,37 +2707,38 @@ impl<'de> serde::Deserialize<'de> for BillingCreditBalanceSummaryObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingCreditBalanceTransaction {
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Credit details for this credit balance transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub credit: Option<crate::billing::BillingCreditGrantsResourceBalanceCredit>,
     #[doc = "The credit grant associated with this credit balance transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub credit_grant: Option<crate::Expandable<crate::billing::BillingCreditGrant>>,
     #[doc = "Debit details for this credit balance transaction."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub debit: Option<crate::billing::BillingCreditGrantsResourceBalanceDebit>,
     #[doc = "The effective time of this credit balance transaction."]
-    #[serde(default)]
+    #[json(default)]
     pub effective_at: i64,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::billing::BillingCreditBalanceTransactionObject,
     #[doc = "ID of the test clock this credit balance transaction belongs to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub test_clock: Option<crate::Expandable<crate::test_helpers::TestHelpersTestClock>>,
     #[doc = "The type of credit balance transaction (credit or debit)."]
-    #[serde(rename = "type", default, skip_serializing_if = "Option::is_none")]
+    #[json(rename = "type", default, skip_serializing_if = "Option::is_none")]
     pub r#type: Option<crate::billing::BillingCreditBalanceTransactionType>,
 }
 
@@ -3210,38 +2998,20 @@ impl Default for BillingCreditBalanceTransactionObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for BillingCreditBalanceTransactionObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingCreditBalanceTransactionObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "billing.credit_balance_transaction" => {
-                        BillingCreditBalanceTransactionObject::BillingCreditBalanceTransaction
-                    }
-                    other => BillingCreditBalanceTransactionObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingCreditBalanceTransactionObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingCreditBalanceTransactionObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingCreditBalanceTransactionObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "billing.credit_balance_transaction" => {
+                BillingCreditBalanceTransactionObject::BillingCreditBalanceTransaction
+            }
+            other => BillingCreditBalanceTransactionObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3399,37 +3169,19 @@ impl BillingCreditBalanceTransactionType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for BillingCreditBalanceTransactionType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingCreditBalanceTransactionType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "credit" => BillingCreditBalanceTransactionType::Credit,
-                    "debit" => BillingCreditBalanceTransactionType::Debit,
-                    other => BillingCreditBalanceTransactionType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingCreditBalanceTransactionType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingCreditBalanceTransactionType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingCreditBalanceTransactionType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "credit" => BillingCreditBalanceTransactionType::Credit,
+            "debit" => BillingCreditBalanceTransactionType::Debit,
+            other => BillingCreditBalanceTransactionType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -3478,56 +3230,57 @@ impl<'de> serde::Deserialize<'de> for BillingCreditBalanceTransactionType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingCreditGrant {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<crate::billing::BillingCreditGrantsResourceAmount>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub applicability_config: Option<crate::billing::BillingCreditGrantsResourceApplicabilityConfig>,
     #[doc = "The category of this credit grant."]
-    #[serde(default)]
+    #[json(default)]
     pub category: crate::billing::BillingCreditGrantCategory,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "ID of the customer receiving the billing credits."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<crate::Expandable<crate::billing::BillingCreditBalanceSummaryCustomerExpanded>>,
     #[doc = "ID of the account representing the customer receiving the billing credits"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_account: Option<String>,
     #[doc = "The time when the billing credits become effective-when they're eligible for use."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub effective_at: Option<i64>,
     #[doc = "The time when the billing credits expire."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<i64>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "A descriptive name shown in dashboard."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::billing::BillingCreditGrantObject,
     #[doc = "The priority for applying this credit grant."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub priority: Option<i64>,
     #[doc = "ID of the test clock this credit grant belongs to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub test_clock: Option<crate::Expandable<crate::test_helpers::TestHelpersTestClock>>,
     #[doc = "Time at which the object was last updated."]
-    #[serde(default)]
+    #[json(default)]
     pub updated: i64,
     #[doc = "The time when this credit grant was voided."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub voided_at: Option<i64>,
 }
 
@@ -3787,37 +3540,19 @@ impl Default for BillingCreditGrantCategory {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for BillingCreditGrantCategory {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingCreditGrantCategory;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "paid" => BillingCreditGrantCategory::Paid,
-                    "promotional" => BillingCreditGrantCategory::Promotional,
-                    other => BillingCreditGrantCategory::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingCreditGrantCategory::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingCreditGrantCategory {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingCreditGrantCategory::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "paid" => BillingCreditGrantCategory::Paid,
+            "promotional" => BillingCreditGrantCategory::Promotional,
+            other => BillingCreditGrantCategory::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4024,36 +3759,18 @@ impl Default for BillingCreditGrantObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for BillingCreditGrantObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingCreditGrantObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "billing.credit_grant" => BillingCreditGrantObject::BillingCreditGrant,
-                    other => BillingCreditGrantObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingCreditGrantObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingCreditGrantObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingCreditGrantObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "billing.credit_grant" => BillingCreditGrantObject::BillingCreditGrant,
+            other => BillingCreditGrantObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4102,13 +3819,14 @@ impl<'de> serde::Deserialize<'de> for BillingCreditGrantObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingCreditGrantsResourceAmount {
     #[doc = "The monetary amount."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub monetary: Option<crate::billing::BillingCreditGrantsResourceMonetaryAmount>,
     #[doc = "The type of this amount."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::billing::BillingCreditGrantsResourceAmountType,
 }
 
@@ -4315,36 +4033,18 @@ impl Default for BillingCreditGrantsResourceAmountType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for BillingCreditGrantsResourceAmountType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingCreditGrantsResourceAmountType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "monetary" => BillingCreditGrantsResourceAmountType::Monetary,
-                    other => BillingCreditGrantsResourceAmountType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingCreditGrantsResourceAmountType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingCreditGrantsResourceAmountType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingCreditGrantsResourceAmountType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "monetary" => BillingCreditGrantsResourceAmountType::Monetary,
+            other => BillingCreditGrantsResourceAmountType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4393,9 +4093,10 @@ impl<'de> serde::Deserialize<'de> for BillingCreditGrantsResourceAmountType {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingCreditGrantsResourceApplicabilityConfig {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub scope: Option<crate::billing::BillingCreditGrantsResourceScope>,
 }
 
@@ -4444,10 +4145,11 @@ pub struct BillingCreditGrantsResourceApplicabilityConfig {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingCreditGrantsResourceApplicablePrice {
     #[doc = "Unique identifier for the object."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
 }
 
@@ -4496,16 +4198,17 @@ pub struct BillingCreditGrantsResourceApplicablePrice {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingCreditGrantsResourceBalanceCredit {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<crate::billing::BillingCreditGrantsResourceAmount>,
     #[doc = "Details of the invoice to which the reinstated credits were originally applied."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub credits_application_invoice_voided:
         Option<crate::billing::BillingCreditGrantsResourceBalanceCreditsApplicationInvoiceVoided>,
     #[doc = "The type of credit transaction."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::billing::BillingCreditGrantsResourceBalanceCreditType,
 }
 
@@ -4716,39 +4419,21 @@ impl Default for BillingCreditGrantsResourceBalanceCreditType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for BillingCreditGrantsResourceBalanceCreditType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingCreditGrantsResourceBalanceCreditType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "credits_application_invoice_voided" => {
-                        BillingCreditGrantsResourceBalanceCreditType::CreditsApplicationInvoiceVoided
-                    }
-                    "credits_granted" => BillingCreditGrantsResourceBalanceCreditType::CreditsGranted,
-                    other => BillingCreditGrantsResourceBalanceCreditType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingCreditGrantsResourceBalanceCreditType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingCreditGrantsResourceBalanceCreditType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingCreditGrantsResourceBalanceCreditType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "credits_application_invoice_voided" => {
+                BillingCreditGrantsResourceBalanceCreditType::CreditsApplicationInvoiceVoided
+            }
+            "credits_granted" => BillingCreditGrantsResourceBalanceCreditType::CreditsGranted,
+            other => BillingCreditGrantsResourceBalanceCreditType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -4797,13 +4482,14 @@ impl<'de> serde::Deserialize<'de> for BillingCreditGrantsResourceBalanceCreditTy
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingCreditGrantsResourceBalanceCreditsApplicationInvoiceVoided {
     #[doc = "The invoice to which the reinstated billing credits were originally applied."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice: Option<crate::Expandable<crate::invoices::Invoice>>,
     #[doc = "The invoice line item to which the reinstated billing credits were originally applied."]
-    #[serde(default)]
+    #[json(default)]
     pub invoice_line_item: String,
 }
 
@@ -4852,13 +4538,14 @@ pub struct BillingCreditGrantsResourceBalanceCreditsApplicationInvoiceVoided {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingCreditGrantsResourceBalanceCreditsApplied {
     #[doc = "The invoice to which the billing credits were applied."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub invoice: Option<crate::Expandable<crate::invoices::Invoice>>,
     #[doc = "The invoice line item to which the billing credits were applied."]
-    #[serde(default)]
+    #[json(default)]
     pub invoice_line_item: String,
 }
 
@@ -4907,15 +4594,16 @@ pub struct BillingCreditGrantsResourceBalanceCreditsApplied {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingCreditGrantsResourceBalanceDebit {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub amount: Option<crate::billing::BillingCreditGrantsResourceAmount>,
     #[doc = "Details of how the billing credits were applied to an invoice."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub credits_applied: Option<crate::billing::BillingCreditGrantsResourceBalanceCreditsApplied>,
     #[doc = "The type of debit transaction."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::billing::BillingCreditGrantsResourceBalanceDebitType,
 }
 
@@ -5126,38 +4814,20 @@ impl Default for BillingCreditGrantsResourceBalanceDebitType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for BillingCreditGrantsResourceBalanceDebitType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingCreditGrantsResourceBalanceDebitType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "credits_applied" => BillingCreditGrantsResourceBalanceDebitType::CreditsApplied,
-                    "credits_expired" => BillingCreditGrantsResourceBalanceDebitType::CreditsExpired,
-                    "credits_voided" => BillingCreditGrantsResourceBalanceDebitType::CreditsVoided,
-                    other => BillingCreditGrantsResourceBalanceDebitType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingCreditGrantsResourceBalanceDebitType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingCreditGrantsResourceBalanceDebitType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingCreditGrantsResourceBalanceDebitType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "credits_applied" => BillingCreditGrantsResourceBalanceDebitType::CreditsApplied,
+            "credits_expired" => BillingCreditGrantsResourceBalanceDebitType::CreditsExpired,
+            "credits_voided" => BillingCreditGrantsResourceBalanceDebitType::CreditsVoided,
+            other => BillingCreditGrantsResourceBalanceDebitType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5206,13 +4876,14 @@ impl<'de> serde::Deserialize<'de> for BillingCreditGrantsResourceBalanceDebitTyp
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingCreditGrantsResourceMonetaryAmount {
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "A positive integer representing the amount."]
-    #[serde(default)]
+    #[json(default)]
     pub value: i64,
 }
 
@@ -5261,13 +4932,14 @@ pub struct BillingCreditGrantsResourceMonetaryAmount {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingCreditGrantsResourceScope {
     #[doc = "The price type that credit grants can apply to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub price_type: Option<crate::billing::BillingCreditGrantsResourceScopePriceType>,
     #[doc = "The prices that credit grants can apply to."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub prices: Option<Vec<crate::billing::BillingCreditGrantsResourceApplicablePrice>>,
 }
 
@@ -5423,36 +5095,18 @@ impl BillingCreditGrantsResourceScopePriceType {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for BillingCreditGrantsResourceScopePriceType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingCreditGrantsResourceScopePriceType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "metered" => BillingCreditGrantsResourceScopePriceType::Metered,
-                    other => BillingCreditGrantsResourceScopePriceType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingCreditGrantsResourceScopePriceType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingCreditGrantsResourceScopePriceType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingCreditGrantsResourceScopePriceType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "metered" => BillingCreditGrantsResourceScopePriceType::Metered,
+            other => BillingCreditGrantsResourceScopePriceType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -5501,22 +5155,23 @@ impl<'de> serde::Deserialize<'de> for BillingCreditGrantsResourceScopePriceType 
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingDetails {
     #[doc = "Billing address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub address: Option<crate::common::Address>,
     #[doc = "Email address."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[doc = "Full name."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
     #[doc = "Billing phone number (including extension)."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub phone: Option<String>,
     #[doc = "Taxpayer identification number."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub tax_id: Option<String>,
 }
 
@@ -5566,24 +5221,25 @@ pub struct BillingDetails {
     feature = "transfers",
     feature = "treasury"
 ))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingFeedbackOption {
     #[doc = "An arbitrary string attached to the object."]
-    #[serde(default)]
+    #[json(default)]
     pub description: String,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::billing::BillingFeedbackOptionObject,
     #[doc = "The feedback option's status."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::billing::BillingFeedbackOptionStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status_transitions: Option<crate::common::FeedbackOptionsStatusTransitions>,
 }
 
@@ -5846,36 +5502,18 @@ impl Default for BillingFeedbackOptionObject {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for BillingFeedbackOptionObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingFeedbackOptionObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "billing.feedback_option" => BillingFeedbackOptionObject::BillingFeedbackOption,
-                    other => BillingFeedbackOptionObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingFeedbackOptionObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingFeedbackOptionObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingFeedbackOptionObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "billing.feedback_option" => BillingFeedbackOptionObject::BillingFeedbackOption,
+            other => BillingFeedbackOptionObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6088,77 +5726,60 @@ impl Default for BillingFeedbackOptionStatus {
     feature = "transfers",
     feature = "treasury"
 ))]
-impl<'de> serde::Deserialize<'de> for BillingFeedbackOptionStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingFeedbackOptionStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => BillingFeedbackOptionStatus::Active,
-                    "inactive" => BillingFeedbackOptionStatus::Inactive,
-                    other => BillingFeedbackOptionStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingFeedbackOptionStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingFeedbackOptionStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingFeedbackOptionStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => BillingFeedbackOptionStatus::Active,
+            "inactive" => BillingFeedbackOptionStatus::Inactive,
+            other => BillingFeedbackOptionStatus::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "billing", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingMeter {
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer_mapping: Option<crate::billing::BillingMeterResourceCustomerMappingSettings>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub default_aggregation: Option<crate::billing::BillingMeterResourceAggregationSettings>,
     #[doc = "The meter's name."]
-    #[serde(default)]
+    #[json(default)]
     pub display_name: String,
     #[doc = "The name of the meter event to record usage for."]
-    #[serde(default)]
+    #[json(default)]
     pub event_name: String,
     #[doc = "The time window which meter events have been pre-aggregated for, if any."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub event_time_window: Option<crate::billing::BillingMeterEventTimeWindow>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::billing::BillingMeterObject,
     #[doc = "The meter's status."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::billing::BillingFeedbackOptionStatus,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub status_transitions: Option<crate::billing::BillingMeterResourceBillingMeterStatusTransitions>,
     #[doc = "Time at which the object was last updated."]
-    #[serde(default)]
+    #[json(default)]
     pub updated: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub value_settings: Option<crate::billing::BillingMeterResourceBillingMeterValue>,
 }
 
@@ -6170,51 +5791,53 @@ impl crate::PagedItem for BillingMeter {
 }
 
 #[cfg(feature = "billing")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingMeterEvent {
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "The name of the meter event."]
-    #[serde(default)]
+    #[json(default)]
     pub event_name: String,
     #[doc = "A unique identifier for the event."]
-    #[serde(default)]
+    #[json(default)]
     pub identifier: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::billing::BillingMeterEventObject,
     #[doc = "The payload of the event."]
-    #[serde(default)]
+    #[json(default)]
     pub payload: std::collections::HashMap<String, String>,
     #[doc = "The timestamp passed in when creating the event."]
-    #[serde(default)]
+    #[json(default)]
     pub timestamp: i64,
 }
 
 #[cfg(feature = "billing")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingMeterEventAdjustment {
     #[doc = "Specifies which event to cancel."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cancel: Option<crate::billing::BillingMeterResourceBillingMeterEventAdjustmentCancel>,
     #[doc = "The name of the meter event."]
-    #[serde(default)]
+    #[json(default)]
     pub event_name: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::billing::BillingMeterEventAdjustmentObject,
     #[doc = "The meter event adjustment's status."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::billing::BillingMeterEventAdjustmentStatus,
     #[doc = "Specifies whether to cancel a single event or a range of events for a time period."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::billing::BillingMeterEventAdjustmentType,
 }
 
@@ -6245,36 +5868,18 @@ impl Default for BillingMeterEventAdjustmentObject {
 }
 
 #[cfg(feature = "billing")]
-impl<'de> serde::Deserialize<'de> for BillingMeterEventAdjustmentObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingMeterEventAdjustmentObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "billing.meter_event_adjustment" => BillingMeterEventAdjustmentObject::BillingMeterEventAdjustment,
-                    other => BillingMeterEventAdjustmentObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingMeterEventAdjustmentObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingMeterEventAdjustmentObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingMeterEventAdjustmentObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "billing.meter_event_adjustment" => BillingMeterEventAdjustmentObject::BillingMeterEventAdjustment,
+            other => BillingMeterEventAdjustmentObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6307,37 +5912,19 @@ impl Default for BillingMeterEventAdjustmentStatus {
 }
 
 #[cfg(feature = "billing")]
-impl<'de> serde::Deserialize<'de> for BillingMeterEventAdjustmentStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingMeterEventAdjustmentStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "complete" => BillingMeterEventAdjustmentStatus::Complete,
-                    "pending" => BillingMeterEventAdjustmentStatus::Pending,
-                    other => BillingMeterEventAdjustmentStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingMeterEventAdjustmentStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingMeterEventAdjustmentStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingMeterEventAdjustmentStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "complete" => BillingMeterEventAdjustmentStatus::Complete,
+            "pending" => BillingMeterEventAdjustmentStatus::Pending,
+            other => BillingMeterEventAdjustmentStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6368,36 +5955,18 @@ impl Default for BillingMeterEventAdjustmentType {
 }
 
 #[cfg(feature = "billing")]
-impl<'de> serde::Deserialize<'de> for BillingMeterEventAdjustmentType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingMeterEventAdjustmentType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cancel" => BillingMeterEventAdjustmentType::Cancel,
-                    other => BillingMeterEventAdjustmentType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingMeterEventAdjustmentType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingMeterEventAdjustmentType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingMeterEventAdjustmentType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cancel" => BillingMeterEventAdjustmentType::Cancel,
+            other => BillingMeterEventAdjustmentType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6428,62 +5997,45 @@ impl Default for BillingMeterEventObject {
 }
 
 #[cfg(feature = "billing")]
-impl<'de> serde::Deserialize<'de> for BillingMeterEventObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingMeterEventObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "billing.meter_event" => BillingMeterEventObject::BillingMeterEvent,
-                    other => BillingMeterEventObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingMeterEventObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingMeterEventObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingMeterEventObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "billing.meter_event" => BillingMeterEventObject::BillingMeterEvent,
+            other => BillingMeterEventObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "billing")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingMeterEventSummary {
     #[doc = "Aggregated value of all the events within `start_time` (inclusive) and `end_time` (inclusive)."]
-    #[serde(default)]
+    #[json(default)]
     pub aggregated_value: f64,
     #[doc = "End timestamp for this event summary (exclusive)."]
-    #[serde(default)]
+    #[json(default)]
     pub end_time: i64,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "If the object exists in live mode, the value is `true`."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "The meter associated with this event summary."]
-    #[serde(default)]
+    #[json(default)]
     pub meter: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::billing::BillingMeterEventSummaryObject,
     #[doc = "Start timestamp for this event summary (inclusive)."]
-    #[serde(default)]
+    #[json(default)]
     pub start_time: i64,
 }
 
@@ -6521,36 +6073,18 @@ impl Default for BillingMeterEventSummaryObject {
 }
 
 #[cfg(feature = "billing")]
-impl<'de> serde::Deserialize<'de> for BillingMeterEventSummaryObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingMeterEventSummaryObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "billing.meter_event_summary" => BillingMeterEventSummaryObject::BillingMeterEventSummary,
-                    other => BillingMeterEventSummaryObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingMeterEventSummaryObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingMeterEventSummaryObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingMeterEventSummaryObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "billing.meter_event_summary" => BillingMeterEventSummaryObject::BillingMeterEventSummary,
+            other => BillingMeterEventSummaryObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6576,37 +6110,19 @@ impl BillingMeterEventTimeWindow {
 }
 
 #[cfg(any(feature = "billing", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for BillingMeterEventTimeWindow {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingMeterEventTimeWindow;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "day" => BillingMeterEventTimeWindow::Day,
-                    "hour" => BillingMeterEventTimeWindow::Hour,
-                    other => BillingMeterEventTimeWindow::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingMeterEventTimeWindow::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingMeterEventTimeWindow {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingMeterEventTimeWindow::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "day" => BillingMeterEventTimeWindow::Day,
+            "hour" => BillingMeterEventTimeWindow::Hour,
+            other => BillingMeterEventTimeWindow::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6637,44 +6153,27 @@ impl Default for BillingMeterObject {
 }
 
 #[cfg(any(feature = "billing", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for BillingMeterObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingMeterObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "billing.meter" => BillingMeterObject::BillingMeter,
-                    other => BillingMeterObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingMeterObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingMeterObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingMeterObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "billing.meter" => BillingMeterObject::BillingMeter,
+            other => BillingMeterObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "billing", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingMeterResourceAggregationSettings {
     #[doc = "Specifies how events are aggregated."]
-    #[serde(default)]
+    #[json(default)]
     pub formula: crate::billing::BillingMeterResourceAggregationSettingsFormula,
 }
 
@@ -6709,73 +6208,59 @@ impl Default for BillingMeterResourceAggregationSettingsFormula {
 }
 
 #[cfg(any(feature = "billing", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for BillingMeterResourceAggregationSettingsFormula {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingMeterResourceAggregationSettingsFormula;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "count" => BillingMeterResourceAggregationSettingsFormula::Count,
-                    "last" => BillingMeterResourceAggregationSettingsFormula::Last,
-                    "sum" => BillingMeterResourceAggregationSettingsFormula::Sum,
-                    other => BillingMeterResourceAggregationSettingsFormula::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingMeterResourceAggregationSettingsFormula::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingMeterResourceAggregationSettingsFormula {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingMeterResourceAggregationSettingsFormula::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "count" => BillingMeterResourceAggregationSettingsFormula::Count,
+            "last" => BillingMeterResourceAggregationSettingsFormula::Last,
+            "sum" => BillingMeterResourceAggregationSettingsFormula::Sum,
+            other => BillingMeterResourceAggregationSettingsFormula::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(feature = "billing")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingMeterResourceBillingMeterEventAdjustmentCancel {
     #[doc = "Unique identifier for the event."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub identifier: Option<String>,
 }
 
 #[cfg(any(feature = "billing", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingMeterResourceBillingMeterStatusTransitions {
     #[doc = "The time the meter was deactivated, if any."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub deactivated_at: Option<i64>,
 }
 
 #[cfg(any(feature = "billing", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingMeterResourceBillingMeterValue {
     #[doc = "The key in the meter event payload to use as the value for this meter."]
-    #[serde(default)]
+    #[json(default)]
     pub event_payload_key: String,
 }
 
 #[cfg(any(feature = "billing", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct BillingMeterResourceCustomerMappingSettings {
     #[doc = "The key in the meter event payload to use for mapping the event to a customer."]
-    #[serde(default)]
+    #[json(default)]
     pub event_payload_key: String,
     #[doc = "The method for mapping a meter event to a customer."]
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::billing::BillingMeterResourceCustomerMappingSettingsType,
 }
 
@@ -6806,36 +6291,18 @@ impl Default for BillingMeterResourceCustomerMappingSettingsType {
 }
 
 #[cfg(any(feature = "billing", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for BillingMeterResourceCustomerMappingSettingsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = BillingMeterResourceCustomerMappingSettingsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "by_id" => BillingMeterResourceCustomerMappingSettingsType::ById,
-                    other => BillingMeterResourceCustomerMappingSettingsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(BillingMeterResourceCustomerMappingSettingsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for BillingMeterResourceCustomerMappingSettingsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(BillingMeterResourceCustomerMappingSettingsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "by_id" => BillingMeterResourceCustomerMappingSettingsType::ById,
+            other => BillingMeterResourceCustomerMappingSettingsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6931,36 +6398,18 @@ impl CreateBillingAlertParamsUsageThresholdFiltersItemType {
 }
 
 #[cfg(feature = "billing")]
-impl<'de> serde::Deserialize<'de> for CreateBillingAlertParamsUsageThresholdFiltersItemType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateBillingAlertParamsUsageThresholdFiltersItemType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "customer" => CreateBillingAlertParamsUsageThresholdFiltersItemType::Customer,
-                    other => CreateBillingAlertParamsUsageThresholdFiltersItemType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateBillingAlertParamsUsageThresholdFiltersItemType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateBillingAlertParamsUsageThresholdFiltersItemType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateBillingAlertParamsUsageThresholdFiltersItemType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "customer" => CreateBillingAlertParamsUsageThresholdFiltersItemType::Customer,
+            other => CreateBillingAlertParamsUsageThresholdFiltersItemType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -6991,36 +6440,18 @@ impl CreateBillingAlertParamsUsageThresholdRecurrence {
 }
 
 #[cfg(feature = "billing")]
-impl<'de> serde::Deserialize<'de> for CreateBillingAlertParamsUsageThresholdRecurrence {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateBillingAlertParamsUsageThresholdRecurrence;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "one_time" => CreateBillingAlertParamsUsageThresholdRecurrence::OneTime,
-                    other => CreateBillingAlertParamsUsageThresholdRecurrence::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateBillingAlertParamsUsageThresholdRecurrence::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateBillingAlertParamsUsageThresholdRecurrence {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateBillingAlertParamsUsageThresholdRecurrence::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "one_time" => CreateBillingAlertParamsUsageThresholdRecurrence::OneTime,
+            other => CreateBillingAlertParamsUsageThresholdRecurrence::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7135,36 +6566,18 @@ impl CreateBillingCreditGrantParamsAmountType {
 }
 
 #[cfg(feature = "billing")]
-impl<'de> serde::Deserialize<'de> for CreateBillingCreditGrantParamsAmountType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateBillingCreditGrantParamsAmountType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "monetary" => CreateBillingCreditGrantParamsAmountType::Monetary,
-                    other => CreateBillingCreditGrantParamsAmountType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateBillingCreditGrantParamsAmountType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateBillingCreditGrantParamsAmountType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateBillingCreditGrantParamsAmountType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "monetary" => CreateBillingCreditGrantParamsAmountType::Monetary,
+            other => CreateBillingCreditGrantParamsAmountType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7240,37 +6653,19 @@ impl CreateBillingCreditGrantParamsCategory {
 }
 
 #[cfg(feature = "billing")]
-impl<'de> serde::Deserialize<'de> for CreateBillingCreditGrantParamsCategory {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateBillingCreditGrantParamsCategory;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "paid" => CreateBillingCreditGrantParamsCategory::Paid,
-                    "promotional" => CreateBillingCreditGrantParamsCategory::Promotional,
-                    other => CreateBillingCreditGrantParamsCategory::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateBillingCreditGrantParamsCategory::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateBillingCreditGrantParamsCategory {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateBillingCreditGrantParamsCategory::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "paid" => CreateBillingCreditGrantParamsCategory::Paid,
+            "promotional" => CreateBillingCreditGrantParamsCategory::Promotional,
+            other => CreateBillingCreditGrantParamsCategory::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7359,36 +6754,18 @@ impl CreateBillingMeterEventAdjustmentParamsType {
 }
 
 #[cfg(feature = "billing")]
-impl<'de> serde::Deserialize<'de> for CreateBillingMeterEventAdjustmentParamsType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateBillingMeterEventAdjustmentParamsType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "cancel" => CreateBillingMeterEventAdjustmentParamsType::Cancel,
-                    other => CreateBillingMeterEventAdjustmentParamsType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateBillingMeterEventAdjustmentParamsType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateBillingMeterEventAdjustmentParamsType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateBillingMeterEventAdjustmentParamsType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "cancel" => CreateBillingMeterEventAdjustmentParamsType::Cancel,
+            other => CreateBillingMeterEventAdjustmentParamsType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7500,36 +6877,18 @@ impl CreateBillingMeterParamsCustomerMappingType {
 }
 
 #[cfg(feature = "billing")]
-impl<'de> serde::Deserialize<'de> for CreateBillingMeterParamsCustomerMappingType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateBillingMeterParamsCustomerMappingType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "by_id" => CreateBillingMeterParamsCustomerMappingType::ById,
-                    other => CreateBillingMeterParamsCustomerMappingType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateBillingMeterParamsCustomerMappingType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateBillingMeterParamsCustomerMappingType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateBillingMeterParamsCustomerMappingType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "by_id" => CreateBillingMeterParamsCustomerMappingType::ById,
+            other => CreateBillingMeterParamsCustomerMappingType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7578,38 +6937,20 @@ impl CreateBillingMeterParamsDefaultAggregationFormula {
 }
 
 #[cfg(feature = "billing")]
-impl<'de> serde::Deserialize<'de> for CreateBillingMeterParamsDefaultAggregationFormula {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateBillingMeterParamsDefaultAggregationFormula;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "count" => CreateBillingMeterParamsDefaultAggregationFormula::Count,
-                    "last" => CreateBillingMeterParamsDefaultAggregationFormula::Last,
-                    "sum" => CreateBillingMeterParamsDefaultAggregationFormula::Sum,
-                    other => CreateBillingMeterParamsDefaultAggregationFormula::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateBillingMeterParamsDefaultAggregationFormula::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateBillingMeterParamsDefaultAggregationFormula {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateBillingMeterParamsDefaultAggregationFormula::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "count" => CreateBillingMeterParamsDefaultAggregationFormula::Count,
+            "last" => CreateBillingMeterParamsDefaultAggregationFormula::Last,
+            "sum" => CreateBillingMeterParamsDefaultAggregationFormula::Sum,
+            other => CreateBillingMeterParamsDefaultAggregationFormula::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7642,37 +6983,19 @@ impl CreateBillingMeterParamsEventTimeWindow {
 }
 
 #[cfg(feature = "billing")]
-impl<'de> serde::Deserialize<'de> for CreateBillingMeterParamsEventTimeWindow {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = CreateBillingMeterParamsEventTimeWindow;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "day" => CreateBillingMeterParamsEventTimeWindow::Day,
-                    "hour" => CreateBillingMeterParamsEventTimeWindow::Hour,
-                    other => CreateBillingMeterParamsEventTimeWindow::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(CreateBillingMeterParamsEventTimeWindow::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for CreateBillingMeterParamsEventTimeWindow {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(CreateBillingMeterParamsEventTimeWindow::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "day" => CreateBillingMeterParamsEventTimeWindow::Day,
+            "hour" => CreateBillingMeterParamsEventTimeWindow::Hour,
+            other => CreateBillingMeterParamsEventTimeWindow::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7698,11 +7021,12 @@ impl crate::params::FormEncode for CreateBillingMeterParamsValueSettings {
 }
 
 #[cfg(feature = "billing")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct CreditBalance {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub available_balance: Option<crate::billing::BillingCreditGrantsResourceAmount>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub ledger_balance: Option<crate::billing::BillingCreditGrantsResourceAmount>,
 }
 
@@ -7815,40 +7139,20 @@ impl GetBillingCreditBalanceSummaryParamsFilterApplicabilityScopePriceType {
 }
 
 #[cfg(feature = "billing")]
-impl<'de> serde::Deserialize<'de> for GetBillingCreditBalanceSummaryParamsFilterApplicabilityScopePriceType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = GetBillingCreditBalanceSummaryParamsFilterApplicabilityScopePriceType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "metered" => GetBillingCreditBalanceSummaryParamsFilterApplicabilityScopePriceType::Metered,
-                    other => GetBillingCreditBalanceSummaryParamsFilterApplicabilityScopePriceType::Unknown(
-                        other.to_string(),
-                    ),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(GetBillingCreditBalanceSummaryParamsFilterApplicabilityScopePriceType::Unknown(
-                    String::new(),
-                ))
-            }
+impl<'json> json::Decode<'json> for GetBillingCreditBalanceSummaryParamsFilterApplicabilityScopePriceType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(GetBillingCreditBalanceSummaryParamsFilterApplicabilityScopePriceType::Unknown(
+                String::new(),
+            ));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "metered" => GetBillingCreditBalanceSummaryParamsFilterApplicabilityScopePriceType::Metered,
+            other => GetBillingCreditBalanceSummaryParamsFilterApplicabilityScopePriceType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7895,37 +7199,19 @@ impl GetBillingCreditBalanceSummaryParamsFilterType {
 }
 
 #[cfg(feature = "billing")]
-impl<'de> serde::Deserialize<'de> for GetBillingCreditBalanceSummaryParamsFilterType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = GetBillingCreditBalanceSummaryParamsFilterType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "applicability_scope" => GetBillingCreditBalanceSummaryParamsFilterType::ApplicabilityScope,
-                    "credit_grant" => GetBillingCreditBalanceSummaryParamsFilterType::CreditGrant,
-                    other => GetBillingCreditBalanceSummaryParamsFilterType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(GetBillingCreditBalanceSummaryParamsFilterType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for GetBillingCreditBalanceSummaryParamsFilterType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(GetBillingCreditBalanceSummaryParamsFilterType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "applicability_scope" => GetBillingCreditBalanceSummaryParamsFilterType::ApplicabilityScope,
+            "credit_grant" => GetBillingCreditBalanceSummaryParamsFilterType::CreditGrant,
+            other => GetBillingCreditBalanceSummaryParamsFilterType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -7993,36 +7279,18 @@ impl ListBillingAlertsParamsAlertType {
 }
 
 #[cfg(feature = "billing")]
-impl<'de> serde::Deserialize<'de> for ListBillingAlertsParamsAlertType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListBillingAlertsParamsAlertType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "usage_threshold" => ListBillingAlertsParamsAlertType::UsageThreshold,
-                    other => ListBillingAlertsParamsAlertType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListBillingAlertsParamsAlertType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListBillingAlertsParamsAlertType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListBillingAlertsParamsAlertType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "usage_threshold" => ListBillingAlertsParamsAlertType::UsageThreshold,
+            other => ListBillingAlertsParamsAlertType::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8130,37 +7398,19 @@ impl ListBillingFeedbackOptionsParamsStatus {
 }
 
 #[cfg(feature = "billing")]
-impl<'de> serde::Deserialize<'de> for ListBillingFeedbackOptionsParamsStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ListBillingFeedbackOptionsParamsStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "active" => ListBillingFeedbackOptionsParamsStatus::Active,
-                    "inactive" => ListBillingFeedbackOptionsParamsStatus::Inactive,
-                    other => ListBillingFeedbackOptionsParamsStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ListBillingFeedbackOptionsParamsStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ListBillingFeedbackOptionsParamsStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ListBillingFeedbackOptionsParamsStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "active" => ListBillingFeedbackOptionsParamsStatus::Active,
+            "inactive" => ListBillingFeedbackOptionsParamsStatus::Inactive,
+            other => ListBillingFeedbackOptionsParamsStatus::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8234,12 +7484,13 @@ pub type ListBillingMetersParamsStatus = crate::billing::ListBillingFeedbackOpti
 pub type ReactivateBillingMeterParams = crate::billing::GetBillingAlertParams;
 
 #[cfg(any(feature = "billing", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThresholdsResourceUsageAlertFilter {
     #[doc = "Limit the scope of the alert to this customer ID"]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<crate::Expandable<crate::customers::Customer>>,
-    #[serde(rename = "type", default)]
+    #[json(rename = "type", default)]
     pub r#type: crate::billing::ThresholdsResourceUsageAlertFilterType,
 }
 
@@ -8270,53 +7521,36 @@ impl Default for ThresholdsResourceUsageAlertFilterType {
 }
 
 #[cfg(any(feature = "billing", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for ThresholdsResourceUsageAlertFilterType {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThresholdsResourceUsageAlertFilterType;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "customer" => ThresholdsResourceUsageAlertFilterType::Customer,
-                    other => ThresholdsResourceUsageAlertFilterType::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThresholdsResourceUsageAlertFilterType::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThresholdsResourceUsageAlertFilterType {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThresholdsResourceUsageAlertFilterType::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "customer" => ThresholdsResourceUsageAlertFilterType::Customer,
+            other => ThresholdsResourceUsageAlertFilterType::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "billing", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ThresholdsResourceUsageThresholdConfig {
     #[doc = "The filters allow limiting the scope of this usage alert."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub filters: Option<Vec<crate::billing::ThresholdsResourceUsageAlertFilter>>,
     #[doc = "The value at which this alert will trigger."]
-    #[serde(default)]
+    #[json(default)]
     pub gte: i64,
     #[doc = "The [Billing Meter](/api/billing/meter) ID whose usage is monitored."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub meter: Option<crate::Expandable<crate::billing::BillingMeter>>,
     #[doc = "Defines how the alert will behave."]
-    #[serde(default)]
+    #[json(default)]
     pub recurrence: crate::billing::ThresholdsResourceUsageThresholdConfigRecurrence,
 }
 
@@ -8347,36 +7581,18 @@ impl Default for ThresholdsResourceUsageThresholdConfigRecurrence {
 }
 
 #[cfg(any(feature = "billing", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for ThresholdsResourceUsageThresholdConfigRecurrence {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ThresholdsResourceUsageThresholdConfigRecurrence;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "one_time" => ThresholdsResourceUsageThresholdConfigRecurrence::OneTime,
-                    other => ThresholdsResourceUsageThresholdConfigRecurrence::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ThresholdsResourceUsageThresholdConfigRecurrence::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ThresholdsResourceUsageThresholdConfigRecurrence {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ThresholdsResourceUsageThresholdConfigRecurrence::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "one_time" => ThresholdsResourceUsageThresholdConfigRecurrence::OneTime,
+            other => ThresholdsResourceUsageThresholdConfigRecurrence::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -8386,7 +7602,7 @@ pub struct UpdateBillingCreditGrantParams {
     #[doc = "Specifies which fields in the response should be expanded."]
     pub expand: Option<Vec<String>>,
     #[doc = "The time when the billing credits created by this credit grant expire."]
-    pub expires_at: Option<serde_json::Value>,
+    pub expires_at: Option<json::OwnedValue>,
     #[doc = "Set of key-value pairs you can attach to an object."]
     pub metadata: Option<std::collections::HashMap<String, String>>,
 }

@@ -293,7 +293,7 @@ impl_from_row_scalar!(
     Vec<u8>,
     uuid::Uuid,
     time::DateTime,
-    serde_json::Value,
+    json::Value<'static>,
     ipnetwork::IpNetwork,
     crate::interval::Interval,
 );
@@ -316,7 +316,7 @@ impl<T: FromSql> FromRow for Vec<T> {
     }
 }
 
-impl<T: serde::de::DeserializeOwned> FromRow for Json<T> {
+impl<T: json::DecodeOwned> FromRow for Json<T> {
     fn from_row(row: &Row) -> Result<Self, Error> {
         row.try_get_by_index(0)
     }
@@ -473,7 +473,7 @@ mod tests {
         assert!(payload.as_ptr_range().contains(&text.as_ptr()));
     }
 
-    #[derive(serde::Serialize, serde::Deserialize, postgresql_derive::Json, Debug, PartialEq)]
+    #[derive(json::Encode, json::Decode, postgresql_derive::Json, Debug, PartialEq)]
     struct JsonUser {
         name: String,
     }

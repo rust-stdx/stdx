@@ -9,16 +9,17 @@
 #![allow(non_camel_case_types)]
 
 #[cfg(feature = "exchange_rates")]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ExchangeRate {
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::exchange_rates::ExchangeRateObject,
     #[doc = "Hash where the keys are supported currencies and the values are the exchange rate at which the base id currency conve..."]
-    #[serde(default)]
+    #[json(default)]
     pub rates: std::collections::HashMap<String, f64>,
 }
 
@@ -56,36 +57,18 @@ impl Default for ExchangeRateObject {
 }
 
 #[cfg(feature = "exchange_rates")]
-impl<'de> serde::Deserialize<'de> for ExchangeRateObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ExchangeRateObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "exchange_rate" => ExchangeRateObject::ExchangeRate,
-                    other => ExchangeRateObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ExchangeRateObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ExchangeRateObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ExchangeRateObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "exchange_rate" => ExchangeRateObject::ExchangeRate,
+            other => ExchangeRateObject::Unknown(other.to_string()),
+        })
     }
 }
 

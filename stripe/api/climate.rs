@@ -12,72 +12,73 @@
 pub type CancelClimateOrderParams = crate::climate::GetClimateOrderParams;
 
 #[cfg(any(feature = "climate", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ClimateOrder {
     #[doc = "Total amount of [Frontier](https://frontierclimate.com/)'s service fees in the currency's smallest unit."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_fees: i64,
     #[doc = "Total amount of the carbon removal in the currency's smallest unit."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_subtotal: i64,
     #[doc = "Total amount of the order including fees in the currency's smallest unit."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_total: i64,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub beneficiary: Option<crate::climate::ClimateRemovalsBeneficiary>,
     #[doc = "Time at which the order was canceled."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub canceled_at: Option<i64>,
     #[doc = "Reason for the cancellation of this order."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub cancellation_reason: Option<crate::climate::ClimateOrderCancellationReason>,
     #[doc = "For delivered orders, a URL to a delivery certificate for the order."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub certificate: Option<String>,
     #[doc = "Time at which the order was confirmed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub confirmed_at: Option<i64>,
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Three-letter [ISO currency code](https://www.iso.org/iso-4217-currency-codes.html), in lowercase, representing the cu..."]
-    #[serde(default)]
+    #[json(default)]
     pub currency: String,
     #[doc = "Time at which the order's expected_delivery_year was delayed."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub delayed_at: Option<i64>,
     #[doc = "Time at which the order was delivered."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub delivered_at: Option<i64>,
     #[doc = "Details about the delivery of carbon removal for this order."]
-    #[serde(default)]
+    #[json(default)]
     pub delivery_details: Vec<crate::climate::ClimateRemovalsOrderDeliveries>,
     #[doc = "The year this order is expected to be delivered."]
-    #[serde(default)]
+    #[json(default)]
     pub expected_delivery_year: i64,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "Has the value `true` if the object exists in live mode or the value `false` if the object exists in test mode."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "Set of [key-value pairs](https://docs.stripe.com/api/metadata) that you can attach to an object."]
-    #[serde(default)]
+    #[json(default)]
     pub metadata: std::collections::HashMap<String, String>,
     #[doc = "Quantity of carbon removal that is included in this order."]
-    #[serde(default)]
+    #[json(default)]
     pub metric_tons: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::climate::ClimateOrderObject,
     #[doc = "Unique ID for the Climate `Product` this order is purchasing."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub product: Option<crate::Expandable<crate::climate::ClimateProduct>>,
     #[doc = "Time at which the order's product was substituted for a different product."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub product_substituted_at: Option<i64>,
     #[doc = "The current status of this order."]
-    #[serde(default)]
+    #[json(default)]
     pub status: crate::climate::ClimateOrderStatus,
 }
 
@@ -112,38 +113,20 @@ impl ClimateOrderCancellationReason {
 }
 
 #[cfg(any(feature = "climate", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for ClimateOrderCancellationReason {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ClimateOrderCancellationReason;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "expired" => ClimateOrderCancellationReason::Expired,
-                    "product_unavailable" => ClimateOrderCancellationReason::ProductUnavailable,
-                    "requested" => ClimateOrderCancellationReason::Requested,
-                    other => ClimateOrderCancellationReason::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ClimateOrderCancellationReason::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ClimateOrderCancellationReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ClimateOrderCancellationReason::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "expired" => ClimateOrderCancellationReason::Expired,
+            "product_unavailable" => ClimateOrderCancellationReason::ProductUnavailable,
+            "requested" => ClimateOrderCancellationReason::Requested,
+            other => ClimateOrderCancellationReason::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -174,36 +157,18 @@ impl Default for ClimateOrderObject {
 }
 
 #[cfg(any(feature = "climate", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for ClimateOrderObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ClimateOrderObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "climate.order" => ClimateOrderObject::ClimateOrder,
-                    other => ClimateOrderObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ClimateOrderObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ClimateOrderObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ClimateOrderObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "climate.order" => ClimateOrderObject::ClimateOrder,
+            other => ClimateOrderObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -242,72 +207,55 @@ impl Default for ClimateOrderStatus {
 }
 
 #[cfg(any(feature = "climate", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for ClimateOrderStatus {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ClimateOrderStatus;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "awaiting_funds" => ClimateOrderStatus::AwaitingFunds,
-                    "canceled" => ClimateOrderStatus::Canceled,
-                    "confirmed" => ClimateOrderStatus::Confirmed,
-                    "delivered" => ClimateOrderStatus::Delivered,
-                    "open" => ClimateOrderStatus::Open,
-                    other => ClimateOrderStatus::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ClimateOrderStatus::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ClimateOrderStatus {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ClimateOrderStatus::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "awaiting_funds" => ClimateOrderStatus::AwaitingFunds,
+            "canceled" => ClimateOrderStatus::Canceled,
+            "confirmed" => ClimateOrderStatus::Confirmed,
+            "delivered" => ClimateOrderStatus::Delivered,
+            "open" => ClimateOrderStatus::Open,
+            other => ClimateOrderStatus::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "climate", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ClimateProduct {
     #[doc = "Time at which the object was created."]
-    #[serde(default)]
+    #[json(default)]
     pub created: i64,
     #[doc = "Current prices for a metric ton of carbon removal in a currency's smallest unit."]
-    #[serde(default)]
+    #[json(default)]
     pub current_prices_per_metric_ton: std::collections::HashMap<String, crate::climate::ClimateRemovalsProductsPrice>,
     #[doc = "The year in which the carbon removal is expected to be delivered."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub delivery_year: Option<i64>,
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "Has the value `true` if the object exists in live mode or the value `false` if the object exists in test mode."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "The quantity of metric tons available for reservation."]
-    #[serde(default)]
+    #[json(default)]
     pub metric_tons_available: String,
     #[doc = "The Climate product's name."]
-    #[serde(default)]
+    #[json(default)]
     pub name: String,
     #[doc = "String representing the object's type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::climate::ClimateProductObject,
     #[doc = "The carbon removal suppliers that fulfill orders for this Climate product."]
-    #[serde(default)]
+    #[json(default)]
     pub suppliers: Vec<crate::climate::ClimateSupplier>,
 }
 
@@ -345,123 +293,110 @@ impl Default for ClimateProductObject {
 }
 
 #[cfg(any(feature = "climate", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for ClimateProductObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ClimateProductObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "climate.product" => ClimateProductObject::ClimateProduct,
-                    other => ClimateProductObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ClimateProductObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ClimateProductObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ClimateProductObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "climate.product" => ClimateProductObject::ClimateProduct,
+            other => ClimateProductObject::Unknown(other.to_string()),
+        })
     }
 }
 
 #[cfg(any(feature = "climate", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ClimateRemovalsBeneficiary {
     #[doc = "Publicly displayable name for the end beneficiary of carbon removal."]
-    #[serde(default)]
+    #[json(default)]
     pub public_name: String,
 }
 
 #[cfg(any(feature = "climate", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ClimateRemovalsLocation {
     #[doc = "The city where the supplier is located."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
     #[doc = "Two-letter ISO code representing the country where the supplier is located."]
-    #[serde(default)]
+    #[json(default)]
     pub country: String,
     #[doc = "The geographic latitude where the supplier is located."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub latitude: Option<f64>,
     #[doc = "The geographic longitude where the supplier is located."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub longitude: Option<f64>,
     #[doc = "The state/county/province/region where the supplier is located."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub region: Option<String>,
 }
 
 #[cfg(any(feature = "climate", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ClimateRemovalsOrderDeliveries {
     #[doc = "Time at which the delivery occurred."]
-    #[serde(default)]
+    #[json(default)]
     pub delivered_at: i64,
     #[doc = "Specific location of this delivery."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub location: Option<crate::climate::ClimateRemovalsLocation>,
     #[doc = "Quantity of carbon removal supplied by this delivery."]
-    #[serde(default)]
+    #[json(default)]
     pub metric_tons: String,
     #[doc = "Once retired, a URL to the registry entry for the tons from this delivery."]
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub registry_url: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[json(default, skip_serializing_if = "Option::is_none")]
     pub supplier: Option<crate::climate::ClimateSupplier>,
 }
 
 #[cfg(any(feature = "climate", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ClimateRemovalsProductsPrice {
     #[doc = "Fees for one metric ton of carbon removal in the currency's smallest unit."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_fees: i64,
     #[doc = "Subtotal for one metric ton of carbon removal (excluding fees) in the currency's smallest unit."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_subtotal: i64,
     #[doc = "Total for one metric ton of carbon removal (including fees) in the currency's smallest unit."]
-    #[serde(default)]
+    #[json(default)]
     pub amount_total: i64,
 }
 
 #[cfg(any(feature = "climate", feature = "events"))]
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
 pub struct ClimateSupplier {
     #[doc = "Unique identifier for the object."]
-    #[serde(default)]
+    #[json(default)]
     pub id: String,
     #[doc = "Link to a webpage to learn more about the supplier."]
-    #[serde(default)]
+    #[json(default)]
     pub info_url: String,
     #[doc = "Has the value `true` if the object exists in live mode or the value `false` if the object exists in test mode."]
-    #[serde(default)]
+    #[json(default)]
     pub livemode: bool,
     #[doc = "The locations in which this supplier operates."]
-    #[serde(default)]
+    #[json(default)]
     pub locations: Vec<crate::climate::ClimateRemovalsLocation>,
     #[doc = "Name of this carbon removal supplier."]
-    #[serde(default)]
+    #[json(default)]
     pub name: String,
     #[doc = "String representing the object’s type."]
-    #[serde(default)]
+    #[json(default)]
     pub object: crate::climate::ClimateSupplierObject,
     #[doc = "The scientific pathway used for carbon removal."]
-    #[serde(default)]
+    #[json(default)]
     pub removal_pathway: crate::climate::ClimateSupplierRemovalPathway,
 }
 
@@ -499,36 +434,18 @@ impl Default for ClimateSupplierObject {
 }
 
 #[cfg(any(feature = "climate", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for ClimateSupplierObject {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ClimateSupplierObject;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "climate.supplier" => ClimateSupplierObject::ClimateSupplier,
-                    other => ClimateSupplierObject::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ClimateSupplierObject::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ClimateSupplierObject {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ClimateSupplierObject::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "climate.supplier" => ClimateSupplierObject::ClimateSupplier,
+            other => ClimateSupplierObject::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -565,41 +482,21 @@ impl Default for ClimateSupplierRemovalPathway {
 }
 
 #[cfg(any(feature = "climate", feature = "events"))]
-impl<'de> serde::Deserialize<'de> for ClimateSupplierRemovalPathway {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct EnumVisitor;
-        impl<'de> serde::de::Visitor<'de> for EnumVisitor {
-            type Value = ClimateSupplierRemovalPathway;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                formatter.write_str("a string")
-            }
-            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(match value {
-                    "biomass_carbon_removal_and_storage" => {
-                        ClimateSupplierRemovalPathway::BiomassCarbonRemovalAndStorage
-                    }
-                    "direct_air_capture" => ClimateSupplierRemovalPathway::DirectAirCapture,
-                    "enhanced_weathering" => ClimateSupplierRemovalPathway::EnhancedWeathering,
-                    "marine_carbon_removal" => ClimateSupplierRemovalPathway::MarineCarbonRemoval,
-                    other => ClimateSupplierRemovalPathway::Unknown(other.to_string()),
-                })
-            }
-
-            fn visit_unit<E>(self) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                // An explicit `null` is treated like a missing value.
-                Ok(ClimateSupplierRemovalPathway::Unknown(String::new()))
-            }
+impl<'json> json::Decode<'json> for ClimateSupplierRemovalPathway {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(ClimateSupplierRemovalPathway::Unknown(String::new()));
         }
-        deserializer.deserialize_any(EnumVisitor)
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "biomass_carbon_removal_and_storage" => ClimateSupplierRemovalPathway::BiomassCarbonRemovalAndStorage,
+            "direct_air_capture" => ClimateSupplierRemovalPathway::DirectAirCapture,
+            "enhanced_weathering" => ClimateSupplierRemovalPathway::EnhancedWeathering,
+            "marine_carbon_removal" => ClimateSupplierRemovalPathway::MarineCarbonRemoval,
+            other => ClimateSupplierRemovalPathway::Unknown(other.to_string()),
+        })
     }
 }
 
@@ -733,7 +630,7 @@ impl crate::params::FormEncode for UpdateClimateOrderParams {
 #[derive(Debug, Clone, Default)]
 pub struct UpdateClimateOrderParamsBeneficiary {
     #[doc = "Publicly displayable name for the end beneficiary of carbon removal."]
-    pub public_name: serde_json::Value,
+    pub public_name: json::OwnedValue,
 }
 
 #[cfg(feature = "climate")]
