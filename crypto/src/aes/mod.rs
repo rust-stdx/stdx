@@ -26,6 +26,7 @@ mod ghash_arm64;
 
 pub(crate) use aes::RoundKeys;
 pub use aes::{decrypt_block, encrypt_block};
+pub(crate) use aes_ct::round_pair;
 pub use aes_ctr::{Aes128Ctr, Aes256Ctr};
 pub use aes_gcm::{Aes128Gcm, Aes256Gcm};
 

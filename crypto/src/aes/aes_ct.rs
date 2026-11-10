@@ -488,6 +488,29 @@ fn store_pair(q: &mut State, a: &mut [u8; 16], b: &mut [u8; 16]) {
     b[12..16].copy_from_slice(&q[7].to_le_bytes());
 }
 
+/// Apply one AES encryption round to two independent blocks.
+///
+/// The round is `SubBytes` -> `ShiftRows` -> `MixColumns` -> `AddRoundKey`
+/// (FIPS 197 §5.1), with a distinct round key per block. It is the building
+/// block of AEGIS (RFC 10032), which uses the AES round function directly and
+/// has no key schedule.
+///
+/// Like the rest of this module the operation is constant-time: it uses the
+/// bitsliced S-box circuit and never indexes memory with key- or data-derived
+/// values.
+#[inline]
+pub(crate) fn round_pair(a: &mut [u8; 16], b: &mut [u8; 16], rk_a: &[u8; 16], rk_b: &[u8; 16]) {
+    let mut q = load_pair(a, b);
+    bitslice_sbox(&mut q);
+    shift_rows(&mut q);
+    mix_columns(&mut q);
+    store_pair(&mut q, a, b);
+    for i in 0..16 {
+        a[i] ^= rk_a[i];
+        b[i] ^= rk_b[i];
+    }
+}
+
 /// Encrypt two independent 16-byte blocks in a single bitsliced pass.
 ///
 /// Both blocks use the same round keys; the two results are independent.
@@ -671,5 +694,55 @@ mod tests {
         let mut b3 = [0u8; 16];
         encrypt_pair(&sched, &mut a3, &mut b3);
         assert_eq!(a3, expected);
+    }
+
+    #[test]
+    fn round_pair_matches_rfc10032_vector() {
+        // RFC 10032 Appendix A.1.
+        let mut a: [u8; 16] = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+        ];
+        let rk_a: [u8; 16] = [
+            0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+        ];
+        let mut b = [0xa5u8; 16];
+        let rk_b = [0x5au8; 16];
+        let expected_b = round_pair_reference(b, rk_b);
+
+        round_pair(&mut a, &mut b, &rk_a, &rk_b);
+
+        assert_eq!(
+            a,
+            [
+                0x7a, 0x7b, 0x4e, 0x56, 0x38, 0x78, 0x25, 0x46, 0xa8, 0xc0, 0x47, 0x7a, 0x3b, 0x81, 0x3f, 0x43
+            ]
+        );
+        assert_eq!(b, expected_b);
+    }
+
+    /// Straightforward table-based AES round used only to check that the two
+    /// bitsliced lanes are independent.
+    fn round_pair_reference(mut block: [u8; 16], rk: [u8; 16]) -> [u8; 16] {
+        let mut s = [0u8; 16];
+        for r in 0..4 {
+            for c in 0..4 {
+                s[r + 4 * c] = SBOX[block[r + 4 * ((c + r) % 4)] as usize];
+            }
+        }
+        let xt = |x: u8| (x << 1) ^ (((x >> 7) & 1) * 0x1b);
+        for c in 0..4 {
+            let a0 = s[4 * c];
+            let a1 = s[4 * c + 1];
+            let a2 = s[4 * c + 2];
+            let a3 = s[4 * c + 3];
+            block[4 * c] = xt(a0) ^ (xt(a1) ^ a1) ^ a2 ^ a3;
+            block[4 * c + 1] = a0 ^ xt(a1) ^ (xt(a2) ^ a2) ^ a3;
+            block[4 * c + 2] = a0 ^ a1 ^ xt(a2) ^ (xt(a3) ^ a3);
+            block[4 * c + 3] = (xt(a0) ^ a0) ^ a1 ^ a2 ^ xt(a3);
+        }
+        for i in 0..16 {
+            block[i] ^= rk[i];
+        }
+        block
     }
 }

@@ -15,6 +15,7 @@ use alloc::vec::Vec;
 
 mod bytes;
 
+pub mod aegis;
 pub mod aes;
 #[cfg(feature = "alloc")]
 pub mod argon2;
@@ -240,6 +241,7 @@ pub trait Aead {
     /// Implementations panic when `nonce.len() != Self::NONCE_SIZE` (and may
     /// panic on other violations of their documented contract). Callers whose
     /// nonce length is not statically known should check it before calling.
+    #[must_use]
     fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash;
 
     /// Authenticates and decrypts `in_out` in place.

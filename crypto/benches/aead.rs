@@ -1,6 +1,7 @@
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use crypto::{
     Aead,
+    aegis::{Aegis256, Aegis256X2, Aegis256X4},
     aes::{Aes128Gcm, Aes256Gcm},
     ascon::AsconAead128,
     chacha::{ChaCha20Blake3, ChaCha20Poly1305},
@@ -34,30 +35,13 @@ fn bench_encrypt(c: &mut Criterion) {
     let chacha20poly1305 = ChaCha20Poly1305::new(&KEY);
     let chacha_blake3 = ChaCha20Blake3::new(&KEY);
     let ascon = AsconAead128::new(&KEY_16);
+    let aegis256 = Aegis256::<16>::new(&KEY);
+    let aegis256x2 = Aegis256X2::<16>::new(&KEY);
+    let aegis256x4 = Aegis256X4::<16>::new(&KEY);
 
     for &size in DATA_SIZES {
         let mut group = c.benchmark_group(size.to_string());
         group.throughput(Throughput::Bytes(size as u64));
-
-        group.bench_function(BenchmarkId::from_parameter("AES-256-GCM-encrypt"), |b| {
-            b.iter_batched(
-                || vec![0xA5_u8; size],
-                |mut data| {
-                    let _tag = aes256.encrypt_in_place(&mut data, &NONCE_96[..], &[]);
-                },
-                criterion::BatchSize::SmallInput,
-            );
-        });
-
-        group.bench_function(BenchmarkId::from_parameter("AES-128-GCM-encrypt"), |b| {
-            b.iter_batched(
-                || vec![0xA5_u8; size],
-                |mut data| {
-                    let _tag = aes128.encrypt_in_place(&mut data, &NONCE_96[..], &[]);
-                },
-                criterion::BatchSize::SmallInput,
-            );
-        });
 
         group.bench_function(BenchmarkId::from_parameter("ChaCha20-Poly1305-encrypt"), |b| {
             b.iter_batched(
@@ -89,6 +73,56 @@ fn bench_encrypt(c: &mut Criterion) {
             );
         });
 
+        group.bench_function(BenchmarkId::from_parameter("AES-128-GCM-encrypt"), |b| {
+            b.iter_batched(
+                || vec![0xA5_u8; size],
+                |mut data| {
+                    let _tag = aes128.encrypt_in_place(&mut data, &NONCE_96[..], &[]);
+                },
+                criterion::BatchSize::SmallInput,
+            );
+        });
+
+        group.bench_function(BenchmarkId::from_parameter("AES-256-GCM-encrypt"), |b| {
+            b.iter_batched(
+                || vec![0xA5_u8; size],
+                |mut data| {
+                    let _tag = aes256.encrypt_in_place(&mut data, &NONCE_96[..], &[]);
+                },
+                criterion::BatchSize::SmallInput,
+            );
+        });
+
+        group.bench_function(BenchmarkId::from_parameter("AEGIS-256-encrypt"), |b| {
+            b.iter_batched(
+                || vec![0xA5_u8; size],
+                |mut data| {
+                    let _tag = aegis256.encrypt_in_place(&mut data, &NONCE_256[..], &[]);
+                },
+                criterion::BatchSize::SmallInput,
+            );
+        });
+
+        group.bench_function(BenchmarkId::from_parameter("AEGIS-256X2-encrypt"), |b| {
+            b.iter_batched(
+                || vec![0xA5_u8; size],
+                |mut data| {
+                    let _tag = aegis256x2.encrypt_in_place(&mut data, &NONCE_256[..], &[]);
+                },
+                criterion::BatchSize::SmallInput,
+            );
+        });
+
+        group.bench_function(BenchmarkId::from_parameter("AEGIS-256X4-encrypt"), |b| {
+            b.iter_batched(
+                || vec![0xA5_u8; size],
+                |mut data| {
+                    let _tag = aegis256x4.encrypt_in_place(&mut data, &NONCE_256[..], &[]);
+                },
+                criterion::BatchSize::SmallInput,
+            );
+        });
+
         group.finish();
     }
 }
@@ -99,38 +133,13 @@ fn bench_decrypt(c: &mut Criterion) {
     let chacha20poly1305 = ChaCha20Poly1305::new(&KEY);
     let chacha20_blake3 = ChaCha20Blake3::new(&KEY);
     let ascon = AsconAead128::new(&KEY_16);
+    let aegis256 = Aegis256::<16>::new(&KEY);
+    let aegis256x2 = Aegis256X2::<16>::new(&KEY);
+    let aegis256x4 = Aegis256X4::<16>::new(&KEY);
 
     for &size in DATA_SIZES {
         let mut group = c.benchmark_group(size.to_string());
         group.throughput(Throughput::Bytes(size as u64));
-
-        group.bench_function(BenchmarkId::from_parameter("AES-256-GCM-decrypt"), |b| {
-            b.iter_batched(
-                || {
-                    let mut data = vec![0xA5_u8; size];
-                    let tag = aes256.encrypt_in_place(&mut data, &NONCE_96[..], &[]);
-                    (data, tag)
-                },
-                |(mut data, tag)| {
-                    let _result = aes256.decrypt_in_place(&mut data, &NONCE_96[..], &[], tag.as_ref());
-                },
-                criterion::BatchSize::SmallInput,
-            );
-        });
-
-        group.bench_function(BenchmarkId::from_parameter("AES-128-GCM-decrypt"), |b| {
-            b.iter_batched(
-                || {
-                    let mut data = vec![0xA5_u8; size];
-                    let tag = aes128.encrypt_in_place(&mut data, &NONCE_96[..], &[]);
-                    (data, tag)
-                },
-                |(mut data, tag)| {
-                    let _result = aes128.decrypt_in_place(&mut data, &NONCE_96[..], &[], tag.as_ref());
-                },
-                criterion::BatchSize::SmallInput,
-            );
-        });
 
         group.bench_function(BenchmarkId::from_parameter("ChaCha20-Poly1305-decrypt"), |b| {
             b.iter_batched(
@@ -169,6 +178,76 @@ fn bench_decrypt(c: &mut Criterion) {
                 },
                 |(mut data, tag)| {
                     let _result = ascon.decrypt_in_place(&mut data, &NONCE_128[..], &[], tag.as_ref());
+                },
+                criterion::BatchSize::SmallInput,
+            );
+        });
+
+        group.bench_function(BenchmarkId::from_parameter("AES-128-GCM-decrypt"), |b| {
+            b.iter_batched(
+                || {
+                    let mut data = vec![0xA5_u8; size];
+                    let tag = aes128.encrypt_in_place(&mut data, &NONCE_96[..], &[]);
+                    (data, tag)
+                },
+                |(mut data, tag)| {
+                    let _result = aes128.decrypt_in_place(&mut data, &NONCE_96[..], &[], tag.as_ref());
+                },
+                criterion::BatchSize::SmallInput,
+            );
+        });
+
+        group.bench_function(BenchmarkId::from_parameter("AES-256-GCM-decrypt"), |b| {
+            b.iter_batched(
+                || {
+                    let mut data = vec![0xA5_u8; size];
+                    let tag = aes256.encrypt_in_place(&mut data, &NONCE_96[..], &[]);
+                    (data, tag)
+                },
+                |(mut data, tag)| {
+                    let _result = aes256.decrypt_in_place(&mut data, &NONCE_96[..], &[], tag.as_ref());
+                },
+                criterion::BatchSize::SmallInput,
+            );
+        });
+
+        group.bench_function(BenchmarkId::from_parameter("AEGIS-256-decrypt"), |b| {
+            b.iter_batched(
+                || {
+                    let mut data = vec![0xA5_u8; size];
+                    let tag = aegis256.encrypt_in_place(&mut data, &NONCE_256[..], &[]);
+                    (data, tag)
+                },
+                |(mut data, tag)| {
+                    let _result = aegis256.decrypt_in_place(&mut data, &NONCE_256[..], &[], tag.as_ref());
+                },
+                criterion::BatchSize::SmallInput,
+            );
+        });
+
+        group.bench_function(BenchmarkId::from_parameter("AEGIS-256X2-decrypt"), |b| {
+            b.iter_batched(
+                || {
+                    let mut data = vec![0xA5_u8; size];
+                    let tag = aegis256x2.encrypt_in_place(&mut data, &NONCE_256[..], &[]);
+                    (data, tag)
+                },
+                |(mut data, tag)| {
+                    let _result = aegis256x2.decrypt_in_place(&mut data, &NONCE_256[..], &[], tag.as_ref());
+                },
+                criterion::BatchSize::SmallInput,
+            );
+        });
+
+        group.bench_function(BenchmarkId::from_parameter("AEGIS-256X4-decrypt"), |b| {
+            b.iter_batched(
+                || {
+                    let mut data = vec![0xA5_u8; size];
+                    let tag = aegis256x4.encrypt_in_place(&mut data, &NONCE_256[..], &[]);
+                    (data, tag)
+                },
+                |(mut data, tag)| {
+                    let _result = aegis256x4.decrypt_in_place(&mut data, &NONCE_256[..], &[], tag.as_ref());
                 },
                 criterion::BatchSize::SmallInput,
             );

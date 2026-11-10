@@ -46,7 +46,9 @@ pub use mlkem_composite::{
 };
 pub use mlkem768::{CIPHERTEXT_SIZE_768, PUBLIC_KEY_SIZE_768, PublicKey768, SECRET_KEY_SIZE_768, SecretKey768};
 pub use mlkem1024::{CIPHERTEXT_SIZE_1024, PUBLIC_KEY_SIZE_1024, PublicKey1024, SECRET_KEY_SIZE_1024, SecretKey1024};
+#[cfg(feature = "random")]
+pub use xwing::generate_xwing_keypair;
 pub use xwing::{
     XWING_CIPHERTEXT_SIZE, XWING_PUBLIC_KEY_SIZE, XWING_SECRET_KEY_SIZE, XWING_SHARED_SECRET_SIZE, XWingError,
-    XWingPublicKey, XWingSecretKey, generate_xwing_keypair, generate_xwing_keypair_derand,
+    XWingPublicKey, XWingSecretKey, generate_xwing_keypair_derand,
 };

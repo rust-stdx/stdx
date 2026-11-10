@@ -45,6 +45,10 @@ name = "aead"
 harness = false
 
 [[bench]]
+name = "aegis"
+harness = false
+
+[[bench]]
 name = "kem"
 harness = false
 
