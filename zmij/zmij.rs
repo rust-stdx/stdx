@@ -497,6 +497,7 @@ impl Pow10SignificandTable {
     }
 
     #[cfg(test)]
+    #[allow(dead_code)]
     fn get(&self, dec_exp: i32) -> uint128 {
         const DEC_EXP_MIN: i32 = -292;
         assert!((DEC_EXP_MIN..DEC_EXP_MIN + Self::NUM_POW10S as i32).contains(&dec_exp));
@@ -724,6 +725,7 @@ impl ExpFloatShuffleTable {
     all(test, target_endian = "little"),
 ))]
 #[cfg_attr(feature = "no-panic", no_panic)]
+#[allow(dead_code)]
 fn count_trailing_nonzeros(x: u64) -> usize {
     // We count the number of bytes until there are only zeros left.
     // The code is equivalent to

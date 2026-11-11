@@ -22,8 +22,10 @@
 //! [`ChaCha20Ietf`]. The IETF layout is required by TLS 1.3 and is used as the inner cipher for
 //! the [`ChaCha20Poly1305`] AEAD.
 //!
-//! [`XChaCha20`] extends the nonce to 24 bytes by deriving a subkey with [`hchacha20`], then encrypting
-//! with the IETF variant of ChaCha20. This allows random nonces with negligible collision probability.
+//! [`XChaCha20Ietf`] and [`XChaCha20Djb`] extend the nonce to 24 bytes by deriving a subkey with
+//! [`hchacha20`], then encrypting with the IETF (32-bit counter) or original DJB (64-bit counter)
+//! variant of ChaCha20 respectively. This allows random nonces with negligible collision
+//! probability.
 //!
 //! # Examples
 //!
@@ -93,7 +95,8 @@ mod chacha;
 
 pub(crate) use chacha::{BLOCK_SIZE, CONSTANT, STATE_WORDS, quarter_round};
 pub use chacha::{
-    CHACHA20_IETF_MAX_LEN, ChaCha, ChaCha8Djb, ChaCha12Djb, ChaCha20Djb, ChaCha20Ietf, XChaCha, XChaCha20,
+    CHACHA20_IETF_MAX_LEN, ChaCha, ChaCha8Djb, ChaCha12Djb, ChaCha20Djb, ChaCha20Ietf, XChaCha, XChaCha20Djb,
+    XChaCha20Ietf,
 };
 
 mod chacha20_blake3;

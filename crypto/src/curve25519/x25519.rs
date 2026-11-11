@@ -263,12 +263,16 @@ impl TryFrom<&[u8]> for PublicKey {
 impl TryFrom<&ed25519::PublicKey> for PublicKey {
     type Error = EllipticCurveError;
 
+    /// Converts an Ed25519 public key to an X25519 public key.
+    ///
+    /// Returns [`EllipticCurveError::InvalidKey`] if the Ed25519 key has a
+    /// nonzero torsion component. Only points in the Ed25519 prime-order
+    /// subgroup have an unambiguous Montgomery u-coordinate; honest keys
+    /// produced by Ed25519 key generation always satisfy this.
     fn try_from(ed25519_public_key: &ed25519::PublicKey) -> Result<Self, Self::Error> {
-        let mut y_bytes = ed25519_public_key.to_bytes();
-        y_bytes[31] &= 0x7f;
-        let y = FieldElement::from_canonical_bytes(&y_bytes).ok_or(EllipticCurveError::InvalidKey)?;
-        let one = FieldElement::ONE;
-        let u = (one.add(y)).mul((one.sub(y)).invert().ok_or(EllipticCurveError::InvalidKey)?);
+        let u = ed25519_public_key
+            .to_montgomery_u()
+            .ok_or(EllipticCurveError::InvalidKey)?;
         Ok(PublicKey {
             u,
         })
@@ -891,5 +895,76 @@ mod tests {
         }
         assert!(valid_tested > 0, "no valid wycheproof x25519 tests were run");
         assert!(acceptable_tested > 0, "no acceptable wycheproof x25519 tests were run");
+    }
+
+    #[test]
+    fn wycheproof_ed25519_to_x25519() {
+        let data: serde_json::Value = serde_json::from_str(include_str!(
+            "../../testdata/wycheproof/testvectors_v1/ed25519_to_x25519_test.json"
+        ))
+        .unwrap();
+
+        let mut valid_tested = 0u64;
+        let mut mixed_order_tested = 0u64;
+
+        for group in data["testGroups"].as_array().unwrap() {
+            assert_eq!(group["edwardsCurve"].as_str(), Some("edwards25519"));
+            assert_eq!(group["montgomeryCurve"].as_str(), Some("curve25519"));
+
+            for test in group["tests"].as_array().unwrap() {
+                let public_key = decode_hex::<32>(test["publicKey"].as_str().unwrap());
+                let parsed_public_key = ed25519::PublicKey::from_bytes(&public_key);
+                let converted = parsed_public_key
+                    .as_ref()
+                    .ok()
+                    .and_then(|public_key| PublicKey::try_from(public_key).ok());
+
+                let tc_id = test["tcId"].as_u64().unwrap();
+                let result = test["result"].as_str().unwrap();
+                let is_mixed_order = test["flags"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|flag| flag.as_str() == Some("MixedOrderPublicKey"));
+
+                match result {
+                    "valid" => {
+                        let converted =
+                            converted.unwrap_or_else(|| panic!("ed25519->x25519 tcId={tc_id}: valid key rejected"));
+                        assert_eq!(
+                            hex::encode(converted.to_bytes()),
+                            test["convertedPublicKey"].as_str().unwrap(),
+                            "ed25519->x25519 tcId={tc_id} converted key mismatch"
+                        );
+                        valid_tested += 1;
+                    }
+                    "invalid" => {
+                        assert!(converted.is_none(), "ed25519->x25519 tcId={tc_id}: expected conversion to fail");
+                        if is_mixed_order {
+                            assert!(
+                                parsed_public_key.is_ok(),
+                                "ed25519->x25519 tcId={tc_id}: mixed-order key must parse"
+                            );
+                            mixed_order_tested += 1;
+                        }
+                    }
+                    // Implementations may accept or reject acceptable vectors, but
+                    // any accepted conversion must match the expected u-coordinate.
+                    "acceptable" => {
+                        if let Some(converted) = converted {
+                            assert_eq!(
+                                hex::encode(converted.to_bytes()),
+                                test["convertedPublicKey"].as_str().unwrap(),
+                                "ed25519->x25519 tcId={tc_id} acceptable converted key mismatch"
+                            );
+                        }
+                    }
+                    other => panic!("ed25519->x25519 tcId={tc_id}: unexpected result {other}"),
+                }
+            }
+        }
+
+        assert!(valid_tested > 0, "no valid ed25519->x25519 tests were run");
+        assert!(mixed_order_tested > 0, "no mixed-order ed25519->x25519 tests were run");
     }
 }

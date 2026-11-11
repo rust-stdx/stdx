@@ -250,7 +250,17 @@ impl PublicKey {
         self.bytes
     }
 
+    /// Converts this Ed25519 public key to the u-coordinate of the
+    /// corresponding Montgomery (X25519) public key.
+    ///
+    /// Returns [`None`] if the key has a nonzero torsion component, because
+    /// the Edwards-to-Montgomery map is only unambiguous for points in the
+    /// prime-order subgroup. Keys produced by Ed25519 key generation are
+    /// always torsion-free.
     pub fn to_montgomery_u(&self) -> Option<FieldElement> {
+        if !self.point.is_torsion_free() {
+            return None;
+        }
         let inv_z = self.point.z.invert()?;
         let y = self.point.y.mul(inv_z);
         let one = FieldElement::ONE;
@@ -471,6 +481,18 @@ impl EdwardsPoint {
     #[inline]
     fn is_small_order(&self) -> bool {
         let p = self.mul_by_cofactor();
+        p.x.is_zero() && p.y.ct_eq(&p.z)
+    }
+
+    /// Returns `true` if this point belongs to the prime-order subgroup, i.e.
+    /// `[L]P == identity`.
+    ///
+    /// Honest Ed25519 public keys are always torsion-free. Points with a
+    /// nonzero torsion component are ambiguous inputs to the Edwards-to-
+    /// Montgomery conversion, so it rejects them.
+    #[inline]
+    fn is_torsion_free(&self) -> bool {
+        let p = scalar_mul(self, &Scalar(MODULUS_L));
         p.x.is_zero() && p.y.ct_eq(&p.z)
     }
 }
@@ -1028,11 +1050,12 @@ mod tests {
 
         let mut valid_tested = 0usize;
         let mut invalid_tested = 0usize;
+        let mut acceptable_tested = 0usize;
         let mut skipped = 0usize;
 
         for group in &parsed.test_groups {
             let public_key = decode_hex::<32>(&group.public_key.pk);
-            let pk = PublicKey::from_bytes(&public_key).unwrap();
+            let parsed_public_key = PublicKey::from_bytes(&public_key);
 
             for test in &group.tests {
                 let msg = decode_hex_vec(&test.msg);
@@ -1042,29 +1065,53 @@ mod tests {
                     continue;
                 }
                 let signature = decode_hex::<64>(sig_hex);
-                let should_be_valid = test.result == "valid";
 
-                let result = pk.verify(&msg, &signature);
-                if should_be_valid {
-                    assert!(
-                        result.is_ok(),
-                        "Wycheproof test #{}: expected valid but got {:?}",
-                        test.tc_id,
-                        result,
-                    );
-                    valid_tested += 1;
-                } else {
-                    assert!(result.is_err(), "Wycheproof test #{}: expected invalid but got ok", test.tc_id,);
-                    invalid_tested += 1;
+                match test.result.as_str() {
+                    "valid" => {
+                        let pk = parsed_public_key.as_ref().unwrap_or_else(|error| {
+                            panic!("Wycheproof test #{}: valid key rejected: {error:?}", test.tc_id)
+                        });
+                        let result = pk.verify(&msg, &signature);
+                        assert!(
+                            result.is_ok(),
+                            "Wycheproof test #{}: expected valid but got {:?}",
+                            test.tc_id,
+                            result,
+                        );
+                        valid_tested += 1;
+                    }
+                    "invalid" => {
+                        if let Ok(pk) = &parsed_public_key {
+                            assert!(
+                                pk.verify(&msg, &signature).is_err(),
+                                "Wycheproof test #{}: expected invalid but got ok",
+                                test.tc_id,
+                            );
+                        }
+                        invalid_tested += 1;
+                    }
+                    // Implementations may reject non-prime-order public keys, or
+                    // signatures that only satisfy the cofactored equation.
+                    "acceptable" => {
+                        if let Ok(pk) = &parsed_public_key {
+                            let _ = pk.verify(&msg, &signature);
+                        }
+                        acceptable_tested += 1;
+                    }
+                    other => panic!("Wycheproof test #{}: unexpected result {other}", test.tc_id),
                 }
             }
         }
 
         assert!(valid_tested > 0, "must test at least one valid Wycheproof vector");
         assert!(invalid_tested > 0, "must test at least one invalid Wycheproof vector");
+        assert!(acceptable_tested > 0, "must test at least one acceptable Wycheproof vector");
         assert!(skipped > 0, "some truncated signatures should be skipped");
 
-        eprintln!("Wycheproof ed25519: {valid_tested} valid, {invalid_tested} invalid, {skipped} skipped");
+        eprintln!(
+            "Wycheproof ed25519: {valid_tested} valid, {invalid_tested} invalid, \
+             {acceptable_tested} acceptable, {skipped} skipped"
+        );
     }
 
     #[test]
