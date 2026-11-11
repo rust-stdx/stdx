@@ -644,10 +644,7 @@ macro_rules! define_mac {
             /// interface (unlike AEAD encryption).
             pub fn new_with_nonce(key: &[u8; 32], nonce: &[u8; 32]) -> Self {
                 const {
-                    assert!(
-                        TAG_SIZE == 16 || TAG_SIZE == 32,
-                        "AEGIS tag size must be 16 or 32 bytes"
-                    );
+                    assert!(TAG_SIZE == 16 || TAG_SIZE == 32, "AEGIS tag size must be 16 or 32 bytes");
                 }
                 let backend = detect::<$d>();
                 let mut state = [0u8; 96 * $d];

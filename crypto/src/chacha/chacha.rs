@@ -85,12 +85,6 @@ impl<const ROUNDS: usize, const IS_IETF: bool> ChaCha<ROUNDS, IS_IETF> {
         }
     }
 
-    /// Returns the largest block counter value for the selected layout.
-    #[inline(always)]
-    fn max_counter() -> u64 {
-        if IS_IETF { u32::MAX as u64 } else { u64::MAX }
-    }
-
     /// Panics if `new_blocks` more blocks would use the reserved final counter
     /// value or wrap the counter.
     ///
@@ -102,12 +96,11 @@ impl<const ROUNDS: usize, const IS_IETF: bool> ChaCha<ROUNDS, IS_IETF> {
             return;
         }
 
-        let counter = Self::extract_counter(&self.state) as u128;
-        let end = counter + new_blocks as u128;
-        let max = Self::max_counter() as u128;
+        let counter = Self::extract_counter(&self.state);
+        let max = if IS_IETF { u32::MAX as u64 } else { u64::MAX };
 
         assert!(
-            end <= max,
+            new_blocks <= max && counter <= max - new_blocks,
             "input exceeds maximum allowed length: the ChaCha block counter would wrap"
         );
     }
@@ -1648,6 +1641,25 @@ Expected: {}",
         assert_eq!(core::mem::size_of::<ChaCha20Ietf>(), 128);
         assert_eq!(core::mem::size_of::<XChaCha20Djb>(), 128);
         assert_eq!(core::mem::size_of::<XChaCha20Ietf>(), 128);
+    }
+
+    /// The IETF layout must reject a block count larger than its counter space without
+    /// underflowing the subtraction in `check_overflow`.
+    #[test]
+    #[should_panic(expected = "input exceeds maximum allowed")]
+    fn chacha20_ietf_check_overflow_rejects_more_blocks_than_counter_space() {
+        let cipher = ChaCha20Ietf::new(&test_key_32(), &test_nonce_12());
+        cipher.check_overflow(u32::MAX as u64 + 1);
+    }
+
+    /// The DJB path must reject an overflowing range without performing an overflowing `u64`
+    /// addition.
+    #[test]
+    #[should_panic(expected = "input exceeds maximum allowed")]
+    fn chacha20_djb_check_overflow_does_not_overflow() {
+        let mut cipher = ChaCha20Djb::new(&test_key_32(), &test_nonce_8());
+        cipher.set_counter(1);
+        cipher.check_overflow(u64::MAX);
     }
 
     fn catch_panic<F: FnOnce() -> Vec<u8> + std::panic::UnwindSafe>(f: F) -> Option<Vec<u8>> {
