@@ -13,8 +13,8 @@ use super::{HpkeError, aead::Aead, kdf::Kdf, kem::Kem, wipe};
 /// this document use at most 32-byte keys.
 const MAX_AEAD_KEY_SIZE: usize = 64;
 
-/// Maximum AEAD nonce size supported by the contexts. The AEADs defined in this
-/// document use 12-byte nonces.
+/// Maximum AEAD nonce size supported by the contexts. The AEADs registered by
+/// HPKE use 12-byte nonces; the AEGIS extensions use 32-byte nonces.
 const MAX_AEAD_NONCE_SIZE: usize = 64;
 
 /// HPKE mode values (`draft-ietf-hpke-hpke-05` Section 5.1).
@@ -530,7 +530,9 @@ impl<A: Aead, D: Kdf> RecipientContext<A, D> {
     /// plaintext has already been written to `in_out` even though
     /// [`HpkeError::MessageLimitReached`] is returned (matching
     /// `draft-ietf-hpke-hpke-05` Section 5.2, which raises the error after
-    /// `Open`). On [`HpkeError::OpenError`] the buffer is left untouched.
+    /// `Open`). On [`HpkeError::OpenError`] the contents of `in_out` are
+    /// unspecified: AES-GCM and ChaCha20-Poly1305 leave the buffer untouched,
+    /// while AEGIS zeroes it. Callers must only use the buffer on success.
     pub fn open_in_place(&mut self, in_out: &mut [u8], associated_data: &[u8], tag: &[u8]) -> Result<(), HpkeError> {
         return self.0.open_in_place(in_out, associated_data, tag);
     }

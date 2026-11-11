@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use crate::{
     HpkeError, Mode,
-    aead::{Aead, Aes256Gcm, ChaCha20Poly1305, ExportOnly},
+    aead::{Aead, Aegis256, Aegis256X2, Aegis256X4, Aes256Gcm, ChaCha20Poly1305, ExportOnly},
     kdf::{Blake3, HkdfSha256, HkdfSha512, Kdf, Shake256},
     kem::{Kem, MLKEM768X25519, MLKEM1024X25519, P256HkdfSha256, P521HkdfSha512, X25519HkdfSha256},
 };
@@ -460,6 +460,71 @@ fn roundtrip_all_suites() {
     roundtrip::<MLKEM1024X25519, Shake256, ChaCha20Poly1305>();
     roundtrip::<MLKEM1024X25519, Blake3, Aes256Gcm>();
     roundtrip::<MLKEM1024X25519, Blake3, ChaCha20Poly1305>();
+
+    // AEGIS has a 32-byte nonce and a 32-byte tag. Cover two-stage and
+    // single-stage KDFs, since the latter derives `Nk + Nn + Nh` bytes in one
+    // call.
+    roundtrip::<X25519HkdfSha256, HkdfSha256, Aegis256>();
+    roundtrip::<X25519HkdfSha256, HkdfSha512, Aegis256X2>();
+    roundtrip::<MLKEM768X25519, HkdfSha256, Aegis256X4>();
+    roundtrip::<MLKEM768X25519, Shake256, Aegis256>();
+    roundtrip::<MLKEM768X25519, Blake3, Aegis256X2>();
+}
+
+#[test]
+fn aegis_aead_parameters() {
+    fn check<A: Aead>(id: u16) {
+        assert_eq!(A::HPKE_AEAD_ID, id);
+        assert_eq!(<A as crypto::Aead>::KEY_SIZE, 32);
+        assert_eq!(<A as crypto::Aead>::NONCE_SIZE, 32);
+        assert_eq!(<A as crypto::Aead>::TAG_SIZE, 32);
+        assert_eq!(A::MAX_PLAINTEXT_SIZE, (1u64 << 61) - 1);
+        assert_eq!(A::MAX_CIPHERTEXT_SIZE, (1u64 << 61) - 1 + 32);
+    }
+
+    check::<Aegis256>(0xFF01);
+    check::<Aegis256X2>(0xFF02);
+    check::<Aegis256X4>(0xFF03);
+}
+
+#[test]
+fn aegis_multiple_messages_and_tampering() {
+    fn roundtrip<A: Aead>() {
+        let (recipient_secret_key, recipient_public_key) = X25519HkdfSha256::generate_keypair().unwrap();
+        let (encapped_key, mut sender) =
+            crate::new_sender::<X25519HkdfSha256, HkdfSha256, A>(&Mode::Base, &recipient_public_key, b"info").unwrap();
+        let mut recipient = crate::new_recipient::<X25519HkdfSha256, HkdfSha256, A>(
+            &Mode::Base,
+            &recipient_secret_key,
+            &encapped_key,
+            b"info",
+        )
+        .unwrap();
+
+        // Several messages exercise the sequence-number XOR in the 32-byte
+        // nonce.
+        for i in 0..4u8 {
+            let plaintext = [i; 24];
+            let ciphertext = sender.seal(&plaintext, b"aegis aad").unwrap();
+            assert_eq!(ciphertext.len(), plaintext.len() + A::TAG_SIZE);
+            assert_eq!(recipient.open(&ciphertext, b"aegis aad").unwrap(), plaintext);
+        }
+
+        // Empty plaintext and associated data are valid.
+        let ciphertext = sender.seal(b"", b"").unwrap();
+        assert_eq!(ciphertext.len(), A::TAG_SIZE);
+        assert_eq!(recipient.open(&ciphertext, b"").unwrap(), b"");
+
+        // A modified 256-bit tag is rejected.
+        let mut ciphertext = sender.seal(b"secret", b"").unwrap();
+        let last = ciphertext.len() - 1;
+        ciphertext[last] ^= 0x01;
+        assert_eq!(recipient.open(&ciphertext, b""), Err(HpkeError::OpenError));
+    }
+
+    roundtrip::<Aegis256>();
+    roundtrip::<Aegis256X2>();
+    roundtrip::<Aegis256X4>();
 }
 
 #[test]

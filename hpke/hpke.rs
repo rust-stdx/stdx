@@ -19,7 +19,14 @@
 //!   [`kem::P521HkdfSha512`]
 //! - KDFs: [`kdf::HkdfSha256`], [`kdf::HkdfSha512`], [`kdf::Shake256`],
 //!   [`kdf::Blake3`] (unofficial KDF id `0xFF01`, see the type docs)
-//! - AEADs: [`aead::Aes256Gcm`], [`aead::ChaCha20Poly1305`], [`aead::ExportOnly`]
+//! - AEADs: [`aead::Aes256Gcm`], [`aead::ChaCha20Poly1305`],
+//!   [`aead::Aegis256`], [`aead::Aegis256X2`], [`aead::Aegis256X4`],
+//!   [`aead::ExportOnly`]
+//!
+//! The AEGIS variants use the stdx-private, unofficial AEAD ids `0xFF01`,
+//! `0xFF02` and `0xFF03`. They use 32-byte nonces and 256-bit tags, so an HPKE
+//! ciphertext is 32 bytes longer than its plaintext. These suites only
+//! interoperate with implementations that adopt the same convention.
 //!
 //! Any of the three roles can be replaced by a custom implementation: define a
 //! type and implement [`kem::Kem`], [`kdf::Kdf`] or [`aead::Aead`] for it.
