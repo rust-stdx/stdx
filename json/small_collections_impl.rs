@@ -5,7 +5,7 @@ use small_collections::{SmallString, SmallVec};
 use crate::{
     decode::{Decode, Decoder},
     encode::{Encode, Encoder, Write},
-    error::Result,
+    error::{ErrorKind, Result},
 };
 
 impl<'a, T: Decode<'a>, const N: usize> Decode<'a> for SmallVec<T, N> {
@@ -34,8 +34,36 @@ impl<T: Encode, const N: usize> Encode for SmallVec<T, N> {
 
 impl<'a, const N: usize> Decode<'a> for SmallString<N> {
     fn decode(decoder: &mut Decoder<'a>) -> Result<Self> {
+        // Fast path: unescaped strings borrow directly from the input and are
+        // copied once into inline storage.
+        let start = decoder.position();
+        match decoder.decode_str() {
+            Ok(text) => return Ok(SmallString::from_str(text)),
+            Err(error) if matches!(error.kind(), ErrorKind::Message(_)) => {
+                decoder.set_position(start);
+            }
+            Err(error) => return Err(error),
+        }
+
+        // Escaped strings: unescape into a bounded stack buffer so short
+        // values do not allocate at all.
+        let mut buffer = [0u8; 128];
+        match decoder.decode_str_into(&mut buffer) {
+            Ok(text) => return Ok(SmallString::from_str(text)),
+            Err(error) if error.kind() == ErrorKind::BufferTooSmall => {
+                decoder.set_position(start);
+            }
+            Err(error) => return Err(error),
+        }
+
+        // Long escaped value: use the normal heap path, but still move the
+        // result inline when it fits.
         let text = decoder.decode_string()?;
-        Ok(SmallString::from_string(text))
+        Ok(if text.len() <= N {
+            SmallString::from_str(&text)
+        } else {
+            SmallString::from_string(text)
+        })
     }
 }
 

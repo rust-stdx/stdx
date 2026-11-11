@@ -10,8 +10,13 @@ use core::{
     ops::{Deref, Index, IndexMut},
 };
 
+#[cfg(not(feature = "std"))]
+use small_collections::SmallVec;
+
 use crate::error::{ErrorKind, Result};
 pub use crate::number::Number;
+
+const LINEAR_DUP: usize = 64;
 
 /// An ordered JSON object.
 ///
@@ -141,59 +146,81 @@ impl<'a> Map<'a> {
 
     /// Applies the duplicate-key policy to a map built by appending entries.
     ///
-    /// Small objects use a linear scan. Larger objects use a temporary
-    /// open-addressing index so parsing stays linear instead of quadratic.
+    /// Small objects use a stack-only linear scan. Large objects sort an
+    /// index buffer, which is collision-free and deterministic.
     pub(crate) fn finish_duplicates(
         &mut self,
         policy: crate::decode::DuplicateKeys,
     ) -> core::result::Result<(), crate::ErrorKind> {
-        use crate::decode::DuplicateKeys;
-
         let len = self.0.len();
         if len <= 1 {
             return Ok(());
         }
-
-        if len <= 16 {
-            let mut keep = [true; 16];
-            let mut any_duplicate = false;
-            for i in 0..len {
-                for j in 0..i {
-                    if keep[j] && self.0[i].0.as_ref() == self.0[j].0.as_ref() {
-                        match policy {
-                            DuplicateKeys::LastWins => {
-                                let value = core::mem::replace(&mut self.0[i].1, Value::Null);
-                                self.0[j].1 = value;
-                            }
-                            DuplicateKeys::FirstWins => {}
-                            DuplicateKeys::Reject => return Err(crate::ErrorKind::DuplicateKey),
-                        }
-                        keep[i] = false;
-                        any_duplicate = true;
-                        break;
-                    }
-                }
-            }
-            if any_duplicate && matches!(policy, DuplicateKeys::LastWins | DuplicateKeys::FirstWins) {
-                let mut unique = Vec::with_capacity(len);
-                for (i, pair) in core::mem::take(&mut self.0).into_iter().enumerate() {
-                    if keep[i] {
-                        unique.push(pair);
-                    }
-                }
-                self.0 = unique;
-            }
-            return Ok(());
+        if len <= LINEAR_DUP {
+            return self.finish_duplicates_linear(policy, len);
         }
+        #[cfg(feature = "std")]
+        {
+            self.finish_duplicates_hashed(policy, len)
+        }
+        #[cfg(not(feature = "std"))]
+        {
+            self.finish_duplicates_sorted(policy, len)
+        }
+    }
 
-        let capacity = len.saturating_mul(2).checked_next_power_of_two().unwrap_or(usize::MAX);
-        let mut table = alloc::vec![u32::MAX; capacity];
-        let mut keep = alloc::vec![true; len];
+    fn finish_duplicates_linear(
+        &mut self,
+        policy: crate::decode::DuplicateKeys,
+        len: usize,
+    ) -> core::result::Result<(), crate::ErrorKind> {
+        use crate::decode::DuplicateKeys;
+
+        let mut keep = [true; LINEAR_DUP];
         let mut any_duplicate = false;
+        for i in 0..len {
+            for j in 0..i {
+                if keep[j] && self.0[i].0.as_ref() == self.0[j].0.as_ref() {
+                    match policy {
+                        DuplicateKeys::LastWins => {
+                            let value = core::mem::replace(&mut self.0[i].1, Value::Null);
+                            self.0[j].1 = value;
+                        }
+                        DuplicateKeys::FirstWins => {}
+                        DuplicateKeys::Reject => return Err(crate::ErrorKind::DuplicateKey),
+                    }
+                    keep[i] = false;
+                    any_duplicate = true;
+                    break;
+                }
+            }
+        }
+        if any_duplicate {
+            self.apply_keep(&keep[..len]);
+        }
+        Ok(())
+    }
+
+    #[cfg(feature = "std")]
+    fn finish_duplicates_hashed(
+        &mut self,
+        policy: crate::decode::DuplicateKeys,
+        len: usize,
+    ) -> core::result::Result<(), crate::ErrorKind> {
+        use crate::decode::DuplicateKeys;
+
+        u32::try_from(len).map_err(|_| crate::ErrorKind::Message("object too large"))?;
+        let capacity = len
+            .checked_mul(2)
+            .and_then(usize::checked_next_power_of_two)
+            .ok_or(crate::ErrorKind::Message("object too large"))?;
+        let mut table = alloc::vec![u32::MAX; capacity];
         let mask = capacity - 1;
+        let seed = hash_seed();
+        let mut keep: Option<Vec<bool>> = None;
 
         for i in 0..len {
-            let mut slot = (hash_key(self.0[i].0.as_ref()) as usize) & mask;
+            let mut slot = (seeded_hash(self.0[i].0.as_ref(), seed) as usize) & mask;
             loop {
                 let entry = table[slot];
                 if entry == u32::MAX {
@@ -210,32 +237,102 @@ impl<'a> Map<'a> {
                         DuplicateKeys::FirstWins => {}
                         DuplicateKeys::Reject => return Err(crate::ErrorKind::DuplicateKey),
                     }
-                    keep[i] = false;
-                    any_duplicate = true;
+                    let mask = keep.get_or_insert_with(|| alloc::vec![true; len]);
+                    mask[i] = false;
                     break;
                 }
                 slot = (slot + 1) & mask;
             }
         }
 
-        if any_duplicate && matches!(policy, DuplicateKeys::LastWins | DuplicateKeys::FirstWins) {
-            let mut unique = Vec::with_capacity(len);
-            for (i, pair) in core::mem::take(&mut self.0).into_iter().enumerate() {
-                if keep[i] {
-                    unique.push(pair);
-                }
-            }
-            self.0 = unique;
+        if let Some(mask) = keep {
+            self.apply_keep(&mask);
         }
         Ok(())
     }
+
+    #[cfg(not(feature = "std"))]
+    fn finish_duplicates_sorted(
+        &mut self,
+        policy: crate::decode::DuplicateKeys,
+        len: usize,
+    ) -> core::result::Result<(), crate::ErrorKind> {
+        use crate::decode::DuplicateKeys;
+        const INLINE_INDEX: usize = 128;
+
+        let len_u32 = u32::try_from(len).map_err(|_| crate::ErrorKind::Message("object too large"))?;
+        let mut indices = SmallVec::<u32, INLINE_INDEX>::with_capacity(len);
+        for index in 0..len_u32 {
+            indices.push(index);
+        }
+        indices.sort_unstable_by(|&a, &b| self.0[a as usize].0.as_ref().cmp(self.0[b as usize].0.as_ref()));
+
+        let mut keep: Option<Vec<bool>> = None;
+        let mut start = 0usize;
+        while start < len {
+            let key = self.0[indices[start] as usize].0.as_ref();
+            let mut end = start + 1;
+            while end < len && self.0[indices[end] as usize].0.as_ref() == key {
+                end += 1;
+            }
+            if end - start > 1 {
+                let mut first = indices[start] as usize;
+                let mut last = first;
+                for &index in &indices[start + 1..end] {
+                    let index = index as usize;
+                    first = first.min(index);
+                    last = last.max(index);
+                }
+                match policy {
+                    DuplicateKeys::LastWins => {
+                        let value = core::mem::replace(&mut self.0[last].1, Value::Null);
+                        self.0[first].1 = value;
+                    }
+                    DuplicateKeys::FirstWins => {}
+                    DuplicateKeys::Reject => return Err(crate::ErrorKind::DuplicateKey),
+                }
+                let mask = keep.get_or_insert_with(|| alloc::vec![true; len]);
+                for &index in &indices[start..end] {
+                    let index = index as usize;
+                    if index != first {
+                        mask[index] = false;
+                    }
+                }
+            }
+            start = end;
+        }
+        if let Some(mask) = keep {
+            self.apply_keep(&mask);
+        }
+        Ok(())
+    }
+
+    fn apply_keep(&mut self, mask: &[bool]) {
+        let mut index = 0usize;
+        self.0.retain(|_| {
+            let keep = mask[index];
+            index += 1;
+            keep
+        });
+    }
 }
 
-fn hash_key(key: &str) -> u64 {
-    let mut hash = 0xcbf2_9ce4_8422_2325u64;
-    for byte in key.bytes() {
+#[cfg(feature = "std")]
+#[inline]
+fn hash_seed() -> u64 {
+    use std::{hash::BuildHasher, sync::OnceLock};
+
+    static SEED: OnceLock<u64> = OnceLock::new();
+    *SEED.get_or_init(|| std::collections::hash_map::RandomState::new().hash_one(0u64))
+}
+
+#[cfg(feature = "std")]
+#[inline]
+fn seeded_hash(key: &str, seed: u64) -> u64 {
+    let mut hash = seed ^ 0xCBF2_9CE4_8422_2325;
+    for &byte in key.as_bytes() {
         hash ^= byte as u64;
-        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+        hash = hash.wrapping_mul(0x0000_0100_0000_01B3);
     }
     hash
 }
@@ -493,20 +590,11 @@ impl<'a> Value<'a> {
                     current = values.get(index)?;
                 }
                 Value::Object(map) => {
-                    let mut key = alloc::string::String::new();
-                    let mut chars = token.chars();
-                    while let Some(ch) = chars.next() {
-                        if ch == '~' {
-                            match chars.next() {
-                                Some('0') => key.push('~'),
-                                Some('1') => key.push('/'),
-                                _ => return None,
-                            }
-                        } else {
-                            key.push(ch);
-                        }
-                    }
-                    current = map.get(&key)?;
+                    current = map
+                        .iter()
+                        .rev()
+                        .find(|(key, _)| pointer_token_eq(key.as_ref(), token))
+                        .map(|(_, value)| value)?;
                 }
                 _ => return None,
             }
@@ -858,4 +946,21 @@ macro_rules! json_internal_object {
         $( map.push($crate::__private::Cow::Borrowed($key), $crate::json!($value)); )+
         map
     }};
+}
+
+fn pointer_token_eq(key: &str, token: &str) -> bool {
+    let mut key_chars = key.chars();
+    let mut token_chars = token.chars();
+    loop {
+        match (key_chars.next(), token_chars.next()) {
+            (None, None) => return true,
+            (Some(key), Some('~')) => match token_chars.next() {
+                Some('0') if key == '~' => {}
+                Some('1') if key == '/' => {}
+                _ => return false,
+            },
+            (Some(key), Some(token)) if key == token => {}
+            _ => return false,
+        }
+    }
 }

@@ -1,3 +1,5 @@
+#![cfg(feature = "alloc")]
+
 use json::{DuplicateKeys, Options, Value, json};
 
 #[test]
@@ -175,6 +177,7 @@ fn container_limits() {
     assert!(json::from_str_with_options::<Value>(r#"{"a":1,"b":2,"c":3}"#, options).is_err());
 }
 
+#[cfg(feature = "std")]
 #[test]
 fn readers_and_lines() {
     use std::io::Cursor;
@@ -188,7 +191,7 @@ fn readers_and_lines() {
     assert_eq!(values[1]["a"].as_i64(), Some(2));
 }
 
-#[cfg(feature = "heapless")]
+#[cfg(all(feature = "heapless", feature = "derive"))]
 #[test]
 fn heapless_containers() {
     #[derive(Debug, PartialEq, json::Encode, json::Decode)]
@@ -206,7 +209,7 @@ fn heapless_containers() {
     assert_eq!(json::from_str::<Small>(&text).unwrap(), value);
 }
 
-#[cfg(feature = "small_collections")]
+#[cfg(all(feature = "small_collections", feature = "derive"))]
 #[test]
 fn small_collections_containers() {
     #[derive(Debug, PartialEq, json::Encode, json::Decode)]
@@ -263,4 +266,41 @@ fn owned_decode_helpers() {
     let raw = json::RawValueBuf::try_from_slice(br#"{"a":1}"#).unwrap();
     assert_eq!(raw.as_str().unwrap(), r#"{"a":1}"#);
     assert!(json::RawValueBuf::try_from_slice(br#"{"a":}"#).is_err());
+}
+
+#[test]
+fn large_object_duplicate_policies_past_inline_capacity() {
+    let mut text = String::from("{");
+    for i in 0..200 {
+        if i != 0 {
+            text.push(',');
+        }
+        text.push_str(&format!("\"k{i}\":{i}"));
+    }
+    // Duplicate keys beyond the 64-entry inline path.
+    text.push_str(",\"k5\":999,\"k150\":888}");
+    let value: Value = json::from_str(&text).unwrap();
+    assert_eq!(value["k5"].as_i64(), Some(999));
+    assert_eq!(value["k150"].as_i64(), Some(888));
+    assert_eq!(value.as_object().unwrap().len(), 200);
+
+    let first: Value = json::from_str_with_options(
+        &text,
+        Options {
+            duplicate_keys: DuplicateKeys::FirstWins,
+            ..Options::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(first["k5"].as_i64(), Some(5));
+    assert_eq!(first["k150"].as_i64(), Some(150));
+
+    let reject: json::Result<Value> = json::from_str_with_options(
+        &text,
+        Options {
+            duplicate_keys: DuplicateKeys::Reject,
+            ..Options::default()
+        },
+    );
+    assert!(reject.is_err());
 }

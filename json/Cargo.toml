@@ -14,10 +14,10 @@ path = "./json.rs"
 [features]
 default = ["std"]
 std = ["alloc", "utf8/std"]
-alloc = []
+alloc = ["dep:small_collections"]
 derive = ["dep:json_derive"]
 heapless = ["dep:heapless"]
-small_collections = ["dep:small_collections", "alloc"]
+small_collections = ["alloc"]
 bytes = ["dep:bytes", "alloc"]
 
 [dependencies]

@@ -1,8 +1,5 @@
+//! x86-64 AVX2 UTF-8 validation, adapted from simdutf8 (MIT OR Apache-2.0).
 #![allow(unsafe_op_in_unsafe_fn)]
-//! Adapted from simdutf8 (MIT OR Apache-2.0).
-
-//! Contains the x86-64/x86 AVX2 UTF-8 validation implementation.
-
 #![allow(clippy::too_many_arguments)]
 
 #[cfg(target_arch = "x86")]

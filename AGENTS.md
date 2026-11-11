@@ -23,3 +23,5 @@ When adding a workspace member to the root Cargo.toml, ensure that the
 workspace members are alphabetically ordered.
 
 When reviewing a package, always ensure that the documentation is up-to-date and correct.
+
+After doing changes, run the tests and checks only for the updated code. Running tests and all checks may be very slow and will be run by CI/CD.

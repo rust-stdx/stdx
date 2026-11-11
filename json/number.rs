@@ -688,18 +688,6 @@ pub(crate) fn parse_i128(text: &str, offset: usize) -> Result<i128> {
 }
 
 #[inline]
-#[allow(dead_code)]
-pub(crate) fn parse_f32(text: &str, offset: usize) -> Result<f32> {
-    let value = parse_f64(text, offset)?;
-    let value = value as f32;
-    if value.is_finite() {
-        Ok(value)
-    } else {
-        Err(Error::new(ErrorKind::NumberOutOfRange, offset))
-    }
-}
-
-#[inline]
 pub(crate) fn parse_f64(text: &str, offset: usize) -> Result<f64> {
     if let Some(value) = parse_f64_fast(text) {
         return Ok(value);

@@ -1,3 +1,5 @@
+#![cfg(all(feature = "derive", feature = "alloc"))]
+
 use json::{Decode, Encode, Value, json};
 
 #[derive(Debug, PartialEq, Encode, Decode)]

@@ -58,8 +58,6 @@
 //! String scanning uses AVX2 on x86_64 when available and NEON on AArch64.
 //! With the `std` feature the best kernel is selected at runtime; without
 //! `std` it is selected at compile time from the enabled target features.
-//! UTF-8 validation uses the full SIMD validator from the `utf8` crate on
-//! AVX2, NEON, and WASM SIMD128 targets.
 //!
 //! # Current limitations
 //!
@@ -67,9 +65,6 @@
 //!   error.
 //! * Internally tagged enums require the tag member to be the first member of
 //!   the object.
-//! * The allocation-free bitmask-ring stage-1 parser is experimental and
-//!   disabled by default; enable it with `Options::use_simd_masks` after
-//!   benchmarking your workload.
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -81,7 +76,6 @@ mod error;
 mod float_lemire;
 #[cfg(feature = "heapless")]
 mod heapless_impl;
-mod mask;
 mod number;
 mod raw;
 mod scan;

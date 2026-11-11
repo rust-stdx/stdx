@@ -1,5 +1,5 @@
-#![allow(unsafe_op_in_unsafe_fn)]
 //! Shared SIMD helpers adapted from simdutf8 (MIT OR Apache-2.0).
+#![allow(unsafe_op_in_unsafe_fn)]
 
 #[allow(dead_code)]
 pub(crate) unsafe fn memcpy_unaligned_nonoverlapping_inline_opt_lt_64(

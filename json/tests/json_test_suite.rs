@@ -1,3 +1,5 @@
+#![cfg(feature = "alloc")]
+
 //! Optional integration with the `nst/JSONTestSuite` corpus.
 //!
 //! Set `JSON_TEST_SUITE_DIR` to the repository's `test_parsing` directory to

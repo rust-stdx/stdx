@@ -1,6 +1,6 @@
+//! Core SIMD UTF-8 validation algorithm adapted from simdutf8 (MIT OR Apache-2.0).
 #![allow(unsafe_op_in_unsafe_fn)]
 #![allow(unused_macros)]
-//! Core SIMD UTF-8 validation algorithm adapted from simdutf8 (MIT OR Apache-2.0).
 
 // Macros requires newtypes in scope:
 // `SimdU8Value` - implementation of SIMD primitives

@@ -1,7 +1,5 @@
+//! AArch64 NEON UTF-8 validation, adapted from simdutf8 (MIT OR Apache-2.0).
 #![allow(unsafe_op_in_unsafe_fn)]
-//! Adapted from simdutf8 (MIT OR Apache-2.0).
-
-//! Contains the aarch64 UTF-8 validation implementation.
 
 use core::arch::aarch64::{
     uint8x16_t, vandq_u8, vcgtq_u8, vdupq_n_u8, veorq_u8, vextq_u8, vld1q_u8, vmaxvq_u8, vmovq_n_u8, vorrq_u8,

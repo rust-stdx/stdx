@@ -1,3 +1,5 @@
+#![cfg(feature = "alloc")]
+
 //! Differential tests for the number fast paths.
 
 fn assert_same(text: &str, expected: f64) {

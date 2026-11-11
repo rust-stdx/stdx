@@ -74,20 +74,18 @@ fn empty_containers_do_not_allocate() {
     assert_eq!(counters.calls, 0, "empty object allocated");
 }
 
+#[cfg(feature = "small_collections")]
 #[test]
-fn mask_ring_does_not_allocate() {
-    let text = format!(
-        "{{\"items\":[{}]}}",
-        (0..2000)
-            .map(|i| format!("{{\"id\":{i},\"name\":\"item {i}\"}}"))
-            .collect::<Vec<_>>()
-            .join(",")
-    );
-    let options = json::Options {
-        use_simd_masks: true,
-        ..json::Options::default()
-    };
-    let (_, plain) = measure(|| json::from_str::<json::Value>(&text).unwrap());
-    let (_, masked) = measure(|| json::from_str_with_options::<json::Value>(&text, options).unwrap());
-    assert_eq!(plain.calls, masked.calls, "mask ring changed the allocation count");
+fn small_string_decode_avoids_heap_for_short_values() {
+    use small_collections::SmallString;
+
+    let (value, counters) = measure(|| json::from_str::<SmallString<16>>(r#""hello""#).unwrap());
+    assert_eq!(&*value, "hello");
+    assert!(value.is_inline());
+    assert_eq!(counters.calls, 0, "short unescaped SmallString allocated");
+
+    let (value, counters) = measure(|| json::from_str::<SmallString<16>>(r#""a\nb""#).unwrap());
+    assert_eq!(&*value, "a\nb");
+    assert!(value.is_inline());
+    assert_eq!(counters.calls, 0, "short escaped SmallString allocated");
 }

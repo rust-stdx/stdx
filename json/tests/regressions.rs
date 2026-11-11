@@ -1,3 +1,5 @@
+#![cfg(feature = "alloc")]
+
 use json::{DuplicateKeys, Options, Value, json};
 
 #[test]
@@ -74,42 +76,6 @@ fn deep_container_limit_is_rejected() {
 }
 
 #[test]
-fn masks_produce_the_same_value() {
-    let mut text = String::from("{\"items\":[");
-    for i in 0..2000 {
-        if i != 0 {
-            text.push(',');
-        }
-        text.push_str(&format!(
-            "{{\"id\":{i},\"text\":\"hello \\\"{i}\\\" {} \",\"ok\":true}}",
-            "日本語テキスト".repeat(8)
-        ));
-    }
-    text.push_str("]}");
-
-    let plain: Value = json::from_str(&text).unwrap();
-    let masked: Value = json::from_str_with_options(
-        &text,
-        Options {
-            use_simd_masks: true,
-            ..Options::default()
-        },
-    )
-    .unwrap();
-    assert_eq!(plain, masked);
-    assert!(
-        json::validate_with_options(
-            text.as_bytes(),
-            Options {
-                use_simd_masks: true,
-                ..Options::default()
-            }
-        )
-        .is_ok()
-    );
-}
-
-#[test]
 fn invalid_raw_utf8_never_panics() {
     use json::{Encode, Encoder, Write};
 
@@ -133,15 +99,8 @@ fn json_macro_still_works() {
 }
 
 #[test]
-fn masks_reject_control_after_escape() {
-    let mut doc = Vec::new();
-    doc.extend_from_slice(b"{\"x\":\"\\r");
-    doc.push(0x1e);
-    doc.extend_from_slice(b"\"}");
-    let options = Options {
-        use_simd_masks: true,
-        ..Options::default()
-    };
-    assert!(json::from_slice_with_options::<Value>(&doc, options).is_err());
-    assert!(json::validate_with_options(&doc, options).is_err());
+fn value_pointer_escapes_work() {
+    let value = json!({"a/b": {"t~": 42}, "arr": [1, 2, 3]});
+    assert_eq!(value.pointer("/a~1b/t~0").and_then(Value::as_i64), Some(42));
+    assert_eq!(value.pointer("/arr/2").and_then(Value::as_i64), Some(3));
 }

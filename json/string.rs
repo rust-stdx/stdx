@@ -250,85 +250,6 @@ pub(crate) fn skip(input: &[u8], start: usize, max_len: Option<usize>, input_is_
     Err(Error::new(crate::error::ErrorKind::UnexpectedEof, i))
 }
 
-/// Scans and decodes a quoted JSON string into `out` in one pass.
-///
-/// `start` is the byte after the opening quote. Returns the index of the
-/// closing quote. When `input_is_utf8` is true the literal runs are known to
-/// be valid UTF-8 and skip validation.
-#[cfg(feature = "alloc")]
-#[allow(unsafe_code)]
-#[allow(dead_code)]
-pub(crate) fn decode_owned(
-    input: &[u8],
-    start: usize,
-    max_len: Option<usize>,
-    out: &mut alloc::string::String,
-    input_is_utf8: bool,
-) -> Result<usize> {
-    out.clear();
-    let mut i = start;
-    while i < input.len() {
-        let run = find_string_special(&input[i..]);
-        if run != 0 {
-            if let Some(max) = max_len
-                && i + run - start > max
-            {
-                return Err(Error::new(crate::error::ErrorKind::StringLimitExceeded, start));
-            }
-            let bytes = &input[i..i + run];
-            if input_is_utf8 {
-                // SAFETY: the input is a `&str`, so this is a valid substring.
-                out.push_str(unsafe { core::str::from_utf8_unchecked(bytes) });
-            } else {
-                out.push_str(str_from_utf8(bytes, i)?);
-            }
-            i += run;
-            if i >= input.len() {
-                return Err(Error::new(crate::error::ErrorKind::UnexpectedEof, i));
-            }
-        }
-
-        match input[i] {
-            b'"' => {
-                if let Some(max) = max_len
-                    && i - start > max
-                {
-                    return Err(Error::new(crate::error::ErrorKind::StringLimitExceeded, start));
-                }
-                return Ok(i);
-            }
-            b'\\' => {
-                i += 1;
-                let escape = *input
-                    .get(i)
-                    .ok_or_else(|| Error::new(crate::error::ErrorKind::UnexpectedEof, i))?;
-                i += 1;
-                match escape {
-                    b'"' => out.push('"'),
-                    b'\\' => out.push('\\'),
-                    b'/' => out.push('/'),
-                    b'b' => out.push('\u{0008}'),
-                    b'f' => out.push('\u{000C}'),
-                    b'n' => out.push('\n'),
-                    b'r' => out.push('\r'),
-                    b't' => out.push('\t'),
-                    b'u' => {
-                        let (ch, consumed) = parse_unicode_escape(input, i, start)?;
-                        i += consumed;
-                        out.push(ch);
-                    }
-                    _ => return Err(Error::new(crate::error::ErrorKind::InvalidEscape, i - 1)),
-                }
-            }
-            byte if byte < 0x20 => {
-                return Err(Error::new(crate::error::ErrorKind::ControlCharacter, i));
-            }
-            _ => i += 1,
-        }
-    }
-    Err(Error::new(crate::error::ErrorKind::UnexpectedEof, i))
-}
-
 /// Decodes the body of a JSON string into a byte buffer. Returns the number of
 /// UTF-8 bytes written.
 #[inline]
@@ -383,33 +304,6 @@ pub(crate) fn unescape_slice(body: &[u8], out: &mut [u8], offset: usize) -> Resu
         written = end;
     }
     Ok(written)
-}
-
-/// Validates escape sequences without allocating.
-#[inline]
-#[allow(dead_code)]
-pub(crate) fn validate_escapes(body: &[u8], offset: usize) -> Result<()> {
-    let mut i = 0;
-    while i < body.len() {
-        if body[i] != b'\\' {
-            i += 1;
-            continue;
-        }
-        i += 1;
-        let escape = *body
-            .get(i)
-            .ok_or_else(|| Error::new(crate::error::ErrorKind::InvalidEscape, offset + i))?;
-        i += 1;
-        match escape {
-            b'"' | b'\\' | b'/' | b'b' | b'f' | b'n' | b'r' | b't' => {}
-            b'u' => {
-                let (_, consumed) = parse_unicode_escape(body, i, offset)?;
-                i += consumed;
-            }
-            _ => return Err(Error::new(crate::error::ErrorKind::InvalidEscape, offset + i - 1)),
-        }
-    }
-    Ok(())
 }
 
 fn parse_unicode_escape(bytes: &[u8], start: usize, offset: usize) -> Result<(char, usize)> {

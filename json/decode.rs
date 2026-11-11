@@ -58,13 +58,6 @@ pub struct Options {
     /// Optional limit on the raw length of a single string body, including
     /// escape sequences.
     pub max_string_len: Option<usize>,
-    /// Enables the experimental bitmask-ring stage-1 parser.
-    ///
-    /// The ring is allocation-free and bounded, but currently loses to the
-    /// scalar parser on common workloads because the scalar parser already
-    /// uses SIMD string scanning. It is exposed for benchmarking and future
-    /// stage-2 work.
-    pub use_simd_masks: bool,
 }
 
 impl Default for Options {
@@ -76,7 +69,6 @@ impl Default for Options {
             allow_bom: true,
             max_container_entries: None,
             max_string_len: None,
-            use_simd_masks: false,
         }
     }
 }
@@ -122,7 +114,6 @@ pub struct Decoder<'a> {
     depth: usize,
     counts: [u32; 128],
     input_is_utf8: bool,
-    mask: crate::mask::MaskRing,
 }
 
 impl<'a> Decoder<'a> {
@@ -170,7 +161,6 @@ impl<'a> Decoder<'a> {
             depth: 0,
             counts: [0; 128],
             input_is_utf8: false,
-            mask: crate::mask::MaskRing::new(input.len(), options.use_simd_masks),
         }
     }
 
@@ -184,9 +174,6 @@ impl<'a> Decoder<'a> {
     #[inline]
     pub fn set_position(&mut self, position: usize) {
         self.pos = position.min(self.input.len());
-        // The ring carries quote/backslash state from the beginning of the
-        // input; seeking invalidates it. Fall back to the scalar scanner.
-        self.mask.disable();
     }
 
     /// Returns the remaining input.
@@ -196,7 +183,7 @@ impl<'a> Decoder<'a> {
     }
 
     /// Returns a small initial capacity hint for an array.
-    #[allow(dead_code)]
+    #[cfg(feature = "alloc")]
     #[inline]
     pub(crate) fn array_hint(&mut self) -> Result<usize> {
         self.skip_ws()?;
@@ -208,7 +195,7 @@ impl<'a> Decoder<'a> {
     }
 
     /// Returns a small initial capacity hint for an object.
-    #[allow(dead_code)]
+    #[cfg(feature = "alloc")]
     #[inline]
     pub(crate) fn object_hint(&mut self) -> Result<usize> {
         self.skip_ws()?;
@@ -342,19 +329,6 @@ impl<'a> Decoder<'a> {
     /// Skips JSON whitespace.
     #[inline]
     pub fn skip_ws(&mut self) -> Result<()> {
-        // Most calls start on a non-whitespace byte. Keep that path to a
-        // single table lookup before touching the mask ring.
-        if let Some(&byte) = self.input.get(self.pos)
-            && !IS_WS[byte as usize]
-        {
-            return Ok(());
-        }
-        if self.mask.active {
-            self.mask.skip_ws(self.input, &mut self.pos)?;
-            if self.mask.active {
-                return Ok(());
-            }
-        }
         while let Some(&byte) = self.input.get(self.pos) {
             if !IS_WS[byte as usize] {
                 break;
@@ -459,24 +433,8 @@ impl<'a> Decoder<'a> {
             Some(_) => return Err(self.error(ErrorKind::ExpectedValue)),
         }
         let start = self.pos;
-        let (end, escaped) = if self.mask.active {
-            if let Some((close, escaped)) = self.mask.find_string_end(self.input, start)? {
-                if let Some(max) = self.options.max_string_len
-                    && close - start > max
-                {
-                    return Err(self.error_at(ErrorKind::StringLimitExceeded, start));
-                }
-                (close, escaped)
-            } else {
-                // Either EOF or the mask path was disabled mid-scan. The
-                // scalar scanner produces the precise error.
-                string::scan_body(self.input, start, self.options.max_string_len)?
-            }
-        } else {
-            string::scan_body(self.input, start, self.options.max_string_len)?
-        };
+        let (end, escaped) = string::scan_body(self.input, start, self.options.max_string_len)?;
         self.pos = end + 1;
-        self.mask.advance(self.pos);
         Ok((&self.input[start..end], escaped))
     }
 
@@ -1346,7 +1304,6 @@ pub fn from_slice_with_options<'a, T: Decode<'a>>(input: &'a [u8], options: Opti
 }
 
 /// Decodes an owned value of type `T` from a byte slice.
-#[allow(dead_code)]
 pub fn from_slice_owned<T: DecodeOwned>(input: &[u8]) -> Result<T> {
     T::decode_owned(input)
 }
@@ -1357,7 +1314,6 @@ pub fn from_str<'a, T: Decode<'a>>(input: &'a str) -> Result<T> {
 }
 
 /// Decodes an owned value of type `T` from a string.
-#[allow(dead_code)]
 pub fn from_str_owned<T: DecodeOwned>(input: &str) -> Result<T> {
     T::decode_owned(input.as_bytes())
 }
