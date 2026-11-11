@@ -1,4 +1,4 @@
-use super::keccak::KeccakSponge;
+use super::{XofReader, keccak::KeccakSponge};
 use crate::{Hash, Hasher, Xof, bytes::Bytes};
 
 pub(crate) const SHAKE256_RATE: usize = 136;
@@ -65,6 +65,17 @@ impl Shake256 {
         let mut hasher = Shake256::new();
         hasher.absorb(data);
         hasher.squeeze(output);
+    }
+
+    /// Finalizes the hasher and returns an incremental output reader.
+    ///
+    /// The output stream is identical to calling
+    /// [`squeeze`](crate::Xof::squeeze) on the hasher, but the returned
+    /// [`XofReader`] can only squeeze. Use it once the input phase is over.
+    #[inline]
+    pub fn finalize_xof(mut self) -> XofReader {
+        let keccak = core::mem::replace(&mut self.keccak, KeccakSponge::new(SHAKE256_RATE, SHAKE256_DOMAIN_SEPARATOR));
+        return XofReader::new(keccak);
     }
 }
 
@@ -180,6 +191,20 @@ impl CShake256 {
         return CShake256 {
             keccak,
         };
+    }
+
+    /// Finalizes the hasher and returns an incremental output reader.
+    ///
+    /// The output stream is identical to calling
+    /// [`squeeze`](crate::Xof::squeeze) on the hasher, but the returned
+    /// [`XofReader`] can only squeeze. Use it once the input phase is over.
+    #[inline]
+    pub fn finalize_xof(mut self) -> XofReader {
+        // `CShake256` implements `Drop` when the `zeroize` feature is on, so
+        // move the finished sponge out by swapping in a fresh placeholder
+        // (which `Drop` then wipes).
+        let keccak = core::mem::replace(&mut self.keccak, KeccakSponge::new(SHAKE256_RATE, SHAKE256_DOMAIN_SEPARATOR));
+        return XofReader::new(keccak);
     }
 }
 
@@ -339,6 +364,18 @@ mod tests {
         );
     }
 
+    #[test]
+    fn finalize_xof_matches_one_shot() {
+        let mut hasher = Shake256::new();
+        hasher.absorb(b"abc");
+        let mut actual = [0u8; 64];
+        hasher.finalize_xof().squeeze(&mut actual);
+
+        let mut expected = [0u8; 64];
+        Shake256::hash(b"abc", &mut expected);
+        assert_eq!(actual, expected);
+    }
+
     // ── CShake256 vectors (NIST SP 800-185) ──────────────────────────────────
 
     const EMAIL_SIGNATURE: &[u8] = b"Email Signature";
@@ -394,6 +431,19 @@ mod tests {
             hex::encode(out),
             "483366601360a8771c6863080cc4114d8db44530f8f1e1ee4f94ea37e78b5739d5a15bef186a5386c75744c0527e1faa9f8726e462a12a4feb06bd8801e751e4"
         );
+    }
+
+    #[test]
+    fn cshake256_finalize_xof_matches_one_shot() {
+        let mut hasher = CShake256::new(b"", EMAIL_SIGNATURE);
+        hasher.absorb(&[0x00, 0x01, 0x02, 0x03]);
+        let mut actual = [0u8; 64];
+        hasher.finalize_xof().squeeze(&mut actual);
+
+        let mut expected = [0u8; 64];
+        CShake256::hash(&[0x00, 0x01, 0x02, 0x03], b"", EMAIL_SIGNATURE, &mut expected);
+        assert_eq!(actual, expected);
+        assert_eq!(hex::encode(actual), SAMPLE_3_EXPECTED);
     }
 
     fn pattern(len: usize) -> Vec<u8> {

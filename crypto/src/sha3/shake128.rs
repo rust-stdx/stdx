@@ -1,4 +1,4 @@
-use super::keccak::KeccakSponge;
+use super::{XofReader, keccak::KeccakSponge};
 use crate::{Bytes, Hash, Hasher, Xof};
 
 pub(crate) const SHAKE128_RATE: usize = 168;
@@ -47,6 +47,20 @@ impl Shake128 {
         let mut hasher = Shake128::new();
         hasher.absorb(data);
         hasher.squeeze(output);
+    }
+
+    /// Finalizes the hasher and returns an incremental output reader.
+    ///
+    /// The output stream is identical to calling
+    /// [`squeeze`](crate::Xof::squeeze) on the hasher, but the returned
+    /// [`XofReader`] can only squeeze. Use it once the input phase is over.
+    #[inline]
+    pub fn finalize_xof(mut self) -> XofReader {
+        // `Shake128` implements `Drop` when the `zeroize` feature is on, so
+        // move the finished sponge out by swapping in a fresh placeholder
+        // (which `Drop` then wipes).
+        let keccak = core::mem::replace(&mut self.keccak, KeccakSponge::new(SHAKE128_RATE, SHAKE128_DOMAIN_SEPARATOR));
+        return XofReader::new(keccak);
     }
 }
 
@@ -122,6 +136,18 @@ mod tests {
             Shake128::hash(&input, &mut output);
             assert_eq!(hex::encode(&output), expected);
         }
+    }
+
+    #[test]
+    fn finalize_xof_matches_one_shot() {
+        let mut hasher = Shake128::new();
+        hasher.absorb(b"abc");
+        let mut actual = [0u8; 32];
+        hasher.finalize_xof().squeeze(&mut actual);
+
+        let mut expected = [0u8; 32];
+        Shake128::hash(b"abc", &mut expected);
+        assert_eq!(actual, expected);
     }
 
     #[test]

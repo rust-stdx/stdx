@@ -1,4 +1,7 @@
-use super::shake256::{CShake256, bit_len, left_encode, right_encode};
+use super::{
+    XofReader,
+    shake256::{CShake256, bit_len, left_encode, right_encode},
+};
 use crate::Xof;
 
 const KMAC256_RATE: usize = 136;
@@ -26,6 +29,24 @@ const KMAC256_RATE: usize = 136;
 /// kmac.update(b"world");
 /// let mut tag = [0u8; 64];
 /// kmac.finalize_into(&mut tag);
+/// ```
+///
+/// # XOF mode
+///
+/// KMACXOF256 (SP 800-185, section 4.3.2) is available through
+/// [`finalize_xof`](Self::finalize_xof), which returns an [`XofReader`].
+/// Unlike [`finalize_into`](Self::finalize_into), the output length is not
+/// bound into the tag: a shorter output is a prefix of a longer one.
+///
+/// ```ignore
+/// use crypto::sha3::Kmac256;
+///
+/// let key = b"super secret key 32 bytes!";
+/// let mut kmac = Kmac256::new(key, b"customization");
+/// kmac.update(b"message");
+/// let mut reader = kmac.finalize_xof();
+/// let mut out = [0u8; 64];
+/// reader.squeeze(&mut out);
 /// ```
 #[derive(Clone)]
 pub struct Kmac256 {
@@ -72,6 +93,20 @@ impl Kmac256 {
         self.cshake.squeeze(output);
     }
 
+    /// Finalizes in KMACXOF256 mode and returns an incremental output reader.
+    ///
+    /// This absorbs `right_encode(0)` instead of the output length, as
+    /// specified by SP 800-185, so the output stream is independent of how
+    /// many bytes are squeezed. It is not interchangeable with
+    /// [`finalize_into`](Self::finalize_into): a 64-byte XOF output is not the
+    /// same as a 64-byte fixed-length KMAC tag.
+    #[inline]
+    pub fn finalize_xof(mut self) -> XofReader {
+        let encoded_output_len = right_encode(0);
+        self.cshake.absorb(encoded_output_len.as_ref());
+        return self.cshake.finalize_xof();
+    }
+
     #[inline]
     pub fn mac(key: &[u8], data: &[u8], customization: &[u8], output: &mut [u8]) {
         let mut kmac = Kmac256::new(key, customization);
@@ -84,7 +119,7 @@ impl Kmac256 {
 mod tests {
     use hex;
 
-    use super::Kmac256;
+    use super::{KMAC256_RATE, Kmac256};
 
     const KEY: [u8; 32] = [
         0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4A, 0x4B, 0x4C, 0x4D, 0x4E, 0x4F, 0x50, 0x51,
@@ -98,6 +133,11 @@ mod tests {
     const KMAC256_SAMPLE_5: &str = "75358cf39e41494e949707927cee0af20a3ff553904c86b08f21cc414bcfd691589d27cf5e15369cbbff8b9a4c2eb17800855d0235ff635da82533ec6b759b69";
     // NIST SP 800-185 KMAC_samples.pdf sample #6 (streaming-friendly)
     const KMAC256_SAMPLE_6: &str = "b58618f71f92e1d56c1b8c55ddd7cd188b97b4ca4d99831eb2699a837da2e4d970fbacfde50033aea585f1a2708510c32d07880801bd182898fe476876fc8965";
+
+    // NIST SP 800-185 KMACXOF256 samples #4, #5 and #6.
+    const KMACXOF256_SAMPLE_4: &str = "1755133f1534752aad0748f2c706fb5c784512cab835cd15676b16c0c6647fa96faa7af634a0bf8ff6df39374fa00fad9a39e322a7c92065a64eb1fb0801eb2b";
+    const KMACXOF256_SAMPLE_5: &str = "ff7b171f1e8a2b24683eed37830ee797538ba8dc563f6da1e667391a75edc02ca633079f81ce12a25f45615ec89972031d18337331d24ceb8f8ca8e6a19fd98b";
+    const KMACXOF256_SAMPLE_6: &str = "d5be731c954ed7732846bb59dbe3a8e30f83e77a4bff4459f2f1c2b4ecebb8ce67ba01c62e8ab8578d2d499bd1bb276768781190020a306a97de281dcc30305d";
 
     #[test]
     fn kmac256_nist_sample_4() {
@@ -124,6 +164,78 @@ mod tests {
         let mut out = [0u8; 64];
         kmac.finalize_into(&mut out);
         assert_eq!(hex::encode(out), KMAC256_SAMPLE_6);
+    }
+
+    #[test]
+    fn kmacxof256_nist_sample_4() {
+        let mut kmac = Kmac256::new(&KEY, TAGGED_APP);
+        kmac.update(&[0x00, 0x01, 0x02, 0x03]);
+        let mut out = [0u8; 64];
+        kmac.finalize_xof().squeeze(&mut out);
+        assert_eq!(hex::encode(out), KMACXOF256_SAMPLE_4);
+    }
+
+    #[test]
+    fn kmacxof256_nist_sample_5() {
+        let input: Vec<u8> = (0u8..200).collect();
+        let mut kmac = Kmac256::new(&KEY, b"");
+        kmac.update(&input);
+        let mut out = [0u8; 64];
+        kmac.finalize_xof().squeeze(&mut out);
+        assert_eq!(hex::encode(out), KMACXOF256_SAMPLE_5);
+    }
+
+    #[test]
+    fn kmacxof256_nist_sample_6_incremental() {
+        let input: Vec<u8> = (0u8..200).collect();
+        let mut kmac = Kmac256::new(&KEY, TAGGED_APP);
+        for chunk in input.chunks(1) {
+            kmac.update(chunk);
+        }
+        let mut out = [0u8; 64];
+        kmac.finalize_xof().squeeze(&mut out);
+        assert_eq!(hex::encode(out), KMACXOF256_SAMPLE_6);
+    }
+
+    #[test]
+    fn kmacxof256_squeeze_is_chunk_independent() {
+        let mut kmac = Kmac256::new(&KEY, TAGGED_APP);
+        kmac.update(b"message");
+        let mut expected = [0u8; 2 * KMAC256_RATE + 17];
+        kmac.finalize_xof().squeeze(&mut expected);
+
+        let mut kmac = Kmac256::new(&KEY, TAGGED_APP);
+        kmac.update(b"message");
+        let mut reader = kmac.finalize_xof();
+        let mut actual = [0u8; 2 * KMAC256_RATE + 17];
+        let mut offset = 0usize;
+        let mut chunk = 1usize;
+        while offset < actual.len() {
+            let take = core::cmp::min(chunk, actual.len() - offset);
+            reader.squeeze(&mut actual[offset..offset + take]);
+            offset += take;
+            chunk = match chunk {
+                1 => 7,
+                7 => 135,
+                135 => KMAC256_RATE,
+                KMAC256_RATE => KMAC256_RATE + 1,
+                _ => 1,
+            };
+        }
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn kmacxof256_differs_from_fixed_length_kmac() {
+        let mut fixed = [0u8; 64];
+        Kmac256::mac(&KEY, b"message", TAGGED_APP, &mut fixed);
+
+        let mut kmac = Kmac256::new(&KEY, TAGGED_APP);
+        kmac.update(b"message");
+        let mut xof = [0u8; 64];
+        kmac.finalize_xof().squeeze(&mut xof);
+
+        assert_ne!(xof, fixed);
     }
 
     #[test]

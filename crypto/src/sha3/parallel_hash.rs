@@ -67,6 +67,7 @@
 use core::cmp::min;
 
 use super::{
+    XofReader,
     keccak::KeccakSponge,
     keccak_batch::{Backend, Leaves, MAX_BATCH},
     shake256::{Shake256, bit_len, left_encode, right_encode},
@@ -130,26 +131,6 @@ fn cshake_node(rate: usize, customization: &[u8]) -> KeccakSponge<24> {
     }
 
     return sponge;
-}
-
-/// Reader returned by [`ParallelHash256::finalize_xof`].
-///
-/// Produces the ParallelHashXOF256 output stream; [`squeeze`] may be called
-/// any number of times.
-///
-/// [`squeeze`]: ParallelHashReader::squeeze
-#[derive(Clone)]
-#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
-pub struct ParallelHashReader {
-    inner: KeccakSponge<24>,
-}
-
-impl ParallelHashReader {
-    /// Squeezes the next `out.len()` bytes of the output stream.
-    #[inline]
-    pub fn squeeze(&mut self, out: &mut [u8]) {
-        self.inner.squeeze(out);
-    }
 }
 
 /// ParallelHash256 (NIST SP 800-185, section 6).
@@ -280,7 +261,7 @@ impl ParallelHash256 {
     }
 
     /// Finalizes in XOF mode (`right_encode(0)`) and returns a reader.
-    pub fn finalize_xof(mut self) -> ParallelHashReader {
+    pub fn finalize_xof(mut self) -> XofReader {
         self.flush_queue_if_needed();
 
         let n = right_encode(self.blocks);
@@ -292,9 +273,7 @@ impl ParallelHash256 {
         // the finished sponge out by swapping in a fresh placeholder (which
         // `Drop` then wipes).
         let outer = core::mem::replace(&mut self.outer, KeccakSponge::new(PH256_RATE, CSHAKE_PAD));
-        return ParallelHashReader {
-            inner: outer,
-        };
+        return XofReader::new(outer);
     }
 
     /// Hashes `data` in one call and writes `out.len()` bytes.

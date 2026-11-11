@@ -24,6 +24,7 @@ impl<const D: usize> BlockOps for AesNi<D> {
     // SPLIT_BULK stays disabled: x86-64 has 16 xmm registers and the split
     // loop needs 12 live state vectors plus temporaries. The packed VAES
     // implementations use one register per state block and can enable it.
+    const SPLIT_BULK: bool = false;
 
     #[inline(always)]
     fn zero() -> Self {
@@ -207,9 +208,8 @@ pub(crate) struct Vaes512<const L: usize> {
 impl<const L: usize> BlockOps for Vaes512<L> {
     const D: usize = 4 * L;
 
-    // 12 zmm registers fit the 32 available with AVX-512, but enable this only
-    // after a native AVX-512 benchmark (the x86 add-round-key order differs
-    // from aarch64, so the gain is not implied by the ARM result).
+    // Current measurements on Zen 5 (VAES-512) indicates that enabling `SPLIT_BULK` leads to a ~10%
+    // regression in performance.
     const SPLIT_BULK: bool = false;
 
     #[inline(always)]
