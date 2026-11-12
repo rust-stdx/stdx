@@ -37,7 +37,9 @@ function ensureNodeOptimizingTier() {
 
 async function runWithWastime(wasmPath: string) {
   return new Promise(() => {
-    const child = spawn('wasmtime', ['run', wasmPath, ...argv.slice(3)], {
+    // Preopen the current directory as `/` so tests can read fixtures using
+    // package-relative paths, matching the Node.js runner below.
+    const child = spawn('wasmtime', ['run', '--dir', '.::/', wasmPath, ...argv.slice(3)], {
       stdio: 'inherit',
     });
     child.on('exit', (code: number) => exit(code ?? 0));

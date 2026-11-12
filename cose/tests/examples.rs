@@ -17,6 +17,14 @@ fn files(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
     }
 }
 
+/// Fixtures are resolved relative to the package root: Cargo runs test
+/// binaries there, and the wasm test runner preopens that directory as `/`.
+/// Build-time `CARGO_MANIFEST_DIR` is a host path and does not exist inside
+/// the WASI sandbox.
+fn examples_dir() -> &'static Path {
+    Path::new("testdata/examples")
+}
+
 fn b64(value: &Value) -> Vec<u8> {
     base64::decode(
         value.as_str().expect("base64 string").as_bytes(),
@@ -92,7 +100,7 @@ fn verify_mac(key: &Value, token: &[u8], external_aad: &[u8]) -> cose::Result<()
 
 #[test]
 fn conformance_sign1_mac0_mac() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("testdata/examples");
+    let root = examples_dir();
     let mut paths = Vec::new();
     for dir in ["sign1-tests", "mac0-tests", "mac-tests"] {
         files(&root.join(dir), &mut paths);
@@ -155,7 +163,7 @@ fn conformance_sign1_mac0_mac() {
 
 #[test]
 fn conformance_rsa_pss_sign_vectors() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("testdata/examples/rsa-pss-examples");
+    let root = examples_dir().join("rsa-pss-examples");
     let mut paths = Vec::new();
     files(&root, &mut paths);
     paths.sort();
@@ -237,7 +245,7 @@ fn public_key_for_signer(key: &Value) -> Result<Box<dyn cose::Verifier>, cose::E
 
 #[test]
 fn conformance_sign_and_ecdsa_eddsa() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("testdata/examples");
+    let root = examples_dir();
     let mut paths = Vec::new();
     for dir in ["sign-tests", "ecdsa-examples", "eddsa-examples"] {
         files(&root.join(dir), &mut paths);
