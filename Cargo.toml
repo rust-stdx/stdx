@@ -136,7 +136,6 @@ antlr4rust = "=0.3.0-rc2"
 arbitrary = { version = "1", features = ["derive"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
 bytes = { version = "1", default-features = false }
-# benchmarks
 criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }
 futures-util = "0.3"
 getrandom = { version = "0.4", default-features = false }
@@ -159,7 +158,6 @@ serde = { version = "1", default-features = false }
 serde_core = { version = "1", default-features = false }
 serde_json = "1"
 serde_test = "1"
-# For macros
 syn = { version = "3", default-features = false, features = ["derive", "extra-traits", "parsing", "proc-macro", "printing"] }
 tokio = { version = "1", features = ["full"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["logging"] }

@@ -425,19 +425,15 @@ impl TimeZone {
 /// too; with it they are ordinary named zones that preserve their abbreviation
 /// and RFC 9557 annotation.
 fn is_utc_convenience(name: &str) -> bool {
-    if name.eq_ignore_ascii_case("z") {
-        return true;
-    }
     #[cfg(not(feature = "timezone-db"))]
-    {
-        ["utc", "gmt", "zulu", "universal", "uct", "etc/utc", "etc/gmt"]
+    const EXTRA_UTC_NAMES: [&str; 7] = ["utc", "gmt", "zulu", "universal", "uct", "etc/utc", "etc/gmt"];
+    #[cfg(feature = "timezone-db")]
+    const EXTRA_UTC_NAMES: [&str; 0] = [];
+
+    name.eq_ignore_ascii_case("z")
+        || EXTRA_UTC_NAMES
             .iter()
             .any(|candidate| name.eq_ignore_ascii_case(candidate))
-    }
-    #[cfg(feature = "timezone-db")]
-    {
-        false
-    }
 }
 
 /// Evaluates a zone from the embedded database.

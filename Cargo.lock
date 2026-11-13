@@ -2162,7 +2162,6 @@ dependencies = [
  "bytes",
  "constant_time_eq",
  "crypto",
- "crypto_rustls",
  "futures-util",
  "json",
  "reqwest",

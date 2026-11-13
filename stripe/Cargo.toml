@@ -20,7 +20,8 @@ test = false
 default = []
 # default = ["reqwest", "core"]
 # The default HTTP transport, backed by reqwest + the stdx rustls provider.
-reqwest = ["dep:reqwest", "dep:crypto_rustls", "dep:tokio"]
+reqwest = ["dep:reqwest", "dep:tokio"]
+
 # Umbrella over the resources a SaaS or online store needs: selling (checkout,
 # prices, products), subscriptions including metered usage (the
 # Meters API in `billing`, the customer portal in `billing_portal`), billing and
@@ -159,7 +160,6 @@ webhook_endpoints = []
 [dependencies]
 constant_time_eq = { path = "../constant_time_eq" }
 crypto = { path = "../crypto" }
-crypto_rustls = { path = "../crypto_rustls", optional = true }
 json = { path = "../json", features = ["derive"] }
 uuid = { path = "../uuid" }
 zeroize = { path = "../zeroize" }
