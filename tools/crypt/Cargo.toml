@@ -1,8 +1,11 @@
 [package]
 name = "crypt"
 version = "0.1.0"
+description = "Password-based file encryption and decryption command-line tool."
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -14,5 +17,6 @@ path = "crypt.rs"
 [dependencies]
 crypto = { path = "../../crypto" }
 term = { path = "../../term" }
+zeroize = { path = "../../zeroize", default-features = false, features = ["derive", "alloc"] }
+
 rand = { workspace = true }
-zeroize = { workspace = true, features = ["alloc"] }

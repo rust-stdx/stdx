@@ -1,8 +1,11 @@
 [package]
 name = "s3"
 version = "0.1.0"
+description = "A minimal S3 client focused on the most common operations."
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -16,11 +19,11 @@ reqwest = ["dep:reqwest"]
 
 [dependencies]
 base64 = { path = "../base64" }
-bytes = { workspace = true }
 crypto = { path = "../crypto" }
-crypto_rustls = { path = "../crypto_rustls" }
-futures-util = { workspace = true }
 hex = { path = "../hex" }
+
+bytes = { workspace = true }
+futures-util = { workspace = true }
 quick-xml = { workspace = true }
 reqwest = { workspace = true, features = ["stream"], optional = true }
 serde = { workspace = true, features = ["derive"] }

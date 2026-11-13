@@ -1,14 +1,11 @@
 [package]
 name = "maxminddb"
 version = "0.24.0"
-authors = [ "Gregory J. Oschwald <oschwald@gmail.com>" ]
 description = "Library for reading MaxMind DB format used by GeoIP2 and GeoLite2"
-keywords = ["MaxMind", "GeoIP2", "GeoIP", "geolocation", "ip"]
-categories = ["database", "network-programming"]
-include = ["/Cargo.toml", "/src/**/*.rs", "/LICENSE"]
 edition.workspace = true
 rust-version.workspace = true
-
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -19,10 +16,11 @@ path = "src/maxminddb.rs"
 
 [dependencies]
 ipnetwork = { path = "../ipnetwork" }
-serde = { workspace = true, features = ["derive", "alloc"] }
+
 memchr = { workspace = true }
+serde = { workspace = true, features = ["derive", "alloc"] }
 
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
-serde_json = { workspace = true }
 
+serde_json = { workspace = true }

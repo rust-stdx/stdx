@@ -1,9 +1,11 @@
 [package]
 name = "postgresql"
 version = "0.1.0"
+description = "Async PostgreSQL client with a macro-only query API"
 edition.workspace = true
 rust-version.workspace = true
-description = "Async PostgreSQL client with a macro-only query API"
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -17,44 +19,46 @@ embed = ["dep:embed"]
 
 [dependencies]
 base64 = { path = "../base64" }
-bytes = { workspace = true }
 crypto = { path = "../crypto" }
 crypto_rustls = { path = "../crypto_rustls" }
 embed = { path = "../embed", optional = true }
-futures-util = { workspace = true }
-indexmap = { workspace = true }
+indexmap = { path = "../indexmap" }
 ipnetwork = { path = "../ipnetwork" }
-json = { workspace = true, features = ["derive"] }
+json = { path = "../json", features = ["derive"] }
 percent_encoding = { path = "../percent_encoding" }
 postgresql_derive = { path = "postgresql_derive" }
 postgresql_macros = { path = "postgresql_macros" }
 postgresql_protocol = { path = "postgresql_protocol" }
-rand = { workspace = true }
-rustls = { workspace = true }
 small_collections = { path = "../small_collections" }
 thiserror = { path = "../thiserror" }
 time = { path = "../time" }
+uuid = { path = "../uuid" }
+xxhash = { path = "../xxhash" }
+zeroize = { path = "../zeroize", default-features = false, features = ["derive", "alloc"] }
+
+bytes = { workspace = true }
+futures-util = { workspace = true }
+rand = { workspace = true }
+rustls = { workspace = true }
 tokio = { workspace = true }
 tokio-rustls = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
-uuid = { path = "../uuid" }
-xxhash = { path = "../xxhash" }
-zeroize = { workspace = true, features = ["alloc"] }
 
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
-bytes = { workspace = true }
-criterion = { workspace = true }
 crypto = { path = "../crypto" }
 crypto_rustls = { path = "../crypto_rustls" }
 ipnetwork = { path = "../ipnetwork" }
-rustls = { workspace = true }
-tokio-rustls = { workspace = true }
-json = { workspace = true, features = ["derive"] }
+json = { path = "../json", features = ["derive"] }
 time = { path = "../time" }
-tokio = { workspace = true }
 uuid = { path = "../uuid" }
+
+bytes = { workspace = true }
+criterion = { workspace = true }
+rustls = { workspace = true }
+tokio = { workspace = true }
+tokio-rustls = { workspace = true }
 
 [[bench]]
 name = "encode"

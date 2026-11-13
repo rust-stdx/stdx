@@ -1,12 +1,11 @@
 [package]
 name = "constant_time_eq"
 version = "0.6.1"
+description = "Compares two equal-sized byte strings in constant time."
 edition.workspace = true
 rust-version.workspace = true
-authors = ["Cesar Eduardo Barros <cesarb@cesarb.eti.br>"]
-description = "Compares two equal-sized byte strings in constant time."
-keywords = ["constant_time"]
-categories = ["cryptography", "no-std"]
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true

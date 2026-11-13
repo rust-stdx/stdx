@@ -144,3 +144,4 @@ Any contribution submitted for inclusion in this project shall be licensed as ab
 | `thiserror` | https://github.com/dtolnay/thiserror | b1827ee06f81a7d7f954e676771e19a97f9f8e3b | MIT |
 | `unsafe_libyaml` | https://crates.io/crates/unsafe-libyaml | 417668ce6565ece14bbd9b4a73137d9241ea1365 | MIT |
 | `zeroize` | https://github.com/RustCrypto/utils | 34a6ebcb9b920ec7ae5809e470fce94fe7c0cb55 | MIT |
+| `zmij` | https://github.com/dtolnay/zmij | 35355256734db2c69a19aba4cae98c7fd8e14adf | MIT |

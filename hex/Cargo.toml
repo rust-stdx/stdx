@@ -1,9 +1,11 @@
 [package]
 name = "hex"
 version = "0.1.0"
+description = "Fast hex encoding and decoding with SIMD, constant-time ops, and const fn support"
 edition.workspace = true
 rust-version.workspace = true
-description = "Fast hex encoding and decoding with SIMD, constant-time ops, and const fn support"
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -18,11 +20,13 @@ serde = ["dep:serde"]
 small_collections = ["dep:small_collections", "serde", "alloc"]
 
 [dependencies]
+small_collections = { path = "../small_collections", optional = true, default-features = false }
+
 serde = { workspace = true, optional = true }
-small_collections = { workspace = true, optional = true, default-features = false }
 
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
+
 serde_json = { workspace = true }
 serde_test = { workspace = true }
 

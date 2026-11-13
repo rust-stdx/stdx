@@ -1,14 +1,11 @@
 [package]
-
 name = "num_cpus"
 version = "1.16.0"
+description = "Get the number of CPUs on a machine."
 edition.workspace = true
 rust-version.workspace = true
-description = "Get the number of CPUs on a machine."
-authors = ["Sean McArthur <sean@seanmonstar.com>"]
-documentation = "https://docs.rs/num_cpus"
-keywords = ["cpu", "cpus", "cores"]
-categories = ["hardware-support"]
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true

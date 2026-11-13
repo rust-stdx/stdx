@@ -1,14 +1,11 @@
 [package]
 name = "zmij"
 version = "1.0.23"
-authors = ["David Tolnay <dtolnay@gmail.com>"]
-categories = ["value-formatting", "no-std", "no-std::no-alloc"]
 description = "A double-to-string conversion algorithm based on Schubfach and xjb"
-documentation = "https://docs.rs/zmij"
 edition.workspace = true
 rust-version.workspace = true
-keywords = ["float"]
-license = "MIT"
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true

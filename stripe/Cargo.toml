@@ -1,9 +1,11 @@
 [package]
 name = "stripe"
 version = "0.1.0"
+description = "Pure-Rust, dependency-light client for the Stripe API, generated from Stripe's official OpenAPI specification"
 edition.workspace = true
 rust-version.workspace = true
-description = "Pure-Rust, dependency-light client for the Stripe API, generated from Stripe's official OpenAPI specification"
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -155,28 +157,29 @@ v2_core = []
 webhook_endpoints = []
 
 [dependencies]
-bytes = { workspace = true }
 constant_time_eq = { path = "../constant_time_eq" }
 crypto = { path = "../crypto" }
 crypto_rustls = { path = "../crypto_rustls", optional = true }
-futures-util = { workspace = true, default-features = false, features = ["std"] }
-reqwest = { workspace = true, optional = true, features = ["stream"] }
-json = { workspace = true, features = ["derive"] }
-tokio = { version = "1", optional = true, features = ["time"] }
+json = { path = "../json", features = ["derive"] }
 uuid = { path = "../uuid" }
 zeroize = { path = "../zeroize" }
+
+bytes = { workspace = true }
+futures-util = { workspace = true, default-features = false, features = ["std"] }
+reqwest = { workspace = true, optional = true, features = ["stream"] }
+tokio = { workspace = true, optional = true, features = ["time"] }
 
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
 crypto = { path = "../crypto" }
 stripe_codegen = { path = "codegen" }
-# Only the runtime pieces the tests need: a current-thread runtime and the
-# `#[tokio::test]` attribute.
-tokio = { version = "1", features = ["macros", "rt", "time"] }
 
+# Uses the workspace Tokio dependency, with the pieces the tests need.
+tokio = { workspace = true, features = ["macros", "rt", "time"] }
 # The integration tests double-check the account mode with `GET /v1/balance`
 # before touching anything, so they are only built when `balance` is enabled.
 # They are also opt-in at runtime (`STRIPE_INTEGRATION_TESTS=1`).
+
 [[test]]
 name = "integration"
 required-features = ["reqwest", "core", "balance"]

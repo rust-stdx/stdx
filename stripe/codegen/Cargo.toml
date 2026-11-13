@@ -1,9 +1,11 @@
 [package]
 name = "stripe_codegen"
 version = "0.1.0"
+description = "Generates the stripe crate's types, parameters and methods from Stripe's official OpenAPI specification"
 edition.workspace = true
 rust-version.workspace = true
-description = "Generates the stripe crate's types, parameters and methods from Stripe's official OpenAPI specification"
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -17,4 +19,4 @@ name = "stripe_codegen"
 path = "main.rs"
 
 [dependencies]
-json = { workspace = true }
+json = { path = "../../json" }

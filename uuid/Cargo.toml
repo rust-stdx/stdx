@@ -1,9 +1,11 @@
 [package]
 name = "uuid"
 version = "0.1.0"
+description = "Generate, encode and decode UUIDs (RFC 9562) — supports v4 and v7"
 edition.workspace = true
 rust-version.workspace = true
-description = "Generate, encode and decode UUIDs (RFC 9562) — supports v4 and v7"
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -18,7 +20,8 @@ serde = ["dep:serde"]
 cbor = ["dep:cbor"]
 
 [dependencies]
-cbor = { workspace = true, optional = true, default-features = false }
+cbor = { path = "../cbor", optional = true, default-features = false }
+
 heapless = { workspace = true }
 rand = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }
@@ -27,7 +30,8 @@ serde = { workspace = true, optional = true }
 alloc_counter = { path = "../alloc_counter" }
 # Tests use `cbor::to_vec`, which requires alloc. Keep this out of the
 # `cbor` feature so the library itself remains alloc-free.
-cbor = { workspace = true, default-features = false, features = ["alloc"] }
+cbor = { path = "../cbor", default-features = false, features = ["alloc"] }
+
 serde_json = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]

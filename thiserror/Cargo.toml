@@ -1,12 +1,11 @@
 [package]
 name = "thiserror"
 version = "2.0.21"
-authors = ["David Tolnay <dtolnay@gmail.com>"]
-categories = ["rust-patterns", "no-std"]
 description = "derive(Error)"
 edition.workspace = true
 rust-version.workspace = true
-keywords = ["error", "error-handling", "derive"]
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true

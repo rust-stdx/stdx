@@ -1,9 +1,11 @@
 [package]
 name = "cose"
 version = "0.1.0"
+description = "CBOR Object Signing and Encryption (COSE, RFC 9052/9053) with a no_std, zero-allocation core"
 edition.workspace = true
 rust-version.workspace = true
-description = "CBOR Object Signing and Encryption (COSE, RFC 9052/9053) with a no_std, zero-allocation core"
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -28,16 +30,18 @@ random = ["crypto/random"]
 zeroize = ["dep:zeroize", "crypto/zeroize"]
 
 [dependencies]
-cbor = { workspace = true, default-features = false }
+cbor = { path = "../cbor", default-features = false }
 constant_time_eq = { path = "../constant_time_eq", default-features = false }
 crypto = { path = "../crypto", default-features = false }
+zeroize = { path = "../zeroize", optional = true, default-features = false, features = ["derive"] }
+
 heapless = { workspace = true }
-zeroize = { workspace = true, optional = true }
 
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
 base64 = { path = "../base64" }
 hex = { path = "../hex" }
+
 serde_json = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]

@@ -1,11 +1,11 @@
 [package]
 name = "indexmap"
-edition.workspace = true
-rust-version.workspace = true
 version = "2.14.2"
 description = "A hash table with consistent order and fast iteration."
-keywords = ["hashmap", "no_std"]
-categories = ["data-structures", "no-std"]
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -15,7 +15,7 @@ path = "src/indexmap.rs"
 bench = false
 
 [dependencies]
-hashbrown = { version = "0.17", default-features = false }
+hashbrown = { workspace = true }
 serde_core = { workspace = true, optional = true, default-features = false }
 
 [dev-dependencies]

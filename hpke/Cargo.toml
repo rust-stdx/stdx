@@ -1,9 +1,11 @@
 [package]
 name = "hpke"
 version = "0.1.0"
+description = "Hybrid Public Key Encryption (draft-ietf-hpke-hpke-05, which obsoletes RFC 9180) built on the stdx `crypto` crate"
 edition.workspace = true
 rust-version.workspace = true
-description = "Hybrid Public Key Encryption (draft-ietf-hpke-hpke-05, which obsoletes RFC 9180) built on the stdx `crypto` crate"
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -19,10 +21,11 @@ zeroize = ["dep:zeroize", "crypto/zeroize"]
 
 [dependencies]
 crypto = { path = "../crypto", default-features = false }
-zeroize = { workspace = true, optional = true }
+zeroize = { path = "../zeroize", optional = true, default-features = false, features = ["derive"] }
 
 [dev-dependencies]
 hex = { path = "../hex" }
+
 serde_json = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]

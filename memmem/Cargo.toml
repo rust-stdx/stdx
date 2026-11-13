@@ -1,15 +1,14 @@
 [package]
 name = "memmem"
 version = "0.1.1"
-authors = ["Joe Neeman <joeneeman@gmail.com>"]
 description = "Substring searching"
-documentation = "http://jneem.github.io/memmem"
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
 
 [dev-dependencies]
 # quickcheck = "0.2"
-

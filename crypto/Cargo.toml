@@ -1,8 +1,11 @@
 [package]
 name = "crypto"
 version = "0.1.0"
+description = "Pure Rust cryptography with no_std support and hardware/SIMD acceleration."
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -24,18 +27,19 @@ zeroize = ["dep:zeroize", "big_number/zeroize"]
 base64 = { path = "../base64", default-features = false }
 big_number = { path = "../big_number", default-features = false }
 constant_time_eq = { path = "../constant_time_eq", default-features = false }
+small_collections = { path = "../small_collections", optional = true, default-features = false }
+zeroize = { path = "../zeroize", optional = true, default-features = false, features = ["derive"] }
+
 getrandom = { workspace = true, optional = true }
 memchr = { workspace = true }
-small_collections = { path = "../small_collections", optional = true, default-features = false }
-zeroize = { workspace = true, optional = true }
-
 
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
 hex = { path = "../hex" }
+
 rand = { workspace = true }
-serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }

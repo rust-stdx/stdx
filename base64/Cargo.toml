@@ -1,9 +1,11 @@
 [package]
 name = "base64"
 version = "0.1.0"
+description = "Fast base64 encoding and decoding with SIMD acceleration when available"
 edition.workspace = true
 rust-version.workspace = true
-description = "Fast base64 encoding and decoding with SIMD acceleration when available"
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -18,11 +20,13 @@ serde = ["dep:serde"]
 small_collections = ["dep:small_collections", "serde", "alloc"]
 
 [dependencies]
+small_collections = { path = "../small_collections", optional = true, default-features = false }
+
 serde = { workspace = true, optional = true }
-small_collections = { workspace = true, optional = true, default-features = false }
 
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
+
 serde_json = { workspace = true }
 serde_test = { workspace = true }
 

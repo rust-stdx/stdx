@@ -1,11 +1,11 @@
 [package]
 name = "bel"
-description = "A parser and interpreter for the Better Expression Language (BEL)"
 version = "0.11.0"
+description = "A parser and interpreter for the Better Expression Language (BEL)"
 edition.workspace = true
 rust-version.workspace = true
-categories = ["compilers", "language"]
-
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -23,19 +23,18 @@ time = ["dep:time"]
 [dependencies]
 base64 = { path = "../base64", optional = true }
 ipnetwork = { path = "../ipnetwork", optional = true, features = ["serde"] }
+json = { path = "../json", optional = true, default-features = false, features = ["alloc"] }
 thiserror = { path = "../thiserror" }
+time = { path = "../time", optional = true, features = ["serde"] }
 
 antlr4rust = { workspace = true }
+arbitrary = { workspace = true, optional = true }
 nom = { workspace = true }
 paste = { workspace = true }
+regex = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive", "std"] }
 
-arbitrary = { workspace = true, optional = true }
-time = { workspace = true, optional = true, features = ["serde"] }
-regex = { workspace = true, optional = true }
-json = { workspace = true, optional = true, default-features = false, features = ["alloc"] }
-
-
 [dev-dependencies]
-serde_json = { workspace = true }
 serde_bytes = { path = "../serde_bytes" }
+
+serde_json = { workspace = true }

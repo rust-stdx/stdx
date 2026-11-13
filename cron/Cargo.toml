@@ -1,12 +1,11 @@
 [package]
 name = "cron"
 version = "0.12.1"
-authors = ["Zack Slayton <zack.slayton@gmail.com>"]
-documentation = "https://docs.rs/cron"
 description = "A cron expression parser and schedule explorer."
-keywords = [ "cron", "schedule", "repeat", "periodic", "time" ]
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -19,9 +18,9 @@ name = "cron_integration"
 path = "_tests/lib.rs"
 
 [dependencies]
-time = { workspace = true }
+time = { path = "../time" }
+
 nom = { workspace = true }
 # once_cell = "1.10"
-
 # [dev-dependencies]
 # chrono-tz = "~0.6"

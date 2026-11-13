@@ -157,14 +157,7 @@ mod reqwest_client {
 
     impl ReqwestHttpClient {
         /// Builds a client with default settings.
-        ///
-        /// Installs the stdx rustls [`CryptoProvider`](crypto_rustls) as the
-        /// process default (if none is installed yet) before creating the
-        /// underlying `reqwest` client: `reqwest` is compiled with the
-        /// `rustls-no-provider` feature, so without a provider the first
-        /// request would fail.
         pub fn new() -> Self {
-            crypto_rustls::install_default_rustls_provider();
             Self {
                 inner: reqwest::Client::new(),
             }
@@ -173,19 +166,15 @@ mod reqwest_client {
         /// Builds a client from a pre-configured [`reqwest::Client`].
         ///
         /// Use this to set connection-pool size, proxies, TCP keepalive, or
-        /// redirect policy. The stdx rustls provider is installed first, as in
-        /// [`ReqwestHttpClient::new`].
+        /// redirect policy.
         pub fn with_reqwest_client(inner: reqwest::Client) -> Self {
-            crypto_rustls::install_default_rustls_provider();
             Self {
                 inner,
             }
         }
 
-        /// Returns a [`reqwest::ClientBuilder`] with the stdx rustls provider
-        /// installed, for building a custom underlying client.
+        /// Returns a [`reqwest::ClientBuilder`] for building a custom underlying client.
         pub fn builder() -> reqwest::ClientBuilder {
-            crypto_rustls::install_default_rustls_provider();
             reqwest::Client::builder()
         }
     }

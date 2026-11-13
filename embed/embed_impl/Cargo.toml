@@ -2,28 +2,26 @@
 name = "embed_impl"
 version = "8.4.0"
 description = "Rust Custom Derive Macro which loads files into the rust binary at compile time during release and loads the file from the fs during dev"
-documentation = "https://rust-stdx.github.io/stdx/embed_impl/"
-keywords = ["http", "rocket", "static", "web", "server"]
-categories = ["web-programming::http-server"]
-authors = ["pyros2097 <pyros2097@gmail.com>"]
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lib]
 path = "./embed_impl.rs"
 proc-macro = true
 
 [dependencies]
-syn = { workspace = true }
-quote = { workspace = true }
-proc-macro2 = { workspace = true }
-
 embed_utils = { path = "../embed_utils"}
 
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true }
 # [dependencies.shellexpand]
 # version = "3"
 # optional = true
 #
+
 [features]
 debug-embed = []
 # interpolate-folder-path = ["shellexpand"]

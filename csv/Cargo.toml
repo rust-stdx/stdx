@@ -1,8 +1,11 @@
 [package]
 name = "csv"
 version = "0.1.0"
+description = "A fast, low-allocation CSV parser with no_std and serde support."
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -16,8 +19,9 @@ std = ["serde?/std"]
 serde = ["dep:ryu", "dep:serde"]
 
 [dependencies]
-memchr = { workspace = true }
 ryu = { path = "../ryu", optional = true }
+
+memchr = { workspace = true }
 serde = { workspace = true, default-features = false, features = ["derive", "alloc"], optional = true }
 
 [dev-dependencies]

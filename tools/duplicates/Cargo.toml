@@ -1,8 +1,11 @@
 [package]
 name = "duplicates"
 version = "0.1.0"
+description = "Find duplicate files by content using BLAKE3 hashing."
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -14,5 +17,6 @@ path = "duplicates.rs"
 [dependencies]
 crypto = { path = "../../crypto" }
 hex = { path = "../../hex" }
+
 tokio = { workspace = true }
 walkdir = { workspace = true }

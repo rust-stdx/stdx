@@ -1,9 +1,11 @@
 [package]
 name = "dotenv"
 version = "0.1.0"
+description = "Load environment variables from .env files"
 edition.workspace = true
 rust-version.workspace = true
-description = "Load environment variables from .env files"
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -13,6 +15,7 @@ path = "./dotenv.rs"
 
 [dependencies]
 dotenv_derive = { path = "./dotenv_derive" }
+
 memchr = { workspace = true, features = ["std"] }
 
 [dev-dependencies]

@@ -1,8 +1,11 @@
 [package]
 name = "scheduler"
 version = "0.1.0"
+description = "Async job scheduler with cron and fixed-interval schedules."
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -16,7 +19,7 @@ tracing = ["dep:tracing"]
 
 [dependencies]
 cron = { path = "../cron" }
+time = { path = "../time" }
 
-time = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true, optional = true }

@@ -1,8 +1,11 @@
 [package]
 name = "countries"
 version = "0.1.0"
+description = "ISO 3166-1 alpha-2 country codes and names."
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true

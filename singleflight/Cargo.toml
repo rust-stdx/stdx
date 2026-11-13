@@ -1,9 +1,11 @@
 [package]
 name = "singleflight"
 version = "0.1.0"
+description = "Deduplicate concurrent async function calls by key"
 edition.workspace = true
 rust-version.workspace = true
-description = "Deduplicate concurrent async function calls by key"
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true

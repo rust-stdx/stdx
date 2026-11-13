@@ -1,9 +1,11 @@
 [package]
 name = "landlock"
 version = "0.1.0"
+description = "High-level Linux Landlock sandboxing: restrict filesystem, network and IPC access of your program"
 edition.workspace = true
 rust-version.workspace = true
-description = "High-level Linux Landlock sandboxing: restrict filesystem, network and IPC access of your program"
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true

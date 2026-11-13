@@ -1,9 +1,11 @@
 [package]
 name = "utf8"
 version = "0.1.0"
+description = "SIMD-accelerated UTF-8 validation and safe string construction"
 edition.workspace = true
 rust-version.workspace = true
-description = "SIMD-accelerated UTF-8 validation and safe string construction"
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true

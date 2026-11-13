@@ -1,9 +1,11 @@
 [package]
 name = "postgresql_protocol"
 version = "0.1.0"
+description = "PostgreSQL wire protocol codec and authentication state machine"
 edition.workspace = true
 rust-version.workspace = true
-description = "PostgreSQL wire protocol codec and authentication state machine"
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -13,10 +15,11 @@ path = "postgresql_protocol.rs"
 
 [dependencies]
 base64 = { path = "../../base64" }
-bytes = { workspace = true }
 constant_time_eq = { path = "../../constant_time_eq" }
 crypto = { path = "../../crypto" }
 hex = { path = "../../hex" }
 small_collections = { path = "../../small_collections" }
 thiserror = { path = "../../thiserror" }
-zeroize = { workspace = true, features = ["alloc"] }
+zeroize = { path = "../../zeroize", default-features = false, features = ["derive", "alloc"] }
+
+bytes = { workspace = true }

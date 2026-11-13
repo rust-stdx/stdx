@@ -1,9 +1,11 @@
 [package]
 name = "tokio_fast_udp"
 version = "0.1.0"
+description = "Fast cross-platform UDP I/O for tokio with batch sends/recvs, GSO/GRO segmentation offload, and ECN"
 edition.workspace = true
 rust-version.workspace = true
-description = "Fast cross-platform UDP I/O for tokio with batch sends/recvs, GSO/GRO segmentation offload, and ECN"
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true

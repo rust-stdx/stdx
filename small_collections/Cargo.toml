@@ -1,8 +1,11 @@
 [package]
 name = "small_collections"
 version = "0.1.0"
+description = "Small inline-or-heap collections with a Vec/String-like API."
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -20,9 +23,10 @@ std = ["serde?/std"]
 
 [dependencies]
 bytes = { workspace = true, optional = true }
-serde = { workspace = true, optional = true, default-features = false }
 heapless = { workspace = true }
+serde = { workspace = true, optional = true, default-features = false }
 
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
+
 serde_json = { workspace = true }

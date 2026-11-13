@@ -1,8 +1,11 @@
 [package]
 name = "term"
 version = "0.1.0"
+description = "Terminal input helpers, including reading passwords without echo."
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -11,5 +14,6 @@ workspace = true
 path = "./term.rs"
 
 [dependencies]
-libc = { workspace = true }
 thiserror = { path = "../thiserror" }
+
+libc = { workspace = true }

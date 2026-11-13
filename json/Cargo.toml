@@ -1,9 +1,11 @@
 [package]
 name = "json"
 version = "0.1.0"
+description = "A fast, strict JSON parser and generator with native derive macros, no_std support and SIMD acceleration"
 edition.workspace = true
 rust-version.workspace = true
-description = "A fast, strict JSON parser and generator with native derive macros, no_std support and SIMD acceleration"
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -21,12 +23,13 @@ small_collections = ["alloc"]
 bytes = ["dep:bytes", "alloc"]
 
 [dependencies]
+json_derive = { path = "./json_derive", optional = true }
+small_collections = { path = "../small_collections", optional = true, default-features = false }
+utf8 = { path = "../utf8", default-features = false }
+zmij = { path = "../zmij" }
+
 bytes = { workspace = true, optional = true }
 heapless = { workspace = true, optional = true }
-json_derive = { path = "./json_derive", optional = true }
-zmij = { workspace = true }
-small_collections = { path = "../small_collections", optional = true, default-features = false }
-utf8 = { workspace = true, default-features = false }
 
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }

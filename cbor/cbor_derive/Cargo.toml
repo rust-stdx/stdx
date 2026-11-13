@@ -1,9 +1,11 @@
 [package]
 name = "cbor_derive"
 version = "0.1.0"
+description = "Derive macros for the cbor crate"
 edition.workspace = true
 rust-version.workspace = true
-description = "Derive macros for the cbor crate"
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true

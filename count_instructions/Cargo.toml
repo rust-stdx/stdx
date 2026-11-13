@@ -4,6 +4,8 @@ version = "0.2.1"
 description = "Counts the instructions executed within a single function"
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true

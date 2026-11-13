@@ -1,22 +1,21 @@
 [package]
 name = "serde_yaml"
 version = "0.9.34+deprecated"
-authors = ["David Tolnay <dtolnay@gmail.com>"]
-categories = ["encoding", "parser-implementations"]
 description = "YAML data format for Serde"
-documentation = "https://docs.rs/serde_yaml/"
 edition.workspace = true
 rust-version.workspace = true
-keywords = ["yaml", "serde", "serialization"]
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
 
 [dependencies]
-indexmap = { workspace = true }
+indexmap = { path = "../indexmap" }
 ryu = { path = "../ryu" }
-serde = { workspace = true, features = ["std"] }
 unsafe_libyaml = { path = "../unsafe_libyaml" }
+
+serde = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
 serde = { workspace = true, features = ["derive"] }

@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "JSON-RPC 2.0 types and serialization"
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -12,7 +14,7 @@ workspace = true
 path = "src/json_rpc.rs"
 
 [dependencies]
-json = { workspace = true, features = ["derive"] }
+json = { path = "../json", features = ["derive"] }
 
 [dev-dependencies]
 tokio = { workspace = true }

@@ -1,9 +1,11 @@
 [package]
 name = "retry"
 version = "0.1.0"
+description = "Retry async operations with configurable backoff strategies"
 edition.workspace = true
 rust-version.workspace = true
-description = "Retry async operations with configurable backoff strategies"
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true

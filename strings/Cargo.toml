@@ -1,8 +1,11 @@
 [package]
 name = "strings"
 version = "0.1.0"
+description = "Fast integer and floating-point to string conversion."
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true

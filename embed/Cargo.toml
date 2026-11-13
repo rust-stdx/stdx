@@ -4,6 +4,8 @@ version = "8.4.0"
 description = "Rust Custom Derive Macro which loads files into the rust binary at compile time during release and loads the file from the fs during dev"
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lib]
 path = "./embed.rs"
@@ -15,7 +17,6 @@ embed_utils = { path = "./embed_utils"}
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
 crypto = { path = "../crypto" }
-
 
 [features]
 debug-embed = ["embed_impl/debug-embed", "embed_utils/debug-embed"]
@@ -34,4 +35,3 @@ guess-media-type = ["embed_impl/guess-media-type", "embed_utils/guess-media-type
 [lints.rust.unexpected_cfgs]
 level = "warn"
 check-cfg = ['cfg(feature, values("compression", "include-exclude", "interpolate-folder-path"))']
-

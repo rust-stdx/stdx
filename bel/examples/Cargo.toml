@@ -1,8 +1,11 @@
 [package]
 name = "bel_examples"
 version = "0.1.0"
+description = "Example programs for the BEL expression language."
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -16,17 +19,15 @@ regex = ["bel/regex"]
 ip = ["bel/ip"]
 
 [dependencies]
+anyerr = { path = "../../anyerr", optional = true }
 bel = { path = "..", default-features = false }
-
-time = { workspace = true, optional = true }
-
-serde = { workspace = true, features = ["derive", "std"] }
-json = { workspace = true, optional = true }
+json = { path = "../../json", optional = true }
+thiserror = { path = "../../thiserror", optional = true }
+time = { path = "../../time", optional = true }
 
 axum = { workspace = true, optional = true }
+serde = { workspace = true, features = ["derive", "std"] }
 tokio = { workspace = true, optional = true }
-thiserror = { path = "../../thiserror", optional = true }
-anyerr = { workspace = true, optional = true }
 
 [[bin]]
 name = "simple"

@@ -1,8 +1,11 @@
 [package]
 name = "html_escape"
 version = "0.1.0"
+description = "Escape HTML special characters in text and attribute values."
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true

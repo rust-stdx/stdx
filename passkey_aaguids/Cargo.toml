@@ -1,9 +1,11 @@
 [package]
 name = "passkey_aaguids"
 version = "0.1.0"
+description = "Known passkey authenticator AAGUIDs and their display names"
 edition.workspace = true
 rust-version.workspace = true
-description = "Known passkey authenticator AAGUIDs and their display names"
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true

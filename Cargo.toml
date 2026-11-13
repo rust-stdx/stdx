@@ -95,6 +95,8 @@ members = [
 [workspace.package]
 edition = "2024"
 rust-version = "1.99"
+license = "MIT"
+repository = "https://github.com/rust-stdx/stdx"
 
 # The Stripe client is generated from Stripe's full OpenAPI specification and
 # is very large; emitting debug information for it pushes rustc past the memory
@@ -130,52 +132,38 @@ needless_range_loop = "allow"
 manual_c_str_literals = "allow"
 
 [workspace.dependencies]
-anyerr = { path = "anyerr" }
 antlr4rust = "=0.3.0-rc2"
 arbitrary = { version = "1", features = ["derive"] }
 axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
 bytes = { version = "1", default-features = false }
-cbor = { path = "cbor" }
+# benchmarks
+criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }
 futures-util = "0.3"
 getrandom = { version = "0.4", default-features = false }
+hashbrown = { version = "0.17", default-features = false }
 heapless = "0.9"
-hex = { path = "hex", default-features = false }
 hyper = { version = "1", features = ["full"] }
-indexmap = { path = "indexmap" }
 js-sys = "0.3"
-json = { path = "json" }
 libc = "0.2"
 memchr = { version = "2", default-features = false }
 nom = "8"
-padme = { path = "padme" }
 paste = { git = "https://github.com/dtolnay/paste", rev = "6a302522990cbfd9de4e0c61d91854622f7b2999" }
+proc-macro2 = "1"
 quick-xml = { version = "0.42", features = ["serialize"] }
+quote = "1"
 rand = "0.10"
 regex = { version = "1" }
 reqwest = { version = "0.13", default-features = false, features = ["gzip", "http2", "rustls-no-provider"] }
 rustls = { version = "0.23", default-features = false, features = ["std"] }
-ryu = { path = "ryu" }
-zmij = { path = "zmij" }
-tokio-rustls = { version = "0.26", default-features = false, features = ["logging"] }
 serde = { version = "1", default-features = false }
 serde_core = { version = "1", default-features = false }
 serde_json = "1"
 serde_test = "1"
-small_collections = { path = "small_collections" }
-time = { path = "time" }
+# For macros
+syn = { version = "3", default-features = false, features = ["derive", "extra-traits", "parsing", "proc-macro", "printing"] }
 tokio = { version = "1", features = ["full"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["logging"] }
 tracing = "0.1"
 unicode-width = "0.1"
 url = "2"
-utf8 = { path = "utf8", default-features = false }
 walkdir = "2"
-zeroize = { path = "zeroize", default-features = false, features = ["derive"] }
-
-
-# For macros
-syn = { version = "3", default-features = false, features = ["derive", "extra-traits", "parsing", "proc-macro", "printing"] }
-quote = "1"
-proc-macro2 = "1"
-
-# benchmarks
-criterion = { version = "0.8", default-features = false, features = ["cargo_bench_support"] }

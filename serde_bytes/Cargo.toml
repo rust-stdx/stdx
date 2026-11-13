@@ -1,11 +1,11 @@
 [package]
 name = "serde_bytes"
 version = "0.11.19"
-categories = ["encoding", "no-std", "no-std::no-alloc"]
 description = "Optimized handling of `&[u8]` and `Vec<u8>` for Serde"
 edition.workspace = true
 rust-version.workspace = true
-keywords = ["serde", "serialization", "no_std", "bytes"]
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true

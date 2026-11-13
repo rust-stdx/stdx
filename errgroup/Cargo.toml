@@ -1,9 +1,11 @@
 [package]
 name = "errgroup"
 version = "0.1.0"
+description = "Async task group with error propagation and optional concurrency limiting"
 edition.workspace = true
 rust-version.workspace = true
-description = "Async task group with error propagation and optional concurrency limiting"
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true

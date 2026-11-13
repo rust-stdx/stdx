@@ -182,13 +182,7 @@ impl Default for ReqwestHttpClient {
 #[cfg(feature = "reqwest")]
 impl ReqwestHttpClient {
     /// Builds an HTTP client backed by `reqwest`.
-    ///
-    /// Installs the stdx rustls `CryptoProvider` as the process default (if
-    /// none is installed yet) before creating the underlying `reqwest` client,
-    /// because `reqwest` is compiled with the `rustls-no-provider` feature and
-    /// would otherwise panic for lack of a cryptography provider.
     pub fn new() -> Self {
-        crypto_rustls::install_default_rustls_provider();
         Self {
             inner: reqwest::Client::new(),
         }

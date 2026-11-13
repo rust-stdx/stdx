@@ -1,14 +1,11 @@
 [package]
 name = "ryu"
 version = "1.0.18"
-authors = ["David Tolnay <dtolnay@gmail.com>"]
-categories = ["value-formatting", "no-std", "no-std::no-alloc"]
 description = "Fast floating point to string conversion"
-documentation = "https://docs.rs/ryu"
 edition.workspace = true
 rust-version.workspace = true
-exclude = ["build.rs", "performance.png", "chart/**"]
-keywords = ["float"]
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -23,6 +20,7 @@ small = []
 
 [dev-dependencies]
 num_cpus = { path = "../num_cpus" }
+
 rand = { workspace = true  }
 # rand_xorshift = "0.3"
 

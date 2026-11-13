@@ -1,8 +1,11 @@
 [package]
 name = "hostname"
 version = "0.3.1"
+description = "Get the hostname of the current machine."
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true

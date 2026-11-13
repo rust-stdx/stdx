@@ -1,13 +1,11 @@
 [package]
 name = "anyerr"
 version = "1.0.86"
-authors = ["David Tolnay <dtolnay@gmail.com>"]
-categories = ["rust-patterns", "no-std"]
 description = "Flexible concrete Error type built on std::error::Error"
-documentation = "https://docs.rs/anyhow"
 edition.workspace = true
 rust-version.workspace = true
-keywords = ["error", "error-handling"]
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
