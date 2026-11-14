@@ -30,4 +30,6 @@ serde = { workspace = true, features = ["derive"] }
 url = { workspace = true }
 
 [dev-dependencies]
+crypto_rustls = { path = "../crypto_rustls" }
+
 tokio = { workspace = true }

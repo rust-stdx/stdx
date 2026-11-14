@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "base64 0.1.0",
  "crypto",
+ "crypto_rustls",
  "json",
  "reqwest",
  "thiserror 2.0.21",
@@ -1884,6 +1885,7 @@ dependencies = [
  "base64 0.1.0",
  "bytes",
  "crypto",
+ "crypto_rustls",
  "futures-util",
  "hex",
  "quick-xml",
@@ -2162,6 +2164,7 @@ dependencies = [
  "bytes",
  "constant_time_eq",
  "crypto",
+ "crypto_rustls",
  "futures-util",
  "json",
  "reqwest",

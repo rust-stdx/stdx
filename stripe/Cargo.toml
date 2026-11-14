@@ -172,6 +172,7 @@ tokio = { workspace = true, optional = true, features = ["time"] }
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
 crypto = { path = "../crypto" }
+crypto_rustls = { path = "../crypto_rustls" }
 stripe_codegen = { path = "codegen" }
 
 # Uses the workspace Tokio dependency, with the pieces the tests need.

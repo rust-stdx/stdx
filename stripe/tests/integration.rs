@@ -70,6 +70,7 @@ fn integration_client() -> Option<Client> {
              (sk_test_… or rk_test_…)"
         );
     }
+    crypto_rustls::install_default_rustls_provider();
     Some(Client::new(key).expect("build Stripe client"))
 }
 

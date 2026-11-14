@@ -22,4 +22,6 @@ thiserror = { path = "../thiserror" }
 reqwest = { workspace = true }
 
 [dev-dependencies]
+crypto_rustls = { path = "../crypto_rustls" }
+
 tokio = { workspace = true }

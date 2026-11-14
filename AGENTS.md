@@ -24,4 +24,48 @@ workspace members are alphabetically ordered.
 
 When reviewing a package, always ensure that the documentation is up-to-date and correct.
 
+### Cargo.toml conventions
+
+Only external dependencies belong in the workspace-level
+`[workspace.dependencies]`. Packages in this workspace must never be listed
+there; they are imported by path from other packages in the workspace.
+
+Packages must declare external dependencies through the workspace, using
+`dependency = { workspace = true }`. No package may declare an external
+dependency directly (with its own `version` or `git` source).
+
+In every dependency table (`[dependencies]`, `[dev-dependencies]`,
+`[build-dependencies]`, and target-specific dependency tables), list the
+workspace-local path dependencies first, alphabetically, then a blank line,
+then the external workspace dependencies, alphabetically:
+
+```toml
+[dependencies]
+# workspace-local packages, imported by path
+base64 = { path = "../base64" }
+crypto = { path = "../crypto" }
+
+# external dependencies, imported from [workspace.dependencies]
+bytes = { workspace = true }
+serde = { workspace = true }
+```
+
+Every package's `[package]` table must contain only the following fields, in
+this order:
+
+```toml
+[package]
+name = "alloc_counter"
+version = "0.1.0"
+description = "Per-thread allocation counting for tests."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+```
+
+The `description` field is required. Shared package metadata is defined in the
+root `[workspace.package]` table (`edition`, `rust-version`, `license`, and
+`repository`).
+
 After doing changes, run the tests and checks only for the updated code. Running tests and all checks may be very slow and will be run by CI/CD, but sensure that `make lint` passes.

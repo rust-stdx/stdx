@@ -33,6 +33,8 @@ fn unique_bucket_name() -> String {
 }
 
 fn test_client() -> Client<ReqwestHttpClient> {
+    crypto_rustls::install_default_rustls_provider();
+
     let endpoint = env_or_default("S3_ENDPOINT", "http://127.0.0.1:9000");
     let region = env_or_default("S3_REGION", "auto");
     let access_key_id = env_or_default("S3_ACCESS_KEY_ID", "minioadmin");
