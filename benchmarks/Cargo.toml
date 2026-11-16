@@ -1,0 +1,75 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "base32",
+    "base64",
+    "bel",
+    "cbor",
+    "constant_time_eq",
+    "cose",
+    "crc32",
+    "crypto",
+    "crypto_native",
+    "crypto_wasm",
+    "hex",
+    "hpke",
+    "ipnetwork",
+    "json",
+    "postgresql",
+    "utf8",
+    "uuid",
+    "xxhash",
+    "zeroize",
+]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.99"
+license = "MIT"
+repository = "https://github.com/rust-stdx/stdx"
+
+[workspace.dependencies]
+aes = "0.9"
+aes-gcm = "0.11"
+ascon-aead128 = { git = "https://github.com/RustCrypto/AEADs", rev = "f90367cf07286ab5db652970e8268fbeab62a682" }
+ascon-hash256 = "0.1"
+aws-lc-rs = "1"
+blake3 = { git = "https://github.com/BLAKE3-team/BLAKE3", rev = "f3149ec5bb5449af877ba20377a11008ff499fa2", features = ["neon"] }
+bytes = { version = "1", default-features = false }
+cbor2 = "1.1.6"
+chacha20 = "0.10"
+chacha20poly1305 = "0.11"
+ciborium = "0.2.2"
+cipher = "0.5"
+criterion = { version = "0.8", features = ["html_reports"] }
+ctr = "0.10"
+ed25519-dalek = "2"
+hmac = "0.13"
+inout = "0.2"
+mimalloc = { version = "0.1", default-features = false }
+minicbor = { version = "2.3.1", features = ["alloc", "derive"] }
+ml-dsa = "0.1"
+poly1305 = "0.9"
+serde = { version = "1", features = ["derive"] }
+serde_bytes = "0.11"
+serde_json = "1"
+sha2 = "0.11"
+sha3 = "0.11"
+simd-json = "0.19"
+sonic-rs = "0.5"
+
+[workspace.lints.clippy]
+needless_return = "allow"
+type_complexity = "allow"
+too_many_arguments = "allow"
+new_without_default = "allow"
+needless_range_loop = "allow"
+manual_c_str_literals = "allow"
+
+# Keep the suites reproducible: `cargo bench` builds every workspace member
+# with these settings, including the path dependencies under `..`.
+[profile.bench]
+opt-level = 3
+lto = "thin"
+codegen-units = 1

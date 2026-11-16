@@ -1,6 +1,7 @@
-use criterion::{criterion_group, criterion_main, Criterion};
-use ipnetwork::{Ipv4Network, Ipv6Network};
 use std::net::{Ipv4Addr, Ipv6Addr};
+
+use criterion::{Criterion, criterion_group, criterion_main};
+use ipnetwork::{Ipv4Network, Ipv6Network};
 
 fn parse_ipv4_prefix_benchmark(c: &mut Criterion) {
     c.bench_function("parse ipv4 prefix", |b| {
@@ -22,19 +23,13 @@ fn parse_ipv4_netmask_benchmark(c: &mut Criterion) {
 
 fn contains_ipv4_benchmark(c: &mut Criterion) {
     let cidr = "74.125.227.0/25".parse::<Ipv4Network>().unwrap();
-    c.bench_function("contains ipv4", |b| {
-        b.iter(|| {
-            cidr.contains(Ipv4Addr::new(74, 125, 227, 4))
-        })
-    });
+    c.bench_function("contains ipv4", |b| b.iter(|| cidr.contains(Ipv4Addr::new(74, 125, 227, 4))));
 }
 
 fn contains_ipv6_benchmark(c: &mut Criterion) {
     let cidr = "FF01:0:0:17:0:0:0:2/65".parse::<Ipv6Network>().unwrap();
     c.bench_function("contains ipv6", |b| {
-        b.iter(|| {
-            cidr.contains(Ipv6Addr::new(0xff01, 0, 0, 0x17, 0x7fff, 0, 0, 0x2))
-        })
+        b.iter(|| cidr.contains(Ipv6Addr::new(0xff01, 0, 0, 0x17, 0x7fff, 0, 0, 0x2)))
     });
 }
 

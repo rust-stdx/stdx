@@ -1662,6 +1662,9 @@ Expected: {}",
         cipher.check_overflow(u64::MAX);
     }
 
+    /// Only used by the panic-observing test below, which is skipped on
+    /// `panic = "abort"` targets such as `wasm32-wasip1`.
+    #[cfg_attr(panic = "abort", allow(dead_code))]
     fn catch_panic<F: FnOnce() -> Vec<u8> + std::panic::UnwindSafe>(f: F) -> Option<Vec<u8>> {
         std::panic::catch_unwind(f).ok()
     }
@@ -1670,6 +1673,10 @@ Expected: {}",
     ///
     /// This implementation reserves the final counter value, so valid vectors that consume the
     /// final block are rejected by policy. They are asserted as such rather than silently skipped.
+    #[cfg_attr(
+        panic = "abort",
+        ignore = "counter wrap panics cannot be observed when the target aborts on panic"
+    )]
     #[test]
     fn wycheproof_stream_cipher_counter_vectors() {
         let data: serde_json::Value = serde_json::from_str(include_str!(

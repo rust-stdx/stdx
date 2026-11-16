@@ -26,9 +26,7 @@ pub struct SendRequestInput<B: Encode> {
 
 impl Client {
     /// Builds a client for the Postmark API.
-    pub fn new(account_api_token: Option<String>) -> Client {
-        let http_client = reqwest::Client::new();
-
+    pub fn new(http_client: reqwest::Client, account_api_token: Option<String>) -> Client {
         return Client {
             http_client,
             api_base_url: "https://api.postmarkapp.com",

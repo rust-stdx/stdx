@@ -1,7 +1,7 @@
 use std::{collections::HashMap, hint::black_box};
 
 use bel::{Program, context::Context};
-use criterion::{BenchmarkId, Criterion, criterion_group};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 
 const EXPRESSIONS: [(&str, &str); 34] = [
     ("ternary_1", "(1 || 2) ? 1 : 2"),
@@ -87,29 +87,4 @@ criterion_group! {
     targets = criterion_benchmark, criterion_benchmark_parsing, map_macro_benchmark
 }
 
-#[cfg(feature = "dhat-heap")]
-#[allow(clippy::all)]
-#[global_allocator]
-static ALLOC: dhat::Alloc = dhat::Alloc;
-
-/// This is the following macro expanded:
-/// criterion_main!(benches);
-/// But expanded manually so that we can keep the dhat profiler in scope until after benchmarks run
-#[allow(clippy::all)]
-fn main() {
-    #[allow(clippy::all)]
-    #[cfg(feature = "dhat-heap")]
-    let profiler = dhat::Profiler::new_heap();
-
-    benches();
-    // If adding new criterion groups, do so here.
-
-    // Dropping the dhat profiler prints information to stderr: https://docs.rs/dhat/latest/dhat/
-    // Doing so before the below ensures profiler doesn't measure Criterion's summary code.
-    // It still may measure other bits of Criterion during the benchmark, of course..
-    #[allow(clippy::all)]
-    #[cfg(feature = "dhat-heap")]
-    drop(profiler);
-
-    Criterion::default().configure_from_args().final_summary();
-}
+criterion_main!(benches);

@@ -55,11 +55,6 @@ time = { path = "../time" }
 uuid = { path = "../uuid" }
 
 bytes = { workspace = true }
-criterion = { workspace = true }
 rustls = { workspace = true }
 tokio = { workspace = true }
 tokio-rustls = { workspace = true }
-
-[[bench]]
-name = "encode"
-harness = false

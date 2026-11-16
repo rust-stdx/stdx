@@ -29,10 +29,3 @@ alloc_counter = { path = "../alloc_counter" }
 
 serde_json = { workspace = true }
 serde_test = { workspace = true }
-
-[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-criterion = { workspace = true }
-
-[[bench]]
-name = "bench"
-harness = false

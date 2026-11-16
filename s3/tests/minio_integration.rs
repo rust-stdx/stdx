@@ -52,7 +52,7 @@ fn test_client() -> Client<ReqwestHttpClient> {
         virtual_hosted: false,
     };
 
-    Client::new(&cfg).expect("failed to build s3 client")
+    Client::new_reqwest(reqwest::Client::new(), &cfg).expect("failed to build s3 client")
 }
 
 async fn collect_stream(body: s3::ByteStream) -> Vec<u8> {

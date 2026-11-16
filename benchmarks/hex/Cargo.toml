@@ -1,0 +1,19 @@
+[package]
+name = "hex"
+version = "0.0.0"
+description = "Benchmarks for the hex crate."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+hex = { path = "../../hex" }
+criterion = { workspace = true }
+
+[[bench]]
+name = "bench"
+harness = false

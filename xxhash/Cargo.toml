@@ -21,9 +21,3 @@ std = []
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
-
-criterion = { workspace = true }
-
-[[bench]]
-name = "hash"
-harness = false

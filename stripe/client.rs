@@ -279,7 +279,7 @@ impl Client {
     ///
     /// Returns [`Error::Config`] if `api_key` is empty or contains control
     /// characters.
-    pub fn new(api_key: impl Into<String>) -> Result<Self, Error> {
-        Self::with_http_client(api_key, crate::http::ReqwestHttpClient::new())
+    pub fn new_reqwest(http_client: reqwest::Client, api_key: impl Into<String>) -> Result<Self, Error> {
+        Self::with_http_client(api_key, crate::http::ReqwestHttpClient::new(http_client))
     }
 }

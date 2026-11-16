@@ -1,5 +1,3 @@
-#![cfg(all(feature = "alloc", feature = "random"))]
-
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use hpke::{
     self, Mode,

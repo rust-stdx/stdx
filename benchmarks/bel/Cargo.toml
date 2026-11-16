@@ -1,0 +1,20 @@
+[package]
+name = "bel"
+version = "0.0.0"
+description = "Benchmarks for the bel crate."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+bel = { path = "../../bel" }
+
+criterion = { workspace = true }
+
+[[bench]]
+name = "runtime"
+harness = false

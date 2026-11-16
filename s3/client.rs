@@ -173,18 +173,11 @@ pub struct ReqwestHttpClient {
 }
 
 #[cfg(feature = "reqwest")]
-impl Default for ReqwestHttpClient {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[cfg(feature = "reqwest")]
 impl ReqwestHttpClient {
     /// Builds an HTTP client backed by `reqwest`.
-    pub fn new() -> Self {
+    pub fn new(http_client: reqwest::Client) -> Self {
         Self {
-            inner: reqwest::Client::new(),
+            inner: http_client,
         }
     }
 }
@@ -435,8 +428,8 @@ impl<H: HttpClient> Client<H> {
 
 #[cfg(feature = "reqwest")]
 impl Client<ReqwestHttpClient> {
-    pub fn new(config: &ClientConfig<'_>) -> Result<Self, Error> {
-        Self::with_http_client(config, ReqwestHttpClient::new())
+    pub fn new_reqwest(http_client: reqwest::Client, config: &ClientConfig<'_>) -> Result<Self, Error> {
+        Self::with_http_client(config, ReqwestHttpClient::new(http_client))
     }
 }
 

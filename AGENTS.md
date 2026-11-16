@@ -24,6 +24,9 @@ workspace members are alphabetically ordered.
 
 When reviewing a package, always ensure that the documentation is up-to-date and correct.
 
+After doing changes, run the tests and checks only for the updated code. Running tests and all checks may be very slow and will be run by CI/CD, but sensure that `make lint` passes.
+
+
 ### Cargo.toml conventions
 
 Only external dependencies belong in the workspace-level
@@ -68,4 +71,15 @@ The `description` field is required. Shared package metadata is defined in the
 root `[workspace.package]` table (`edition`, `rust-version`, `license`, and
 `repository`).
 
-After doing changes, run the tests and checks only for the updated code. Running tests and all checks may be very slow and will be run by CI/CD, but sensure that `make lint` passes.
+### Benchmarks
+
+Benchmarks live in `benchmarks/`, a separate Cargo workspace with its own
+lockfile that depends on the stdx crates by path. Crates in the main workspace
+must not declare `criterion` or `[[bench]]` targets; add a `benchmarks/<crate>`
+package instead. Benchmark packages follow the package conventions above, but
+are named after their folder and use `version = "0.0.0"` so they do not collide
+in the lockfile with the crate they benchmark, and their external dependencies
+are declared in `benchmarks/Cargo.toml`'s `[workspace.dependencies]`. Because
+the package and the benchmarked crate share a name, run a suite from its
+directory (`cd benchmarks/<crate> && cargo bench`) or with `--manifest-path`;
+`cargo bench -p <name>` is ambiguous.

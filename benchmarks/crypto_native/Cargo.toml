@@ -1,0 +1,54 @@
+[package]
+# The package needs to be named crypto_native to avoid collisions with "crypto".
+name = "crypto_native"
+version = "0.1.0"
+description = "Benchmarks the crypto crate against other cryptography crates."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+crypto = { path = "../../crypto", default-features = false, features = ["std"] }
+
+aes = { workspace = true }
+aes-gcm = { workspace = true }
+ascon-aead128 = { workspace = true }
+ascon-hash256 = { workspace = true }
+aws-lc-rs = { workspace = true }
+blake3 = { workspace = true }
+chacha20 = { workspace = true }
+chacha20poly1305 = { workspace = true }
+cipher = { workspace = true }
+criterion = { workspace = true }
+ctr = { workspace = true }
+ed25519-dalek = { workspace = true }
+hmac = { workspace = true }
+inout = { workspace = true }
+ml-dsa = { workspace = true }
+poly1305 = { workspace = true }
+sha2 = { workspace = true }
+sha3 = { workspace = true }
+
+[[bench]]
+name = "aead"
+harness = false
+
+[[bench]]
+name = "hash"
+harness = false
+
+[[bench]]
+name = "mac"
+harness = false
+
+[[bench]]
+name = "signatures"
+harness = false
+
+[[bench]]
+name = "stream_ciphers"
+harness = false

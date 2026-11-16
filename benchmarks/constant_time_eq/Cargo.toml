@@ -1,0 +1,23 @@
+[package]
+name = "constant_time_eq"
+version = "0.0.0"
+description = "Benchmarks for the constant_time_eq crate."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+constant_time_eq = { path = "../../constant_time_eq" }
+criterion = { workspace = true }
+
+[[bench]]
+name = "bench"
+harness = false
+
+[[bench]]
+name = "bench_generic"
+harness = false

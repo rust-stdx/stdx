@@ -1,0 +1,19 @@
+[package]
+name = "base32"
+version = "0.0.0"
+description = "Benchmarks for the base32 crate."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+base32 = { path = "../../base32" }
+criterion = { workspace = true }
+
+[[bench]]
+name = "bench"
+harness = false

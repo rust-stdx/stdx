@@ -12,14 +12,8 @@ workspace = true
 
 [dev-dependencies]
 rand = { workspace = true }
-# bencher = "0.1"
-# quickcheck = { version = "1.0", default-features = false }
 
 [features]
 default = ["std"]
 std = []
 nightly = []
-
-# [[bench]]
-# name = "bench"
-# harness = false

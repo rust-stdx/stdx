@@ -1,0 +1,19 @@
+[package]
+name = "uuid"
+version = "0.0.0"
+description = "Benchmarks for the uuid crate."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+uuid = { path = "../../uuid" }
+criterion = { workspace = true }
+
+[[bench]]
+name = "bench"
+harness = false

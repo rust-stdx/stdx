@@ -57,12 +57,19 @@ fn rsa_pss_oversized_salt_len_is_rejected_without_panicking() {
     let key = rsa::PublicKey::from_pkcs1_der(&hex::decode(RSA_DER).unwrap()).unwrap();
     let signature = [0u8; 256];
 
+    // `1usize << 32` does not fit a 32-bit `usize`; on those targets
+    // `usize::MAX / 4` is already far beyond any possible salt length.
+    #[cfg(target_pointer_width = "64")]
+    const LARGE_SALT_LEN: usize = 1usize << 32;
+    #[cfg(target_pointer_width = "32")]
+    const LARGE_SALT_LEN: usize = usize::MAX / 4;
+
     for salt_len in [
         usize::MAX,
         usize::MAX - 1,
         usize::MAX - 32,
         usize::MAX / 2,
-        1usize << 32,
+        LARGE_SALT_LEN,
     ] {
         assert_eq!(
             key.verify_pss::<crypto::sha2::Sha256>(&signature, b"message", salt_len),

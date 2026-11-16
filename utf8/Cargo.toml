@@ -18,10 +18,3 @@ default = ["std"]
 # Enables runtime CPU feature detection. Without it, SIMD kernels are selected
 # at compile time from the target features.
 std = []
-
-[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-criterion = { workspace = true }
-
-[[bench]]
-name = "bench"
-harness = false

@@ -1,0 +1,19 @@
+[package]
+name = "base64"
+version = "0.0.0"
+description = "Benchmarks for the base64 crate."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+base64 = { path = "../../base64" }
+criterion = { workspace = true }
+
+[[bench]]
+name = "bench"
+harness = false

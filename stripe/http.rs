@@ -149,33 +149,15 @@ mod reqwest_client {
         inner: reqwest::Client,
     }
 
-    impl Default for ReqwestHttpClient {
-        fn default() -> Self {
-            Self::new()
-        }
-    }
-
     impl ReqwestHttpClient {
-        /// Builds a client with default settings.
-        pub fn new() -> Self {
-            Self {
-                inner: reqwest::Client::new(),
-            }
-        }
-
         /// Builds a client from a pre-configured [`reqwest::Client`].
         ///
         /// Use this to set connection-pool size, proxies, TCP keepalive, or
         /// redirect policy.
-        pub fn with_reqwest_client(inner: reqwest::Client) -> Self {
+        pub fn new(inner: reqwest::Client) -> Self {
             Self {
                 inner,
             }
-        }
-
-        /// Returns a [`reqwest::ClientBuilder`] for building a custom underlying client.
-        pub fn builder() -> reqwest::ClientBuilder {
-            reqwest::Client::builder()
         }
     }
 

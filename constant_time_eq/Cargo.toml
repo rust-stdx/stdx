@@ -19,14 +19,3 @@ count_instructions_test = []
 
 [dev-dependencies]
 count_instructions = { path = "../count_instructions" }
-
-[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-criterion = { workspace = true }
-
-[[bench]]
-name = "bench"
-harness = false
-
-[[bench]]
-name = "bench_generic"
-harness = false

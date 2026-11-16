@@ -1,0 +1,19 @@
+[package]
+name = "hpke"
+version = "0.0.0"
+description = "Benchmarks for the hpke crate."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+hpke = { path = "../../hpke" }
+criterion = { workspace = true }
+
+[[bench]]
+name = "hpke"
+harness = false

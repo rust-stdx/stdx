@@ -1,0 +1,20 @@
+[package]
+name = "cose"
+version = "0.0.0"
+description = "Benchmarks for the cose crate."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+cose = { path = "../../cose" }
+crypto = { path = "../../crypto" }
+criterion = { workspace = true }
+
+[[bench]]
+name = "cose"
+harness = false

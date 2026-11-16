@@ -1,0 +1,22 @@
+[package]
+name = "postgresql"
+version = "0.0.0"
+description = "Benchmarks for the postgresql crate."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+postgresql = { path = "../../postgresql" }
+json = { path = "../../json", features = ["derive"] }
+
+bytes = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "encode"
+harness = false

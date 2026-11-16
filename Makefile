@@ -1,6 +1,7 @@
 .PHONY: fmt
 fmt:
 	cargo +nightly fmt
+	cargo +nightly fmt --manifest-path benchmarks/Cargo.toml
 
 
 .PHONY: clean
@@ -21,6 +22,7 @@ s3_integration_test:
 .PHONY: lint
 lint:
 	cargo +nightly fmt -- --check
+	cargo +nightly fmt --manifest-path benchmarks/Cargo.toml -- --check
 	cargo clippy --workspace --all-targets -- -Dwarnings
 
 

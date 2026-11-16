@@ -1,0 +1,51 @@
+[package]
+name = "crypto"
+version = "0.0.0"
+description = "Benchmarks for the crypto crate."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+crypto = { path = "../../crypto" }
+criterion = { workspace = true }
+
+[[bench]]
+name = "aead"
+harness = false
+
+[[bench]]
+name = "aegis"
+harness = false
+
+[[bench]]
+name = "hash"
+harness = false
+
+[[bench]]
+name = "kdf"
+harness = false
+
+[[bench]]
+name = "kem"
+harness = false
+
+[[bench]]
+name = "mac"
+harness = false
+
+[[bench]]
+name = "pbkdf"
+harness = false
+
+[[bench]]
+name = "signatures"
+harness = false
+
+[[bench]]
+name = "stream_ciphers"
+harness = false

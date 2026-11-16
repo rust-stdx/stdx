@@ -1,0 +1,32 @@
+[package]
+name = "cbor"
+version = "0.0.0"
+description = "Benchmarks the cbor crate against other CBOR libraries."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+name = "cbor_benchmarks"
+bench = false
+
+[dependencies]
+cbor = { path = "../../cbor", features = ["derive", "bytes"] }
+
+minicbor = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+bytes = { workspace = true }
+cbor2 = { workspace = true }
+ciborium = { workspace = true }
+criterion = { workspace = true }
+serde_bytes = { workspace = true }
+
+[[bench]]
+name = "cbor"
+harness = false

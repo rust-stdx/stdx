@@ -1,0 +1,19 @@
+[package]
+name = "crc32"
+version = "0.0.0"
+description = "Benchmarks for the crc32 crate."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+crc32 = { path = "../../crc32" }
+criterion = { workspace = true }
+
+[[bench]]
+name = "bench"
+harness = false

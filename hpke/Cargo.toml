@@ -27,10 +27,3 @@ zeroize = { path = "../zeroize", optional = true, default-features = false, feat
 hex = { path = "../hex" }
 
 serde_json = { workspace = true }
-
-[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-criterion = { workspace = true }
-
-[[bench]]
-name = "hpke"
-harness = false

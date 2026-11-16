@@ -33,10 +33,3 @@ alloc_counter = { path = "../alloc_counter" }
 cbor = { path = "../cbor", default-features = false, features = ["alloc"] }
 
 serde_json = { workspace = true }
-
-[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-criterion = { workspace = true }
-
-[[bench]]
-name = "bench"
-harness = false
