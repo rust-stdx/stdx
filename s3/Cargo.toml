@@ -32,4 +32,5 @@ url = { workspace = true }
 [dev-dependencies]
 crypto_rustls = { path = "../crypto_rustls" }
 
+reqwest = { workspace = true, features = ["http2", "rustls-no-provider", "stream"] }
 tokio = { workspace = true }

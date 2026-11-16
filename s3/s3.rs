@@ -10,6 +10,7 @@
 //!
 //! ```no_run
 //! # #[cfg(feature = "reqwest")] {
+//! use reqwest::Client as ReqwestClient;
 //! use s3::{Client, ClientConfig, StaticCredentials};
 //!
 //! let cfg = ClientConfig {
@@ -23,7 +24,7 @@
 //!     virtual_hosted: false,
 //! };
 //!
-//! let client = Client::new(&cfg)?;
+//! let client = Client::new_reqwest(ReqwestClient::new(), &cfg)?;
 //! # }
 //! # Ok::<(), s3::Error>(())
 //! ```
