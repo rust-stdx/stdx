@@ -19,7 +19,7 @@ crypto = { path = "../crypto" }
 json = { path = "../json", features = ["derive"] }
 thiserror = { path = "../thiserror" }
 
-reqwest = { workspace = true }
+reqwest = { workspace = true, features = ["http2", "rustls-no-provider"] }
 
 [dev-dependencies]
 crypto_rustls = { path = "../crypto_rustls" }
