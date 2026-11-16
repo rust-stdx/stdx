@@ -11,7 +11,6 @@ use hyper_utils::{
     rt::TokioIo,
 };
 use json::{DecodeOwned, Encode};
-use serde::Serialize;
 use tokio::{net::UnixStream, sync::Mutex};
 use tracing::{debug, error};
 
@@ -68,10 +67,10 @@ impl Client {
         return Ok(());
     }
 
-    pub(crate) async fn send_request<R: DecodeOwned, Q: Serialize, B: Encode>(
+    pub(crate) async fn send_request<R: DecodeOwned, B: Encode>(
         &self,
         path: &str,
-        query: Option<Q>,
+        query: Option<String>,
         body: Option<B>,
     ) -> Result<R, Error> {
         if self.socket.lock().await.is_none() {
@@ -80,11 +79,7 @@ impl Client {
 
         // first we need to prepare the request for hyper
         let path_and_query = match query {
-            Some(query_params) => {
-                let query_string = serde_urlencoded::to_string(query_params)
-                    .map_err(|err| Error::Unspecified(format!("encoding request's query parameters: {err}")))?;
-                format!("{path}?{query_string}")
-            }
+            Some(query) => format!("{path}?{query}"),
             None => path.to_string(),
         };
 

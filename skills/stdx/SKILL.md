@@ -184,11 +184,6 @@ use serde_yaml;
 let config: MyConfig = serde_yaml::from_str(yaml_str)?;
 let yaml = serde_yaml::to_string(&config)?;
 
-// URL-encoded forms (via serde)
-use serde_urlencoded;
-let params = vec![("key", "value"), ("foo", "bar")];
-let body: String = serde_urlencoded::to_string(&params)?;
-
 // CBOR — typed, no_std-capable, with integer map keys and tags
 use cbor::{Decode, Encode};
 

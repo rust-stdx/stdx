@@ -1,6 +1,6 @@
-#[cfg(feature = "serde")]
+#[cfg(feature = "derive")]
 use alloc::collections::BTreeMap;
-#[cfg(feature = "serde")]
+#[cfg(feature = "derive")]
 use alloc::sync::Arc;
 use alloc::{
     string::{String, ToString},
@@ -101,7 +101,7 @@ pub struct FieldRange {
 ///
 /// Call [`parse_headers`](Self::parse_headers) to treat the first row as column
 /// names. After doing so, [`headers`](Self::headers) returns a `Some` slice and
-/// serde deserialization (with the `serde` feature) can match by field name.
+/// native decoding (with the `derive` feature) can match by field name.
 ///
 /// # Errors
 ///
@@ -212,12 +212,12 @@ pub struct Reader<R: Read> {
     max_columns: Option<usize>,
     /// Column names, populated by `parse_headers` or `set_headers`.
     headers: Vec<String>,
-    #[cfg(feature = "serde")]
-    /// Map from header name -> column index for serde field lookup.
+    #[cfg(feature = "derive")]
+    /// Map from header name -> column index for native field lookup.
     header_map: Option<Arc<BTreeMap<String, usize>>>,
-    #[cfg(feature = "serde")]
+    #[cfg(feature = "derive")]
     /// True when `headers` contains duplicate names, which makes name-based
-    /// deserialization ambiguous.
+    /// decoding ambiguous.
     duplicate_headers: bool,
     /// The underlying data source.
     source: R,
@@ -257,9 +257,9 @@ impl<R: Read> Reader<R> {
             max_field_bytes: None,
             max_columns: None,
             headers: Vec::new(),
-            #[cfg(feature = "serde")]
+            #[cfg(feature = "derive")]
             header_map: None,
-            #[cfg(feature = "serde")]
+            #[cfg(feature = "derive")]
             duplicate_headers: false,
             source,
             eof: false,
@@ -295,7 +295,7 @@ impl<R: Read> Reader<R> {
     ///
     /// This is what makes files produced by Excel, which writes UTF-8 CSV with
     /// a BOM by default, work with [`parse_headers`](Self::parse_headers) and
-    /// serde: without it the first header would be `"\u{feff}name"` and would
+    /// native decoding: without it the first header would be `"\u{feff}name"` and would
     /// match no struct field.
     ///
     /// Only the first three bytes of the stream are considered, and only once.
@@ -347,7 +347,7 @@ impl<R: Read> Reader<R> {
         self
     }
 
-    /// Sets the column names for header-based serde deserialization.
+    /// Sets the column names for header-based native decoding.
     ///
     /// Calling this marks headers as parsed so `reader.headers()` returns `Some`,
     /// and pins the expected field count to the number of names supplied (unless
@@ -363,7 +363,7 @@ impl<R: Read> Reader<R> {
         self
     }
 
-    #[cfg(feature = "serde")]
+    #[cfg(feature = "derive")]
     fn rebuild_header_map(&mut self) {
         let map: BTreeMap<String, usize> = self
             .headers
@@ -375,7 +375,7 @@ impl<R: Read> Reader<R> {
         self.header_map = Some(Arc::new(map));
     }
 
-    #[cfg(not(feature = "serde"))]
+    #[cfg(not(feature = "derive"))]
     fn rebuild_header_map(&mut self) {}
 
     /// Returns `Some(&[String])` if headers were parsed or set, `None` otherwise.
@@ -887,9 +887,9 @@ impl<R: Read> Reader<R> {
         let bytes_row = self.build_bytes_row(error);
         Row {
             inner: bytes_row,
-            #[cfg(feature = "serde")]
+            #[cfg(feature = "derive")]
             header_map: self.header_map.clone(),
-            #[cfg(feature = "serde")]
+            #[cfg(feature = "derive")]
             duplicate_headers: self.duplicate_headers,
         }
     }
@@ -1086,9 +1086,9 @@ impl<'a> ExactSizeIterator for BytesFields<'a> {}
 
 pub struct Row {
     pub(crate) inner: BytesRow,
-    #[cfg(feature = "serde")]
+    #[cfg(feature = "derive")]
     pub(crate) header_map: Option<Arc<BTreeMap<String, usize>>>,
-    #[cfg(feature = "serde")]
+    #[cfg(feature = "derive")]
     pub(crate) duplicate_headers: bool,
 }
 

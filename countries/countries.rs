@@ -1,9 +1,6 @@
 //! ISO 3166-1 alpha-2 country codes and names.
 #![no_std]
 
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
-
 /// Code used as a fallback when a country is not found.
 pub const UNKNOWN_CODE: &str = "XX";
 
@@ -22,7 +19,6 @@ pub const UNKNOWN: &str = "Unknown";
 /// assert_eq!(country.name, "France");
 /// ```
 #[derive(Clone, Copy, Debug)]
-#[cfg_attr(feature = "serde", derive(Deserialize, Serialize))]
 pub struct Country {
     pub code: &'static str,
     pub name: &'static str,

@@ -307,30 +307,6 @@ pub mod tags {
     pub const SELF_DESCRIBED: u64 = 55799;
 }
 
-#[cfg(feature = "serde")]
-impl serde::Serialize for Simple {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_newtype_struct(crate::serde::SIMPLE_MARKER, &self.get())
-    }
-}
-
-#[cfg(feature = "serde")]
-impl<'de> serde::Deserialize<'de> for Simple {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct Visitor;
-        impl serde::de::Visitor<'_> for Visitor {
-            type Value = Simple;
-            fn expecting(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                f.write_str("a CBOR simple value")
-            }
-            fn visit_u8<E: serde::de::Error>(self, value: u8) -> Result<Self::Value, E> {
-                Simple::new(value).map_err(E::custom)
-            }
-        }
-        deserializer.deserialize_newtype_struct(crate::serde::SIMPLE_MARKER, Visitor)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

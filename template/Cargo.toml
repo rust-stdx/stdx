@@ -14,12 +14,14 @@ workspace = true
 path = "./template.rs"
 
 [features]
-default = ["std"]
-std = ["serde/std", "memchr/std"]
+default = ["std", "derive"]
+std = ["memchr/std"]
+derive = ["dep:template_derive"]
 
 [dependencies]
+template_derive = { path = "./template_derive", optional = true }
+
 memchr = { workspace = true }
-serde = { workspace = true, default-features = false, features = ["derive", "alloc"] }
 
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }

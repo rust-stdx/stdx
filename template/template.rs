@@ -20,8 +20,8 @@
 //! ```
 //!
 //! The [`context!`] macro builds a context map.
-//! You can also pass any `#[derive(Serialize)]` struct (requires the `std`
-//! feature), using `&` to pass a reference: `engine.render("t", &my_struct)`.
+//! You can also pass a reference to any type that derives [`ToValue`]:
+//! `engine.render("t", &my_struct)`.
 //!
 //! # Trust model
 //!
@@ -34,10 +34,35 @@
 //!
 //! # Features
 //!
-//! | Feature    | Description                                                                 |
-//! |------------|-----------------------------------------------------------------------------|
-//! | `default`  | Enables the `std` feature.                                                  |
-//! | `std`      | Enables `std`-dependent features such as `serde` integration and the ability to pass `#[derive(Serialize)]` structs directly to [`Engine::render`]. |
+//! | Feature   | Description                                                                 |
+//! |-----------|-----------------------------------------------------------------------------|
+//! | `default` | Enables the `std` and `derive` features.                                    |
+//! | `std`     | Enables `std`-dependent features such as `std::io::Error` integration.      |
+//! | `derive`  | Enables `#[derive(ToValue)]`.                                               |
+//!
+//! # Structs and enums
+//!
+//! Derive [`ToValue`] to pass a struct directly to [`Engine::render`]. Named
+//! structs become maps, tuple structs become arrays, and enums follow the same
+//! shape rules as the [`context!`] macro.
+//!
+//! ```
+//! # #[cfg(feature = "derive")] {
+//! use template::{Engine, EscapeMode, ToValue};
+//!
+//! #[derive(ToValue)]
+//! struct User {
+//!     name: String,
+//!     age: i32,
+//! }
+//!
+//! let mut engine = Engine::new(EscapeMode::Text);
+//! engine.add_template("t", "{{ name }} is {{ age }}").unwrap();
+//!
+//! let result = engine.render("t", &User { name: "Bob".into(), age: 30 }).unwrap();
+//! assert_eq!(result, "Bob is 30");
+//! # }
+//! ```
 //!
 //! # Working with slices and vectors
 //!
@@ -300,6 +325,7 @@
 //! ```
 
 extern crate alloc;
+extern crate self as template;
 
 #[cfg(feature = "std")]
 extern crate std;
@@ -317,23 +343,39 @@ mod vm;
 
 pub use context::{Context, IntoContext};
 pub use engine::{Engine, EscapeMode};
-pub use error::{Error, SerdeError};
+pub use error::Error;
+#[cfg(feature = "derive")]
+pub use template_derive::ToValue;
+pub use value::{ToValue, Value};
 
 #[doc(hidden)]
 pub mod __macro_support {
-    pub use alloc::{collections::BTreeMap, rc::Rc, string::String};
-    pub use core::convert::Into;
+    pub use alloc::{collections::BTreeMap, rc::Rc, string::String, vec::Vec};
 
-    pub fn into_value<T: Into<crate::value::Value>>(v: T) -> crate::value::Value {
-        v.into()
+    pub use crate::value::{ToValue, Value};
+
+    pub fn into_value<T: ToValue>(v: T) -> Value {
+        v.to_value()
     }
 
-    pub fn build_context(map: BTreeMap<String, crate::value::Value>) -> crate::context::Context {
-        crate::context::Context(crate::value::Value::Map(Rc::new(map)))
+    pub fn build_context(map: BTreeMap<String, Value>) -> crate::context::Context {
+        crate::context::Context(Value::Map(Rc::new(map)))
+    }
+
+    pub fn str_value(value: &str) -> Value {
+        Value::Str(Rc::from(value))
+    }
+
+    pub fn array_value(values: Vec<Value>) -> Value {
+        Value::Array(Rc::new(values))
+    }
+
+    pub fn map_value(map: BTreeMap<String, Value>) -> Value {
+        Value::Map(Rc::new(map))
     }
 }
 
-/// Build a context map for [`Engine::render`] without requiring `Serialize`.
+/// Build a context map for [`Engine::render`] without requiring a derive.
 ///
 /// Unquoted identifiers (e.g. `name`) are stringified automatically.
 /// Quoted string keys (e.g. `"my-key"`) are also accepted for programmatic
@@ -349,7 +391,7 @@ pub mod __macro_support {
 /// assert_eq!(result, "Hello, World!");
 /// ```
 ///
-/// Supports nesting, vectors, and all types that implement [`Into<Value>`]:
+/// Supports nesting, vectors, and all types that implement [`ToValue`]:
 ///
 /// ```rust
 /// use template::{Engine, EscapeMode, context};

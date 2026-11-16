@@ -19,13 +19,12 @@ name = "docker"
 path = "src/main.rs"
 
 [dependencies]
+form_urlencoded = { path = "../form_urlencoded" }
 hyper_utils = { path = "../hyper_utils" }
 json = { path = "../json", features = ["derive"] }
-serde_urlencoded = { path = "../serde_urlencoded" }
 thiserror = { path = "../thiserror" }
 
 bytes = { workspace = true }
 hyper = { workspace = true }
-serde = { workspace = true, features = ["derive", "std"] }
 tokio = { workspace = true }
 tracing = { workspace = true }

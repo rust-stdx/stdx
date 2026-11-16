@@ -5,7 +5,7 @@
 //!
 //! Structs use a text-key map by default. `#[cbor(array)]` selects a
 //! positional array and `#[cbor(key = N)]` selects an integer-keyed map.
-//! Enums use serde-compatible external tagging by default; `#[cbor(array)]`
+//! Enums use external tagging by default; `#[cbor(array)]`
 //! uses a flat `[variant_index, fields...]` array, `#[cbor(index_only)]`
 //! encodes the variant index as an integer, and `#[cbor(tagged)]` encodes
 //! `[variant_index, {field_key: value, ...}]` (the legacy map-enum shape).
@@ -53,7 +53,7 @@ use syn::{
 ///   `#[cbor(decode_with = "...")]`
 /// - `#[cbor(borrow)]` — borrow from the decoder input
 ///
-/// Enums use serde-compatible external tagging by default. Use
+/// Enums use external tagging by default. Use
 /// `#[cbor(array)]` for `[variant_index, fields...]`, `#[cbor(index_only)]`
 /// for an integer index, `#[cbor(tagged)]` for `[variant_index, {field_key:
 /// value, ...}]`, or `#[cbor(key = N)]` on variants for an integer-keyed map.

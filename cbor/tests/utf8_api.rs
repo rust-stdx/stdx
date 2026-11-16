@@ -94,15 +94,6 @@ fn to_canonical_vec_into_matches_to_canonical_vec() {
     assert_eq!(buffer, cbor::to_canonical_vec(&value));
 }
 
-#[cfg(all(feature = "std", feature = "serde"))]
-#[test]
-fn serde_to_vec_into_reuses_the_buffer() {
-    let value = ("hello", 42u64);
-    let mut buffer = vec![0xff; 16];
-    cbor::serde::to_vec_into(&value, &mut buffer).unwrap();
-    assert_eq!(buffer, cbor::serde::to_vec(&value).unwrap());
-}
-
 #[cfg(feature = "std")]
 #[test]
 fn reader_read_item_into_matches_read_item() {

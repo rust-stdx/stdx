@@ -7,9 +7,11 @@ use std::{
 };
 
 use ipnetwork::IpNetwork;
-use serde::Serialize;
 
-use crate::encoder::{self, Value, encode_serialize};
+use crate::{
+    Encode,
+    encoder::{self, Value},
+};
 
 /// The result of a writer operation.
 ///
@@ -222,7 +224,7 @@ fn bit_at(ip: &[u8], depth: usize) -> u8 {
 /// Builds a MaxMind DB file from inserted networks.
 ///
 /// The writer accumulates encoded data records, deduplicating equal payloads,
-/// and serializes a search tree plus metadata when [`Writer::write_to`] is
+/// and encodes a search tree plus metadata when [`Writer::write_to`] is
 /// called.
 ///
 /// # Example
@@ -388,7 +390,7 @@ impl Writer {
         Ok(())
     }
 
-    /// Insert a `Serialize` value for `network`.
+    /// Insert an `Encode` value for `network`.
     ///
     /// This is the same as [`Writer::insert_value`] but encodes `value` for you.
     ///
@@ -401,8 +403,8 @@ impl Writer {
     /// # Overwriting
     ///
     /// See [`Writer::insert_value`]: insert least specific networks first.
-    pub fn insert<T: Serialize>(&mut self, network: IpNetwork, value: T) -> WriterResult<()> {
-        let encoded = encode_serialize(&value).map_err(|e| format!("serialization failed: {e}"))?;
+    pub fn insert<T: Encode>(&mut self, network: IpNetwork, value: T) -> WriterResult<()> {
+        let encoded = encoder::to_vec(&value).map_err(|e| format!("encoding failed: {e}"))?;
 
         let prefix_len = network.prefix() as usize;
         let ip = ip_to_bytes(network.network());
@@ -427,7 +429,7 @@ impl Writer {
         Ok(())
     }
 
-    /// Serialize the database into `writer`, returning the number of bytes
+    /// Encode the database into `writer`, returning the number of bytes
     /// written.
     ///
     /// This finalizes node numbering, so call it once, after all inserts.
@@ -539,6 +541,7 @@ fn ip_to_bytes(address: IpAddr) -> Vec<u8> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{Decode, Encode};
 
     #[test]
     fn test_write_and_read_simple_v4() {
@@ -555,7 +558,7 @@ mod tests {
         let mut buf = Vec::new();
         tree.write_to(&mut buf).unwrap();
         let reader = crate::Reader::from_source(buf).unwrap();
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct TestRecord {
             country: String,
         }
@@ -581,7 +584,7 @@ mod tests {
         let mut buf = Vec::new();
         tree.write_to(&mut buf).unwrap();
         let reader = crate::Reader::from_source(buf).unwrap();
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct TestRecord {
             country: String,
         }
@@ -608,7 +611,7 @@ mod tests {
         let mut buf = Vec::new();
         tree.write_to(&mut buf).unwrap();
         let reader = crate::Reader::from_source(buf).unwrap();
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct TestRecord {
             country: String,
         }
@@ -632,7 +635,7 @@ mod tests {
             let mut buf = Vec::new();
             tree.write_to(&mut buf).unwrap();
             let reader = crate::Reader::from_source(buf.clone()).unwrap();
-            #[derive(serde::Deserialize, Debug)]
+            #[derive(Decode, Debug)]
             struct TestRecord {
                 ip: String,
             }
@@ -682,7 +685,7 @@ mod tests {
         let mut buf = Vec::new();
         tree.write_to(&mut buf).unwrap();
         let reader = crate::Reader::from_source(buf).unwrap();
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct TestRecord {
             active: bool,
             inactive: bool,
@@ -714,7 +717,7 @@ mod tests {
         let mut buf = Vec::new();
         tree.write_to(&mut buf).unwrap();
         let reader = crate::Reader::from_source(buf).unwrap();
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct TestRecord {
             tags: Vec<String>,
         }
@@ -741,7 +744,7 @@ mod tests {
         let mut buf = Vec::new();
         tree.write_to(&mut buf).unwrap();
         let reader = crate::Reader::from_source(buf).unwrap();
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct TestRecord {
             u16: u16,
             u32: u32,
@@ -825,7 +828,7 @@ mod tests {
         tree.write_to(&mut buf).unwrap();
         let reader = crate::Reader::from_source(buf).unwrap();
 
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct TestRecord {
             data: String,
         }
@@ -859,12 +862,12 @@ mod tests {
         tree.write_to(&mut buf).unwrap();
         let reader = crate::Reader::from_source(buf).unwrap();
 
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct Country {
             code: u16,
             name: String,
         }
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct TestRecord {
             country: Country,
             active: bool,
@@ -940,7 +943,7 @@ mod tests {
         tree.write_to(&mut buf).unwrap();
         let reader = crate::Reader::from_source(buf).unwrap();
 
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct TestRecord {
             v4in6: bool,
         }
@@ -1112,7 +1115,7 @@ mod tests {
         let mut buf = Vec::new();
         tree.write_to(&mut buf).unwrap();
         let reader = crate::Reader::from_source(buf).unwrap();
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct TestRecord {
             net: String,
         }
@@ -1139,7 +1142,7 @@ mod tests {
         let mut buf = Vec::new();
         tree.write_to(&mut buf).unwrap();
         let reader = crate::Reader::from_source(buf).unwrap();
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct TestRecord {
             long: String,
         }
@@ -1213,7 +1216,7 @@ mod tests {
         let mut buf = Vec::new();
         tree.write_to(&mut buf).unwrap();
         let reader = crate::Reader::from_source(buf).unwrap();
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct TestRecord {
             all: bool,
         }
@@ -1237,7 +1240,7 @@ mod tests {
         let mut buf = Vec::new();
         tree.write_to(&mut buf).unwrap();
         let reader = crate::Reader::from_source(buf).unwrap();
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct TestRecord {
             host: String,
         }
@@ -1263,7 +1266,7 @@ mod tests {
         let mut buf = Vec::new();
         tree.write_to(&mut buf).unwrap();
         let reader = crate::Reader::from_source(buf).unwrap();
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct TestRecord {
             neg: i32,
             min: i32,
@@ -1290,7 +1293,7 @@ mod tests {
         let mut buf = Vec::new();
         tree.write_to(&mut buf).unwrap();
         let reader = crate::Reader::from_source(buf).unwrap();
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct TestRecord {
             f: f32,
         }
@@ -1315,7 +1318,7 @@ mod tests {
         let mut buf = Vec::new();
         tree.write_to(&mut buf).unwrap();
         let reader = crate::Reader::from_source(buf).unwrap();
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct ManyKeys {}
         let _: ManyKeys = reader.lookup("10.0.0.1".parse().unwrap()).unwrap();
     }
@@ -1397,7 +1400,7 @@ mod tests {
         let mut buf = Vec::new();
         tree.write_to(&mut buf).unwrap();
         let reader = crate::Reader::from_source(buf).unwrap();
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct TestRecord {
             f64: f64,
         }
@@ -1556,7 +1559,7 @@ mod tests {
         let mut buf = Vec::new();
         tree.write_to(&mut buf).unwrap();
         let reader = crate::Reader::from_source(buf).unwrap();
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct R {
             v: u128,
         }
@@ -1582,7 +1585,7 @@ mod tests {
         let mut buf = Vec::new();
         tree.write_to(&mut buf).unwrap();
         let reader = crate::Reader::from_source(buf).unwrap();
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct Zeros {
             u16: u16,
             u32: u32,
@@ -1597,8 +1600,8 @@ mod tests {
     }
 
     #[test]
-    fn test_insert_with_serialize_struct() {
-        #[derive(serde::Serialize)]
+    fn test_insert_with_encodable_struct() {
+        #[derive(Encode)]
         struct Record {
             country: String,
         }
@@ -1620,7 +1623,7 @@ mod tests {
         let mut buf = Vec::new();
         tree.write_to(&mut buf).unwrap();
         let reader = crate::Reader::from_source(buf).unwrap();
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct Record2 {
             country: String,
         }
@@ -1629,7 +1632,7 @@ mod tests {
     }
 
     #[test]
-    fn test_insert_with_serialize_btreemap() {
+    fn test_insert_with_encodable_btreemap() {
         let opts = WriterOptions {
             database_type: "Test".to_string(),
             ip_version: 4,
@@ -1643,7 +1646,7 @@ mod tests {
         let mut buf = Vec::new();
         tree.write_to(&mut buf).unwrap();
         let reader = crate::Reader::from_source(buf).unwrap();
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct R {
             value: String,
         }

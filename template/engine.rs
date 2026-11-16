@@ -104,10 +104,9 @@ impl Engine {
 
     /// Render a named template with the given context variables.
     ///
-    /// Pass a [`Context`] built with the [`context!`] macro, or a reference to
-    /// any type that implements [`Serialize`](serde::Serialize) (requires the
-    /// `std` feature). Non-map values such as plain strings or numbers produce
-    /// a render error.
+    /// Pass a [`Context`] built with the [`context!`](crate::context) macro, or a reference to
+    /// any type that implements [`ToValue`](crate::ToValue). Non-map values
+    /// such as plain strings or numbers produce a render error.
     ///
     /// ```rust
     /// use template::{Engine, EscapeMode, context};
@@ -137,7 +136,7 @@ impl Engine {
             .get(name)
             .ok_or_else(|| Error::undefined_template(name))?;
 
-        let context: Context = context.into_context().map_err(|e| Error::parse(e.0))?;
+        let context: Context = context.into_context()?;
 
         self.render_with_extends(&template.nodes, &context.0, out, None, 0)
     }
@@ -225,10 +224,8 @@ impl Engine {
 
 #[cfg(test)]
 mod tests {
-    use serde::Serialize;
-
     use super::*;
-    use crate::context;
+    use crate::{ToValue, context};
 
     #[test]
     fn test_simple_template() {
@@ -453,10 +450,10 @@ mod tests {
         assert_eq!(result, "");
     }
 
-    #[cfg(feature = "std")]
+    #[cfg(feature = "derive")]
     #[test]
     fn test_struct_variables() {
-        #[derive(Serialize)]
+        #[derive(ToValue)]
         struct User {
             name: String,
             age: i32,

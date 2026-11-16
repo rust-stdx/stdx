@@ -11,4 +11,4 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-ryu = { path = "../ryu" }
+zmij = { path = "../zmij" }

@@ -27,8 +27,8 @@ fn allocation_bounds() {
     a_record_limit_bounds_memory();
     a_field_limit_bounds_memory();
     the_reader_releases_memory_after_a_huge_record();
-    #[cfg(feature = "serde")]
-    serializing_does_not_allocate_per_field();
+    #[cfg(feature = "derive")]
+    encoding_does_not_allocate_per_field();
 }
 
 fn read_path_allocates_a_bounded_amount_per_row() {
@@ -195,9 +195,9 @@ fn the_reader_releases_memory_after_a_huge_record() {
     );
 }
 
-#[cfg(feature = "serde")]
-fn serializing_does_not_allocate_per_field() {
-    #[derive(serde::Serialize)]
+#[cfg(feature = "derive")]
+fn encoding_does_not_allocate_per_field() {
+    #[derive(Encode)]
     struct Record {
         a: String,
         b: String,
@@ -214,13 +214,13 @@ fn serializing_does_not_allocate_per_field() {
 
     let mut writer = Writer::new(Vec::new()).set_headers(vec!["a".into(), "b".into(), "c".into()]);
     for value in &values {
-        writer.serialize(value).unwrap();
+        writer.encode(value).unwrap();
     }
     writer.flush().unwrap();
 
     let (allocs, bytes, ()) = measure(|| {
         for value in &values {
-            writer.serialize(value).unwrap();
+            writer.encode(value).unwrap();
         }
     });
 

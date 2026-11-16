@@ -7,9 +7,8 @@
 use std::net::IpAddr;
 
 use alloc_counter::measure;
-use serde::Deserialize;
 
-use super::{Reader, Value};
+use super::{Decode, Reader, Value};
 
 #[test]
 fn lookup_of_a_missing_address_does_not_allocate() {
@@ -25,7 +24,7 @@ fn lookup_of_a_missing_address_does_not_allocate() {
 
 #[test]
 fn borrowed_lookup_does_not_allocate() {
-    #[derive(Deserialize)]
+    #[derive(Decode)]
     struct Record<'a> {
         iso: &'a str,
     }

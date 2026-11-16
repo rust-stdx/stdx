@@ -88,8 +88,8 @@ pub struct Writer<W: Write> {
     pub(crate) write_bom: bool,
     /// True once the byte-order mark has been emitted (or when none is wanted).
     pub(crate) bom_written: bool,
-    #[cfg(feature = "serde")]
-    pub(crate) ser_values: Vec<Option<Vec<u8>>>,
+    #[cfg(feature = "derive")]
+    pub(crate) encode_values: Vec<Option<Vec<u8>>>,
 }
 
 impl<W: Write> Writer<W> {
@@ -109,8 +109,8 @@ impl<W: Write> Writer<W> {
             headers_written: false,
             write_bom: false,
             bom_written: false,
-            #[cfg(feature = "serde")]
-            ser_values: Vec::new(),
+            #[cfg(feature = "derive")]
+            encode_values: Vec::new(),
         }
     }
 
@@ -172,7 +172,7 @@ impl<W: Write> Writer<W> {
 
     /// Store column names for schema awareness.
     ///
-    /// This sets the expected header names for future serde support and strict
+    /// This sets the expected header names for future native encoding and strict
     /// field-count validation. It does **not** write anything to the output.
     /// Use [`write_headers`](Self::write_headers) to emit the header row.
     pub fn set_headers(mut self, headers: Vec<String>) -> Self {

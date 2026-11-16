@@ -12,8 +12,8 @@ workspace = true
 
 [dependencies]
 indexmap = { path = "../indexmap" }
-ryu = { path = "../ryu" }
 unsafe_libyaml = { path = "../unsafe_libyaml" }
+zmij = { path = "../zmij" }
 
 serde = { workspace = true, features = ["std"] }
 

@@ -643,13 +643,13 @@ fn writer_bom_is_not_lost_when_a_row_is_rejected() {
     assert_eq!(out, b"\xef\xbb\xbfa,b\r\n");
 }
 
-// ── serde robustness ──────────────────────────────────────────────────
+// ── derive robustness ──────────────────────────────────────────────────
 
-#[cfg(feature = "serde")]
-mod serde_robustness {
+#[cfg(feature = "derive")]
+mod derive_robustness {
     use super::*;
 
-    #[derive(serde::Deserialize, Debug)]
+    #[derive(Decode, Debug)]
     #[allow(dead_code)]
     struct Pair {
         a: String,
@@ -661,7 +661,7 @@ mod serde_robustness {
         let mut reader = Reader::new(Cursor::new(&b"a,b\n1\n"[..])).set_flexible(true);
         reader.parse_headers().unwrap();
         let row = reader.rows().next().unwrap();
-        let result: Result<Pair, _> = row.deserialize();
+        let result: Result<Pair, _> = row.decode();
         assert!(result.is_err(), "expected an error, got {result:?}");
     }
 
@@ -670,14 +670,14 @@ mod serde_robustness {
         let mut reader = Reader::new(Cursor::new(&b"a,b\n\xff,2\n"[..])).set_flexible(true);
         reader.parse_headers().unwrap();
         let row = reader.rows().next().unwrap();
-        let result: Result<Pair, _> = row.deserialize();
+        let result: Result<Pair, _> = row.decode();
         assert!(result.is_err(), "expected an error, got {result:?}");
     }
 
     #[test]
     fn missing_column_still_defaults_to_empty() {
         // A struct field with no matching header is unaffected by the above.
-        #[derive(serde::Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct WithCity {
             a: String,
             city: String,
@@ -685,7 +685,7 @@ mod serde_robustness {
         let mut reader = Reader::new(Cursor::new(&b"a,b\n1,2\n"[..]));
         reader.parse_headers().unwrap();
         let row = reader.rows().next().unwrap();
-        let record: WithCity = row.deserialize().unwrap();
+        let record: WithCity = row.decode().unwrap();
         assert_eq!(record.a, "1");
         assert_eq!(record.city, "");
     }
@@ -695,7 +695,7 @@ mod serde_robustness {
         let mut reader = Reader::new(Cursor::new(&b"a,a\n1,2\n"[..]));
         reader.parse_headers().unwrap();
         let row = reader.rows().next().unwrap();
-        let result: Result<Pair, _> = row.deserialize();
+        let result: Result<Pair, _> = row.decode();
         assert!(result.is_err(), "ambiguous headers must not silently drop a column");
     }
 
@@ -707,7 +707,7 @@ mod serde_robustness {
         let mut reader = Reader::new(Cursor::new(&data[..]));
         assert_eq!(reader.parse_headers().unwrap(), &["a", "b"]);
         let row = reader.rows().next().unwrap();
-        let record: Pair = row.deserialize().unwrap();
+        let record: Pair = row.decode().unwrap();
         assert_eq!(record.a, "1");
         assert_eq!(record.b, "2");
     }
@@ -717,7 +717,7 @@ mod serde_robustness {
         let mut reader = Reader::new(Cursor::new(&b"a,b\nx,y\n\xff,2\n"[..]));
         reader.parse_headers().unwrap();
         let rows: Vec<Row> = reader.rows().collect();
-        let err = rows[1].deserialize::<Pair>().unwrap_err();
+        let err = rows[1].decode::<Pair>().unwrap_err();
         assert_eq!(err.line, 3);
     }
 }

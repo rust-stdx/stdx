@@ -1,7 +1,7 @@
 [package]
 name = "cbor"
 version = "0.1.0"
-description = "A fast, low-level CBOR codec with no_std support, typed derive, deterministic encoding and serde interop"
+description = "A fast, low-level CBOR codec with no_std support, typed derive and deterministic encoding"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -15,10 +15,9 @@ path = "./cbor.rs"
 
 [features]
 default = ["std"]
-std = ["alloc", "serde?/std", "utf8/std"]
+std = ["alloc", "utf8/std"]
 alloc = []
 derive = ["dep:cbor_derive"]
-serde = ["dep:serde", "alloc"]
 heapless = ["dep:heapless"]
 small_collections = ["dep:small_collections", "alloc"]
 bytes = ["dep:bytes", "alloc"]
@@ -31,13 +30,9 @@ utf8 = { path = "../utf8", default-features = false }
 
 bytes = { workspace = true, optional = true }
 heapless = { workspace = true, optional = true }
-serde = { workspace = true, optional = true, default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
-serde_bytes = { path = "../serde_bytes" }
-
-serde = { workspace = true, features = ["derive"] }
 
 [package.metadata.docs.rs]
 all-features = true

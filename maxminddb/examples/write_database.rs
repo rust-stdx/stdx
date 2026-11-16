@@ -1,12 +1,11 @@
 use std::collections::BTreeMap;
 
 use maxminddb::{
-    Reader, Value,
+    Decode, Encode, Reader, Value,
     writer::{Writer, WriterOptions},
 };
-use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Decode, Encode)]
 struct Record<'a> {
     code: &'a str,
     name: &'a str,
@@ -41,7 +40,7 @@ fn main() -> Result<(), String> {
         name: "United Kingdom",
     };
 
-    // insert — accepts any Serialize, e.g. a BTreeMap<String, String>
+    // insert — accepts any Encode value, e.g. a BTreeMap<String, String>
     tree.insert("5.6.7.0/24".parse().unwrap(), &uk)?;
 
     let mut buf = Vec::new();

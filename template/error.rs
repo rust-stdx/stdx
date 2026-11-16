@@ -5,9 +5,6 @@ use alloc::string::ToString;
 use alloc::{boxed::Box, string::String};
 use core::fmt;
 
-#[cfg(feature = "std")]
-use serde::ser;
-
 /// A source position (line and column) in a template.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SourcePosition {
@@ -173,24 +170,5 @@ impl fmt::Display for Error {
 impl core::error::Error for Error {
     fn source(&self) -> Option<&(dyn core::error::Error + 'static)> {
         None
-    }
-}
-
-/// Error returned when serializing a value fails.
-#[derive(Debug)]
-pub struct SerdeError(pub String);
-
-impl fmt::Display for SerdeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl core::error::Error for SerdeError {}
-
-#[cfg(feature = "std")]
-impl ser::Error for SerdeError {
-    fn custom<T: fmt::Display>(msg: T) -> Self {
-        SerdeError(msg.to_string())
     }
 }

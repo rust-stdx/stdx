@@ -1,15 +1,15 @@
-//! Dynamic value type used during template rendering, with serde serialization support.
+//! Dynamic value type used during template rendering and the [`ToValue`] trait.
 
-#[cfg(any(feature = "std", test))]
-use alloc::string::ToString;
-use alloc::{collections::BTreeMap, rc::Rc, string::String, vec::Vec};
+#[cfg(feature = "std")]
+use alloc::sync::Arc;
+use alloc::{
+    boxed::Box,
+    collections::BTreeMap,
+    rc::Rc,
+    string::{String, ToString},
+    vec::Vec,
+};
 use core::fmt;
-
-#[cfg(feature = "std")]
-use serde::ser::{self, Serialize, Serializer};
-
-#[cfg(feature = "std")]
-use crate::SerdeError;
 
 /// A dynamic value used during template rendering.
 ///
@@ -54,12 +54,6 @@ impl PartialEq for Value {
 }
 
 impl Value {
-    #[cfg(feature = "std")]
-    fn from_serialize_impl<S: Serialize>(value: &S) -> Result<Self, SerdeError> {
-        let serializer = ValueSerializer;
-        value.serialize(serializer)
-    }
-
     /// Look up a key in a map value. Returns `None` if not a map or key missing.
     pub fn get(&self, key: &str) -> Option<Value> {
         match self {
@@ -98,429 +92,6 @@ impl Value {
             Value::Array(_) => write!(buf, "[Array]"),
             Value::Map(_) => write!(buf, "[Object]"),
         }
-    }
-}
-
-#[cfg(feature = "std")]
-struct ValueSerializer;
-
-#[cfg(feature = "std")]
-impl Serializer for ValueSerializer {
-    type Ok = Value;
-    type Error = SerdeError;
-
-    type SerializeSeq = ValueSeqSerializer;
-    type SerializeTuple = ValueSeqSerializer;
-    type SerializeTupleStruct = ValueSeqSerializer;
-    type SerializeTupleVariant = ValueSeqSerializer;
-    type SerializeMap = ValueMapSerializer;
-    type SerializeStruct = ValueMapSerializer;
-    type SerializeStructVariant = ValueMapSerializer;
-
-    fn serialize_bool(self, v: bool) -> Result<Value, SerdeError> {
-        Ok(Value::Bool(v))
-    }
-
-    fn serialize_i8(self, v: i8) -> Result<Value, SerdeError> {
-        Ok(Value::I64(v as i64))
-    }
-
-    fn serialize_i16(self, v: i16) -> Result<Value, SerdeError> {
-        Ok(Value::I64(v as i64))
-    }
-
-    fn serialize_i32(self, v: i32) -> Result<Value, SerdeError> {
-        Ok(Value::I64(v as i64))
-    }
-
-    fn serialize_i64(self, v: i64) -> Result<Value, SerdeError> {
-        Ok(Value::I64(v))
-    }
-
-    fn serialize_u8(self, v: u8) -> Result<Value, SerdeError> {
-        Ok(Value::I64(v as i64))
-    }
-
-    fn serialize_u16(self, v: u16) -> Result<Value, SerdeError> {
-        Ok(Value::I64(v as i64))
-    }
-
-    fn serialize_u32(self, v: u32) -> Result<Value, SerdeError> {
-        Ok(Value::I64(v as i64))
-    }
-
-    fn serialize_u64(self, v: u64) -> Result<Value, SerdeError> {
-        if v <= i64::MAX as u64 {
-            Ok(Value::I64(v as i64))
-        } else {
-            Ok(Value::F64(v as f64))
-        }
-    }
-
-    fn serialize_f32(self, v: f32) -> Result<Value, SerdeError> {
-        Ok(Value::F64(v as f64))
-    }
-
-    fn serialize_f64(self, v: f64) -> Result<Value, SerdeError> {
-        Ok(Value::F64(v))
-    }
-
-    fn serialize_char(self, v: char) -> Result<Value, SerdeError> {
-        let mut s = String::with_capacity(1);
-        s.push(v);
-        Ok(Value::Str(s.into()))
-    }
-
-    fn serialize_str(self, v: &str) -> Result<Value, SerdeError> {
-        Ok(Value::Str(v.into()))
-    }
-
-    fn serialize_bytes(self, _v: &[u8]) -> Result<Value, SerdeError> {
-        Err(SerdeError("bytes not supported".into()))
-    }
-
-    fn serialize_none(self) -> Result<Value, SerdeError> {
-        Ok(Value::Null)
-    }
-
-    fn serialize_some<T: Serialize + ?Sized>(self, value: &T) -> Result<Value, SerdeError> {
-        value.serialize(self)
-    }
-
-    fn serialize_unit(self) -> Result<Value, SerdeError> {
-        Ok(Value::Null)
-    }
-
-    fn serialize_unit_struct(self, _name: &'static str) -> Result<Value, SerdeError> {
-        Ok(Value::Null)
-    }
-
-    fn serialize_unit_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        variant: &'static str,
-    ) -> Result<Value, SerdeError> {
-        Ok(Value::Str(variant.into()))
-    }
-
-    fn serialize_newtype_struct<T: Serialize + ?Sized>(
-        self,
-        _name: &'static str,
-        value: &T,
-    ) -> Result<Value, SerdeError> {
-        value.serialize(self)
-    }
-
-    fn serialize_newtype_variant<T: Serialize + ?Sized>(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        value: &T,
-    ) -> Result<Value, SerdeError> {
-        value.serialize(self)
-    }
-
-    fn serialize_seq(self, _len: Option<usize>) -> Result<ValueSeqSerializer, SerdeError> {
-        Ok(ValueSeqSerializer(Vec::new()))
-    }
-
-    fn serialize_tuple(self, len: usize) -> Result<ValueSeqSerializer, SerdeError> {
-        self.serialize_seq(Some(len))
-    }
-
-    fn serialize_tuple_struct(self, _name: &'static str, len: usize) -> Result<ValueSeqSerializer, SerdeError> {
-        self.serialize_seq(Some(len))
-    }
-
-    fn serialize_tuple_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        len: usize,
-    ) -> Result<ValueSeqSerializer, SerdeError> {
-        self.serialize_seq(Some(len))
-    }
-
-    fn serialize_map(self, _len: Option<usize>) -> Result<ValueMapSerializer, SerdeError> {
-        Ok(ValueMapSerializer(BTreeMap::new(), None))
-    }
-
-    fn serialize_struct(self, _name: &'static str, len: usize) -> Result<ValueMapSerializer, SerdeError> {
-        self.serialize_map(Some(len))
-    }
-
-    fn serialize_struct_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        len: usize,
-    ) -> Result<ValueMapSerializer, SerdeError> {
-        self.serialize_map(Some(len))
-    }
-}
-
-#[cfg(feature = "std")]
-struct ValueSeqSerializer(Vec<Value>);
-
-#[cfg(feature = "std")]
-impl ser::SerializeSeq for ValueSeqSerializer {
-    type Ok = Value;
-    type Error = SerdeError;
-
-    fn serialize_element<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), SerdeError> {
-        self.0.push(value.serialize(ValueSerializer)?);
-        Ok(())
-    }
-
-    fn end(self) -> Result<Value, SerdeError> {
-        Ok(Value::Array(Rc::new(self.0)))
-    }
-}
-
-#[cfg(feature = "std")]
-impl ser::SerializeTuple for ValueSeqSerializer {
-    type Ok = Value;
-    type Error = SerdeError;
-
-    fn serialize_element<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), SerdeError> {
-        ser::SerializeSeq::serialize_element(self, value)
-    }
-
-    fn end(self) -> Result<Value, SerdeError> {
-        ser::SerializeSeq::end(self)
-    }
-}
-
-#[cfg(feature = "std")]
-impl ser::SerializeTupleStruct for ValueSeqSerializer {
-    type Ok = Value;
-    type Error = SerdeError;
-
-    fn serialize_field<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), SerdeError> {
-        ser::SerializeSeq::serialize_element(self, value)
-    }
-
-    fn end(self) -> Result<Value, SerdeError> {
-        ser::SerializeSeq::end(self)
-    }
-}
-
-#[cfg(feature = "std")]
-impl ser::SerializeTupleVariant for ValueSeqSerializer {
-    type Ok = Value;
-    type Error = SerdeError;
-
-    fn serialize_field<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), SerdeError> {
-        ser::SerializeSeq::serialize_element(self, value)
-    }
-
-    fn end(self) -> Result<Value, SerdeError> {
-        ser::SerializeSeq::end(self)
-    }
-}
-
-#[cfg(feature = "std")]
-struct ValueMapSerializer(BTreeMap<String, Value>, Option<String>);
-
-#[cfg(feature = "std")]
-impl ser::SerializeMap for ValueMapSerializer {
-    type Ok = Value;
-    type Error = SerdeError;
-
-    fn serialize_key<T: ?Sized + Serialize>(&mut self, key: &T) -> Result<(), SerdeError> {
-        let k = key.serialize(MapKeySerializer)?;
-        self.1 = Some(k);
-        Ok(())
-    }
-
-    fn serialize_value<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), SerdeError> {
-        let key = self
-            .1
-            .take()
-            .ok_or_else(|| SerdeError("serialize_value called without serialize_key".into()))?;
-        let v = value.serialize(ValueSerializer)?;
-        self.0.insert(key, v);
-        Ok(())
-    }
-
-    fn serialize_entry<K: ?Sized + Serialize, V: ?Sized + Serialize>(
-        &mut self,
-        key: &K,
-        value: &V,
-    ) -> Result<(), SerdeError> {
-        let k = key.serialize(MapKeySerializer)?;
-        let v = value.serialize(ValueSerializer)?;
-        self.0.insert(k, v);
-        Ok(())
-    }
-
-    fn end(self) -> Result<Value, SerdeError> {
-        Ok(Value::Map(Rc::new(self.0)))
-    }
-}
-
-#[cfg(feature = "std")]
-impl ser::SerializeStruct for ValueMapSerializer {
-    type Ok = Value;
-    type Error = SerdeError;
-
-    fn serialize_field<T: ?Sized + Serialize>(&mut self, key: &'static str, value: &T) -> Result<(), SerdeError> {
-        let v = value.serialize(ValueSerializer)?;
-        self.0.insert(key.to_string(), v);
-        Ok(())
-    }
-
-    fn end(self) -> Result<Value, SerdeError> {
-        Ok(Value::Map(Rc::new(self.0)))
-    }
-}
-
-#[cfg(feature = "std")]
-impl ser::SerializeStructVariant for ValueMapSerializer {
-    type Ok = Value;
-    type Error = SerdeError;
-
-    fn serialize_field<T: ?Sized + Serialize>(&mut self, key: &'static str, value: &T) -> Result<(), SerdeError> {
-        ser::SerializeStruct::serialize_field(self, key, value)
-    }
-
-    fn end(self) -> Result<Value, SerdeError> {
-        ser::SerializeStruct::end(self)
-    }
-}
-
-#[cfg(feature = "std")]
-struct MapKeySerializer;
-
-#[cfg(feature = "std")]
-impl Serializer for MapKeySerializer {
-    type Ok = String;
-    type Error = SerdeError;
-
-    type SerializeSeq = ser::Impossible<String, SerdeError>;
-    type SerializeTuple = ser::Impossible<String, SerdeError>;
-    type SerializeTupleStruct = ser::Impossible<String, SerdeError>;
-    type SerializeTupleVariant = ser::Impossible<String, SerdeError>;
-    type SerializeMap = ser::Impossible<String, SerdeError>;
-    type SerializeStruct = ser::Impossible<String, SerdeError>;
-    type SerializeStructVariant = ser::Impossible<String, SerdeError>;
-
-    fn serialize_bool(self, v: bool) -> Result<String, SerdeError> {
-        Ok(v.to_string())
-    }
-    fn serialize_i8(self, v: i8) -> Result<String, SerdeError> {
-        Ok(v.to_string())
-    }
-    fn serialize_i16(self, v: i16) -> Result<String, SerdeError> {
-        Ok(v.to_string())
-    }
-    fn serialize_i32(self, v: i32) -> Result<String, SerdeError> {
-        Ok(v.to_string())
-    }
-    fn serialize_i64(self, v: i64) -> Result<String, SerdeError> {
-        Ok(v.to_string())
-    }
-    fn serialize_u8(self, v: u8) -> Result<String, SerdeError> {
-        Ok(v.to_string())
-    }
-    fn serialize_u16(self, v: u16) -> Result<String, SerdeError> {
-        Ok(v.to_string())
-    }
-    fn serialize_u32(self, v: u32) -> Result<String, SerdeError> {
-        Ok(v.to_string())
-    }
-    fn serialize_u64(self, v: u64) -> Result<String, SerdeError> {
-        Ok(v.to_string())
-    }
-    fn serialize_f32(self, v: f32) -> Result<String, SerdeError> {
-        Ok(v.to_string())
-    }
-    fn serialize_f64(self, v: f64) -> Result<String, SerdeError> {
-        Ok(v.to_string())
-    }
-    fn serialize_char(self, v: char) -> Result<String, SerdeError> {
-        let mut s = String::with_capacity(1);
-        s.push(v);
-        Ok(s)
-    }
-    fn serialize_str(self, v: &str) -> Result<String, SerdeError> {
-        Ok(v.to_string())
-    }
-    fn serialize_bytes(self, _v: &[u8]) -> Result<String, SerdeError> {
-        Err(SerdeError("bytes not supported as map key".into()))
-    }
-    fn serialize_none(self) -> Result<String, SerdeError> {
-        Err(SerdeError("none not supported as map key".into()))
-    }
-    fn serialize_some<T: ?Sized + Serialize>(self, _value: &T) -> Result<String, SerdeError> {
-        Err(SerdeError("some not supported as map key".into()))
-    }
-    fn serialize_unit(self) -> Result<String, SerdeError> {
-        Ok(String::new())
-    }
-    fn serialize_unit_struct(self, _name: &'static str) -> Result<String, SerdeError> {
-        Ok(String::new())
-    }
-    fn serialize_unit_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        variant: &'static str,
-    ) -> Result<String, SerdeError> {
-        Ok(variant.to_string())
-    }
-    fn serialize_newtype_struct<T: ?Sized>(self, _name: &'static str, _value: &T) -> Result<String, SerdeError> {
-        Err(SerdeError("newtype struct not supported as map key".into()))
-    }
-    fn serialize_newtype_variant<T: ?Sized>(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _value: &T,
-    ) -> Result<String, SerdeError> {
-        Err(SerdeError("newtype variant not supported as map key".into()))
-    }
-    fn serialize_seq(self, _len: Option<usize>) -> Result<Self::SerializeSeq, SerdeError> {
-        Err(SerdeError("sequence not supported as map key".into()))
-    }
-    fn serialize_tuple(self, _len: usize) -> Result<Self::SerializeTuple, SerdeError> {
-        Err(SerdeError("tuple not supported as map key".into()))
-    }
-    fn serialize_tuple_struct(
-        self,
-        _name: &'static str,
-        _len: usize,
-    ) -> Result<Self::SerializeTupleStruct, SerdeError> {
-        Err(SerdeError("tuple struct not supported as map key".into()))
-    }
-    fn serialize_tuple_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _len: usize,
-    ) -> Result<Self::SerializeTupleVariant, SerdeError> {
-        Err(SerdeError("tuple variant not supported as map key".into()))
-    }
-    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap, SerdeError> {
-        Err(SerdeError("map not supported as map key".into()))
-    }
-    fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct, SerdeError> {
-        Err(SerdeError("struct not supported as map key".into()))
-    }
-    fn serialize_struct_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _len: usize,
-    ) -> Result<Self::SerializeStructVariant, SerdeError> {
-        Err(SerdeError("struct variant not supported as map key".into()))
     }
 }
 
@@ -596,10 +167,199 @@ impl fmt::Display for Value {
     }
 }
 
-#[cfg(feature = "std")]
-pub(crate) fn to_value<S: Serialize>(value: S) -> Result<Value, SerdeError> {
-    Value::from_serialize_impl(&value)
+/// Converts a value into a template [`Value`].
+///
+/// This trait is implemented for scalar, string, option, tuple, collection and
+/// string-keyed map types. Derive it with `#[derive(template::ToValue)]` for
+/// structs and enums.
+pub trait ToValue {
+    /// Convert `self` into a template value.
+    fn to_value(&self) -> Value;
 }
+
+impl<T: ToValue + ?Sized> ToValue for &T {
+    fn to_value(&self) -> Value {
+        T::to_value(*self)
+    }
+}
+
+impl<T: ToValue + ?Sized> ToValue for Box<T> {
+    fn to_value(&self) -> Value {
+        T::to_value(&**self)
+    }
+}
+
+impl<T: ToValue + ?Sized> ToValue for Rc<T> {
+    fn to_value(&self) -> Value {
+        T::to_value(&**self)
+    }
+}
+
+#[cfg(feature = "std")]
+impl<T: ToValue + ?Sized> ToValue for Arc<T> {
+    fn to_value(&self) -> Value {
+        T::to_value(&**self)
+    }
+}
+
+impl ToValue for Value {
+    fn to_value(&self) -> Value {
+        self.clone()
+    }
+}
+
+impl ToValue for bool {
+    fn to_value(&self) -> Value {
+        Value::Bool(*self)
+    }
+}
+
+macro_rules! impl_signed {
+    ($($ty:ty),* $(,)?) => {
+        $(
+            impl ToValue for $ty {
+                fn to_value(&self) -> Value {
+                    Value::I64(*self as i64)
+                }
+            }
+        )*
+    };
+}
+
+impl_signed!(i8, i16, i32, i64, isize);
+
+impl ToValue for i128 {
+    fn to_value(&self) -> Value {
+        match i64::try_from(*self) {
+            Ok(value) => Value::I64(value),
+            Err(_) => Value::F64(*self as f64),
+        }
+    }
+}
+
+macro_rules! impl_unsigned {
+    ($($ty:ty),* $(,)?) => {
+        $(
+            impl ToValue for $ty {
+                fn to_value(&self) -> Value {
+                    let value = *self as u128;
+                    if value <= i64::MAX as u128 {
+                        Value::I64(value as i64)
+                    } else {
+                        Value::F64(value as f64)
+                    }
+                }
+            }
+        )*
+    };
+}
+
+impl_unsigned!(u8, u16, u32, u64, usize, u128);
+
+impl ToValue for f32 {
+    fn to_value(&self) -> Value {
+        Value::F64(f64::from(*self))
+    }
+}
+
+impl ToValue for f64 {
+    fn to_value(&self) -> Value {
+        Value::F64(*self)
+    }
+}
+
+impl ToValue for char {
+    fn to_value(&self) -> Value {
+        Value::Str(Rc::from(self.to_string()))
+    }
+}
+
+impl ToValue for str {
+    fn to_value(&self) -> Value {
+        Value::Str(Rc::from(self))
+    }
+}
+
+impl ToValue for String {
+    fn to_value(&self) -> Value {
+        Value::Str(Rc::from(self.as_str()))
+    }
+}
+
+impl ToValue for () {
+    fn to_value(&self) -> Value {
+        Value::Null
+    }
+}
+
+impl<T: ToValue> ToValue for Option<T> {
+    fn to_value(&self) -> Value {
+        match self {
+            Some(value) => value.to_value(),
+            None => Value::Null,
+        }
+    }
+}
+
+impl<T: ToValue> ToValue for [T] {
+    fn to_value(&self) -> Value {
+        Value::Array(Rc::new(self.iter().map(ToValue::to_value).collect()))
+    }
+}
+
+impl<T: ToValue, const N: usize> ToValue for [T; N] {
+    fn to_value(&self) -> Value {
+        self.as_slice().to_value()
+    }
+}
+
+impl<T: ToValue> ToValue for Vec<T> {
+    fn to_value(&self) -> Value {
+        self.as_slice().to_value()
+    }
+}
+
+impl<K: AsRef<str>, V: ToValue> ToValue for BTreeMap<K, V> {
+    fn to_value(&self) -> Value {
+        Value::Map(Rc::new(
+            self.iter()
+                .map(|(key, value)| (key.as_ref().to_string(), value.to_value()))
+                .collect(),
+        ))
+    }
+}
+
+#[cfg(feature = "std")]
+impl<K: AsRef<str> + Eq + core::hash::Hash, V: ToValue> ToValue for std::collections::HashMap<K, V> {
+    fn to_value(&self) -> Value {
+        Value::Map(Rc::new(
+            self.iter()
+                .map(|(key, value)| (key.as_ref().to_string(), value.to_value()))
+                .collect(),
+        ))
+    }
+}
+
+macro_rules! impl_tuple {
+    ($($name:ident),+ $(,)?) => {
+        impl<$($name: ToValue),+> ToValue for ($($name,)+) {
+            #[allow(non_snake_case)]
+            fn to_value(&self) -> Value {
+                let ($($name,)+) = self;
+                Value::Array(Rc::new(Vec::from([$($name.to_value()),+])))
+            }
+        }
+    };
+}
+
+impl_tuple!(A);
+impl_tuple!(A, B);
+impl_tuple!(A, B, C);
+impl_tuple!(A, B, C, D);
+impl_tuple!(A, B, C, D, E);
+impl_tuple!(A, B, C, D, E, F);
+impl_tuple!(A, B, C, D, E, F, G);
+impl_tuple!(A, B, C, D, E, F, G, H);
 
 #[cfg(test)]
 mod tests {
@@ -607,29 +367,26 @@ mod tests {
 
     use super::*;
 
-    #[cfg(feature = "std")]
     #[test]
     fn test_basic_types() {
-        assert_eq!(to_value(42i64).unwrap(), Value::I64(42));
-        assert_eq!(to_value(true).unwrap(), Value::Bool(true));
-        assert_eq!(to_value("hello").unwrap(), Value::Str("hello".into()));
-        assert_eq!(to_value(false).unwrap(), Value::Bool(false));
+        assert_eq!(42i64.to_value(), Value::I64(42));
+        assert_eq!(true.to_value(), Value::Bool(true));
+        assert_eq!("hello".to_value(), Value::Str("hello".into()));
+        assert_eq!(false.to_value(), Value::Bool(false));
     }
 
-    #[cfg(feature = "std")]
     #[test]
     fn test_option() {
         let some_val: Option<i64> = Some(42);
-        assert_eq!(to_value(some_val).unwrap(), Value::I64(42));
+        assert_eq!(some_val.to_value(), Value::I64(42));
         let none_val: Option<i64> = None;
-        assert_eq!(to_value(none_val).unwrap(), Value::Null);
+        assert_eq!(none_val.to_value(), Value::Null);
     }
 
-    #[cfg(feature = "std")]
     #[test]
     fn test_vec() {
         let v = vec![1, 2, 3];
-        let val = to_value(v).unwrap();
+        let val = v.to_value();
         match val {
             Value::Array(ref arr) => {
                 assert_eq!(arr.len(), 3);
@@ -639,12 +396,11 @@ mod tests {
         }
     }
 
-    #[cfg(feature = "std")]
     #[test]
     fn test_map() {
         let mut map = BTreeMap::new();
         map.insert("name".to_string(), "Alice".to_string());
-        let val = to_value(map).unwrap();
+        let val = map.to_value();
         match val {
             Value::Map(ref m) => {
                 assert_eq!(m.get("name"), Some(&Value::Str("Alice".into())));
@@ -678,19 +434,17 @@ mod tests {
         assert_eq!(val.get("nonexistent"), None);
     }
 
-    #[cfg(feature = "std")]
     #[test]
     fn test_u64_overflow() {
-        // u64::MAX overflows i64, should serialize to f64
-        let val = to_value(u64::MAX).unwrap();
+        // u64::MAX overflows i64, should convert to f64
+        let val = u64::MAX.to_value();
         assert!(matches!(val, Value::F64(_)));
     }
 
-    #[cfg(feature = "std")]
     #[test]
     fn test_large_u64_as_i64() {
         // i64::MAX as u64 should still be I64
-        let val = to_value(i64::MAX as u64).unwrap();
+        let val = (i64::MAX as u64).to_value();
         assert_eq!(val, Value::I64(i64::MAX));
     }
 

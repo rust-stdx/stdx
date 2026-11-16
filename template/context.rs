@@ -1,15 +1,13 @@
-#[cfg(feature = "std")]
-use serde::ser::Serialize;
-
-#[cfg(feature = "std")]
-use crate::value::to_value;
-use crate::{SerdeError, value::Value};
+use crate::{
+    Error,
+    value::{ToValue, Value},
+};
 
 /// A template rendering context.
 ///
-/// Constructed via the [`context!`](crate::context) macro or through the
-/// [`IntoContext`] trait (implemented for all `Serialize` types when the
-/// `std` feature is enabled).
+/// Constructed via the [`context!`](crate::context) macro, through the
+/// [`IntoContext`] trait, or by passing a reference to a type that derives
+/// [`ToValue`] to [`Engine::render`](crate::Engine::render).
 pub struct Context(pub(crate) Value);
 
 impl From<Context> for Value {
@@ -18,32 +16,35 @@ impl From<Context> for Value {
     }
 }
 
+impl ToValue for Context {
+    fn to_value(&self) -> Value {
+        self.0.clone()
+    }
+}
+
 /// Trait for types that can be converted into a [`Context`] for template rendering.
 ///
-/// Implemented for [`Context`] directly and, with the `std` feature, for all
-/// types that implement [`Serialize`](serde::Serialize).
-///
-/// The `std` blanket impl requires the result to be a map-like value
-/// (i.e. [`Value::Map`](crate::value::Value::Map)). Non-map values such as
-/// plain strings or numbers return an error.
+/// Implemented for [`Context`] directly and for references to any type that
+/// implements [`ToValue`]. The resulting value must be a map (i.e.
+/// [`Value::Map`](crate::value::Value::Map)); non-map values such as plain
+/// strings or numbers return an error.
 pub trait IntoContext {
-    fn into_context(self) -> Result<Context, SerdeError>;
+    fn into_context(self) -> Result<Context, Error>;
 }
 
 impl IntoContext for Context {
     /// Returns itself
-    fn into_context(self) -> Result<Context, SerdeError> {
+    fn into_context(self) -> Result<Context, Error> {
         Ok(self)
     }
 }
 
-#[cfg(feature = "std")]
-impl<T: Serialize + ?Sized> IntoContext for &T {
-    fn into_context(self) -> Result<Context, SerdeError> {
-        let v = to_value(self)?;
-        match v {
-            Value::Map(_) => Ok(Context(v)),
-            _ => Err(SerdeError("context must be a map-like value".into())),
+impl<T: ToValue + ?Sized> IntoContext for &T {
+    fn into_context(self) -> Result<Context, Error> {
+        let value = self.to_value();
+        match value {
+            Value::Map(_) => Ok(Context(value)),
+            _ => Err(Error::r#type("context must be a map-like value")),
         }
     }
 }

@@ -157,18 +157,6 @@ fn sequences() {
     assert!(decoder.is_empty());
 }
 
-#[cfg(all(feature = "std", feature = "serde"))]
-#[test]
-fn reader_reads_one_item_at_a_time() {
-    let mut bytes = cbor::to_vec(&1u8);
-    bytes.extend(cbor::to_vec("two"));
-    let mut reader = std::io::BufReader::new(std::io::Cursor::new(bytes));
-    let first: u8 = cbor::serde::from_reader(&mut reader).unwrap();
-    let second: String = cbor::serde::from_reader(&mut reader).unwrap();
-    assert_eq!(first, 1);
-    assert_eq!(second, "two");
-}
-
 #[cfg(feature = "alloc")]
 #[test]
 fn owned_raw_value() {
@@ -177,114 +165,6 @@ fn owned_raw_value() {
     let back: (u8, u8) = raw.deserialize().unwrap();
     assert_eq!(back, (1, 2));
     assert_eq!(bytes, cbor::to_vec(&(1u8, 2u8)));
-}
-
-#[cfg(feature = "serde")]
-#[test]
-fn serde_to_slice_and_size() {
-    #[derive(serde::Serialize)]
-    struct Value {
-        a: u64,
-        b: String,
-    }
-    let value = Value {
-        a: 7,
-        b: "hi".into(),
-    };
-    let size = cbor::serde::serialized_size(&value).unwrap();
-    let mut buffer = vec![0u8; size];
-    let used = cbor::serde::to_slice(&value, &mut buffer).unwrap();
-    assert_eq!(used.len(), size);
-    assert_eq!(&used[..], &cbor::serde::to_vec(&value).unwrap()[..]);
-}
-
-#[cfg(feature = "serde")]
-#[test]
-fn serde_integer_keys_into_map() {
-    let mut map = std::collections::BTreeMap::new();
-    map.insert(1u64, "one".to_string());
-    map.insert(2u64, "two".to_string());
-    let bytes = cbor::serde::to_vec(&map).unwrap();
-    let back: std::collections::BTreeMap<u64, String> = cbor::serde::from_slice(&bytes).unwrap();
-    assert_eq!(back, map);
-}
-
-#[cfg(feature = "serde")]
-#[test]
-fn derive_and_serde_wire_compatibility() {
-    #[derive(Debug, PartialEq, Encode, Decode, serde::Serialize, serde::Deserialize)]
-    struct Both {
-        a: u64,
-        b: String,
-    }
-    let value = Both {
-        a: 1,
-        b: "x".into(),
-    };
-    let typed = cbor::to_vec(&value);
-    let serde = cbor::serde::to_vec(&value).unwrap();
-    assert_eq!(cbor::from_slice::<Both>(&serde).unwrap(), value);
-    assert_eq!(cbor::serde::from_slice::<Both>(&typed).unwrap(), value);
-}
-
-#[cfg(feature = "serde")]
-#[test]
-fn typed_array_and_serde_tuple_are_compatible() {
-    #[derive(Debug, PartialEq, Encode, Decode, serde::Serialize, serde::Deserialize)]
-    #[cbor(array)]
-    struct Both(u8, u16, String);
-
-    let value = Both(1, 2, "x".into());
-    let typed = cbor::to_vec(&value);
-    let serde = cbor::serde::to_vec(&value).unwrap();
-    assert_eq!(typed, serde);
-    assert_eq!(cbor::serde::from_slice::<Both>(&typed).unwrap(), value);
-    assert_eq!(cbor::from_slice::<Both>(&serde).unwrap(), value);
-}
-
-#[cfg(feature = "serde")]
-#[test]
-fn serde_to_writer_and_prefix() {
-    let bytes = cbor::serde::to_vec(&("a", 1u8)).unwrap();
-    let mut out = Vec::new();
-    cbor::serde::to_writer(&("a", 1u8), &mut out).unwrap();
-    assert_eq!(out, bytes);
-
-    let mut sequence = bytes.clone();
-    sequence.extend(cbor::serde::to_vec(&2u8).unwrap());
-    let ((a, n), rest) = cbor::serde::from_slice_prefix::<(&str, u8)>(&sequence).unwrap();
-    assert_eq!((a, n), ("a", 1));
-    assert_eq!(cbor::serde::from_slice::<u8>(rest).unwrap(), 2);
-}
-
-#[cfg(feature = "serde")]
-#[test]
-fn serde_struct_map_and_array_accept_both_shapes() {
-    #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-    struct S {
-        a: u8,
-        b: u8,
-    }
-    let as_map = cbor::serde::to_vec(&S {
-        a: 1,
-        b: 2,
-    })
-    .unwrap();
-    let as_array = cbor::serde::to_vec(&(1u8, 2u8)).unwrap();
-    assert_eq!(
-        cbor::serde::from_slice::<S>(&as_map).unwrap(),
-        S {
-            a: 1,
-            b: 2
-        }
-    );
-    assert_eq!(
-        cbor::serde::from_slice::<S>(&as_array).unwrap(),
-        S {
-            a: 1,
-            b: 2
-        }
-    );
 }
 
 #[cfg(feature = "alloc")]

@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-//! A fast, low-allocation CSV parser with `no_std` and serde support.
+//! A fast, low-allocation CSV parser with `no_std` and native derive support.
 //!
 //! # Quick start
 //!
@@ -21,7 +21,7 @@
 //! | Flag | Default | Description |
 //! |------|---------|-------------|
 //! | `std` | on | Enables `std::io::Read` support for `Reader`, and `Writer` impls. |
-//! | `serde` | off | Enables `Row::deserialize()` + `Writer::serialize()` for serde support. |
+//! | `derive` | off | Enables `Row::decode()` + `Writer::encode()` and `#[derive(Decode, Encode)]`. |
 //!
 //! # Parsing rules
 //!
@@ -69,14 +69,13 @@
 //! # Ok::<_, csv::ReadError>(())
 //! ```
 //!
-//! # Serde (requires `serde` feature)
+//! # Native derive support (requires `derive` feature)
 //!
 //! ```no_run
-//! # #[cfg(feature = "serde")] {
-//! use csv::Reader;
-//! use serde::Deserialize;
+//! # #[cfg(feature = "derive")] {
+//! use csv::{Decode, Reader};
 //!
-//! #[derive(Deserialize)]
+//! #[derive(Decode)]
 //! struct Record {
 //!     name: String,
 //!     age: u32,
@@ -86,7 +85,7 @@
 //! reader.parse_headers()?;
 //!
 //! for row in reader.rows() {
-//!     let rec: Record = row.deserialize()?;
+//!     let rec: Record = row.decode()?;
 //!     println!("{} is {}", rec.name, rec.age);
 //! }
 //! # }
@@ -105,20 +104,19 @@
 //! # Ok::<_, csv::WriteError>(())
 //! ```
 //!
-//! With serde:
+//! With the native derive:
 //!
 //! ```no_run
-//! # #[cfg(feature = "serde")] {
-//! use csv::Writer;
-//! use serde::Serialize;
+//! # #[cfg(feature = "derive")] {
+//! use csv::{Encode, Writer};
 //!
-//! #[derive(Serialize)]
+//! #[derive(Encode)]
 //! struct Person { name: String, age: u32 }
 //!
 //! let mut w = Writer::new(Vec::new())
 //!     .set_headers(vec!["name".into(), "age".into()]);
 //! let p = Person { name: "Alice".into(), age: 30 };
-//! w.serialize(&p)?;
+//! w.encode(&p)?;
 //! # }
 //! # Ok::<_, csv::WriteError>(())
 //! ```
@@ -158,6 +156,7 @@
 //! field offsets); the writer reuses one buffer and allocates nothing per row.
 
 extern crate alloc;
+extern crate self as csv;
 
 #[cfg(feature = "std")]
 extern crate std;
@@ -167,12 +166,22 @@ mod reader;
 
 mod writer;
 
-#[cfg(feature = "serde")]
-mod serde;
+#[cfg(feature = "derive")]
+mod derive_support;
 
 /// The UTF-8 byte-order mark (`U+FEFF`).
 pub(crate) const BOM: [u8; 3] = [0xEF, 0xBB, 0xBF];
 
+#[cfg(feature = "derive")]
+pub use csv_derive::{Decode, Encode};
+#[cfg(feature = "derive")]
+pub use derive_support::{Decode, Encode};
 pub use error::{ReadError, ReadErrorKind, WriteError};
 pub use reader::{BytesFields, BytesRow, BytesRows, FieldRange, Fields, Read, Reader, Row, Rows};
 pub use writer::{Write, Writer};
+
+#[doc(hidden)]
+#[cfg(feature = "derive")]
+pub mod __private {
+    pub use crate::derive_support::{DecodeField, Decoder, EncodeField, Encoder};
+}

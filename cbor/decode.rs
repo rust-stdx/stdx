@@ -19,10 +19,8 @@ use crate::{
 
 /// Policy for duplicate map keys.
 ///
-/// Native typed maps honor every variant. The serde adapter honors `Error` for
-/// keys with byte-identical wire encodings; it treats `First`, `Last` and
-/// `Allow` as lenient because serde's `MapAccess` cannot suppress an entry
-/// after decoding its key.
+/// Typed maps honor every variant. `cbor::Value` always keeps duplicate keys
+/// because it preserves the original order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum DuplicateKeys {
@@ -50,22 +48,6 @@ pub(crate) fn collection_capacity<T>(len: usize, remaining: usize) -> usize {
     let element_size = core::mem::size_of::<T>().max(1);
     let budget = remaining.saturating_mul(INPUT_EXPANSION).min(MAX_PREALLOC_BYTES);
     len.min(budget / element_size)
-}
-
-/// Tag handling policy for the serde adapter.
-///
-/// The typed API ignores this policy: tags are represented explicitly with
-/// [`Tagged`](crate::Tagged) and [`TaggedValue`](crate::TaggedValue).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TagPolicy {
-    /// Ignore every tag and decode its content as if it were untagged.
-    ///
-    /// This is lossy: the tag number is discarded. Use `Reject` for protocols
-    /// where tags carry security-relevant meaning.
-    Skip,
-    /// Reject any tag unless the target explicitly uses
-    /// [`Tagged`](crate::Tagged) or [`TaggedValue`](crate::TaggedValue).
-    Reject,
 }
 
 /// Default number of entries used to derive the duplicate-check budget.
@@ -105,8 +87,7 @@ pub struct Options {
     /// This is ignored when decoding into `cbor::Value`, which is
     /// order-preserving and keeps duplicate keys. Derived maps always reject a
     /// duplicate field, regardless of this policy, because the derive knows
-    /// the complete key set at compile time. It is also only partially honored
-    /// by the serde adapter; see [`DuplicateKeys`].
+    /// the complete key set at compile time.
     pub duplicate_keys: DuplicateKeys,
     /// Decoder-wide budget for pairwise key comparisons spent on duplicate
     /// checks in `cbor::Map` decoding.
@@ -116,8 +97,6 @@ pub struct Options {
     /// decoded by one [`Decoder`], so nested maps cannot multiply the
     /// quadratic cost.
     pub max_duplicate_checks: Option<usize>,
-    /// Tag handling for the serde adapter. Ignored by the typed API.
-    pub serde_tags_policy: TagPolicy,
 }
 
 impl Default for Options {
@@ -127,7 +106,6 @@ impl Default for Options {
             max_container_entries: None,
             duplicate_keys: DuplicateKeys::Error,
             max_duplicate_checks: Some(DEFAULT_MAX_DUPLICATE_CHECKS),
-            serde_tags_policy: TagPolicy::Skip,
         }
     }
 }

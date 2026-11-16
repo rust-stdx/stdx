@@ -1,27 +1,24 @@
 use std::{net::IpAddr, str::FromStr};
 
-use serde::Deserialize;
-use serde_json::json;
-
-use super::{MaxMindDBError, Reader};
+use super::{Decode, MaxMindDBError, Reader};
 
 #[allow(clippy::float_cmp)]
 #[test]
 fn test_decoder() {
     #[allow(non_snake_case)]
-    #[derive(Deserialize, Debug, Eq, PartialEq)]
+    #[derive(Decode, Debug, Eq, PartialEq)]
     struct MapXType {
         arrayX: Vec<u32>,
         utf8_stringX: String,
     }
 
     #[allow(non_snake_case)]
-    #[derive(Deserialize, Debug, Eq, PartialEq)]
+    #[derive(Decode, Debug, Eq, PartialEq)]
     struct MapType {
         mapX: MapXType,
     }
 
-    #[derive(Deserialize, Debug)]
+    #[derive(Decode, Debug)]
     struct TestType<'a> {
         array: Vec<u32>,
         boolean: bool,
@@ -85,7 +82,7 @@ fn test_broken_database() {
         .unwrap();
     let ip: IpAddr = FromStr::from_str("2001:220::").unwrap();
 
-    #[derive(Deserialize, Debug)]
+    #[derive(Decode, Debug)]
     struct TestType {}
     match r.lookup::<TestType>(ip) {
         Err(e) => assert_eq!(e, MaxMindDBError::InvalidDatabaseError("double of size 2".to_string())),
@@ -385,7 +382,7 @@ fn check_ip<T: AsRef<[u8]>>(reader: &Reader<T>, ip_version: usize) {
         ],
     };
 
-    #[derive(Deserialize, Debug)]
+    #[derive(Decode, Debug)]
     struct IpType {
         ip: String,
     }
@@ -416,7 +413,7 @@ fn check_ip<T: AsRef<[u8]>>(reader: &Reader<T>, ip_version: usize) {
 }
 
 #[test]
-fn test_json_serialize() {
+fn test_city_lookup_fields() {
     use super::geoip2::City;
 
     let filename = "test-data/test-data/GeoIP2-City-Test.mmdb";
@@ -426,12 +423,9 @@ fn test_json_serialize() {
     let ip: IpAddr = FromStr::from_str("89.160.20.112").unwrap();
     let city: City = reader.lookup(ip).unwrap();
 
-    let json_string = json!(city).to_string();
-
-    assert_eq!(
-        json_string,
-        r#"{"city":{"geoname_id":2694762,"names":{"de":"Linköping","en":"Linköping","fr":"Linköping","ja":"リンシェーピング","zh-CN":"林雪平"}},"continent":{"code":"EU","geoname_id":6255148,"names":{"de":"Europa","en":"Europe","es":"Europa","fr":"Europe","ja":"ヨーロッパ","pt-BR":"Europa","ru":"Европа","zh-CN":"欧洲"}},"country":{"geoname_id":2661886,"is_in_european_union":true,"iso_code":"SE","names":{"de":"Schweden","en":"Sweden","es":"Suecia","fr":"Suède","ja":"スウェーデン王国","pt-BR":"Suécia","ru":"Швеция","zh-CN":"瑞典"}},"location":{"accuracy_radius":76,"latitude":58.4167,"longitude":15.6167,"time_zone":"Europe/Stockholm"},"registered_country":{"geoname_id":2921044,"is_in_european_union":true,"iso_code":"DE","names":{"de":"Deutschland","en":"Germany","es":"Alemania","fr":"Allemagne","ja":"ドイツ連邦共和国","pt-BR":"Alemanha","ru":"Германия","zh-CN":"德国"}},"subdivisions":[{"geoname_id":2685867,"iso_code":"E","names":{"en":"Östergötland County","fr":"Comté d'Östergötland"}}]}"#
-    );
+    let city = city.city.expect("expected city");
+    assert_eq!(city.geoname_id, Some(2_694_762));
+    assert_eq!(city.names.as_ref().and_then(|names| names.get("en")), Some(&"Linköping"));
 }
 
 // ====== Additional Edge Case Tests ======
@@ -484,14 +478,11 @@ fn test_pointer_decoder_database() {
 
     assert_eq!(reader.metadata.database_type, "MaxMind DB Decoder Test");
 
-    // Data is keyed under different IPs; use Value to explore
+    // Data is keyed under different IPs; `Value` supports every data type,
+    // including `uint128`.
     let ip: IpAddr = "1.1.1.0".parse().unwrap();
-    // The uint128 value causes serde Value deserialization to fail because
-    // serde_json_ Value doesn't support u128. But we can still use Reader
-    // with a typed struct.
-    let result = reader.lookup::<super::Value>(ip);
-    // Should either parse or fail gracefully without panic
-    assert!(result.is_err() || result.is_ok());
+    let result: super::Value = reader.lookup(ip).unwrap();
+    assert!(matches!(result, super::Value::Map(_)));
 }
 
 #[test]
@@ -555,7 +546,7 @@ fn test_mixed_database() {
         assert_eq!(reader.metadata.database_type, "Test");
         assert_eq!(reader.metadata.ip_version, 6);
 
-        #[derive(Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct IpType {
             ip: String,
         }
@@ -689,7 +680,7 @@ fn test_value_lookup_on_decoder_db() {
     let filename = "test-data/test-data/MaxMind-DB-test-decoder.mmdb";
     let reader = Reader::open_readfile(filename).unwrap();
 
-    #[derive(Deserialize, Debug)]
+    #[derive(Decode, Debug)]
     struct PartialType {
         uint32: u32,
         uint16: u16,
@@ -712,7 +703,7 @@ fn test_reader_from_source_slice() {
 
     assert_eq!(reader.metadata.node_count, 163);
 
-    #[derive(Deserialize, Debug)]
+    #[derive(Decode, Debug)]
     struct IpType {
         ip: String,
     }
@@ -759,7 +750,7 @@ fn test_extremely_large_string_value_roundtrip() {
     tree.write_to(&mut buf).unwrap();
 
     let reader = Reader::from_source(buf).unwrap();
-    #[derive(Deserialize, Debug)]
+    #[derive(Decode, Debug)]
     struct TestRecord {
         big: String,
     }
@@ -793,7 +784,7 @@ fn test_exact_prefix_length_all_record_sizes() {
         tree.write_to(&mut buf).unwrap();
 
         let reader = Reader::from_source(buf).unwrap();
-        #[derive(Deserialize, Debug)]
+        #[derive(Decode, Debug)]
         struct TestRecord {
             host: String,
         }

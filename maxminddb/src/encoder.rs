@@ -1,10 +1,5 @@
 use std::{collections::BTreeMap, fmt};
 
-use serde::{
-    de::{self, Deserialize, Deserializer, MapAccess, SeqAccess, Visitor},
-    ser::{self, Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeTupleStruct},
-};
-
 pub type EncodeResult<T> = Result<T, String>;
 
 /// Error returned while encoding a value for a MaxMind DB.
@@ -19,20 +14,14 @@ impl fmt::Display for SerError {
 
 impl core::error::Error for SerError {}
 
-impl ser::Error for SerError {
-    fn custom<T: fmt::Display>(msg: T) -> Self {
-        SerError(msg.to_string())
-    }
-}
-
 const FIRST_SIZE: usize = 29;
 const SECOND_SIZE: usize = FIRST_SIZE + 256;
 const THIRD_SIZE: usize = SECOND_SIZE + (1 << 16);
 
 /// A MaxMind DB value.
 ///
-/// This is a fully owned representation. When reading, prefer deserializing
-/// into a borrowed type (for example the structs in [`crate::geoip2`]) to avoid
+/// This is a fully owned representation. When reading, prefer decoding into a
+/// borrowed type (for example the structs in [`crate::geoip2`]) to avoid
 /// copying strings and byte arrays out of the database.
 ///
 /// [`Value::Pointer`] is only meaningful while encoding: the numeric value is a
@@ -138,416 +127,379 @@ macro_rules! map {
     }};
 }
 
-impl<'de> Deserialize<'de> for Value {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct ValueVisitor;
-
-        impl<'de> Visitor<'de> for ValueVisitor {
-            type Value = Value;
-
-            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                f.write_str("a MaxMind DB value")
-            }
-
-            fn visit_bool<E: de::Error>(self, v: bool) -> Result<Value, E> {
-                Ok(Value::Bool(v))
-            }
-
-            fn visit_i64<E: de::Error>(self, v: i64) -> Result<Value, E> {
-                if let Ok(v) = i32::try_from(v) {
-                    Ok(Value::Int32(v))
-                } else if v >= 0 {
-                    Ok(Value::Uint64(v as u64))
-                } else {
-                    Err(E::custom(format!(
-                        "negative integer {v} is out of range for a MaxMind DB value (minimum is {})",
-                        i32::MIN
-                    )))
-                }
-            }
-
-            fn visit_u64<E: de::Error>(self, v: u64) -> Result<Value, E> {
-                Ok(Value::Uint64(v))
-            }
-
-            fn visit_f64<E: de::Error>(self, v: f64) -> Result<Value, E> {
-                Ok(Value::Float64(v))
-            }
-
-            fn visit_str<E: de::Error>(self, v: &str) -> Result<Value, E> {
-                Ok(Value::String(v.to_string()))
-            }
-
-            fn visit_string<E: de::Error>(self, v: String) -> Result<Value, E> {
-                Ok(Value::String(v))
-            }
-
-            fn visit_bytes<E: de::Error>(self, v: &[u8]) -> Result<Value, E> {
-                Ok(Value::Bytes(v.to_vec()))
-            }
-
-            fn visit_byte_buf<E: de::Error>(self, v: Vec<u8>) -> Result<Value, E> {
-                Ok(Value::Bytes(v))
-            }
-
-            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Value, A::Error> {
-                let mut items = Vec::with_capacity(seq.size_hint().unwrap_or(1));
-                while let Some(elem) = seq.next_element::<Value>()? {
-                    items.push(elem);
-                }
-                Ok(Value::Slice(items))
-            }
-
-            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Value, A::Error> {
-                let mut entries = BTreeMap::new();
-                while let Some((key, val)) = map.next_entry::<String, Value>()? {
-                    entries.insert(key, val);
-                }
-                Ok(Value::Map(entries))
-            }
-        }
-
-        deserializer.deserialize_any(ValueVisitor)
-    }
+/// Encode a value in MaxMind DB binary form.
+///
+/// Implement this trait manually or with `#[derive(maxminddb::Encode)]`.
+pub trait Encode {
+    /// Encode this value into `encoder`.
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError>;
 }
 
-// ---------------------------------------------------------------------------
-// ValueSerializer — converts Serialize into owned Value (used by insert_value)
-// ---------------------------------------------------------------------------
-
-/// Serializes a value into an owned [`Value`].
-pub struct ValueSerializer;
-
-impl ser::Serializer for &ValueSerializer {
-    type Ok = Value;
-    type Error = SerError;
-
-    type SerializeSeq = OwnedMapOrSlice;
-    type SerializeTuple = OwnedMapOrSlice;
-    type SerializeTupleStruct = OwnedMapOrSlice;
-    type SerializeTupleVariant = ser::Impossible<Value, SerError>;
-    type SerializeMap = OwnedMapOrSlice;
-    type SerializeStruct = OwnedMapOrSlice;
-    type SerializeStructVariant = ser::Impossible<Value, SerError>;
-
-    fn serialize_bool(self, v: bool) -> Result<Value, SerError> {
-        Ok(Value::Bool(v))
-    }
-
-    fn serialize_i8(self, v: i8) -> Result<Value, SerError> {
-        Ok(Value::Int32(v as i32))
-    }
-
-    fn serialize_i16(self, v: i16) -> Result<Value, SerError> {
-        Ok(Value::Int32(v as i32))
-    }
-
-    fn serialize_i32(self, v: i32) -> Result<Value, SerError> {
-        Ok(Value::Int32(v))
-    }
-
-    fn serialize_i64(self, v: i64) -> Result<Value, SerError> {
-        if let Ok(v) = i32::try_from(v) {
-            Ok(Value::Int32(v))
-        } else if v >= 0 {
-            Ok(Value::Uint64(v as u64))
-        } else {
-            Err(SerError(format!(
-                "negative integer {v} is out of range for a MaxMind DB value (minimum is {})",
-                i32::MIN
-            )))
-        }
-    }
-
-    fn serialize_u8(self, v: u8) -> Result<Value, SerError> {
-        Ok(Value::Uint16(v as u16))
-    }
-
-    fn serialize_u16(self, v: u16) -> Result<Value, SerError> {
-        Ok(Value::Uint16(v))
-    }
-
-    fn serialize_u32(self, v: u32) -> Result<Value, SerError> {
-        Ok(Value::Uint32(v))
-    }
-
-    fn serialize_u64(self, v: u64) -> Result<Value, SerError> {
-        Ok(Value::Uint64(v))
-    }
-
-    fn serialize_u128(self, v: u128) -> Result<Value, SerError> {
-        Ok(Value::Uint128(v))
-    }
-
-    fn serialize_f32(self, v: f32) -> Result<Value, SerError> {
-        Ok(Value::Float32(v))
-    }
-
-    fn serialize_f64(self, v: f64) -> Result<Value, SerError> {
-        Ok(Value::Float64(v))
-    }
-
-    fn serialize_char(self, v: char) -> Result<Value, SerError> {
-        Ok(Value::String(v.to_string()))
-    }
-
-    fn serialize_str(self, v: &str) -> Result<Value, SerError> {
-        Ok(Value::String(v.to_string()))
-    }
-
-    fn serialize_bytes(self, v: &[u8]) -> Result<Value, SerError> {
-        Ok(Value::Bytes(v.to_vec()))
-    }
-
-    fn serialize_none(self) -> Result<Value, SerError> {
-        Err(SerError("MaxMind DB has no null type".into()))
-    }
-
-    fn serialize_some<T: ?Sized + Serialize>(self, value: &T) -> Result<Value, SerError> {
-        value.serialize(self)
-    }
-
-    fn serialize_unit(self) -> Result<Value, SerError> {
-        Err(SerError("MaxMind DB has no null type".into()))
-    }
-
-    fn serialize_unit_struct(self, _name: &'static str) -> Result<Value, SerError> {
-        Err(SerError("MaxMind DB has no null type".into()))
-    }
-
-    fn serialize_unit_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        variant: &'static str,
-    ) -> Result<Value, SerError> {
-        Ok(Value::String(variant.to_string()))
-    }
-
-    fn serialize_newtype_struct<T: ?Sized + Serialize>(
-        self,
-        _name: &'static str,
-        value: &T,
-    ) -> Result<Value, SerError> {
-        value.serialize(self)
-    }
-
-    fn serialize_newtype_variant<T: ?Sized + Serialize>(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        value: &T,
-    ) -> Result<Value, SerError> {
-        value.serialize(self)
-    }
-
-    fn serialize_seq(self, _len: Option<usize>) -> Result<OwnedMapOrSlice, SerError> {
-        Ok(OwnedMapOrSlice::slice())
-    }
-
-    fn serialize_tuple(self, len: usize) -> Result<OwnedMapOrSlice, SerError> {
-        self.serialize_seq(Some(len))
-    }
-
-    fn serialize_tuple_struct(self, _name: &'static str, len: usize) -> Result<OwnedMapOrSlice, SerError> {
-        self.serialize_seq(Some(len))
-    }
-
-    fn serialize_map(self, _len: Option<usize>) -> Result<OwnedMapOrSlice, SerError> {
-        Ok(OwnedMapOrSlice::map())
-    }
-
-    fn serialize_struct(self, _name: &'static str, len: usize) -> Result<OwnedMapOrSlice, SerError> {
-        self.serialize_map(Some(len))
-    }
-
-    fn serialize_tuple_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _len: usize,
-    ) -> Result<Self::SerializeTupleVariant, SerError> {
-        Err(SerError("tuple variants not supported".into()))
-    }
-
-    fn serialize_struct_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _len: usize,
-    ) -> Result<Self::SerializeStructVariant, SerError> {
-        Err(SerError("struct variants not supported".into()))
-    }
-}
-
-pub struct OwnedMapOrSlice {
-    pending_key: Option<String>,
-    inner: OwnedMapOrSliceInner,
-}
-
-enum OwnedMapOrSliceInner {
-    Map(BTreeMap<String, Value>),
-    Slice(Vec<Value>),
-}
-
-impl OwnedMapOrSlice {
-    fn map() -> Self {
-        OwnedMapOrSlice {
-            pending_key: None,
-            inner: OwnedMapOrSliceInner::Map(BTreeMap::new()),
-        }
-    }
-    fn slice() -> Self {
-        OwnedMapOrSlice {
-            pending_key: None,
-            inner: OwnedMapOrSliceInner::Slice(Vec::new()),
-        }
-    }
-}
-
-impl SerializeSeq for OwnedMapOrSlice {
-    type Ok = Value;
-    type Error = SerError;
-
-    fn serialize_element<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), SerError> {
-        match self.inner {
-            OwnedMapOrSliceInner::Slice(ref mut v) => {
-                v.push(value.serialize(&ValueSerializer)?);
-                Ok(())
-            }
-            OwnedMapOrSliceInner::Map(_) => Err(SerError("expected map entry, got element".into())),
-        }
-    }
-
-    fn end(self) -> Result<Value, SerError> {
-        match self.inner {
-            OwnedMapOrSliceInner::Slice(v) => Ok(Value::Slice(v)),
-            OwnedMapOrSliceInner::Map(m) => Ok(Value::Map(m)),
-        }
-    }
-}
-
-impl ser::SerializeTuple for OwnedMapOrSlice {
-    type Ok = Value;
-    type Error = SerError;
-
-    fn serialize_element<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), SerError> {
-        SerializeSeq::serialize_element(self, value)
-    }
-
-    fn end(self) -> Result<Value, SerError> {
-        SerializeSeq::end(self)
-    }
-}
-
-impl SerializeTupleStruct for OwnedMapOrSlice {
-    type Ok = Value;
-    type Error = SerError;
-
-    fn serialize_field<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), SerError> {
-        SerializeSeq::serialize_element(self, value)
-    }
-
-    fn end(self) -> Result<Value, SerError> {
-        SerializeSeq::end(self)
-    }
-}
-
-impl SerializeMap for OwnedMapOrSlice {
-    type Ok = Value;
-    type Error = SerError;
-
-    fn serialize_key<T: ?Sized + Serialize>(&mut self, key: &T) -> Result<(), SerError> {
-        match self.inner {
-            OwnedMapOrSliceInner::Slice(_) => Err(SerError("expected element, got map key".into())),
-            OwnedMapOrSliceInner::Map(_) => {
-                let k = key.serialize(&ValueSerializer)?;
-                match k {
-                    Value::String(s) => {
-                        self.pending_key = Some(s);
-                        Ok(())
-                    }
-                    _ => Err(SerError("map key must be a string".into())),
-                }
-            }
-        }
-    }
-
-    fn serialize_value<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), SerError> {
-        match self.inner {
-            OwnedMapOrSliceInner::Slice(_) => Err(SerError("expected element, got map value".into())),
-            OwnedMapOrSliceInner::Map(ref mut m) => {
-                let key = self
-                    .pending_key
-                    .take()
-                    .ok_or_else(|| SerError("missing map key".into()))?;
-                let v = value.serialize(&ValueSerializer)?;
-                m.insert(key, v);
-                Ok(())
-            }
-        }
-    }
-
-    fn end(self) -> Result<Value, SerError> {
-        match self.inner {
-            OwnedMapOrSliceInner::Map(m) => Ok(Value::Map(m)),
-            OwnedMapOrSliceInner::Slice(_) => Err(SerError("expected map, got slice".into())),
-        }
-    }
-}
-
-impl SerializeStruct for OwnedMapOrSlice {
-    type Ok = Value;
-    type Error = SerError;
-
-    fn serialize_field<T: ?Sized + Serialize>(&mut self, key: &'static str, value: &T) -> Result<(), SerError> {
-        match self.inner {
-            OwnedMapOrSliceInner::Map(ref mut m) => {
-                let v = value.serialize(&ValueSerializer)?;
-                m.insert(key.to_string(), v);
-                Ok(())
-            }
-            OwnedMapOrSliceInner::Slice(_) => Err(SerError("expected map, got struct".into())),
-        }
-    }
-
-    fn end(self) -> Result<Value, SerError> {
-        match self.inner {
-            OwnedMapOrSliceInner::Map(m) => Ok(Value::Map(m)),
-            OwnedMapOrSliceInner::Slice(_) => Err(SerError("expected map, got slice".into())),
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
-// ByteSerializer — writes MaxMind DB binary directly into a Vec<u8>,
-//                  avoiding the intermediate Value allocation.
-// ---------------------------------------------------------------------------
-
-/// Serializes a value directly into MaxMind DB binary form, avoiding an
-/// intermediate [`Value`] allocation.
-pub struct ByteSerializer {
+/// Writes MaxMind DB binary values into an in-memory buffer.
+#[derive(Debug, Default)]
+pub struct Encoder {
     buf: Vec<u8>,
 }
 
-impl ByteSerializer {
+impl Encoder {
+    /// Create an empty encoder.
     pub fn new() -> Self {
-        ByteSerializer {
-            buf: Vec::new(),
-        }
+        Self::default()
     }
 
+    /// Consume the encoder and return the encoded bytes.
     pub fn into_bytes(self) -> Vec<u8> {
         self.buf
     }
+
+    /// Return the encoded bytes.
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.buf
+    }
+
+    /// Write a raw data-section pointer.
+    pub fn pointer(&mut self, pointer: u32) {
+        encode_pointer_raw(&mut self.buf, pointer);
+    }
+
+    /// Write a map header with `len` entries.
+    pub fn map(&mut self, len: usize) -> Result<(), SerError> {
+        check_payload_size(len)?;
+        ctrl_and_size(&mut self.buf, 7, len);
+        Ok(())
+    }
+
+    /// Write an array header with `len` elements.
+    pub fn array(&mut self, len: usize) -> Result<(), SerError> {
+        check_payload_size(len)?;
+        ctrl_and_size(&mut self.buf, 11, len);
+        Ok(())
+    }
+
+    /// Write a UTF-8 string.
+    pub fn str(&mut self, value: &str) -> Result<(), SerError> {
+        write_str_raw(&mut self.buf, value)
+    }
+
+    /// Write a byte string.
+    pub fn bytes(&mut self, value: &[u8]) -> Result<(), SerError> {
+        write_bytes_raw(&mut self.buf, value)
+    }
+
+    /// Write a boolean.
+    pub fn bool(&mut self, value: bool) {
+        let payload_len = usize::from(value);
+        ctrl_and_size(&mut self.buf, 14, payload_len);
+    }
+
+    /// Write a `u16`.
+    pub fn u16(&mut self, value: u16) {
+        let size = 2 - (value.leading_zeros() as usize / 8);
+        ctrl_and_size(&mut self.buf, 5, size);
+        for i in (0..size).rev() {
+            self.buf.push((value >> (8 * i)) as u8);
+        }
+    }
+
+    /// Write a `u32`.
+    pub fn u32(&mut self, value: u32) {
+        let size = 4 - (value.leading_zeros() as usize / 8);
+        ctrl_and_size(&mut self.buf, 6, size);
+        for i in (0..size).rev() {
+            self.buf.push((value >> (8 * i)) as u8);
+        }
+    }
+
+    /// Write a `u64`.
+    pub fn u64(&mut self, value: u64) {
+        let size = 8 - (value.leading_zeros() as usize / 8);
+        ctrl_and_size(&mut self.buf, 9, size);
+        for i in (0..size).rev() {
+            self.buf.push((value >> (8 * i)) as u8);
+        }
+    }
+
+    /// Write a `u128`.
+    pub fn u128(&mut self, value: u128) {
+        let size = 16 - (value.leading_zeros() as usize / 8);
+        ctrl_and_size(&mut self.buf, 10, size);
+        for i in (0..size).rev() {
+            self.buf.push((value >> (8 * i)) as u8);
+        }
+    }
+
+    /// Write an `i32`.
+    pub fn i32(&mut self, value: i32) {
+        let unsigned = value as u32;
+        let size = 4 - (unsigned.leading_zeros() as usize / 8);
+        ctrl_and_size(&mut self.buf, 8, size);
+        for i in (0..size).rev() {
+            self.buf.push((unsigned >> (8 * i)) as u8);
+        }
+    }
+
+    /// Write an `f32`.
+    pub fn f32(&mut self, value: f32) {
+        ctrl_and_size(&mut self.buf, 15, 4);
+        self.buf.extend_from_slice(&value.to_bits().to_be_bytes());
+    }
+
+    /// Write an `f64`.
+    pub fn f64(&mut self, value: f64) {
+        ctrl_and_size(&mut self.buf, 3, 8);
+        self.buf.extend_from_slice(&value.to_bits().to_be_bytes());
+    }
 }
 
-impl Default for ByteSerializer {
-    fn default() -> Self {
-        Self::new()
+impl<T: Encode + ?Sized> Encode for &T {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        (*self).encode(encoder)
+    }
+}
+
+impl<T: Encode + ?Sized> Encode for Box<T> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        (**self).encode(encoder)
+    }
+}
+
+impl Encode for bool {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        encoder.bool(*self);
+        Ok(())
+    }
+}
+
+impl Encode for u8 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        encoder.u16(u16::from(*self));
+        Ok(())
+    }
+}
+
+impl Encode for u16 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        encoder.u16(*self);
+        Ok(())
+    }
+}
+
+impl Encode for u32 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        encoder.u32(*self);
+        Ok(())
+    }
+}
+
+impl Encode for u64 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        encoder.u64(*self);
+        Ok(())
+    }
+}
+
+impl Encode for u128 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        encoder.u128(*self);
+        Ok(())
+    }
+}
+
+impl Encode for usize {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        encoder.u64(*self as u64);
+        Ok(())
+    }
+}
+
+impl Encode for i8 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        encoder.i32(i32::from(*self));
+        Ok(())
+    }
+}
+
+impl Encode for i16 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        encoder.i32(i32::from(*self));
+        Ok(())
+    }
+}
+
+impl Encode for i32 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        encoder.i32(*self);
+        Ok(())
+    }
+}
+
+impl Encode for i64 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        if let Ok(value) = i32::try_from(*self) {
+            encoder.i32(value);
+        } else if *self >= 0 {
+            encoder.u64(*self as u64);
+        } else {
+            return Err(SerError(format!(
+                "negative integer {self} is out of range for a MaxMind DB value (minimum is {})",
+                i32::MIN
+            )));
+        }
+        Ok(())
+    }
+}
+
+impl Encode for i128 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        if let Ok(value) = i32::try_from(*self) {
+            encoder.i32(value);
+        } else if let Ok(value) = u64::try_from(*self) {
+            encoder.u64(value);
+        } else if let Ok(value) = u128::try_from(*self) {
+            encoder.u128(value);
+        } else {
+            return Err(SerError(format!(
+                "negative integer {self} is out of range for a MaxMind DB value (minimum is {})",
+                i32::MIN
+            )));
+        }
+        Ok(())
+    }
+}
+
+impl Encode for isize {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        (*self as i64).encode(encoder)
+    }
+}
+
+impl Encode for f32 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        encoder.f32(*self);
+        Ok(())
+    }
+}
+
+impl Encode for f64 {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        encoder.f64(*self);
+        Ok(())
+    }
+}
+
+impl Encode for str {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        encoder.str(self)
+    }
+}
+
+impl Encode for String {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        encoder.str(self)
+    }
+}
+
+impl Encode for char {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        encoder.str(&self.to_string())
+    }
+}
+
+impl Encode for [u8] {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        encoder.bytes(self)
+    }
+}
+
+impl<T: Encode> Encode for Vec<T> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        encoder.array(self.len())?;
+        for value in self {
+            value.encode(encoder)?;
+        }
+        Ok(())
+    }
+}
+
+impl<K: AsRef<str>, V: Encode> Encode for BTreeMap<K, V> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        encoder.map(self.len())?;
+        for (key, value) in self {
+            encoder.str(key.as_ref())?;
+            value.encode(encoder)?;
+        }
+        Ok(())
+    }
+}
+
+/// MaxMind DB has no null value. The derive omits `None` fields; encoding a
+/// top-level `None` is an error.
+impl<T: Encode> Encode for Option<T> {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        match self {
+            Some(value) => value.encode(encoder),
+            None => Err(SerError("MaxMind DB has no null type".to_owned())),
+        }
+    }
+}
+
+impl Encode for Value {
+    fn encode(&self, encoder: &mut Encoder) -> Result<(), SerError> {
+        match self {
+            Value::Pointer(pointer) => {
+                encoder.pointer(*pointer);
+                Ok(())
+            }
+            Value::String(value) => encoder.str(value),
+            Value::Float64(value) => {
+                encoder.f64(*value);
+                Ok(())
+            }
+            Value::Bytes(value) => encoder.bytes(value),
+            Value::Uint16(value) => {
+                encoder.u16(*value);
+                Ok(())
+            }
+            Value::Uint32(value) => {
+                encoder.u32(*value);
+                Ok(())
+            }
+            Value::Int32(value) => {
+                encoder.i32(*value);
+                Ok(())
+            }
+            Value::Map(map) => {
+                encoder.map(map.len())?;
+                for (key, value) in map {
+                    encoder.str(key)?;
+                    value.encode(encoder)?;
+                }
+                Ok(())
+            }
+            Value::Uint64(value) => {
+                encoder.u64(*value);
+                Ok(())
+            }
+            Value::Uint128(value) => {
+                encoder.u128(*value);
+                Ok(())
+            }
+            Value::Slice(values) => {
+                encoder.array(values.len())?;
+                for value in values {
+                    value.encode(encoder)?;
+                }
+                Ok(())
+            }
+            Value::Bool(value) => {
+                encoder.bool(*value);
+                Ok(())
+            }
+            Value::Float32(value) => {
+                encoder.f32(*value);
+                Ok(())
+            }
+        }
     }
 }
 
@@ -611,41 +563,6 @@ fn ctrl_and_size(w: &mut Vec<u8>, type_num: u8, payload_len: usize) {
     }
 }
 
-struct ByteMapOrSlice<'a> {
-    ser: &'a mut ByteSerializer,
-    state: ByteMOS,
-    pending_key: Option<String>,
-}
-
-enum ByteMOS {
-    Map(BTreeMap<String, Vec<u8>>),
-    Slice(Vec<Vec<u8>>),
-}
-
-impl ByteMapOrSlice<'_> {
-    fn flush_map(self) -> Result<(), SerError> {
-        match self.state {
-            ByteMOS::Map(m) => {
-                check_payload_size(m.len())?;
-                ctrl_and_size(&mut self.ser.buf, 7, m.len());
-                for (k, v) in m {
-                    write_str_raw(&mut self.ser.buf, &k)?;
-                    self.ser.buf.extend_from_slice(&v);
-                }
-                Ok(())
-            }
-            ByteMOS::Slice(s) => {
-                check_payload_size(s.len())?;
-                ctrl_and_size(&mut self.ser.buf, 11, s.len());
-                for v in s {
-                    self.ser.buf.extend_from_slice(&v);
-                }
-                Ok(())
-            }
-        }
-    }
-}
-
 fn write_str_raw(w: &mut Vec<u8>, s: &str) -> Result<(), SerError> {
     check_payload_size(s.len())?;
     ctrl_and_size(w, 2, s.len());
@@ -658,327 +575,6 @@ fn write_bytes_raw(w: &mut Vec<u8>, b: &[u8]) -> Result<(), SerError> {
     ctrl_and_size(w, 4, b.len());
     w.extend_from_slice(b);
     Ok(())
-}
-
-impl SerializeSeq for ByteMapOrSlice<'_> {
-    type Ok = ();
-    type Error = SerError;
-
-    fn serialize_element<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), SerError> {
-        let mut sub = ByteSerializer::new();
-        value.serialize(ByteSerializerRef(&mut sub))?;
-        match self.state {
-            ByteMOS::Slice(ref mut v) => v.push(sub.buf),
-            ByteMOS::Map(_) => return Err(SerError("expected map entry, got element".into())),
-        }
-        Ok(())
-    }
-
-    fn end(self) -> Result<(), SerError> {
-        self.flush_map()
-    }
-}
-
-impl ser::SerializeTuple for ByteMapOrSlice<'_> {
-    type Ok = ();
-    type Error = SerError;
-
-    fn serialize_element<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), SerError> {
-        SerializeSeq::serialize_element(self, value)
-    }
-
-    fn end(self) -> Result<(), SerError> {
-        SerializeSeq::end(self)
-    }
-}
-
-impl SerializeTupleStruct for ByteMapOrSlice<'_> {
-    type Ok = ();
-    type Error = SerError;
-
-    fn serialize_field<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), SerError> {
-        SerializeSeq::serialize_element(self, value)
-    }
-
-    fn end(self) -> Result<(), SerError> {
-        SerializeSeq::end(self)
-    }
-}
-
-impl SerializeMap for ByteMapOrSlice<'_> {
-    type Ok = ();
-    type Error = SerError;
-
-    fn serialize_key<T: ?Sized + Serialize>(&mut self, key: &T) -> Result<(), SerError> {
-        match self.state {
-            ByteMOS::Slice(_) => Err(SerError("expected element, got map key".into())),
-            ByteMOS::Map(_) => {
-                // Keys are stored as decoded strings and re-encoded when the map
-                // is flushed, so only the value form is needed here.
-                match key.serialize(&ValueSerializer)? {
-                    Value::String(s_val) => {
-                        self.pending_key = Some(s_val);
-                        Ok(())
-                    }
-                    _ => Err(SerError("map key must be a string".into())),
-                }
-            }
-        }
-    }
-
-    fn serialize_value<T: ?Sized + Serialize>(&mut self, value: &T) -> Result<(), SerError> {
-        match self.state {
-            ByteMOS::Slice(_) => Err(SerError("expected element, got map value".into())),
-            ByteMOS::Map(ref mut m) => {
-                let key = self
-                    .pending_key
-                    .take()
-                    .ok_or_else(|| SerError("missing map key".into()))?;
-                let mut sub = ByteSerializer::new();
-                value.serialize(ByteSerializerRef(&mut sub))?;
-                m.insert(key, sub.buf);
-                Ok(())
-            }
-        }
-    }
-
-    fn end(self) -> Result<(), SerError> {
-        self.flush_map()
-    }
-}
-
-impl SerializeStruct for ByteMapOrSlice<'_> {
-    type Ok = ();
-    type Error = SerError;
-
-    fn serialize_field<T: ?Sized + Serialize>(&mut self, key: &'static str, value: &T) -> Result<(), SerError> {
-        match self.state {
-            ByteMOS::Map(ref mut m) => {
-                let mut sub = ByteSerializer::new();
-                value.serialize(ByteSerializerRef(&mut sub))?;
-                m.insert(key.to_string(), sub.buf);
-                Ok(())
-            }
-            ByteMOS::Slice(_) => Err(SerError("expected map, got struct".into())),
-        }
-    }
-
-    fn end(self) -> Result<(), SerError> {
-        self.flush_map()
-    }
-}
-
-struct ByteSerializerRef<'a>(&'a mut ByteSerializer);
-
-impl<'a> ser::Serializer for ByteSerializerRef<'a> {
-    type Ok = ();
-    type Error = SerError;
-
-    type SerializeSeq = ByteMapOrSlice<'a>;
-    type SerializeTuple = ByteMapOrSlice<'a>;
-    type SerializeTupleStruct = ByteMapOrSlice<'a>;
-    type SerializeTupleVariant = ser::Impossible<(), SerError>;
-    type SerializeMap = ByteMapOrSlice<'a>;
-    type SerializeStruct = ByteMapOrSlice<'a>;
-    type SerializeStructVariant = ser::Impossible<(), SerError>;
-
-    fn serialize_bool(self, v: bool) -> Result<(), SerError> {
-        let payload_len = if v { 1 } else { 0 };
-        ctrl_and_size(&mut self.0.buf, 14, payload_len);
-        Ok(())
-    }
-
-    fn serialize_i8(self, v: i8) -> Result<(), SerError> {
-        self.serialize_i32(v as i32)
-    }
-
-    fn serialize_i16(self, v: i16) -> Result<(), SerError> {
-        self.serialize_i32(v as i32)
-    }
-
-    fn serialize_i32(self, v: i32) -> Result<(), SerError> {
-        let u = v as u32;
-        let size = 4 - (u.leading_zeros() as usize / 8);
-        ctrl_and_size(&mut self.0.buf, 8, size);
-        for i in (0..size).rev() {
-            self.0.buf.push((u >> (8 * i)) as u8);
-        }
-        Ok(())
-    }
-
-    fn serialize_i64(self, v: i64) -> Result<(), SerError> {
-        if let Ok(v) = i32::try_from(v) {
-            self.serialize_i32(v)
-        } else if v >= 0 {
-            self.serialize_u64(v as u64)
-        } else {
-            Err(SerError(format!(
-                "negative integer {v} is out of range for a MaxMind DB value (minimum is {})",
-                i32::MIN
-            )))
-        }
-    }
-
-    fn serialize_u8(self, v: u8) -> Result<(), SerError> {
-        self.serialize_u16(v as u16)
-    }
-
-    fn serialize_u16(self, v: u16) -> Result<(), SerError> {
-        let size = 2 - (v.leading_zeros() as usize / 8);
-        ctrl_and_size(&mut self.0.buf, 5, size);
-        for i in (0..size).rev() {
-            self.0.buf.push((v >> (8 * i)) as u8);
-        }
-        Ok(())
-    }
-
-    fn serialize_u32(self, v: u32) -> Result<(), SerError> {
-        let size = 4 - (v.leading_zeros() as usize / 8);
-        ctrl_and_size(&mut self.0.buf, 6, size);
-        for i in (0..size).rev() {
-            self.0.buf.push((v >> (8 * i)) as u8);
-        }
-        Ok(())
-    }
-
-    fn serialize_u64(self, v: u64) -> Result<(), SerError> {
-        let size = 8 - (v.leading_zeros() as usize / 8);
-        ctrl_and_size(&mut self.0.buf, 9, size);
-        for i in (0..size).rev() {
-            self.0.buf.push((v >> (8 * i)) as u8);
-        }
-        Ok(())
-    }
-
-    fn serialize_u128(self, v: u128) -> Result<(), SerError> {
-        let size = 16 - (v.leading_zeros() as usize / 8);
-        ctrl_and_size(&mut self.0.buf, 10, size);
-        for i in (0..size).rev() {
-            self.0.buf.push((v >> (8 * i)) as u8);
-        }
-        Ok(())
-    }
-
-    fn serialize_f32(self, v: f32) -> Result<(), SerError> {
-        ctrl_and_size(&mut self.0.buf, 15, 4);
-        self.0.buf.extend_from_slice(&v.to_bits().to_be_bytes());
-        Ok(())
-    }
-
-    fn serialize_f64(self, v: f64) -> Result<(), SerError> {
-        ctrl_and_size(&mut self.0.buf, 3, 8);
-        self.0.buf.extend_from_slice(&v.to_bits().to_be_bytes());
-        Ok(())
-    }
-
-    fn serialize_char(self, v: char) -> Result<(), SerError> {
-        self.serialize_str(&v.to_string())
-    }
-
-    fn serialize_str(self, v: &str) -> Result<(), SerError> {
-        write_str_raw(&mut self.0.buf, v)?;
-        Ok(())
-    }
-
-    fn serialize_bytes(self, v: &[u8]) -> Result<(), SerError> {
-        write_bytes_raw(&mut self.0.buf, v)?;
-        Ok(())
-    }
-
-    fn serialize_none(self) -> Result<(), SerError> {
-        Err(SerError("MaxMind DB has no null type".into()))
-    }
-
-    fn serialize_some<T: ?Sized + Serialize>(self, value: &T) -> Result<(), SerError> {
-        value.serialize(self)
-    }
-
-    fn serialize_unit(self) -> Result<(), SerError> {
-        Err(SerError("MaxMind DB has no null type".into()))
-    }
-
-    fn serialize_unit_struct(self, _name: &'static str) -> Result<(), SerError> {
-        Err(SerError("MaxMind DB has no null type".into()))
-    }
-
-    fn serialize_unit_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        variant: &'static str,
-    ) -> Result<(), SerError> {
-        self.serialize_str(variant)
-    }
-
-    fn serialize_newtype_struct<T: ?Sized + Serialize>(self, _name: &'static str, value: &T) -> Result<(), SerError> {
-        value.serialize(self)
-    }
-
-    fn serialize_newtype_variant<T: ?Sized + Serialize>(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        value: &T,
-    ) -> Result<(), SerError> {
-        value.serialize(self)
-    }
-
-    fn serialize_seq(self, _len: Option<usize>) -> Result<ByteMapOrSlice<'a>, SerError> {
-        Ok(ByteMapOrSlice {
-            ser: self.0,
-            state: ByteMOS::Slice(Vec::new()),
-            pending_key: None,
-        })
-    }
-
-    fn serialize_tuple(self, len: usize) -> Result<ByteMapOrSlice<'a>, SerError> {
-        self.serialize_seq(Some(len))
-    }
-
-    fn serialize_tuple_struct(self, _name: &'static str, len: usize) -> Result<ByteMapOrSlice<'a>, SerError> {
-        self.serialize_seq(Some(len))
-    }
-
-    fn serialize_map(self, _len: Option<usize>) -> Result<ByteMapOrSlice<'a>, SerError> {
-        Ok(ByteMapOrSlice {
-            ser: self.0,
-            state: ByteMOS::Map(BTreeMap::new()),
-            pending_key: None,
-        })
-    }
-
-    fn serialize_struct(self, _name: &'static str, len: usize) -> Result<ByteMapOrSlice<'a>, SerError> {
-        self.serialize_map(Some(len))
-    }
-
-    fn serialize_tuple_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _len: usize,
-    ) -> Result<Self::SerializeTupleVariant, SerError> {
-        Err(SerError("tuple variants not supported".into()))
-    }
-
-    fn serialize_struct_variant(
-        self,
-        _name: &'static str,
-        _variant_index: u32,
-        _variant: &'static str,
-        _len: usize,
-    ) -> Result<Self::SerializeStructVariant, SerError> {
-        Err(SerError("struct variants not supported".into()))
-    }
-}
-
-/// Serialize a `Serialize` value directly into MaxMind DB binary format.
-/// Returns the encoded bytes. This avoids allocating an intermediate `Value`.
-pub fn encode_serialize(v: &impl Serialize) -> Result<Vec<u8>, SerError> {
-    let mut ser = ByteSerializer::new();
-    v.serialize(ByteSerializerRef(&mut ser))?;
-    Ok(ser.buf)
 }
 
 fn encode_pointer_raw(w: &mut Vec<u8>, pointer: u32) {
@@ -1010,96 +606,16 @@ fn encode_pointer_raw(w: &mut Vec<u8>, pointer: u32) {
     }
 }
 
-impl ByteSerializerRef<'_> {
-    fn serialize_value(self, v: &Value) -> Result<(), SerError> {
-        match v {
-            Value::Pointer(p) => {
-                encode_pointer_raw(&mut self.0.buf, *p);
-                Ok(())
-            }
-            Value::String(s) => {
-                write_str_raw(&mut self.0.buf, s)?;
-                Ok(())
-            }
-            Value::Float64(f) => {
-                ctrl_and_size(&mut self.0.buf, 3, 8);
-                self.0.buf.extend_from_slice(&f.to_bits().to_be_bytes());
-                Ok(())
-            }
-            Value::Bytes(b) => {
-                write_bytes_raw(&mut self.0.buf, b)?;
-                Ok(())
-            }
-            Value::Uint16(n) => {
-                let size = 2 - (n.leading_zeros() as usize / 8);
-                ctrl_and_size(&mut self.0.buf, 5, size);
-                for i in (0..size).rev() {
-                    self.0.buf.push((n >> (8 * i)) as u8);
-                }
-                Ok(())
-            }
-            Value::Uint32(n) => {
-                let size = 4 - (n.leading_zeros() as usize / 8);
-                ctrl_and_size(&mut self.0.buf, 6, size);
-                for i in (0..size).rev() {
-                    self.0.buf.push((n >> (8 * i)) as u8);
-                }
-                Ok(())
-            }
-            Value::Int32(n) => {
-                let u = *n as u32;
-                let size = 4 - (u.leading_zeros() as usize / 8);
-                ctrl_and_size(&mut self.0.buf, 8, size);
-                for i in (0..size).rev() {
-                    self.0.buf.push((u >> (8 * i)) as u8);
-                }
-                Ok(())
-            }
-            Value::Uint64(n) => {
-                let size = 8 - (n.leading_zeros() as usize / 8);
-                ctrl_and_size(&mut self.0.buf, 9, size);
-                for i in (0..size).rev() {
-                    self.0.buf.push((n >> (8 * i)) as u8);
-                }
-                Ok(())
-            }
-            Value::Uint128(n) => {
-                let size = 16 - (n.leading_zeros() as usize / 8);
-                ctrl_and_size(&mut self.0.buf, 10, size);
-                for i in (0..size).rev() {
-                    self.0.buf.push((n >> (8 * i)) as u8);
-                }
-                Ok(())
-            }
-            Value::Map(m) => {
-                check_payload_size(m.len())?;
-                ctrl_and_size(&mut self.0.buf, 7, m.len());
-                for (k, val) in m.iter() {
-                    write_str_raw(&mut self.0.buf, k)?;
-                    ByteSerializerRef(&mut *self.0).serialize_value(val)?;
-                }
-                Ok(())
-            }
-            Value::Slice(s) => {
-                check_payload_size(s.len())?;
-                ctrl_and_size(&mut self.0.buf, 11, s.len());
-                for val in s {
-                    ByteSerializerRef(&mut *self.0).serialize_value(val)?;
-                }
-                Ok(())
-            }
-            Value::Bool(b) => {
-                let payload_len = if *b { 1 } else { 0 };
-                ctrl_and_size(&mut self.0.buf, 14, payload_len);
-                Ok(())
-            }
-            Value::Float32(f) => {
-                ctrl_and_size(&mut self.0.buf, 15, 4);
-                self.0.buf.extend_from_slice(&f.to_bits().to_be_bytes());
-                Ok(())
-            }
-        }
-    }
+/// Encode `value` into MaxMind DB binary form.
+///
+/// # Errors
+///
+/// Returns an error if a payload is larger than the format can encode
+/// (`16_843_036` bytes) or if the value cannot be represented.
+pub fn to_vec<T: Encode + ?Sized>(value: &T) -> Result<Vec<u8>, SerError> {
+    let mut encoder = Encoder::new();
+    value.encode(&mut encoder)?;
+    Ok(encoder.into_bytes())
 }
 
 /// Encode `v` into MaxMind DB binary form.
@@ -1109,9 +625,7 @@ impl ByteSerializerRef<'_> {
 /// Returns an error if a payload is larger than the format can encode
 /// (`16_843_036` bytes).
 pub fn encode_value(v: &Value) -> EncodeResult<Vec<u8>> {
-    let mut ser = ByteSerializer::new();
-    ByteSerializerRef(&mut ser).serialize_value(v).map_err(|e| e.0)?;
-    Ok(ser.into_bytes())
+    to_vec(v).map_err(|error| error.0)
 }
 
 /// Encode `v` and return the number of bytes it would occupy.

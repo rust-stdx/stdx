@@ -8,8 +8,6 @@
 //!   `#[derive(Encode, Decode)]` (feature `derive`).
 //! - `Value` and [`RawValue`] for dynamic data and validated pass-through
 //!   bytes.
-//! - Optional serde support (feature `serde`) built on the same encoder and
-//!   decoder.
 //!
 //! # Quick start
 //!
@@ -35,8 +33,7 @@
 //!
 //! Derived structs are encoded as CBOR maps with text keys by default. Use
 //! `#[cbor(array)]` for positional arrays and `#[cbor(key = N)]` for
-//! integer-keyed maps (COSE style). Enums use serde-compatible external
-//! tagging by default.
+//! integer-keyed maps (COSE style). Enums use external tagging by default.
 //!
 //! `Vec<T>` and `&[T]` are encoded as CBOR arrays. To encode a `Vec<u8>` or
 //! `&[u8]` field as a CBOR byte string, annotate it with `#[cbor(bytes)]`.
@@ -50,7 +47,6 @@
 //! | `std` | yes | Standard library, `std::io` helpers and `HashMap` support. |
 //! | `alloc` | via `std` | `Vec`, `String`, `Value`, `RawValueBuf` and the owned APIs. |
 //! | `derive` | no | `#[derive(Encode, Decode)]`. |
-//! | `serde` | no | serde `Serializer`/`Deserializer` integration (requires `alloc`). |
 //! | `heapless` | no | Implementations for `heapless` containers. |
 //! | `small_collections` | no | Implementations for `SmallVec`/`SmallString`. |
 //! | `bytes` | no | Implementations for `bytes::Bytes`/`BytesMut`. |
@@ -89,7 +85,7 @@
 //!
 //! # Struct and enum encoding
 //!
-//! The default representation is a text-key map, matching serde/ciborium:
+//! The default representation is a text-key map:
 //!
 //! ```
 //! # #[cfg(all(feature = "derive", feature = "alloc"))]
@@ -139,7 +135,7 @@
 //! # }
 //! ```
 //!
-//! Enums use serde-compatible external tagging by default. Use
+//! Enums use external tagging by default. Use
 //! `#[cbor(array)]` for a compact `[variant_index, fields...]` form,
 //! `#[cbor(index_only)]` for a bare integer variant index,
 //! `#[cbor(tagged)]` for `[variant_index, {field_key: value, ...}]`, or
@@ -150,8 +146,7 @@
 //! `Vec<T>` and `&[T]` are CBOR arrays. Annotate a `Vec<u8>`, `&[u8]` or
 //! `Option<Vec<u8>>` field with `#[cbor(bytes)]` to encode it as a byte string
 //! (`None` becomes CBOR `null`), or use `bytes::Bytes`/`bytes::BytesMut` with
-//! the `bytes` feature. The same rule applies to `Vec<u8>` in serde
-//! (`serde_bytes` is needed there).
+//! the `bytes` feature.
 //!
 //! Borrowed byte-slice fields must use `#[cbor(bytes)]`. A CBOR array of `u8`
 //! values is not contiguous, so `&[u8]` cannot be decoded from an array
@@ -160,52 +155,16 @@
 //! encodes as a byte string; both decode definite input without copying and
 //! own indefinite-length input.
 //!
-//! # serde
-//!
-//! The `serde` feature provides a streaming serializer and deserializer over
-//! the same [`Encoder`]/[`Decoder`]. Definite-length text and byte strings are
-//! borrowed from the input when the target type asks for them:
-//!
-//! ```
-//! # #[cfg(feature = "serde")]
-//! # {
-//! use serde::{Deserialize, Serialize};
-//!
-//! #[derive(Serialize, Deserialize)]
-//! struct Packet<'a> {
-//!     #[serde(borrow)]
-//!     name: &'a str,
-//!     #[serde(with = "serde_bytes")]
-//!     data: &'a [u8],
-//! }
-//!
-//! let bytes = cbor::serde::to_vec(&Packet { name: "hi", data: b"abc" }).unwrap();
-//! let packet: Packet<'_> = cbor::serde::from_slice(&bytes).unwrap();
-//! assert_eq!(packet.name, "hi");
-//! # }
-//! ```
-//!
-//! Tags are not part of serde's data model. [`Options::serde_tags_policy`]
-//! controls the adapter: [`TagPolicy::Skip`] ignores tags (the default, which
-//! is lossy), while [`TagPolicy::Reject`] rejects them unless the target uses
-//! [`Tagged`] or [`TaggedValue`]. Use `serde::from_slice_with_options` to select
-//! a policy.
-//!
 //! # Security
 //!
 //! Decoding is bounded: [`Options::max_depth`] limits recursion in `skip`,
-//! `Value`, derived types, serde and validation. [`Options::max_container_entries`]
+//! `Value`, derived types and validation. [`Options::max_container_entries`]
 //! optionally caps the number of entries in an array or map, and rejects
 //! indefinite-length containers while it is set. Byte/text/array/map lengths
 //! are checked against the remaining input before use, and collection
 //! preallocation is capped so a forged length cannot trigger a huge allocation.
 //! Some helpers use their own fixed limits: `reader::read_item` uses 64 and
 //! diagnostic formatting uses 128.
-//!
-//! The serde adapter passes the declared element count to serde as a capacity
-//! hint. serde caps the resulting allocation at roughly 1 MiB per collection
-//! based on the element size, but large element types can still amplify a tiny
-//! header. Bound the input or use the typed API for untrusted data.
 //!
 //! Duplicate keys are rejected by default for the native typed maps
 //! (`BTreeMap`, `HashMap`, `Map`) and always for derived maps. `cbor::Map`
@@ -214,10 +173,7 @@
 //! [`DEFAULT_MAX_DUPLICATE_CHECKS`] (the cost of one
 //! [`DEFAULT_MAX_MAP_ENTRIES`]-entry map). Decoding into `Value` is
 //! order-preserving and keeps duplicate keys; `Options::duplicate_keys` does
-//! not apply there. The serde adapter rejects keys with byte-identical wire
-//! encodings by default, but it cannot detect semantically equal keys that use
-//! different encodings; use [`validate_canonical`] or the native typed API
-//! when that distinction matters.
+//! not apply there.
 //!
 //! [`validate_canonical`] detects duplicate keys by comparing deterministic
 //! encodings. It does **not** apply RFC 8949 section 5.6.1 semantic
@@ -277,7 +233,7 @@ pub use crate::{
     data::{Integer, Simple, Tag, Type, tags},
     decode::{
         BytesIter, DEFAULT_MAX_DUPLICATE_CHECKS, DEFAULT_MAX_MAP_ENTRIES, Decode, Decoder, DuplicateKeys, Options,
-        TagPolicy, TextIter, from_slice, from_slice_prefix, from_slice_with_options,
+        TextIter, from_slice, from_slice_prefix, from_slice_with_options,
     },
     diag::to_diagnostic,
     encode::{
@@ -291,8 +247,6 @@ pub use crate::{
 
 #[cfg(feature = "std")]
 pub mod reader;
-#[cfg(feature = "serde")]
-pub mod serde;
 
 #[cfg(feature = "derive")]
 pub use cbor_derive::{Decode, Encode};

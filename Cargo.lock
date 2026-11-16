@@ -261,9 +261,9 @@ checksum = "3ded4057c258ba199e2d26386d3af3780957ecaee6c4ef4041c6b4b8b97c0b06"
 
 [[package]]
 name = "bumpalo"
-version = "3.20.3"
+version = "3.20.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649"
+checksum = "87a0cf66fd1eb2fb7b822cb78370d82303750809bc6ba855f3f58e517d3238db"
 
 [[package]]
 name = "byteorder"
@@ -292,8 +292,6 @@ dependencies = [
  "cbor_derive",
  "heapless",
  "hex",
- "serde",
- "serde_bytes",
  "small_collections",
  "utf8",
 ]
@@ -309,9 +307,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.11.1"
+version = "1.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ff2a8126fff0f8c839080d619675a585e61720bb12d2baceae45769fd66f155"
+checksum = "33ef9e3e8154a45c7a95cff4c1299702106ad94062d7bb85fdc5d3a5afd91d45"
 dependencies = [
  "find-msvc-tools",
  "shlex",
@@ -463,9 +461,6 @@ dependencies = [
 [[package]]
 name = "countries"
 version = "0.1.0"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "cpufeatures"
@@ -582,9 +577,18 @@ name = "csv"
 version = "0.1.0"
 dependencies = [
  "alloc_counter",
+ "csv_derive",
  "memchr",
- "ryu",
- "serde",
+ "zmij 1.0.23",
+]
+
+[[package]]
+name = "csv_derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.10",
 ]
 
 [[package]]
@@ -614,11 +618,10 @@ name = "docker"
 version = "0.1.0"
 dependencies = [
  "bytes",
+ "form_urlencoded 1.2.2",
  "hyper",
  "hyper_utils",
  "json",
- "serde",
- "serde_urlencoded",
  "thiserror 2.0.21",
  "tokio",
  "tracing",
@@ -1371,9 +1374,17 @@ version = "0.24.0"
 dependencies = [
  "alloc_counter",
  "ipnetwork",
+ "maxminddb_derive",
  "memchr",
- "serde",
- "serde_json",
+]
+
+[[package]]
+name = "maxminddb_derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.10",
 ]
 
 [[package]]
@@ -1408,9 +1419,9 @@ dependencies = [
 
 [[package]]
 name = "mio"
-version = "1.2.4"
+version = "1.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1788edb87fdc09c7e26304471e2f5be8cdefb1b6930d6e3985fc02ff53bf86ee"
+checksum = "20521a903f02b0a573cd6840e9d0a5a0cc043d361fe924092cd70f8556cc9c4a"
 dependencies = [
  "libc",
  "wasi",
@@ -1670,9 +1681,9 @@ checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 
 [[package]]
 name = "rand"
-version = "0.10.3"
+version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "65c9fb96cbc91e3478eaae79a69fcd3f1ae4ad052e471fe6732fff548984b4af"
+checksum = "8f6fa277c67e6ea590466f04c3fe82cb509f0864fe470643e5570de9514a9b11"
 dependencies = [
  "chacha20",
  "getrandom 0.4.3",
@@ -1871,14 +1882,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf54715a573b99ac80df0bc206da022bcd442c974952c7b9720069370852e21f"
 
 [[package]]
-name = "ryu"
-version = "1.0.18"
-dependencies = [
- "num_cpus",
- "rand",
-]
-
-[[package]]
 name = "s3"
 version = "0.1.0"
 dependencies = [
@@ -2040,22 +2043,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_urlencoded"
-version = "0.7.1"
-dependencies = [
- "form_urlencoded 1.2.2",
- "ryu",
- "serde",
-]
-
-[[package]]
 name = "serde_yaml"
 version = "0.9.34+deprecated"
 dependencies = [
  "indexmap 2.14.2",
- "ryu",
  "serde",
  "unsafe_libyaml",
+ "zmij 1.0.23",
 ]
 
 [[package]]
@@ -2153,7 +2147,7 @@ checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 name = "strings"
 version = "0.1.0"
 dependencies = [
- "ryu",
+ "zmij 1.0.23",
 ]
 
 [[package]]
@@ -2235,7 +2229,16 @@ version = "0.1.0"
 dependencies = [
  "alloc_counter",
  "memchr",
- "serde",
+ "template_derive",
+]
+
+[[package]]
+name = "template_derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.10",
 ]
 
 [[package]]

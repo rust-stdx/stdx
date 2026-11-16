@@ -8,6 +8,8 @@ impl Client {
         &self,
         options: Option<ListContainersOptions>,
     ) -> Result<Vec<ContainerSummary>, Error> {
-        return self.send_request("/containers/json", options, None::<()>).await;
+        return self
+            .send_request("/containers/json", options.map(|options| options.query_string()), None::<()>)
+            .await;
     }
 }

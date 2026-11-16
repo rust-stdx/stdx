@@ -16,11 +16,9 @@ path = "src/maxminddb.rs"
 
 [dependencies]
 ipnetwork = { path = "../ipnetwork" }
+maxminddb_derive = { path = "./maxminddb_derive" }
 
 memchr = { workspace = true }
-serde = { workspace = true, features = ["derive", "alloc"] }
 
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
-
-serde_json = { workspace = true }

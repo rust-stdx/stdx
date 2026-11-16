@@ -9,7 +9,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-cbor = { path = "..", features = ["derive", "serde", "alloc", "std"] }
+cbor = { path = "..", features = ["derive", "alloc", "std"] }
 
 [workspace]
 
@@ -28,12 +28,6 @@ doc = false
 [[bin]]
 name = "roundtrip"
 path = "fuzz_targets/roundtrip.rs"
-test = false
-doc = false
-
-[[bin]]
-name = "serde"
-path = "fuzz_targets/serde.rs"
 test = false
 doc = false
 

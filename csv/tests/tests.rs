@@ -973,14 +973,13 @@ fn test_roundtrip_with_newlines() {
 
 // ── Serde ─────────────────────────────────────────────────────────────
 
-#[cfg(feature = "serde")]
-mod serde_tests {
+#[cfg(feature = "derive")]
+mod derive_tests {
     use std::io::Cursor;
 
     use csv::*;
-    use serde::{Deserialize, Serialize};
 
-    #[derive(Debug, Deserialize, Serialize, PartialEq)]
+    #[derive(Debug, Decode, Encode, PartialEq)]
     struct Person {
         name: String,
         age: u32,
@@ -991,10 +990,10 @@ mod serde_tests {
         let data = b"Alice,30\nBob,25\n";
         let mut reader = Reader::new(Cursor::new(data)).set_headers(vec!["name".into(), "age".into()]);
         let mut rows = reader.rows();
-        let p1: Person = rows.next().unwrap().deserialize().unwrap();
+        let p1: Person = rows.next().unwrap().decode().unwrap();
         assert_eq!(p1.name, "Alice");
         assert_eq!(p1.age, 30);
-        let p2: Person = rows.next().unwrap().deserialize().unwrap();
+        let p2: Person = rows.next().unwrap().decode().unwrap();
         assert_eq!(p2.name, "Bob");
         assert_eq!(p2.age, 25);
     }
@@ -1005,10 +1004,10 @@ mod serde_tests {
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
         let mut rows = reader.rows();
-        let p1: Person = rows.next().unwrap().deserialize().unwrap();
+        let p1: Person = rows.next().unwrap().decode().unwrap();
         assert_eq!(p1.name, "Alice");
         assert_eq!(p1.age, 30);
-        let p2: Person = rows.next().unwrap().deserialize().unwrap();
+        let p2: Person = rows.next().unwrap().decode().unwrap();
         assert_eq!(p2.name, "Bob");
         assert_eq!(p2.age, 25);
     }
@@ -1018,7 +1017,7 @@ mod serde_tests {
         let data = b"age,name\n30,Alice\n";
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
-        let p: Person = reader.rows().next().unwrap().deserialize().unwrap();
+        let p: Person = reader.rows().next().unwrap().decode().unwrap();
         assert_eq!(p.name, "Alice");
         assert_eq!(p.age, 30);
     }
@@ -1029,17 +1028,17 @@ mod serde_tests {
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
         let row = reader.rows().next().unwrap();
-        let result: Result<Person, _> = row.deserialize();
+        let result: Result<Person, _> = row.decode();
         assert!(result.is_err());
         let err = result.unwrap_err();
-        assert!(matches!(err.kind(), ReadErrorKind::Deserialize(_)));
+        assert!(matches!(err.kind(), ReadErrorKind::Decode(_)));
         let display = err.to_string();
-        assert!(display.contains("deserialization error"), "got: {display}");
+        assert!(display.contains("decoding error"), "got: {display}");
     }
 
     #[test]
     fn test_deserialize_missing_column_defaults_to_empty() {
-        #[derive(Debug, Deserialize, PartialEq)]
+        #[derive(Debug, Decode, PartialEq)]
         struct Record {
             name: String,
             age: u32,
@@ -1049,7 +1048,7 @@ mod serde_tests {
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
         let row = reader.rows().next().unwrap();
-        let result: Result<Record, _> = row.deserialize();
+        let result: Result<Record, _> = row.decode();
         assert!(result.is_ok(), "should succeed, got: {:?}", result.err());
         let rec = result.unwrap();
         assert_eq!(rec.name, "Alice");
@@ -1058,30 +1057,11 @@ mod serde_tests {
     }
 
     #[test]
-    fn test_deserialize_tuple_fails_without_headers() {
-        let data = b"Alice,30\n";
-        let mut reader = Reader::new(Cursor::new(data));
-        let result: Result<(String, u32), _> = reader.rows().next().unwrap().deserialize();
-        assert!(result.is_err());
-        assert!(matches!(result.unwrap_err().kind(), ReadErrorKind::Deserialize(_)));
-    }
-
-    #[test]
-    fn test_deserialize_tuple_fails_even_with_headers() {
-        // Tuples have no named fields, so header-based deserialization
-        // cannot map them — they always fail.
-        let data = b"Alice,30\n";
-        let mut reader = Reader::new(Cursor::new(data)).set_headers(vec!["name".into(), "age".into()]);
-        let result: Result<(String, u32), _> = reader.rows().next().unwrap().deserialize();
-        assert!(result.is_err());
-    }
-
-    #[test]
     fn test_deserialize_set_headers() {
         let data = b"Alice,30\nBob,25\n";
         let mut reader = Reader::new(Cursor::new(data)).set_headers(vec!["name".into(), "age".into()]);
         let mut rows = reader.rows();
-        let p1: Person = rows.next().unwrap().deserialize().unwrap();
+        let p1: Person = rows.next().unwrap().decode().unwrap();
         assert_eq!(p1.name, "Alice");
         assert_eq!(p1.age, 30);
     }
@@ -1094,7 +1074,7 @@ mod serde_tests {
             reader.rows().next().unwrap()
         };
         // row is used after reader is dropped
-        let p: Person = row.deserialize().unwrap();
+        let p: Person = row.decode().unwrap();
         assert_eq!(p.name, "Alice");
     }
 
@@ -1104,14 +1084,14 @@ mod serde_tests {
         let data = b"Alice,30\n";
         let mut reader = Reader::new(Cursor::new(data)).set_headers(vec!["name".into(), "age".into()]);
         let row = reader.rows().next().unwrap();
-        let p: Person = row.deserialize().unwrap();
+        let p: Person = row.decode().unwrap();
         assert_eq!(p.name, "Alice");
         assert_eq!(p.age, 30);
     }
 
     #[test]
     fn test_deserialize_option_field() {
-        #[derive(Debug, Deserialize, PartialEq)]
+        #[derive(Debug, Decode, PartialEq)]
         struct WithOption {
             name: String,
             age: Option<u32>,
@@ -1121,7 +1101,7 @@ mod serde_tests {
         let data = b"name,age\nAlice,30\n";
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
-        let rec: WithOption = reader.rows().next().unwrap().deserialize().unwrap();
+        let rec: WithOption = reader.rows().next().unwrap().decode().unwrap();
         assert_eq!(rec.name, "Alice");
         assert_eq!(rec.age, Some(30));
         assert_eq!(rec.city, None);
@@ -1129,7 +1109,7 @@ mod serde_tests {
 
     #[test]
     fn test_deserialize_bool() {
-        #[derive(Debug, Deserialize, PartialEq)]
+        #[derive(Debug, Decode, PartialEq)]
         struct WithBool {
             name: String,
             active: bool,
@@ -1137,7 +1117,7 @@ mod serde_tests {
         let data = b"name,active\nAlice,true\nBob,false\n";
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
-        let rows: Vec<WithBool> = reader.rows().map(|r| r.deserialize().unwrap()).collect();
+        let rows: Vec<WithBool> = reader.rows().map(|r| r.decode().unwrap()).collect();
         assert_eq!(rows[0].name, "Alice");
         assert!(rows[0].active);
         assert_eq!(rows[1].name, "Bob");
@@ -1146,20 +1126,20 @@ mod serde_tests {
 
     #[test]
     fn test_deserialize_extra_columns_ignored() {
-        #[derive(Debug, Deserialize, PartialEq)]
+        #[derive(Debug, Decode, PartialEq)]
         struct OnlyName {
             name: String,
         }
         let data = b"name,age,city\nAlice,30,NYC\n";
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
-        let rec: OnlyName = reader.rows().next().unwrap().deserialize().unwrap();
+        let rec: OnlyName = reader.rows().next().unwrap().decode().unwrap();
         assert_eq!(rec.name, "Alice");
     }
 
     #[test]
     fn test_deserialize_flexible_row_different_field_count() {
-        #[derive(Debug, Deserialize, PartialEq)]
+        #[derive(Debug, Decode, PartialEq)]
         struct Record {
             a: String,
             b: String,
@@ -1167,12 +1147,12 @@ mod serde_tests {
         let data = b"a,b\n1,2,3\n";
         let mut reader = Reader::new(Cursor::new(data)).set_flexible(true);
         reader.parse_headers().unwrap();
-        let result: Result<Record, _> = reader.rows().next().unwrap().deserialize();
+        let result: Result<Record, _> = reader.rows().next().unwrap().decode();
         assert!(result.is_ok());
         // Positional deserialization only uses first N fields
     }
 
-    // ── Writer serialize ───────────────────────────────────────────
+    // ── Writer encode ───────────────────────────────────────────
 
     #[test]
     fn test_serialize_struct() {
@@ -1181,7 +1161,7 @@ mod serde_tests {
             name: "Alice".into(),
             age: 30,
         };
-        w.serialize(&alice).unwrap();
+        w.encode(&alice).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
         assert_eq!(result, "Alice,30\r\n");
     }
@@ -1194,7 +1174,7 @@ mod serde_tests {
             name: "Alice".into(),
             age: 30,
         };
-        w.serialize(&alice).unwrap();
+        w.encode(&alice).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
         assert_eq!(result, "30,Alice\r\n");
     }
@@ -1206,13 +1186,13 @@ mod serde_tests {
             name: "Alice".into(),
             age: 30,
         };
-        let err = w.serialize(&alice).unwrap_err();
-        assert!(matches!(err, WriteError::Serialize(_)));
+        let err = w.encode(&alice).unwrap_err();
+        assert!(matches!(err, WriteError::Encode(_)));
     }
 
     #[test]
     fn test_serialize_unknown_field() {
-        #[derive(Serialize)]
+        #[derive(Encode)]
         struct Extended {
             name: String,
             age: u32,
@@ -1224,14 +1204,14 @@ mod serde_tests {
             age: 30,
             extra: "x".into(),
         };
-        let err = w.serialize(&rec).unwrap_err();
-        assert!(matches!(err, WriteError::Serialize(_)));
+        let err = w.encode(&rec).unwrap_err();
+        assert!(matches!(err, WriteError::Encode(_)));
     }
 
     #[test]
     fn test_serialize_seq() {
         let mut w = Writer::new(Vec::new()).set_headers(vec!["a".into(), "b".into()]);
-        w.serialize(&["hello", "world"]).unwrap();
+        w.encode(&["hello", "world"]).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
         assert_eq!(result, "hello,world\r\n");
     }
@@ -1239,14 +1219,14 @@ mod serde_tests {
     #[test]
     fn test_serialize_tuple() {
         let mut w = Writer::new(Vec::new()).set_headers(vec!["x".into(), "y".into()]);
-        w.serialize(&(42u32, "answer")).unwrap();
+        w.encode(&(42u32, "answer")).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
         assert_eq!(result, "42,answer\r\n");
     }
 
     #[test]
     fn test_serialize_mixed_types() {
-        #[derive(Serialize)]
+        #[derive(Encode)]
         struct Mixed {
             b: bool,
             i: i32,
@@ -1260,14 +1240,14 @@ mod serde_tests {
             f: 42.5,
             s: "test".into(),
         };
-        w.serialize(&rec).unwrap();
+        w.encode(&rec).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
         assert_eq!(result, "true,-42,42.5,test\r\n");
     }
 
     #[test]
     fn test_serialize_option_some() {
-        #[derive(Serialize)]
+        #[derive(Encode)]
         struct WithOption {
             name: String,
             age: Option<u32>,
@@ -1277,14 +1257,14 @@ mod serde_tests {
             name: "Alice".into(),
             age: Some(30),
         };
-        w.serialize(&rec).unwrap();
+        w.encode(&rec).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
         assert_eq!(result, "Alice,30\r\n");
     }
 
     #[test]
     fn test_serialize_option_none() {
-        #[derive(Serialize)]
+        #[derive(Encode)]
         struct WithOption {
             name: String,
             age: Option<u32>,
@@ -1294,7 +1274,7 @@ mod serde_tests {
             name: "Alice".into(),
             age: None,
         };
-        w.serialize(&rec).unwrap();
+        w.encode(&rec).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
         assert_eq!(result, "Alice,\r\n");
     }
@@ -1302,9 +1282,9 @@ mod serde_tests {
     #[test]
     fn test_serialize_strict_field_count() {
         let mut w = Writer::new(Vec::new()).set_headers(vec!["a".into(), "b".into()]);
-        w.serialize(&["x", "y"]).unwrap();
-        let err = w.serialize(&["1", "2", "3"]).unwrap_err();
-        assert!(matches!(err, WriteError::Serialize(_)));
+        w.encode(&["x", "y"]).unwrap();
+        let err = w.encode(&["1", "2", "3"]).unwrap_err();
+        assert!(matches!(err, WriteError::Encode(_)));
     }
 
     #[test]
@@ -1314,18 +1294,18 @@ mod serde_tests {
             name: "Alice".into(),
             age: 30,
         };
-        w.serialize(&alice).unwrap();
+        w.encode(&alice).unwrap();
         let csv_data = w.into_inner().unwrap();
 
         let mut reader = Reader::new(Cursor::new(csv_data)).set_headers(vec!["name".into(), "age".into()]);
         let row = reader.rows().next().unwrap();
-        let parsed: Person = row.deserialize().unwrap();
+        let parsed: Person = row.decode().unwrap();
         assert_eq!(parsed, alice);
     }
 
     #[test]
     fn test_serialize_with_quoted_fields() {
-        #[derive(Serialize)]
+        #[derive(Encode)]
         struct Row {
             name: String,
             note: String,
@@ -1335,7 +1315,7 @@ mod serde_tests {
             name: "Alice".into(),
             note: "has a comma, see".into(),
         };
-        w.serialize(&rec).unwrap();
+        w.encode(&rec).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
         assert_eq!(result, "Alice,\"has a comma, see\"\r\n");
     }
@@ -1749,16 +1729,15 @@ fn test_writer_quoted_field_with_custom_delimiter() {
     assert_eq!(result, "\"hello|world\"|foo\r\n");
 }
 
-// ── Serde edge cases ──────────────────────────────────────────────────
+// ── Derive edge cases ──────────────────────────────────────────────────
 
-#[cfg(feature = "serde")]
-mod serde_edge_tests {
+#[cfg(feature = "derive")]
+mod derive_edge_tests {
     use std::io::Cursor;
 
     use csv::*;
-    use serde::{Deserialize, Serialize};
 
-    #[derive(Debug, Deserialize, PartialEq)]
+    #[derive(Debug, Decode, PartialEq)]
     struct WithI128 {
         value: i128,
     }
@@ -1768,11 +1747,11 @@ mod serde_edge_tests {
         let data = b"value\n170141183460469231731687303715884105727\n";
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
-        let rec: WithI128 = reader.rows().next().unwrap().deserialize().unwrap();
+        let rec: WithI128 = reader.rows().next().unwrap().decode().unwrap();
         assert_eq!(rec.value, i128::MAX);
     }
 
-    #[derive(Debug, Deserialize, PartialEq)]
+    #[derive(Debug, Decode, PartialEq)]
     struct WithU128 {
         value: u128,
     }
@@ -1782,11 +1761,11 @@ mod serde_edge_tests {
         let data = b"value\n340282366920938463463374607431768211455\n";
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
-        let rec: WithU128 = reader.rows().next().unwrap().deserialize().unwrap();
+        let rec: WithU128 = reader.rows().next().unwrap().decode().unwrap();
         assert_eq!(rec.value, u128::MAX);
     }
 
-    #[derive(Debug, Deserialize, PartialEq)]
+    #[derive(Debug, Decode, PartialEq)]
     struct WithChar {
         ch: char,
     }
@@ -1796,7 +1775,7 @@ mod serde_edge_tests {
         let data = b"ch\na\n";
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
-        let rec: WithChar = reader.rows().next().unwrap().deserialize().unwrap();
+        let rec: WithChar = reader.rows().next().unwrap().decode().unwrap();
         assert_eq!(rec.ch, 'a');
     }
 
@@ -1804,7 +1783,7 @@ mod serde_edge_tests {
     fn test_deserialize_char_empty_errors() {
         let data = b"ch\n\n";
         let mut reader = Reader::new(Cursor::new(data)).set_headers(vec!["ch".into()]);
-        let result: Result<WithChar, _> = reader.rows().next().unwrap().deserialize();
+        let result: Result<WithChar, _> = reader.rows().next().unwrap().decode();
         assert!(result.is_err());
     }
 
@@ -1812,16 +1791,16 @@ mod serde_edge_tests {
     fn test_deserialize_char_multi_char_errors() {
         let data = b"ch\nab\n";
         let mut reader = Reader::new(Cursor::new(data)).set_headers(vec!["ch".into()]);
-        let result: Result<WithChar, _> = reader.rows().next().unwrap().deserialize();
+        let result: Result<WithChar, _> = reader.rows().next().unwrap().decode();
         assert!(result.is_err());
         let err = result.unwrap_err();
         assert!(
             err.to_string().contains("char field contains more than one character")
-                || err.to_string().contains("deserialization error")
+                || err.to_string().contains("decoding error")
         );
     }
 
-    #[derive(Debug, Deserialize, PartialEq)]
+    #[derive(Debug, Decode, PartialEq)]
     struct WithVec {
         items: Vec<String>,
     }
@@ -1831,13 +1810,13 @@ mod serde_edge_tests {
         let data = b"items\na,b,c\n";
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
-        let result: Result<WithVec, _> = reader.rows().next().unwrap().deserialize();
+        let result: Result<WithVec, _> = reader.rows().next().unwrap().decode();
         assert!(result.is_err());
     }
 
     #[test]
     fn test_serialize_struct_fewer_fields_than_headers_ok() {
-        #[derive(Serialize)]
+        #[derive(Encode)]
         struct Partial {
             name: String,
         }
@@ -1845,12 +1824,12 @@ mod serde_edge_tests {
         let rec = Partial {
             name: "Alice".into(),
         };
-        w.serialize(&rec).unwrap();
+        w.encode(&rec).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
         assert_eq!(result, "Alice,\r\n");
     }
 
-    #[derive(Debug, Deserialize, PartialEq)]
+    #[derive(Debug, Decode, PartialEq)]
     struct MissingField {
         name: String,
         age: u32,
@@ -1863,18 +1842,18 @@ mod serde_edge_tests {
         let data = b"name\nAlice\n";
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
-        let result: Result<MissingField, _> = reader.rows().next().unwrap().deserialize();
+        let result: Result<MissingField, _> = reader.rows().next().unwrap().decode();
         // age is u32 which can't parse from "", so it should error
         assert!(result.is_err());
     }
 
     #[test]
     fn test_serialize_empty_struct_with_headers() {
-        #[derive(Serialize)]
+        #[derive(Encode)]
         struct Empty {}
         let mut w = Writer::new(Vec::new()).set_headers(vec!["a".into(), "b".into()]);
         let rec = Empty {};
-        w.serialize(&rec).unwrap();
+        w.encode(&rec).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
         assert_eq!(result, ",\r\n");
     }
@@ -1882,7 +1861,7 @@ mod serde_edge_tests {
     #[test]
     fn test_serialize_unit() {
         let mut w = Writer::new(Vec::new()).set_headers(vec!["val".into()]);
-        w.serialize(&()).unwrap();
+        w.encode(&()).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
         assert_eq!(result, "\r\n");
     }
@@ -1890,20 +1869,20 @@ mod serde_edge_tests {
     #[test]
     fn test_serialize_struct_seq_too_short_errors() {
         let mut w = Writer::new(Vec::new()).set_headers(vec!["a".into(), "b".into(), "c".into()]);
-        let result = w.serialize(&["only"]);
+        let result = w.encode(&["only"]);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_serialize_struct_seq_too_long_errors() {
         let mut w = Writer::new(Vec::new()).set_headers(vec!["a".into(), "b".into()]);
-        let result = w.serialize(&["x", "y", "z"]);
+        let result = w.encode(&["x", "y", "z"]);
         assert!(result.is_err());
     }
 
     #[test]
     fn test_deserialize_option_none() {
-        #[derive(Debug, Deserialize, PartialEq)]
+        #[derive(Debug, Decode, PartialEq)]
         struct WithOption {
             name: String,
             extra: Option<String>,
@@ -1911,14 +1890,14 @@ mod serde_edge_tests {
         let data = b"name\nalice\n";
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
-        let rec: WithOption = reader.rows().next().unwrap().deserialize().unwrap();
+        let rec: WithOption = reader.rows().next().unwrap().decode().unwrap();
         assert_eq!(rec.name, "alice");
         assert_eq!(rec.extra, None);
     }
 
     #[test]
     fn test_deserialize_option_some() {
-        #[derive(Debug, Deserialize, PartialEq)]
+        #[derive(Debug, Decode, PartialEq)]
         struct WithOption {
             name: String,
             extra: Option<String>,
@@ -1926,7 +1905,7 @@ mod serde_edge_tests {
         let data = b"name,extra\nalice,hello\n";
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
-        let rec: WithOption = reader.rows().next().unwrap().deserialize().unwrap();
+        let rec: WithOption = reader.rows().next().unwrap().decode().unwrap();
         assert_eq!(rec.name, "alice");
         assert_eq!(rec.extra, Some("hello".into()));
     }
@@ -1935,7 +1914,7 @@ mod serde_edge_tests {
 
     #[test]
     fn test_option_none_roundtrip() {
-        #[derive(Debug, Deserialize, Serialize, PartialEq)]
+        #[derive(Debug, Decode, Encode, PartialEq)]
         struct Record {
             name: String,
             extra: Option<String>,
@@ -1945,20 +1924,20 @@ mod serde_edge_tests {
             extra: None,
         };
         let mut w = Writer::new(Vec::new()).set_headers(vec!["name".into(), "extra".into()]);
-        w.serialize(&rec).unwrap();
+        w.encode(&rec).unwrap();
         let csv_data = w.into_inner().unwrap();
 
         let mut reader = Reader::new(Cursor::new(csv_data)).set_headers(vec!["name".into(), "extra".into()]);
-        let parsed: Record = reader.rows().next().unwrap().deserialize().unwrap();
+        let parsed: Record = reader.rows().next().unwrap().decode().unwrap();
         assert_eq!(parsed, rec);
     }
 
-    // ── serde(skip) support ─────────────────────────────────────────
+    // ── csv(skip) support ─────────────────────────────────────────
 
-    #[derive(Debug, Deserialize, Serialize, PartialEq)]
+    #[derive(Debug, Decode, Encode, PartialEq)]
     struct WithIgnoredField {
         name: String,
-        #[serde(skip)]
+        #[csv(skip)]
         age: u32,
     }
 
@@ -1967,7 +1946,7 @@ mod serde_edge_tests {
         let data = b"name,age\nAlice,30\n";
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
-        let rec: WithIgnoredField = reader.rows().next().unwrap().deserialize().unwrap();
+        let rec: WithIgnoredField = reader.rows().next().unwrap().decode().unwrap();
         assert_eq!(
             rec,
             WithIgnoredField {
@@ -1982,7 +1961,7 @@ mod serde_edge_tests {
         let data = b"name\nAlice\n";
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
-        let rec: WithIgnoredField = reader.rows().next().unwrap().deserialize().unwrap();
+        let rec: WithIgnoredField = reader.rows().next().unwrap().decode().unwrap();
         assert_eq!(
             rec,
             WithIgnoredField {
@@ -1999,7 +1978,7 @@ mod serde_edge_tests {
             age: 42,
         };
         let mut w = Writer::new(Vec::new()).set_headers(vec!["name".into(), "age".into()]);
-        w.serialize(&rec).unwrap();
+        w.encode(&rec).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
         assert_eq!(result, "Alice,\r\n");
     }
@@ -2011,7 +1990,7 @@ mod serde_edge_tests {
             age: 42,
         };
         let mut w = Writer::new(Vec::new()).set_headers(vec!["name".into()]);
-        w.serialize(&rec).unwrap();
+        w.encode(&rec).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
         assert_eq!(result, "Alice\r\n");
     }
@@ -2023,22 +2002,22 @@ mod serde_edge_tests {
             age: 99,
         };
         let mut w = Writer::new(Vec::new()).set_headers(vec!["name".into(), "age".into()]);
-        w.serialize(&rec).unwrap();
+        w.encode(&rec).unwrap();
         let csv_data = w.into_inner().unwrap();
 
         let mut reader = Reader::new(Cursor::new(csv_data)).set_headers(vec!["name".into(), "age".into()]);
-        let parsed: WithIgnoredField = reader.rows().next().unwrap().deserialize().unwrap();
+        let parsed: WithIgnoredField = reader.rows().next().unwrap().decode().unwrap();
         assert_eq!(parsed.name, "Bob");
         assert_eq!(parsed.age, 0);
     }
 
-    #[derive(Debug, Deserialize, Serialize, PartialEq)]
+    #[derive(Debug, Decode, Encode, PartialEq)]
     struct WithMultipleIgnored {
         a: String,
-        #[serde(skip)]
+        #[csv(skip)]
         b: String,
         c: String,
-        #[serde(skip)]
+        #[csv(skip)]
         d: u64,
     }
 
@@ -2047,7 +2026,7 @@ mod serde_edge_tests {
         let data = b"a,b,c,d\nx,y,z,42\n";
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
-        let rec: WithMultipleIgnored = reader.rows().next().unwrap().deserialize().unwrap();
+        let rec: WithMultipleIgnored = reader.rows().next().unwrap().decode().unwrap();
         assert_eq!(
             rec,
             WithMultipleIgnored {
@@ -2068,15 +2047,15 @@ mod serde_edge_tests {
             d: 999,
         };
         let mut w = Writer::new(Vec::new()).set_headers(vec!["a".into(), "b".into(), "c".into(), "d".into()]);
-        w.serialize(&rec).unwrap();
+        w.encode(&rec).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
         assert_eq!(result, "x,,z,\r\n");
     }
 
-    #[derive(Debug, Deserialize, PartialEq)]
+    #[derive(Debug, Decode, PartialEq)]
     struct WithSkipDeserializing {
         name: String,
-        #[serde(skip_deserializing)]
+        #[csv(skip)]
         age: u32,
     }
 
@@ -2085,15 +2064,15 @@ mod serde_edge_tests {
         let data = b"name,age\nAlice,30\n";
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
-        let rec: WithSkipDeserializing = reader.rows().next().unwrap().deserialize().unwrap();
+        let rec: WithSkipDeserializing = reader.rows().next().unwrap().decode().unwrap();
         assert_eq!(rec.name, "Alice");
         assert_eq!(rec.age, 0);
     }
 
-    #[derive(Debug, Serialize, PartialEq)]
+    #[derive(Debug, Encode, PartialEq)]
     struct WithSkipSerializing {
         name: String,
-        #[serde(skip_serializing)]
+        #[csv(skip)]
         age: u32,
     }
 
@@ -2104,7 +2083,7 @@ mod serde_edge_tests {
             age: 30,
         };
         let mut w = Writer::new(Vec::new()).set_headers(vec!["name".into(), "age".into()]);
-        w.serialize(&rec).unwrap();
+        w.encode(&rec).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
         assert_eq!(result, "Alice,\r\n");
     }
@@ -2567,50 +2546,49 @@ fn test_writer_unicode_roundtrip() {
     assert_eq!(row.to_vec().unwrap(), vec!["café", "ñoño"]);
 }
 
-#[cfg(feature = "serde")]
-mod serde_edge_tests2 {
+#[cfg(feature = "derive")]
+mod derive_edge_tests2 {
     use std::io::Cursor;
 
     use csv::*;
-    use serde::{Deserialize, Serialize};
 
     #[test]
     fn test_deserialize_float_nan() {
-        #[derive(Debug, Deserialize, PartialEq)]
+        #[derive(Debug, Decode, PartialEq)]
         struct WithF64 {
             val: f64,
         }
         let data = b"val\nNaN\n";
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
-        let rec: WithF64 = reader.rows().next().unwrap().deserialize().unwrap();
+        let rec: WithF64 = reader.rows().next().unwrap().decode().unwrap();
         assert!(rec.val.is_nan());
     }
 
     #[test]
     fn test_deserialize_float_inf() {
-        #[derive(Debug, Deserialize, PartialEq)]
+        #[derive(Debug, Decode, PartialEq)]
         struct WithF64 {
             val: f64,
         }
         let data = b"val\ninf\n";
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
-        let rec: WithF64 = reader.rows().next().unwrap().deserialize().unwrap();
+        let rec: WithF64 = reader.rows().next().unwrap().decode().unwrap();
         assert!(rec.val.is_infinite());
         assert!(rec.val.is_sign_positive());
     }
 
     #[test]
     fn test_deserialize_float_neg_inf() {
-        #[derive(Debug, Deserialize, PartialEq)]
+        #[derive(Debug, Decode, PartialEq)]
         struct WithF64 {
             val: f64,
         }
         let data = b"val\n-inf\n";
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
-        let rec: WithF64 = reader.rows().next().unwrap().deserialize().unwrap();
+        let rec: WithF64 = reader.rows().next().unwrap().decode().unwrap();
         assert!(rec.val.is_infinite());
         assert!(rec.val.is_sign_negative());
     }
@@ -2620,7 +2598,7 @@ mod serde_edge_tests2 {
         let mut w = Writer::new(Vec::new());
         w.write_headers(["a", "b", "c"]).unwrap();
         w = w.set_headers(vec!["x".into(), "y".into()]);
-        #[derive(Serialize)]
+        #[derive(Encode)]
         struct TwoFields {
             x: String,
             y: String,
@@ -2629,13 +2607,13 @@ mod serde_edge_tests2 {
             x: "1".into(),
             y: "2".into(),
         };
-        let err = w.serialize(&rec).unwrap_err();
+        let err = w.encode(&rec).unwrap_err();
         assert!(matches!(err, WriteError::InconsistentFieldCount { .. }));
     }
 
     #[test]
     fn test_multi_row_roundtrip() {
-        #[derive(Debug, Deserialize, Serialize, PartialEq)]
+        #[derive(Debug, Decode, Encode, PartialEq)]
         struct Record {
             name: String,
             age: u32,
@@ -2657,20 +2635,20 @@ mod serde_edge_tests2 {
 
         let mut w = Writer::new(Vec::new()).set_headers(vec!["name".into(), "age".into()]);
         for rec in &records {
-            w.serialize(rec).unwrap();
+            w.encode(rec).unwrap();
         }
         let csv_data = w.into_inner().unwrap();
 
         let mut reader = Reader::new(Cursor::new(csv_data)).set_headers(vec!["name".into(), "age".into()]);
-        let parsed: Vec<Record> = reader.rows().map(|r| r.deserialize().unwrap()).collect();
+        let parsed: Vec<Record> = reader.rows().map(|r| r.decode().unwrap()).collect();
         assert_eq!(parsed, records);
     }
 
     #[test]
     fn test_roundtrip_with_header_reorder() {
-        // Prove that serde matches by header name, not by position:
+        // Prove that decoding matches by header name, not by position:
         // serialize with headers [age, name], deserialize with same headers
-        #[derive(Debug, Deserialize, Serialize, PartialEq)]
+        #[derive(Debug, Decode, Encode, PartialEq)]
         struct Person {
             name: String,
             age: u32,
@@ -2680,22 +2658,22 @@ mod serde_edge_tests2 {
             age: 30,
         };
 
-        // Serialize with headers in reverse order
+        // Encode with headers in reverse order
         let mut w = Writer::new(Vec::new()).set_headers(vec!["age".into(), "name".into()]);
-        w.serialize(&alice).unwrap();
+        w.encode(&alice).unwrap();
         let csv_data = w.into_inner().unwrap();
         // Output should be: 30,Alice\r\n
         assert_eq!(String::from_utf8_lossy(&csv_data), "30,Alice\r\n");
 
-        // Deserialize with same header order
+        // Decode with same header order
         let mut reader = Reader::new(Cursor::new(csv_data)).set_headers(vec!["age".into(), "name".into()]);
-        let parsed: Person = reader.rows().next().unwrap().deserialize().unwrap();
+        let parsed: Person = reader.rows().next().unwrap().decode().unwrap();
         assert_eq!(parsed, alice);
     }
 
     #[test]
     fn test_deserialize_missing_column_ends_with_option_string() {
-        #[derive(Debug, Deserialize, PartialEq)]
+        #[derive(Debug, Decode, PartialEq)]
         struct Record {
             name: String,
             extra: Option<String>,
@@ -2703,14 +2681,14 @@ mod serde_edge_tests2 {
         let data = b"name\nAlice\n";
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
-        let rec: Record = reader.rows().next().unwrap().deserialize().unwrap();
+        let rec: Record = reader.rows().next().unwrap().decode().unwrap();
         assert_eq!(rec.name, "Alice");
         assert_eq!(rec.extra, None);
     }
 
     #[test]
     fn test_serialize_option_none_empty_field() {
-        #[derive(Debug, Serialize)]
+        #[derive(Debug, Encode)]
         struct WithOption {
             name: String,
             extra: Option<String>,
@@ -2720,14 +2698,14 @@ mod serde_edge_tests2 {
             name: "Alice".into(),
             extra: None,
         };
-        w.serialize(&rec).unwrap();
+        w.encode(&rec).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
         assert_eq!(result, "Alice,\r\n");
     }
 
     #[test]
     fn test_serialize_multiple_headers_all_filled() {
-        #[derive(Serialize)]
+        #[derive(Encode)]
         struct Wide {
             a: String,
             b: String,
@@ -2741,51 +2719,51 @@ mod serde_edge_tests2 {
             c: "3".into(),
             d: "4".into(),
         };
-        w.serialize(&rec).unwrap();
+        w.encode(&rec).unwrap();
         let result = String::from_utf8(w.into_inner().unwrap()).unwrap();
         assert_eq!(result, "1,2,3,4\r\n");
     }
 
     #[test]
     fn test_deserialize_empty_string_to_bool_errors() {
-        #[derive(Debug, Deserialize, PartialEq)]
+        #[derive(Debug, Decode, PartialEq)]
         struct WithBool {
             val: bool,
         }
         let data = b"val\n\n";
         let mut reader = Reader::new(Cursor::new(data)).set_headers(vec!["val".into()]);
-        let result: Result<WithBool, _> = reader.rows().next().unwrap().deserialize();
+        let result: Result<WithBool, _> = reader.rows().next().unwrap().decode();
         assert!(result.is_err());
     }
 
     #[test]
     fn test_deserialize_empty_string_to_i32_errors() {
-        #[derive(Debug, Deserialize, PartialEq)]
+        #[derive(Debug, Decode, PartialEq)]
         struct WithI32 {
             val: i32,
         }
         let data = b"val\n\n";
         let mut reader = Reader::new(Cursor::new(data)).set_headers(vec!["val".into()]);
-        let result: Result<WithI32, _> = reader.rows().next().unwrap().deserialize();
+        let result: Result<WithI32, _> = reader.rows().next().unwrap().decode();
         assert!(result.is_err());
     }
 
     #[test]
     fn test_deserialize_empty_string_to_f64_errors() {
-        #[derive(Debug, Deserialize, PartialEq)]
+        #[derive(Debug, Decode, PartialEq)]
         struct WithF64 {
             val: f64,
         }
         let data = b"val\n\n";
         let mut reader = Reader::new(Cursor::new(data)).set_headers(vec!["val".into()]);
-        let result: Result<WithF64, _> = reader.rows().next().unwrap().deserialize();
+        let result: Result<WithF64, _> = reader.rows().next().unwrap().decode();
         assert!(result.is_err());
     }
 
     #[test]
     fn test_deserialize_option_with_explicit_empty_field() {
         // Column present but field is explicitly empty ""
-        #[derive(Debug, Deserialize, PartialEq)]
+        #[derive(Debug, Decode, PartialEq)]
         struct Record {
             name: String,
             extra: Option<String>,
@@ -2793,14 +2771,14 @@ mod serde_edge_tests2 {
         let data = b"name,extra\nAlice,\n";
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
-        let rec: Record = reader.rows().next().unwrap().deserialize().unwrap();
+        let rec: Record = reader.rows().next().unwrap().decode().unwrap();
         assert_eq!(rec.name, "Alice");
         assert_eq!(rec.extra, None);
     }
 
     #[test]
     fn test_deserialize_option_with_present_field_is_some() {
-        #[derive(Debug, Deserialize, PartialEq)]
+        #[derive(Debug, Decode, PartialEq)]
         struct Record {
             name: String,
             extra: Option<String>,
@@ -2808,7 +2786,7 @@ mod serde_edge_tests2 {
         let data = b"name,extra\nAlice,hello\n";
         let mut reader = Reader::new(Cursor::new(data));
         reader.parse_headers().unwrap();
-        let rec: Record = reader.rows().next().unwrap().deserialize().unwrap();
+        let rec: Record = reader.rows().next().unwrap().decode().unwrap();
         assert_eq!(rec.name, "Alice");
         assert_eq!(rec.extra, Some("hello".into()));
     }

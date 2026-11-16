@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Breaking changes
+
+* serde support has been removed. Use `#[derive(maxminddb::Decode)]` and
+  `#[derive(maxminddb::Encode)]` instead of `Deserialize`/`Serialize`.
+  `Reader::lookup`, `Reader::within`, and `Writer::insert` now require the
+  native `Decode` and `Encode` traits, and the serde-based encoder helpers were
+  replaced by `encoder::Encoder` and `encoder::to_vec`.
+
 ### Security and robustness
 
 * Decoding is now bounded by resource limits exposed as `DecodeLimits` and

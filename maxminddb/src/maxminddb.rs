@@ -56,8 +56,11 @@
 //! Both IPv4 and IPv6 databases are supported, as are the 24-, 28-, and 32-bit
 //! search tree record sizes. The [`geoip2`] module provides typed records for
 //! the common GeoIP2 and GeoLite2 database shapes. For other databases,
-//! deserialize into your own type or into [`Value`].
+//! decode into your own type with `#[derive(maxminddb::Decode)]` or into
+//! [`Value`].
 #![deny(trivial_casts, trivial_numeric_casts, unused_import_braces)]
+
+extern crate self as maxminddb;
 
 use std::{
     cmp::Ordering,
@@ -70,7 +73,7 @@ use std::{
 };
 
 use ipnetwork::IpNetwork;
-use serde::{Deserialize, Serialize, de};
+pub use maxminddb_derive::{Decode, Encode};
 
 // #[cfg(feature = "mmap")]
 // pub use memmap2::Mmap;
@@ -83,7 +86,9 @@ pub mod decoder;
 pub mod encoder;
 pub mod geoip2;
 pub mod writer;
-pub use encoder::Value;
+
+pub use decoder::{Decode, Decoder};
+pub use encoder::{Encode, Encoder, Value};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum MaxMindDBError {
@@ -127,13 +132,7 @@ impl Display for MaxMindDBError {
 // Use default implementation for `core::error::Error`
 impl core::error::Error for MaxMindDBError {}
 
-impl de::Error for MaxMindDBError {
-    fn custom<T: Display>(msg: T) -> Self {
-        MaxMindDBError::DecodingError(format!("{msg}"))
-    }
-}
-
-#[derive(Deserialize, Serialize, Clone, Debug)]
+#[derive(Decode, Encode, Clone, Debug)]
 pub struct Metadata {
     pub binary_format_major_version: u16,
     pub binary_format_minor_version: u16,
@@ -206,7 +205,7 @@ struct WithinNode {
 }
 
 #[derive(Debug)]
-pub struct Within<'de, T: Deserialize<'de>, S: AsRef<[u8]>> {
+pub struct Within<'de, T: Decode<'de>, S: AsRef<[u8]>> {
     reader: &'de Reader<S>,
     node_count: usize,
     /// Length in bytes of the addresses being iterated (`4` or `16`).
@@ -221,7 +220,7 @@ pub struct WithinItem<T> {
     pub info: T,
 }
 
-impl<'de, T: Deserialize<'de>, S: AsRef<[u8]>> Iterator for Within<'de, T, S> {
+impl<'de, T: Decode<'de>, S: AsRef<[u8]>> Iterator for Within<'de, T, S> {
     type Item = Result<WithinItem<T>, MaxMindDBError>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -254,7 +253,7 @@ impl<'de, T: Deserialize<'de>, S: AsRef<[u8]>> Iterator for Within<'de, T, S> {
                         rec,
                         self.reader.limits,
                     );
-                    return match T::deserialize(&mut decoder) {
+                    return match T::decode(&mut decoder) {
                         Ok(info) => Some(Ok(WithinItem {
                             ip_net,
                             info,
@@ -408,7 +407,7 @@ impl<'de, S: AsRef<[u8]>> Reader<S> {
 
         let metadata_start = find_metadata_start(buf.as_ref())?;
         let mut type_decoder = decoder::Decoder::with_limits(&buf.as_ref()[metadata_start..], 0, options.limits);
-        let metadata = Metadata::deserialize(&mut type_decoder)?;
+        let metadata = Metadata::decode(&mut type_decoder)?;
         validate_metadata(&metadata)?;
 
         let search_tree_size = (metadata.node_count as usize)
@@ -457,7 +456,7 @@ impl<'de, S: AsRef<[u8]>> Reader<S> {
     /// [`MaxMindDBError::ResourceLimit`]) if the record cannot be decoded.
     pub fn lookup<T>(&'de self, address: IpAddr) -> Result<T, MaxMindDBError>
     where
-        T: Deserialize<'de>,
+        T: Decode<'de>,
     {
         self.lookup_prefix(address).map(|(v, _)| v)
     }
@@ -484,7 +483,7 @@ impl<'de, S: AsRef<[u8]>> Reader<S> {
     /// matched network is returned alongside the value.
     pub fn lookup_prefix<T>(&'de self, address: IpAddr) -> Result<(T, usize), MaxMindDBError>
     where
-        T: Deserialize<'de>,
+        T: Decode<'de>,
     {
         if self.metadata.ip_version == 4 && address.is_ipv6() {
             return Err(MaxMindDBError::InvalidInputError(
@@ -501,7 +500,7 @@ impl<'de, S: AsRef<[u8]>> Reader<S> {
         let rec = self.resolve_data_pointer(pointer)?;
         let mut decoder = decoder::Decoder::with_limits(&self.buf.as_ref()[self.pointer_base..], rec, self.limits);
 
-        T::deserialize(&mut decoder).map(|v| (v, prefix_len))
+        T::decode(&mut decoder).map(|v| (v, prefix_len))
     }
 
     /// Iterate over blocks of IP networks in the opened MaxMind DB
@@ -530,7 +529,7 @@ impl<'de, S: AsRef<[u8]>> Reader<S> {
     /// panicking.
     pub fn within<T>(&'de self, cidr: IpNetwork) -> Result<Within<'de, T, S>, MaxMindDBError>
     where
-        T: Deserialize<'de>,
+        T: Decode<'de>,
     {
         let ip_address = cidr.network();
         if self.metadata.ip_version == 4 && ip_address.is_ipv6() {

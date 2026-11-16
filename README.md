@@ -136,9 +136,7 @@ Any contribution submitted for inclusion in this project shall be licensed as ab
 | `memmem` | https://github.com/jneem/memmem | d6e6a0b1fb391539cf8511e7a2de76016d86a870 | MIT |
 | `num_cpus` | https://github.com/seanmonstar/num_cpus | 7c03fc930cc47a9b94e8ca66ca44ef1a454c8f51 | MIT |
 | `percent_encoding` | https://github.com/servo/rust-url | 54346fa288e16b25b71c45149d7067c752b450e0 | MIT |
-| `ryu` | https://github.com/dtolnay/ryu | 8234c4d95f97565bfa562cd1572bb0e8ed80cc44 | Apache 2.0 |
 | `serde_bytes` | https://github.com/serde-rs/bytes | f68517945676915a9f6384ed70b67b7e8dae658b | MIT |
-| `serde_urlencoded` | https://github.com/nox/serde_urlencoded | 0cca840185fa85b39e2cc8a0b2547fff5ace8e68 | MIT |
 | `serde_yaml` | https://github.com/dtolnay/serde-yaml | 2009506d33767dfc88e979d6bc0d53d09f941c94 | MIT |
 | `tld` | https://github.com/rushmorem/publicsuffix | 47958d65a3eab3a01e4a9cf46ccf40c11a7e8052 | MIT |
 | `thiserror` | https://github.com/dtolnay/thiserror | b1827ee06f81a7d7f954e676771e19a97f9f8e3b | MIT |

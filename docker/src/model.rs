@@ -7,14 +7,7 @@ fn serialize_as_json<W: json::Write>(
     encoder.string(&json::to_string(value))
 }
 
-fn serialize_as_json_serde<S>(value: &HashMap<String, Vec<String>>, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    serializer.serialize_str(&json::to_string(value))
-}
-
-#[derive(Debug, Clone, Default, PartialEq, serde::Serialize, json::Encode)]
+#[derive(Debug, Clone, Default, PartialEq, json::Encode)]
 pub struct ListContainersOptions {
     /// Return all containers. By default, only running containers are shown
     pub all: bool,
@@ -25,9 +18,23 @@ pub struct ListContainersOptions {
 
     /// See Docker's documentation to learn how to use filters
     /// https://docs.docker.com/reference/cli/docker/container/ls/#filter
-    #[serde(serialize_with = "serialize_as_json_serde")]
     #[json(encode_with = "serialize_as_json")]
     pub filters: HashMap<String, Vec<String>>,
+}
+
+impl ListContainersOptions {
+    pub(crate) fn query_string(&self) -> String {
+        let mut query = form_urlencoded::Serializer::new(String::new());
+
+        query.append_pair("all", if self.all { "true" } else { "false" });
+        if let Some(limit) = self.limit {
+            query.append_pair("limit", &limit.to_string());
+        }
+        query.append_pair("size", if self.size { "true" } else { "false" });
+        query.append_pair("filters", &json::to_string(&self.filters));
+
+        query.finish()
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, json::Encode, json::Decode)]
@@ -139,7 +146,6 @@ pub struct Port {
 
     #[json(rename = "Type")]
     #[json(skip_serializing_if = "Option::is_none")]
-    // #[json(with = "::serde_with::As::<::serde_with::NoneAsEmptyString>")]
     pub typ: Option<PortTypeEnum>,
 }
 
@@ -378,4 +384,45 @@ pub struct EndpointIpamConfig {
     #[json(rename = "LinkLocalIPs")]
     #[json(skip_serializing_if = "Option::is_none")]
     pub link_local_i_ps: Option<Vec<String>>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn query_string_encodes_list_container_options() {
+        let mut filters = HashMap::new();
+        filters.insert("label".to_string(), vec!["my.service=test".to_string()]);
+
+        let options = ListContainersOptions {
+            all: true,
+            limit: Some(10),
+            size: false,
+            filters,
+        };
+        let query = options.query_string();
+        let pairs = form_urlencoded::parse(query.as_bytes())
+            .into_owned()
+            .collect::<HashMap<_, _>>();
+
+        assert_eq!(pairs.get("all").map(String::as_str), Some("true"));
+        assert_eq!(pairs.get("limit").map(String::as_str), Some("10"));
+        assert_eq!(pairs.get("size").map(String::as_str), Some("false"));
+        assert_eq!(
+            pairs.get("filters").map(String::as_str),
+            Some(r#"{"label":["my.service=test"]}"#)
+        );
+    }
+
+    #[test]
+    fn query_string_omits_none_limit() {
+        let options = ListContainersOptions::default();
+        let query = options.query_string();
+        let pairs = form_urlencoded::parse(query.as_bytes())
+            .into_owned()
+            .collect::<HashMap<_, _>>();
+        assert!(!pairs.contains_key("limit"));
+        assert_eq!(pairs.get("filters").map(String::as_str), Some("{}"));
+    }
 }

@@ -1,7 +1,7 @@
 use core::fmt;
 
 extern crate alloc;
-#[cfg(feature = "serde")]
+#[cfg(feature = "derive")]
 use alloc::string::String;
 #[cfg(feature = "std")]
 use alloc::sync::Arc;
@@ -37,9 +37,9 @@ pub enum ReadErrorKind {
     ///
     /// Reading stops at this point.
     NoProgress,
-    /// A serde deserialization error occurred. Carries the error message.
-    #[cfg(feature = "serde")]
-    Deserialize(String),
+    /// A native CSV decoding error occurred. Carries the error message.
+    #[cfg(feature = "derive")]
+    Decode(String),
     /// An I/O error occurred while reading the underlying source.
     Io,
 }
@@ -159,9 +159,9 @@ impl fmt::Display for ReadError {
                     self.line, self.column
                 )
             }
-            #[cfg(feature = "serde")]
-            ReadErrorKind::Deserialize(msg) => {
-                write!(f, "deserialization error at line {}, column {}: {msg}", self.line, self.column)
+            #[cfg(feature = "derive")]
+            ReadErrorKind::Decode(msg) => {
+                write!(f, "decoding error at line {}, column {}: {msg}", self.line, self.column)
             }
             ReadErrorKind::Io => {
                 write!(f, "I/O error at line {}, column {}", self.line, self.column)?;
@@ -209,9 +209,9 @@ pub enum WriteError {
     InconsistentFieldCount { expected: usize, found: usize, row: usize },
     /// A second attempt was made to write headers after they've already been written.
     HeadersAlreadyWritten,
-    /// A serde serialization error occurred.
-    #[cfg(feature = "serde")]
-    Serialize(String),
+    /// A native CSV encoding error occurred.
+    #[cfg(feature = "derive")]
+    Encode(String),
     /// An I/O error occurred while writing.
     #[cfg(feature = "std")]
     Io(std::io::Error),
@@ -231,8 +231,8 @@ impl fmt::Display for WriteError {
                 write!(f, "expected {expected} fields, found {found} in row {row}")
             }
             WriteError::HeadersAlreadyWritten => write!(f, "headers have already been written"),
-            #[cfg(feature = "serde")]
-            WriteError::Serialize(msg) => write!(f, "serialization error: {msg}"),
+            #[cfg(feature = "derive")]
+            WriteError::Encode(msg) => write!(f, "encoding error: {msg}"),
             #[cfg(feature = "std")]
             WriteError::Io(e) => write!(f, "I/O error: {e}"),
             #[cfg(not(feature = "std"))]
