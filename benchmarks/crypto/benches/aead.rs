@@ -4,7 +4,7 @@ use crypto::{
     aegis::{Aegis256, Aegis256X2, Aegis256X4},
     aes::{Aes128Gcm, Aes256Gcm},
     ascon::AsconAead128,
-    chacha::{ChaCha20Blake3, ChaCha20Poly1305},
+    chacha::ChaCha20Poly1305,
 };
 
 const DATA_SIZES: &[usize] = &[64, 1024, 16 * 1024, 64 * 1024, 1024 * 1024];
@@ -33,7 +33,6 @@ fn bench_encrypt(c: &mut Criterion) {
     let aes128 = Aes128Gcm::new(&KEY_16);
     let aes256 = Aes256Gcm::new(&KEY);
     let chacha20poly1305 = ChaCha20Poly1305::new(&KEY);
-    let chacha_blake3 = ChaCha20Blake3::new(&KEY);
     let ascon = AsconAead128::new(&KEY_16);
     let aegis256 = Aegis256::<16>::new(&KEY);
     let aegis256x2 = Aegis256X2::<16>::new(&KEY);
@@ -48,16 +47,6 @@ fn bench_encrypt(c: &mut Criterion) {
                 || vec![0xA5_u8; size],
                 |mut data| {
                     let _tag = chacha20poly1305.encrypt_in_place(&mut data, &NONCE_96[..], &[]);
-                },
-                criterion::BatchSize::SmallInput,
-            );
-        });
-
-        group.bench_function(BenchmarkId::from_parameter("ChaCha20-BLAKE3-encrypt"), |b| {
-            b.iter_batched(
-                || vec![0xA5_u8; size],
-                |mut data| {
-                    let _tag = chacha_blake3.encrypt_in_place(&mut data, &NONCE_256[..], &[]);
                 },
                 criterion::BatchSize::SmallInput,
             );
@@ -131,7 +120,6 @@ fn bench_decrypt(c: &mut Criterion) {
     let aes128 = Aes128Gcm::new(&KEY_16);
     let aes256 = Aes256Gcm::new(&KEY);
     let chacha20poly1305 = ChaCha20Poly1305::new(&KEY);
-    let chacha20_blake3 = ChaCha20Blake3::new(&KEY);
     let ascon = AsconAead128::new(&KEY_16);
     let aegis256 = Aegis256::<16>::new(&KEY);
     let aegis256x2 = Aegis256X2::<16>::new(&KEY);
@@ -150,20 +138,6 @@ fn bench_decrypt(c: &mut Criterion) {
                 },
                 |(mut data, tag)| {
                     let _result = chacha20poly1305.decrypt_in_place(&mut data, &NONCE_96[..], &[], tag.as_ref());
-                },
-                criterion::BatchSize::SmallInput,
-            );
-        });
-
-        group.bench_function(BenchmarkId::from_parameter("ChaCha20-BLAKE3-decrypt"), |b| {
-            b.iter_batched(
-                || {
-                    let mut data = vec![0xA5_u8; size];
-                    let tag = chacha20_blake3.encrypt_in_place(&mut data, &NONCE_256[..], &[]);
-                    (data, tag)
-                },
-                |(mut data, tag)| {
-                    let _result = chacha20_blake3.decrypt_in_place(&mut data, &NONCE_256[..], &[], tag.as_ref());
                 },
                 criterion::BatchSize::SmallInput,
             );

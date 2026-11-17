@@ -112,14 +112,6 @@ fn xchacha20_poly1305_encrypt_wrong_nonce_len_panics() {
 }
 
 #[test]
-#[should_panic(expected = "nonce must be 32 bytes")]
-fn chacha20_blake3_encrypt_wrong_nonce_len_panics() {
-    let cipher = crypto::chacha::ChaCha20Blake3::new(&[0u8; 32]);
-    let mut buffer = [0u8; 16];
-    let _ = cipher.encrypt_in_place(&mut buffer, &[0u8; 12], b"");
-}
-
-#[test]
 #[should_panic(expected = "nonce must be 16 bytes")]
 fn ascon_aead_encrypt_wrong_nonce_len_panics() {
     let cipher = crypto::ascon::AsconAead128::new(&[0u8; 16]);
@@ -150,7 +142,6 @@ fn aead_invalid_tag_returns_error() {
     check(&crypto::aes::Aes256Gcm::new(&[0u8; 32]), &[0u8; 12]);
     check(&crypto::chacha::ChaCha20Poly1305::new(&[0u8; 32]), &[0u8; 12]);
     check(&crypto::chacha::XChaCha20Poly1305::new(&[0u8; 32]), &[0u8; 24]);
-    check(&crypto::chacha::ChaCha20Blake3::new(&[0u8; 32]), &[0u8; 32]);
     check(&crypto::ascon::AsconAead128::new(&[0u8; 16]), &[0u8; 16]);
 }
 

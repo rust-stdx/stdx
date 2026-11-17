@@ -1,18 +1,18 @@
 use std::{env, fs, process};
 
-use crypto::{Aead, Xof, aes::Aes256Gcm, chacha::ChaCha20Blake3, sha3::Shake256};
+use crypto::{Aead, Xof, aegis::Aegis256X2, chacha::XChaCha20Poly1305, sha3::Shake256};
 use zeroize::{Zeroize, Zeroizing};
 
 const KEY_LENGTH: usize = 32;
 const NONCE_SEED_LENGTH: usize = 32;
 
-const KDF_INFO_CHACHA20_BLAKE3_KEY: &str = "crypt ChaCha20-BLAKE3 key";
-const KDF_INFO_CHACHA20_BLAKE3_NONCE: &str = "crypt ChaCha20-BLAKE3 nonce";
-const CHACHA20_BLAKE3_NONCE_LENGTH: usize = 32;
+const KDF_INFO_XCHACHA20_POLY1305_KEY: &str = "crypt XChaCha20-Poly1305 key";
+const KDF_INFO_XCHACHA20_POLY1305_NONCE: &str = "crypt XChaCha20-Poly1305 nonce";
+const XCHACHA20_POLY1305_NONCE_LENGTH: usize = 24;
 
-const KDF_INFO_AES_KEY: &str = "crypt AES-256-GCM key";
-const KDF_INFO_AES_NONCE: &str = "crypt AES-256-GCM nonce";
-const AES_NONCE_LENGTH: usize = 12;
+const KDF_INFO_AEGIS256X2_KEY: &str = "crypt AEGIS-256X2 key";
+const KDF_INFO_AEGIS256X2_NONCE: &str = "crypt AEGIS-256X2 nonce";
+const AEGIS256X2_NONCE_LENGTH: usize = 32;
 
 const ARGON2_SALT_LENGTH: usize = 32;
 const ARGON2_ITERATIONS: u32 = 8;
@@ -85,11 +85,11 @@ fn production_params() -> crypto::argon2::Params {
     }
 }
 
-// Returns nonce_seed (32 bytes) || chacha20_blake3_ciphertext
+// Returns nonce_seed (32 bytes) || xchacha20_poly1305_ciphertext
 //
-// chacha20_blake3_nonce = derive_key(nonce_seed, "...", 24)
-// aes_nonce             = derive_key(nonce_seed, "...", 12)
-// argon2_salt           = derive_key(nonce_seed, "...", 32)
+// xchacha20_poly1305_nonce = derive_key(nonce_seed, "...", 24)
+// aegis256x2_nonce         = derive_key(nonce_seed, "...", 32)
+// argon2_salt              = derive_key(nonce_seed, "...", 32)
 fn encrypt(password: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, String> {
     encrypt_with_params(password, plaintext, &production_params())
 }
@@ -98,24 +98,24 @@ fn encrypt(password: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, String> {
 fn encrypt_with_params(password: &[u8], plaintext: &[u8], params: &crypto::argon2::Params) -> Result<Vec<u8>, String> {
     let nonce_seed: [u8; NONCE_SEED_LENGTH] = rand::random();
 
-    let chacha20_nonce = derive_key::<CHACHA20_BLAKE3_NONCE_LENGTH>(&nonce_seed, KDF_INFO_CHACHA20_BLAKE3_NONCE);
-    let aes_nonce = derive_key::<AES_NONCE_LENGTH>(&nonce_seed, KDF_INFO_AES_NONCE);
+    let xchacha20_nonce = derive_key::<XCHACHA20_POLY1305_NONCE_LENGTH>(&nonce_seed, KDF_INFO_XCHACHA20_POLY1305_NONCE);
+    let aegis256x2_nonce = derive_key::<AEGIS256X2_NONCE_LENGTH>(&nonce_seed, KDF_INFO_AEGIS256X2_NONCE);
     let argon2_salt = derive_key::<ARGON2_SALT_LENGTH>(&nonce_seed, KDF_INFO_ARGON2_SALT);
 
     let root_key = argon2_derive_key(password, argon2_salt.as_slice(), params)?;
 
-    let aes_key = derive_key::<KEY_LENGTH>(root_key.as_slice(), KDF_INFO_AES_KEY);
-    let chacha20_key = derive_key::<KEY_LENGTH>(root_key.as_slice(), KDF_INFO_CHACHA20_BLAKE3_KEY);
+    let aegis256x2_key = derive_key::<KEY_LENGTH>(root_key.as_slice(), KDF_INFO_AEGIS256X2_KEY);
+    let xchacha20_key = derive_key::<KEY_LENGTH>(root_key.as_slice(), KDF_INFO_XCHACHA20_POLY1305_KEY);
 
-    // Encrypt inner layer with AES-256-GCM
-    let aes = Aes256Gcm::new(&aes_key);
-    let mut aes_buf = plaintext.to_vec();
-    let tag = aes.encrypt_in_place(&mut aes_buf, aes_nonce.as_slice(), &[]);
-    aes_buf.extend_from_slice(tag.as_ref());
+    // Encrypt inner layer with AEGIS-256X2
+    let aegis = Aegis256X2::<16>::new(&aegis256x2_key);
+    let mut inner_buf = plaintext.to_vec();
+    let tag = aegis.encrypt_in_place(&mut inner_buf, aegis256x2_nonce.as_slice(), &[]);
+    inner_buf.extend_from_slice(tag.as_ref());
 
-    // Encrypt outer layer with ChaCha20-BLAKE3
-    let cipher = ChaCha20Blake3::new(&chacha20_key);
-    let outer_ciphertext = cipher.encrypt(&aes_buf, &*chacha20_nonce, &[]);
+    // Encrypt outer layer with XChaCha20-Poly1305
+    let cipher = XChaCha20Poly1305::new(&xchacha20_key);
+    let outer_ciphertext = cipher.encrypt(&inner_buf, &*xchacha20_nonce, &[]);
 
     let mut result = Vec::with_capacity(NONCE_SEED_LENGTH + outer_ciphertext.len());
     result.extend_from_slice(&nonce_seed);
@@ -130,39 +130,40 @@ fn decrypt(password: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>, String> {
 
 /// Decrypt `ciphertext` with `password` using explicit Argon2id parameters.
 fn decrypt_with_params(password: &[u8], ciphertext: &[u8], params: &crypto::argon2::Params) -> Result<Vec<u8>, String> {
-    if ciphertext.len() < (NONCE_SEED_LENGTH + ChaCha20Blake3::TAG_SIZE) {
+    if ciphertext.len() < (NONCE_SEED_LENGTH + XChaCha20Poly1305::TAG_SIZE) {
         return Err("ciphertext is too short".to_string());
     }
 
     let nonce_seed = &ciphertext[..NONCE_SEED_LENGTH];
     let ciphertext = &ciphertext[NONCE_SEED_LENGTH..];
 
-    let chacha20_nonce = derive_key::<CHACHA20_BLAKE3_NONCE_LENGTH>(nonce_seed, KDF_INFO_CHACHA20_BLAKE3_NONCE);
-    let aes_nonce = derive_key::<AES_NONCE_LENGTH>(nonce_seed, KDF_INFO_AES_NONCE);
+    let xchacha20_nonce = derive_key::<XCHACHA20_POLY1305_NONCE_LENGTH>(nonce_seed, KDF_INFO_XCHACHA20_POLY1305_NONCE);
+    let aegis256x2_nonce = derive_key::<AEGIS256X2_NONCE_LENGTH>(nonce_seed, KDF_INFO_AEGIS256X2_NONCE);
     let argon2_salt = derive_key::<ARGON2_SALT_LENGTH>(nonce_seed, KDF_INFO_ARGON2_SALT);
 
     let root_key = argon2_derive_key(password, argon2_salt.as_slice(), params)?;
 
-    let aes_key = derive_key::<KEY_LENGTH>(root_key.as_slice(), KDF_INFO_AES_KEY);
-    let chacha20_key = derive_key::<KEY_LENGTH>(root_key.as_slice(), KDF_INFO_CHACHA20_BLAKE3_KEY);
+    let aegis256x2_key = derive_key::<KEY_LENGTH>(root_key.as_slice(), KDF_INFO_AEGIS256X2_KEY);
+    let xchacha20_key = derive_key::<KEY_LENGTH>(root_key.as_slice(), KDF_INFO_XCHACHA20_POLY1305_KEY);
 
-    // Decrypt outer layer with ChaCha20-BLAKE3
-    let cipher = ChaCha20Blake3::new(&chacha20_key);
-    let aes_ciphertext = cipher
-        .decrypt(ciphertext, &*chacha20_nonce, &[])
-        .map_err(|e| format!("error decrypting data with ChaCha20-BLAKE3: {e}"))?;
+    // Decrypt outer layer with XChaCha20-Poly1305
+    let cipher = XChaCha20Poly1305::new(&xchacha20_key);
+    let inner_ciphertext = cipher
+        .decrypt(ciphertext, &*xchacha20_nonce, &[])
+        .map_err(|e| format!("error decrypting data with XChaCha20-Poly1305: {e}"))?;
 
-    // Decrypt inner layer with AES-256-GCM
-    if aes_ciphertext.len() < Aes256Gcm::TAG_SIZE {
-        return Err("ciphertext is too short for AES-256-GCM tag".to_string());
+    // Decrypt inner layer with AEGIS-256X2
+    if inner_ciphertext.len() < Aegis256X2::<16>::TAG_SIZE {
+        return Err("ciphertext is too short for AEGIS-256X2 tag".to_string());
     }
 
-    let aes = Aes256Gcm::new(&aes_key);
-    let tag_pos = aes_ciphertext.len() - Aes256Gcm::TAG_SIZE;
-    let tag: [u8; 16] = aes_ciphertext[tag_pos..].try_into().unwrap();
-    let mut plaintext_buf = aes_ciphertext[..tag_pos].to_vec();
-    aes.decrypt_in_place(&mut plaintext_buf, aes_nonce.as_slice(), &[], &tag)
-        .map_err(|_| "error decrypting data with AES-256-GCM: authentication failed".to_string())?;
+    let aegis = Aegis256X2::<16>::new(&aegis256x2_key);
+    let tag_pos = inner_ciphertext.len() - Aegis256X2::<16>::TAG_SIZE;
+    let tag: [u8; 16] = inner_ciphertext[tag_pos..].try_into().unwrap();
+    let mut plaintext_buf = inner_ciphertext[..tag_pos].to_vec();
+    aegis
+        .decrypt_in_place(&mut plaintext_buf, aegis256x2_nonce.as_slice(), &[], &tag)
+        .map_err(|_| "error decrypting data with AEGIS-256X2: authentication failed".to_string())?;
 
     Ok(plaintext_buf)
 }

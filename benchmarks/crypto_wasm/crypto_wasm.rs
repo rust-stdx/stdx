@@ -20,7 +20,7 @@ use crypto::{
     aes::{Aes256Ctr, Aes256Gcm},
     ascon::{AsconAead128, AsconHash256},
     blake3::Blake3,
-    chacha::{ChaCha8Djb, ChaCha12Djb, ChaCha20Blake3, ChaCha20Djb, ChaCha20Poly1305},
+    chacha::{ChaCha8Djb, ChaCha12Djb, ChaCha20Djb, ChaCha20Poly1305},
     curve25519::ed25519::SecretKey,
     hmac::Hmac,
     mldsa::{MlDsa44SecretKey, MlDsa65SecretKey, MlDsa87SecretKey},
@@ -377,7 +377,6 @@ fn bench_aead(results: &mut Vec<(&str, usize, &str, f64)>) {
 
     let aes = Aes256Gcm::new(&KEY);
     let chacha20poly1305 = ChaCha20Poly1305::new(&KEY);
-    let chacha_blake3 = ChaCha20Blake3::new(&KEY);
     let ascon_aead = AsconAead128::new(&KEY_16);
     let aegis256 = Aegis256::<16>::new(&KEY);
     let aegis256x2 = Aegis256X2::<16>::new(&KEY);
@@ -411,20 +410,6 @@ fn bench_aead(results: &mut Vec<(&str, usize, &str, f64)>) {
             let _ = chacha20poly1305.decrypt_in_place(&mut buf, &NONCE_12[..], &[], tag.as_ref());
         });
         results.push(("aead", size, "ChaCha20-Poly1305-decrypt", mbs));
-
-        let mbs = benchmark("ChaCha20-BLAKE3-encrypt", size, || {
-            let mut buf = vec![0xA5u8; size];
-            let _tag = chacha_blake3.encrypt_in_place(&mut buf, &NONCE_32[..], &[]);
-        });
-        results.push(("aead", size, "ChaCha20-BLAKE3-encrypt", mbs));
-
-        let mut data = vec![0xA5u8; size];
-        let tag = chacha_blake3.encrypt_in_place(&mut data, &NONCE_32[..], &[]);
-        let mbs = benchmark("ChaCha20-BLAKE3-decrypt", size, || {
-            let mut buf = data.clone();
-            let _ = chacha_blake3.decrypt_in_place(&mut buf, &NONCE_32[..], &[], tag.as_ref());
-        });
-        results.push(("aead", size, "ChaCha20-BLAKE3-decrypt", mbs));
 
         let mbs = benchmark("Ascon-AEAD128-encrypt", size, || {
             let mut buf = vec![0xA5u8; size];

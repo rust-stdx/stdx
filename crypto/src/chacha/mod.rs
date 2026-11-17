@@ -9,9 +9,9 @@
 //! separately.
 //!
 //! An **AEAD** (Authenticated Encryption with Associated Data) wraps a stream cipher with a MAC to
-//! provide **confidentiality + integrity** in a single primitive. This crate offers three AEAD
-//! constructions built on ChaCha20:  [`ChaCha20Blake3`] (encrypt-then-MAC with BLAKE3),
-//! [`ChaCha20Poly1305`] (RFC 8439), and [`XChaCha20Poly1305`] (extended-nonce variant).
+//! provide **confidentiality + integrity** in a single primitive. This crate offers two AEAD
+//! constructions built on ChaCha20: [`ChaCha20Poly1305`] (RFC 8439) and
+//! [`XChaCha20Poly1305`] (extended-nonce variant).
 //!
 //! # ChaChaDjb vs ChaChaIetf
 //!
@@ -29,17 +29,17 @@
 //!
 //! # Examples
 //!
-//! ## AEAD usage (e.g. [`ChaCha20Blake3`])
+//! ## AEAD usage (e.g. [`XChaCha20Poly1305`])
 //!
 //! ```
-//! use crypto::{Aead, chacha::ChaCha20Blake3};
+//! use crypto::{Aead, chacha::XChaCha20Poly1305};
 //!
 //! let key = [0xab; 32]; // WARNING: don't use static values here
-//! let nonce = [0xcd; 32];
+//! let nonce = [0xcd; 24];
 //! let aad = b"associated data";
 //! let plaintext = b"hello world";
 //!
-//! let cipher = ChaCha20Blake3::new(&key);
+//! let cipher = XChaCha20Poly1305::new(&key);
 //!
 //! let mut buf = plaintext.to_vec();
 //! let tag = cipher.encrypt_in_place(&mut buf, &nonce, aad);
@@ -98,9 +98,6 @@ pub use chacha::{
     CHACHA20_IETF_MAX_LEN, ChaCha, ChaCha8Djb, ChaCha12Djb, ChaCha20Djb, ChaCha20Ietf, XChaCha, XChaCha20Djb,
     XChaCha20Ietf,
 };
-
-mod chacha20_blake3;
-pub use chacha20_blake3::ChaCha20Blake3;
 
 /// ChaCha20-Poly1305 AEAD construction (RFC 8439) and XChaCha20-Poly1305.
 mod chacha20_poly1305;
