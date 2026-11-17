@@ -1,0 +1,29 @@
+[package]
+name = "columnar-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+columnar = { path = "..", features = ["derive"] }
+libfuzzer-sys = "0.4"
+
+[workspace]
+
+[[bin]]
+name = "decode"
+path = "fuzz_targets/decode.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "roundtrip"
+path = "fuzz_targets/roundtrip.rs"
+test = false
+doc = false
+
+[profile.release]
+debug = 1

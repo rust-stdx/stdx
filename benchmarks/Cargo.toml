@@ -6,6 +6,7 @@ members = [
     "base64",
     "bel",
     "cbor",
+    "columnar",
     "constant_time_eq",
     "cose",
     "crc32",

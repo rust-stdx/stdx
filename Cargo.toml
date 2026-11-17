@@ -14,6 +14,8 @@ members = [
     "big_number",
     "cbor",
     "cbor/cbor_derive",
+    "columnar",
+    "columnar/columnar_derive",
     "constant_time_eq",
     "cose",
     "count_instructions",

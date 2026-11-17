@@ -1,0 +1,25 @@
+[package]
+name = "columnar"
+version = "0.0.0"
+description = "Benchmarks the columnar crate encodings and payload sizes."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+name = "columnar_benchmarks"
+bench = false
+
+[dependencies]
+columnar = { path = "../../columnar", features = ["derive"] }
+
+[dev-dependencies]
+criterion = { workspace = true }
+
+[[bench]]
+name = "columnar"
+harness = false

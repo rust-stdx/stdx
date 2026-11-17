@@ -28,6 +28,7 @@ host's SIMD backends.
 | `base64` | `base64` scalar vs SIMD encoding/decoding |
 | `bel` | `bel` runtime evaluation |
 | `cbor` | `cbor` against `ciborium`, `cbor2`, and `minicbor` |
+| `columnar` | `columnar` integer encodings and encoded sizes |
 | `constant_time_eq` | `constant_time_eq` and its generic implementation |
 | `cose` | `cose` signing/encryption operations |
 | `crc32` | `crc32` baseline vs specialized implementations |
@@ -67,7 +68,7 @@ assembly implementations.
 | Hash | SHA-256, SHA-512, SHA3-256, SHA3-512, SHAKE256, BLAKE3, Ascon-Hash256 |
 | MAC | HMAC-SHA256, HMAC-SHA512, Poly1305, BLAKE3-keyed |
 | Stream cipher | AES-256-CTR, ChaCha8, ChaCha12, ChaCha20 |
-| AEAD | AES-256-GCM, AES-128-GCM, ChaCha20-Poly1305, ChaCha20-BLAKE3, Ascon-AEAD128 (encrypt and decrypt) |
+| AEAD | AES-256-GCM, AES-128-GCM, ChaCha20-Poly1305, Ascon-AEAD128 (encrypt and decrypt) |
 | Signatures | Ed25519, ML-DSA-44/65/87 (sign and verify) |
 
 The following `stdx/crypto` algorithms are intentionally **not** benchmarked
@@ -78,8 +79,7 @@ against:
 - KMAC256
 
 SHAKE256, Ascon-Hash256 and Ascon-AEAD128 are only compared against RustCrypto
-because `aws-lc-rs` does not expose them. ChaCha20-BLAKE3 is benchmarked as a
-`stdx-crypto`-only group, as no compared crate provides an equivalent.
+because `aws-lc-rs` does not expose them.
 
 ## crypto_wasm
 

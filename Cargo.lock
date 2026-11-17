@@ -280,6 +280,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "columnar"
+version = "0.1.0"
+dependencies = [
+ "alloc_counter",
+ "cbor",
+ "columnar_derive",
+]
+
+[[package]]
+name = "columnar_derive"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.10",
+]
+
+[[package]]
 name = "combine"
 version = "4.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -211,6 +211,37 @@ struct User {
 let text = json::to_string(&User { name: "alice".into(), admin: true });
 let user: User = json::from_str(&text)?;
 
+// Columnar batches — CBOR envelope, native derive, no serde dependency
+use columnar::Columnar;
+
+#[derive(Columnar)]
+#[columnar(iterable)]
+struct Event {
+    #[columnar(key = 1)]
+    id: u64,
+    #[columnar(key = 2)]
+    kind: String,
+}
+
+let events = vec![Event { id: 1, kind: "click".into() }];
+let bytes = columnar::to_vec(&events)?;
+let events: Vec<Event> = columnar::from_slice(&bytes)?;
+// Lazy rows: no row vector, no column vectors.
+for event in columnar::iter_from_slice::<Event>(&bytes)? {
+    let event = event?;
+}
+
+// Borrow strings from the input instead of allocating one String per value
+use std::borrow::Cow;
+#[derive(Columnar)]
+struct BorrowedEvent<'a> {
+    #[columnar(key = 1)]
+    id: u64,
+    #[columnar(key = 2)]
+    kind: Cow<'a, str>,
+}
+let events: Vec<BorrowedEvent<'_>> = columnar::from_slice(&bytes)?;
+
 // Dynamic and raw values
 let value: json::Value = json::from_str(r#"{"a":[1,2]}"#)?;
 let raw = json::RawValue::new(br#"{"a":1}"#)?;
