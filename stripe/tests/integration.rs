@@ -71,7 +71,7 @@ fn integration_client() -> Option<Client> {
         );
     }
     crypto_rustls::install_default_rustls_provider();
-    Some(Client::new(key).expect("build Stripe client"))
+    Some(Client::new_reqwest(reqwest::Client::new(), key).expect("build Stripe client"))
 }
 
 fn skip(test: &str) {
