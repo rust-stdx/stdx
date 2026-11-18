@@ -15,7 +15,7 @@ name = "columnar_benchmarks"
 bench = false
 
 [dependencies]
-columnar = { path = "../../columnar", features = ["derive"] }
+columnar = { path = "../../columnar" }
 
 [dev-dependencies]
 criterion = { workspace = true }

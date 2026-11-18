@@ -19,6 +19,18 @@ struct Row {
     delta: u64,
     #[columnar(key = 7, encoding = "delta_of_delta")]
     delta_of_delta: i64,
+    #[columnar(key = 8, encoding = "dictionary")]
+    dictionary: String,
+    #[columnar(key = 9, encoding = "offsets")]
+    offsets: String,
+    #[columnar(key = 10, encoding = "packed")]
+    packed: u64,
+    #[columnar(key = 11, encoding = "varint")]
+    varint: i64,
+    #[columnar(key = 12, encoding = "rle")]
+    rle: bool,
+    #[columnar(key = 13)]
+    optional_list: Option<Vec<u16>>,
 }
 
 #[derive(columnar::Columnar, Debug, PartialEq)]
@@ -39,5 +51,11 @@ fuzz_target!(|data: &[u8]| {
             .map(|row| row.unwrap())
             .collect::<Vec<_>>();
         assert_eq!(rows, lazy);
+
+        // Re-encoding into a reused buffer must produce the same envelope.
+        let mut buffer = Vec::new();
+        columnar::to_vec_into(&rows, &mut buffer).unwrap();
+        assert_eq!(buffer, bytes);
+        assert!(buffer.capacity() >= buffer.len());
     }
 });

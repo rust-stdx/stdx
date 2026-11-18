@@ -47,8 +47,9 @@ impl Default for SeenKeys {
     }
 }
 
-/// Reserved envelope key for the header.
+/// Encoding identifier for a struct column.
 pub const ENC_STRUCT: u64 = 1;
+/// Encoding identifier for an enum column.
 pub const ENC_ENUM: u64 = 2;
 pub(crate) const ENC_PACKED: u64 = 3;
 pub(crate) const ENC_FOR: u64 = 4;
@@ -73,7 +74,14 @@ pub(crate) const ENC_DELTA_OF_DELTA: u64 = 16;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum Encoding {
-    /// Let the type choose its default encoding.
+    /// Let the type choose its encoding.
+    ///
+    /// Integer, float, boolean, string and byte columns are scanned for their
+    /// range and runs. On large columns, first and second differences are
+    /// estimated from a bounded sample to keep encoding fast. [`Encoding::Auto`]
+    /// keeps packed/FOR lengths or bit-packing unless RLE or a delta encoding
+    /// is estimated to be at least 5% smaller. Columns with fewer than 32
+    /// values always use the simple type default.
     Auto,
     /// Fixed-width little-endian values.
     Packed,
@@ -95,11 +103,11 @@ pub enum Encoding {
     DeltaRle,
     /// Delta-of-delta encoding.
     ///
-    /// The first value is stored absolutely and each following value is a
-    /// second difference encoded as a signed varint. This is useful when the
-    /// first differences change often but the second differences stay small,
-    /// such as jittered timestamps. Only integer columns up to 64 bits support
-    /// it.
+    /// The first value is stored absolutely. The second value stores its first
+    /// difference relative to a zero previous delta, and every following value
+    /// stores a second difference. This is useful when the first differences
+    /// change often but the second differences stay small, such as jittered
+    /// timestamps. Only integer columns up to 64 bits support it.
     DeltaOfDelta,
     /// Dictionary encoding.
     Dictionary,
@@ -204,17 +212,37 @@ pub(crate) fn write_varint(out: &mut Vec<u8>, mut value: u128) {
     }
 }
 
+/// Number of bytes `value` occupies as an unsigned LEB128 varint.
+#[inline]
+pub(crate) fn varint_len(value: u128) -> usize {
+    let bits = if value == 0 { 0 } else { 128 - value.leading_zeros() };
+    (bits.max(1) as usize).div_ceil(7)
+}
+
 pub(crate) fn read_varint(data: &[u8], pos: &mut usize) -> Result<u128> {
     let mut value = 0u128;
     let mut shift = 0u32;
     loop {
-        let byte = *data.get(*pos).ok_or(Error::InvalidHeader)?;
+        let byte = *data.get(*pos).ok_or(Error::InvalidVarint)?;
         *pos += 1;
-        if shift >= 128 {
-            return Err(Error::LengthOverflow);
+        let payload = u128::from(byte & 0x7f);
+        if shift == 126 {
+            // Only two payload bits fit in a u128.
+            if payload > 0x03 || byte & 0x80 != 0 || payload == 0 {
+                return Err(Error::InvalidVarint);
+            }
+            return Ok(value | (payload << 126));
         }
-        value |= u128::from(byte & 0x7f) << shift;
+        if shift > 126 {
+            return Err(Error::InvalidVarint);
+        }
+        value |= payload << shift;
         if byte & 0x80 == 0 {
+            // A multi-byte varint whose final payload is zero is overlong: the
+            // same value has a shorter encoding.
+            if shift != 0 && payload == 0 {
+                return Err(Error::InvalidVarint);
+            }
             return Ok(value);
         }
         shift += 7;

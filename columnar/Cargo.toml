@@ -1,7 +1,7 @@
 [package]
 name = "columnar"
 version = "0.1.0"
-description = "CBOR-enveloped columnar encoding for Rust structs"
+description = "Columnar encoding for Rust structs"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -14,14 +14,14 @@ workspace = true
 path = "./columnar.rs"
 
 [features]
-default = ["std", "derive"]
-std = ["cbor/std"]
-derive = ["dep:columnar_derive"]
+default = ["std"]
+std = ["cbor/std", "utf8/std"]
 
 [dependencies]
-columnar_derive = { path = "./columnar_derive", optional = true }
+columnar_derive = { path = "./columnar_derive" }
 
 cbor = { path = "../cbor", default-features = false, features = ["alloc"] }
+utf8 = { path = "../utf8", default-features = false }
 
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }

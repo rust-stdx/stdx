@@ -18,16 +18,20 @@ pub fn bits_needed(value: u128) -> u8 {
     }
 }
 
-pub(crate) struct BitWriter {
-    buf: Vec<u8>,
+/// Writer for least-significant-bit-first packed values.
+///
+/// The writer appends to an existing buffer, so encoders can write payloads
+/// directly into the output envelope without a temporary vector.
+pub(crate) struct BitWriter<'a> {
+    buf: &'a mut Vec<u8>,
     acc: u128,
     bits: usize,
 }
 
-impl BitWriter {
-    pub(crate) fn with_capacity(bytes: usize) -> Self {
+impl<'a> BitWriter<'a> {
+    pub(crate) fn new(buf: &'a mut Vec<u8>) -> Self {
         BitWriter {
-            buf: Vec::with_capacity(bytes),
+            buf,
             acc: 0,
             bits: 0,
         }
@@ -57,13 +61,14 @@ impl BitWriter {
         }
     }
 
-    pub(crate) fn finish(mut self) -> Vec<u8> {
+    pub(crate) fn finish(mut self) {
         if self.bits > 0 {
             let bytes = self.bits.div_ceil(8);
             let acc = self.acc.to_le_bytes();
             self.buf.extend_from_slice(&acc[..bytes]);
+            self.acc = 0;
+            self.bits = 0;
         }
-        self.buf
     }
 }
 
@@ -89,7 +94,9 @@ impl<'a> BitReader<'a> {
         if width == 0 {
             return Ok(0);
         }
-        debug_assert!(width <= 64);
+        if width > 64 {
+            return Err(Error::InvalidBitpackedValue);
+        }
         if width == 64 && self.bits == 0 {
             let end = self.byte_pos.checked_add(8).ok_or(Error::LengthOverflow)?;
             let slice = self.data.get(self.byte_pos..end).ok_or(Error::InvalidBitpackedValue)?;
@@ -114,6 +121,45 @@ impl<'a> BitReader<'a> {
     }
 }
 
+/// Decode `out.len()` packed values starting at `*bit_pos`.
+///
+/// The caller must have validated the payload length with [`packed_len`]; reads
+/// therefore stay inside `data`. Widths above 64 are rejected.
+#[inline]
+pub(crate) fn unpack_into(data: &[u8], bit_pos: &mut usize, width: u8, out: &mut [u64]) -> Result<()> {
+    if width == 0 {
+        out.fill(0);
+        return Ok(());
+    }
+    if width > 64 {
+        return Err(Error::InvalidBitpackedValue);
+    }
+    let mask = if width == 64 { u64::MAX } else { (1u64 << width) - 1 };
+    let width = usize::from(width);
+    for slot in out.iter_mut() {
+        let byte = *bit_pos >> 3;
+        let shift = (*bit_pos & 7) as u32;
+        *bit_pos += width;
+        let word = match data.get(byte..) {
+            Some(rest) if rest.len() >= 16 => {
+                let lo = u64::from_le_bytes(rest[..8].try_into().unwrap());
+                let hi = u64::from_le_bytes(rest[8..16].try_into().unwrap());
+                u128::from(lo) | (u128::from(hi) << 64)
+            }
+            Some(rest) => {
+                let mut word = 0u128;
+                for (index, byte) in rest.iter().take(16).enumerate() {
+                    word |= u128::from(*byte) << (8 * index);
+                }
+                word
+            }
+            None => return Err(Error::InvalidBitpackedValue),
+        };
+        *slot = ((word >> shift) as u64) & mask;
+    }
+    Ok(())
+}
+
 pub(crate) fn packed_len(count: usize, width: u8) -> Result<usize> {
     if width == 0 {
         return Ok(0);
@@ -131,27 +177,28 @@ where
 {
     let (lower, _) = values.size_hint();
     let capacity = packed_len(lower, width).unwrap_or(0);
-    let mut writer = BitWriter::with_capacity(capacity);
-    for value in values {
-        writer.write(value, width);
+    let mut buf = Vec::with_capacity(capacity);
+    {
+        let mut writer = BitWriter::new(&mut buf);
+        for value in values {
+            writer.write(value, width);
+        }
+        writer.finish();
     }
-    writer.finish()
+    buf
 }
 
 pub fn pack_u32<I>(values: I, width: u8) -> Vec<u8>
 where
     I: Iterator<Item = u32>,
 {
-    let (lower, _) = values.size_hint();
-    let capacity = packed_len(lower, width).unwrap_or(0);
-    let mut writer = BitWriter::with_capacity(capacity);
-    for value in values {
-        writer.write(u64::from(value), width);
-    }
-    writer.finish()
+    pack_u64(values.map(u64::from), width)
 }
 
 pub fn unpack_u32(data: &[u8], count: usize, width: u8) -> Result<Vec<u32>> {
+    if width > 32 {
+        return Err(Error::InvalidBitpackedValue);
+    }
     let expected = packed_len(count, width)?;
     if data.len() != expected {
         return Err(Error::LengthMismatch {
@@ -159,10 +206,17 @@ pub fn unpack_u32(data: &[u8], count: usize, width: u8) -> Result<Vec<u32>> {
             actual: data.len(),
         });
     }
-    let mut reader = BitReader::new(data);
     let mut out = Vec::with_capacity(count);
-    for _ in 0..count {
-        out.push(u32::try_from(reader.read(width)?).map_err(|_| Error::InvalidBitpackedValue)?);
+    let mut buffer = [0u64; 64];
+    let mut bit_pos = 0;
+    let mut remaining = count;
+    while remaining > 0 {
+        let take = remaining.min(buffer.len());
+        unpack_into(data, &mut bit_pos, width, &mut buffer[..take])?;
+        for &value in &buffer[..take] {
+            out.push(u32::try_from(value).map_err(|_| Error::InvalidBitpackedValue)?);
+        }
+        remaining -= take;
     }
     Ok(out)
 }
@@ -170,9 +224,18 @@ pub fn unpack_u32(data: &[u8], count: usize, width: u8) -> Result<Vec<u32>> {
 /// Count the set bits in the first `count` bits of a bitmap.
 pub(crate) fn count_valid(bitmap: &[u8], count: usize) -> usize {
     let full_bytes = count / 8;
-    let mut set = 0;
-    for byte in &bitmap[..full_bytes.min(bitmap.len())] {
-        set += byte.count_ones() as usize;
+    let full = &bitmap[..full_bytes.min(bitmap.len())];
+    let mut set = 0usize;
+    let (words, tail) = full.as_chunks::<8>();
+    for word in words {
+        set += u64::from_le_bytes(*word).count_ones() as usize;
+    }
+    if !tail.is_empty() {
+        let mut word = 0u64;
+        for (index, byte) in tail.iter().enumerate() {
+            word |= u64::from(*byte) << (8 * index);
+        }
+        set += word.count_ones() as usize;
     }
     let rem = count % 8;
     if rem > 0

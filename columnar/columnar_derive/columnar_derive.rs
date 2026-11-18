@@ -414,7 +414,7 @@ fn expand_struct_field_impl(
             default_expr(&field.attrs)
         } else {
             let local = format_ident!("__col_{}", index);
-            quote!(#local.next().unwrap())
+            quote!(#krate::__private::column_value(&mut #local, rows)?)
         };
         match &field.init {
             FieldInit::Named(ident) => quote!(#ident: #value),
@@ -456,7 +456,10 @@ fn expand_struct_field_impl(
                 }
                 #krate::__private::read_array_len(d, #count)?;
                 #(#decode_fields)*
-                let mut out = #krate::__private::Vec::with_capacity(rows);
+                #krate::__private::check_output_bytes::<Self>(options, rows)?;
+                let mut out = #krate::__private::Vec::with_capacity(
+                    #krate::__private::output_capacity::<Self>(options, rows)?
+                );
                 for _ in 0..rows {
                     out.push(#constructor);
                 }
@@ -497,7 +500,7 @@ fn expand_struct_row_impl(
             out.u64(#key)?;
             <#ty as #krate::Field>::encode_column(
                 rows.iter().map(|__row| &__row.#access),
-                &mut out,
+                out,
                 #encoding,
             )?;
         }
@@ -531,6 +534,7 @@ fn expand_struct_row_impl(
         if field.attrs.skip {
             let default = default_expr(&field.attrs);
             quote! {
+                #krate::__private::check_output_bytes::<#ty>(&options, rows)?;
                 let mut #iter = ::core::iter::repeat_with(|| #default)
                     .take(rows)
                     .collect::<#krate::__private::Vec<#ty>>()
@@ -543,6 +547,7 @@ fn expand_struct_row_impl(
                 let mut #iter = match #local {
                     ::core::option::Option::Some(values) => values.into_iter(),
                     ::core::option::Option::None => {
+                        #krate::__private::check_output_bytes::<#ty>(&options, rows)?;
                         ::core::iter::repeat_with(|| #default)
                             .take(rows)
                             .collect::<#krate::__private::Vec<#ty>>()
@@ -565,7 +570,7 @@ fn expand_struct_row_impl(
     });
     let inits = fields.iter().enumerate().map(|(index, field)| {
         let iter = format_ident!("__iter_{}", index);
-        let value = quote!(#iter.next().unwrap());
+        let value = quote!(#krate::__private::column_value(&mut #iter, rows)?);
         match &field.init {
             FieldInit::Named(ident) => quote!(#ident: #value),
             FieldInit::Tuple => value,
@@ -576,14 +581,31 @@ fn expand_struct_row_impl(
     quote! {
         impl #encode_impl_generics #krate::Columnar for #name #ty_generics #encode_where {
             fn encode_rows(rows: &[Self]) -> #krate::Result<#krate::__private::Vec<u8>> {
-                let mut out = #krate::__private::encoder_with_capacity(
-                    rows.len().saturating_mul(32).saturating_add(256)
+                let mut out = #krate::__private::Vec::with_capacity(
+                    rows.len()
+                        .saturating_mul(::core::mem::size_of::<Self>().min(8))
+                        .saturating_add(256)
                 );
-                out.map(1 + #count)?;
-                out.u64(0)?;
-                #krate::__private::write_header(&mut out, rows.len())?;
-                #(#encode_fields)*
-                Ok(#krate::__private::finish(out))
+                Self::encode_rows_into(rows, &mut out)?;
+                Ok(out)
+            }
+
+            fn encode_rows_into(
+                rows: &[Self],
+                out: &mut #krate::__private::Vec<u8>,
+            ) -> #krate::Result<()> {
+                out.clear();
+                let mut enc = #krate::__private::Encoder::new(::core::mem::take(out));
+                let result = (|| -> #krate::Result<()> {
+                    let out = &mut enc;
+                    out.map(1 + #count)?;
+                    out.u64(0)?;
+                    #krate::__private::write_header(out, rows.len())?;
+                    #(#encode_fields)*
+                    Ok(())
+                })();
+                *out = enc.into_inner();
+                result
             }
         }
 
@@ -631,7 +653,10 @@ fn expand_struct_row_impl(
                 }
                 let rows = rows.ok_or(#krate::Error::MissingHeader)?;
                 #(#decode_iters)*
-                let mut out = #krate::__private::Vec::with_capacity(rows);
+                #krate::__private::check_output_bytes::<Self>(&options, rows)?;
+                let mut out = #krate::__private::Vec::with_capacity(
+                    #krate::__private::output_capacity::<Self>(&options, rows)?
+                );
                 for _ in 0..rows {
                     out.push(#constructor);
                 }
@@ -1036,15 +1061,32 @@ fn expand_enum(input: &DeriveInput, data: &DataEnum, container: &ContainerAttrs)
     let row_impl = quote! {
         impl #encode_impl_generics #krate::Columnar for #name #ty_generics #encode_where {
             fn encode_rows(rows: &[Self]) -> #krate::Result<#krate::__private::Vec<u8>> {
-                let mut out = #krate::__private::encoder_with_capacity(
-                    rows.len().saturating_mul(32).saturating_add(256)
+                let mut out = #krate::__private::Vec::with_capacity(
+                    rows.len()
+                        .saturating_mul(::core::mem::size_of::<Self>().min(8))
+                        .saturating_add(256)
                 );
-                out.map(2)?;
-                out.u64(0)?;
-                #krate::__private::write_header(&mut out, rows.len())?;
-                out.u64(1)?;
-                <Self as #krate::Field>::encode_column(rows.iter(), &mut out, #krate::Encoding::Auto)?;
-                Ok(#krate::__private::finish(out))
+                Self::encode_rows_into(rows, &mut out)?;
+                Ok(out)
+            }
+
+            fn encode_rows_into(
+                rows: &[Self],
+                out: &mut #krate::__private::Vec<u8>,
+            ) -> #krate::Result<()> {
+                out.clear();
+                let mut enc = #krate::__private::Encoder::new(::core::mem::take(out));
+                let result = (|| -> #krate::Result<()> {
+                    let out = &mut enc;
+                    out.map(2)?;
+                    out.u64(0)?;
+                    #krate::__private::write_header(out, rows.len())?;
+                    out.u64(1)?;
+                    <Self as #krate::Field>::encode_column(rows.iter(), out, #krate::Encoding::Auto)?;
+                    Ok(())
+                })();
+                *out = enc.into_inner();
+                result
             }
         }
 
@@ -1240,7 +1282,7 @@ fn expand_enum_field_impl(
                     default_expr(&field.attrs)
                 } else {
                     let iter = format_ident!("__ei_{}_{}", variant_index, field_index);
-                    quote!(#iter.next().unwrap())
+                    quote!(#krate::__private::column_value(&mut #iter, __counts[#variant_index])?)
                 };
                 quote!(#field_ident: #value)
             });
@@ -1252,7 +1294,7 @@ fn expand_enum_field_impl(
                     default_expr(&field.attrs)
                 } else {
                     let iter = format_ident!("__ei_{}_{}", variant_index, field_index);
-                    quote!(#iter.next().unwrap())
+                    quote!(#krate::__private::column_value(&mut #iter, __counts[#variant_index])?)
                 }
             });
             let ident = &variant.ident;
@@ -1280,19 +1322,19 @@ fn expand_enum_field_impl(
                 if !matches!(hint, #krate::Encoding::Auto | #krate::Encoding::Enum) {
                     return Err(#krate::Error::UnsupportedEncoding(hint));
                 }
-                let mut tags = #krate::__private::Vec::with_capacity(values.size_hint().0);
-                for value in values.clone() {
-                    let tag: u32 = match value {
-                        #(#tag_arms)*
-                    };
-                    tags.push(tag);
-                }
                 let width = #krate::__private::bits_needed(
                     u128::from((#variant_count as u64).saturating_sub(1))
                 );
+                let tags = values.clone().map(|value| {
+                    let tag: u32 = match value {
+                        #(#tag_arms)*
+                    };
+                    tag
+                });
+                let packed = #krate::__private::pack_u32(tags, width);
                 #krate::__private::write_column(out, #krate::__private::ENC_ENUM)?;
                 out.array(1 + #total_fields)?;
-                out.bytes(&#krate::__private::pack_u32(tags.iter().copied(), width))?;
+                out.bytes(&packed)?;
                 #(#encode_children)*
                 Ok(())
             }
@@ -1313,23 +1355,20 @@ fn expand_enum_field_impl(
                 let width = #krate::__private::bits_needed(
                     u128::from((#variant_count as u64).saturating_sub(1))
                 );
-                let tags = #krate::__private::unpack_u32(tags_data, rows, width)?;
-                let mut __counts = #krate::__private::Vec::with_capacity(#variant_count);
-                for _ in 0..(#variant_count) {
-                    __counts.push(0usize);
-                }
-                for tag in &tags {
-                    let index = *tag as usize;
-                    if index >= __counts.len() {
-                        return Err(#krate::Error::InvalidBitpackedValue);
-                    }
-                    __counts[index] += 1;
-                }
+                let mut __counts = [0usize; #variant_count];
+                #krate::__private::count_enum_tags(tags_data, rows, width, &mut __counts)?;
+                let mut __tags = #krate::__private::TagIter::new(
+                    tags_data, rows, width, #variant_count
+                )?;
                 #(#decode_decls)*
                 #(#decode_children)*
                 #(#decode_iters)*
-                let mut out = #krate::__private::Vec::with_capacity(rows);
-                for tag in tags {
+                #krate::__private::check_output_bytes::<Self>(&options, rows)?;
+                let mut out = #krate::__private::Vec::with_capacity(
+                    #krate::__private::output_capacity::<Self>(&options, rows)?
+                );
+                for tag in &mut __tags {
+                    let tag = tag?;
                     out.push(match tag {
                         #(#build_arms)*
                         _ => return Err(#krate::Error::InvalidBitpackedValue),

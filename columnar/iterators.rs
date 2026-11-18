@@ -2,7 +2,9 @@
 //!
 //! These types implement [`FieldIter`] without boxing. Each encoding is a
 //! small state machine over the input slice, so decoding a column does not
-//! allocate a `Vec` for all of its values.
+//! allocate a `Vec` for all of its values. RLE and dictionary iterators are the
+//! exception: they materialize their run values or dictionary once, because
+//! those values are needed out of order.
 
 use alloc::{
     borrow::Cow,
@@ -112,6 +114,7 @@ impl<T: PackedValue> Iterator for PackedIter<'_, T> {
         let bytes = match self.data.get(self.position..end) {
             Some(bytes) => bytes,
             None => {
+                self.remaining = 0;
                 return Some(Err(Error::LengthMismatch {
                     expected: end,
                     actual: self.data.len(),
@@ -129,6 +132,7 @@ impl<T: PackedValue> Iterator for PackedIter<'_, T> {
 }
 
 impl<T: PackedValue> ExactSizeIterator for PackedIter<'_, T> {}
+impl<T: PackedValue> core::iter::FusedIterator for PackedIter<'_, T> {}
 
 pub struct FloatPackedIter<'de, T> {
     data: &'de [u8],
@@ -159,6 +163,7 @@ impl<T: FloatValue> Iterator for FloatPackedIter<'_, T> {
         let bytes = match self.data.get(self.position..end) {
             Some(bytes) => bytes,
             None => {
+                self.remaining = 0;
                 return Some(Err(Error::LengthMismatch {
                     expected: end,
                     actual: self.data.len(),
@@ -176,6 +181,7 @@ impl<T: FloatValue> Iterator for FloatPackedIter<'_, T> {
 }
 
 impl<T: FloatValue> ExactSizeIterator for FloatPackedIter<'_, T> {}
+impl<T: FloatValue> core::iter::FusedIterator for FloatPackedIter<'_, T> {}
 
 // ---------------------------------------------------------------------------
 // Frame of reference
@@ -226,6 +232,7 @@ where
 }
 
 impl<'de, T> ExactSizeIterator for ForIter<'de, T> where T: TryFrom<u128> + TryFrom<i128> {}
+impl<'de, T> core::iter::FusedIterator for ForIter<'de, T> where T: TryFrom<u128> + TryFrom<i128> {}
 
 // ---------------------------------------------------------------------------
 // Varint
@@ -280,6 +287,7 @@ where
 }
 
 impl<'de, T> ExactSizeIterator for VarintIter<'de, T> where T: TryFrom<u128> + TryFrom<i128> {}
+impl<'de, T> core::iter::FusedIterator for VarintIter<'de, T> where T: TryFrom<u128> + TryFrom<i128> {}
 
 // ---------------------------------------------------------------------------
 // Enum tags
@@ -341,6 +349,7 @@ impl Iterator for TagIter<'_> {
 }
 
 impl ExactSizeIterator for TagIter<'_> {}
+impl core::iter::FusedIterator for TagIter<'_> {}
 
 /// Count rows per enum variant without allocating.
 #[doc(hidden)]
@@ -428,6 +437,7 @@ impl<T: Clone> Iterator for RleIter<'_, T> {
             let value = match self.values.next() {
                 Some(value) => value,
                 None => {
+                    self.remaining = 0;
                     return Some(Err(Error::LengthMismatch {
                         expected: self.remaining,
                         actual: 0,
@@ -437,10 +447,19 @@ impl<T: Clone> Iterator for RleIter<'_, T> {
             let length = match read_varint(self.length_data, &mut self.length_position) {
                 Ok(length) => match u32::try_from(length) {
                     Ok(length) if length != 0 => length,
-                    Ok(_) => return Some(Err(Error::ZeroRun)),
-                    Err(_) => return Some(Err(Error::LengthOverflow)),
+                    Ok(_) => {
+                        self.remaining = 0;
+                        return Some(Err(Error::ZeroRun));
+                    }
+                    Err(_) => {
+                        self.remaining = 0;
+                        return Some(Err(Error::LengthOverflow));
+                    }
                 },
-                Err(error) => return Some(Err(error)),
+                Err(error) => {
+                    self.remaining = 0;
+                    return Some(Err(error));
+                }
             };
             self.current = Some(value);
             self.run_remaining = length;
@@ -456,6 +475,7 @@ impl<T: Clone> Iterator for RleIter<'_, T> {
 }
 
 impl<T: Clone> ExactSizeIterator for RleIter<'_, T> {}
+impl<T: Clone> core::iter::FusedIterator for RleIter<'_, T> {}
 
 pub struct DictionaryIter<'de, T> {
     dictionary: Vec<T>,
@@ -475,6 +495,7 @@ where
     if dictionary_len > options.max_list_len {
         return Err(Error::LimitExceeded("dictionary length"));
     }
+    options.check_output_bytes::<T>(dictionary_len)?;
     if dictionary_len == 0 && rows != 0 {
         return Err(Error::DictionaryIndex {
             index: 0,
@@ -531,6 +552,7 @@ impl<T: Clone> Iterator for DictionaryIter<'_, T> {
 }
 
 impl<T: Clone> ExactSizeIterator for DictionaryIter<'_, T> {}
+impl<T: Clone> core::iter::FusedIterator for DictionaryIter<'_, T> {}
 
 pub struct DeltaRleIter<'de, T> {
     length_data: &'de [u8],
@@ -608,14 +630,26 @@ where
             let length = match read_varint(self.length_data, &mut self.length_position) {
                 Ok(length) => match u32::try_from(length) {
                     Ok(length) if length != 0 => length,
-                    Ok(_) => return Some(Err(Error::ZeroRun)),
-                    Err(_) => return Some(Err(Error::LengthOverflow)),
+                    Ok(_) => {
+                        self.remaining = 0;
+                        return Some(Err(Error::ZeroRun));
+                    }
+                    Err(_) => {
+                        self.remaining = 0;
+                        return Some(Err(Error::LengthOverflow));
+                    }
                 },
-                Err(error) => return Some(Err(error)),
+                Err(error) => {
+                    self.remaining = 0;
+                    return Some(Err(error));
+                }
             };
             let delta = match read_varint(self.delta_data, &mut self.delta_position) {
                 Ok(delta) => unzigzag(delta),
-                Err(error) => return Some(Err(error)),
+                Err(error) => {
+                    self.remaining = 0;
+                    return Some(Err(error));
+                }
             };
             self.delta = delta;
             self.run_remaining = length;
@@ -635,6 +669,7 @@ where
 }
 
 impl<'de, T> ExactSizeIterator for DeltaRleIter<'de, T> where T: TryFrom<i128> {}
+impl<'de, T> core::iter::FusedIterator for DeltaRleIter<'de, T> where T: TryFrom<i128> {}
 
 pub struct DeltaOfDeltaIter<'de, T> {
     data: &'de [u8],
@@ -715,6 +750,7 @@ where
 }
 
 impl<'de, T> ExactSizeIterator for DeltaOfDeltaIter<'de, T> where T: TryFrom<i128> {}
+impl<'de, T> core::iter::FusedIterator for DeltaOfDeltaIter<'de, T> where T: TryFrom<i128> {}
 
 // ---------------------------------------------------------------------------
 // Integer column iterators
@@ -762,6 +798,10 @@ where
 }
 
 impl<'de, T> ExactSizeIterator for IntIter<'de, T> where
+    T: PackedValue + FieldDecode<'de> + Clone + TryFrom<u128> + TryFrom<i128>
+{
+}
+impl<'de, T> core::iter::FusedIterator for IntIter<'de, T> where
     T: PackedValue + FieldDecode<'de> + Clone + TryFrom<u128> + TryFrom<i128>
 {
 }
@@ -900,6 +940,7 @@ impl Iterator for UsizeIter<'_> {
 }
 
 impl ExactSizeIterator for UsizeIter<'_> {}
+impl core::iter::FusedIterator for UsizeIter<'_> {}
 
 pub struct IsizeIter<'de> {
     inner: IntIter<'de, i64>,
@@ -921,6 +962,7 @@ impl Iterator for IsizeIter<'_> {
 }
 
 impl ExactSizeIterator for IsizeIter<'_> {}
+impl core::iter::FusedIterator for IsizeIter<'_> {}
 
 pub struct CharIter<'de> {
     inner: IntIter<'de, u32>,
@@ -942,6 +984,7 @@ impl Iterator for CharIter<'_> {
 }
 
 impl ExactSizeIterator for CharIter<'_> {}
+impl core::iter::FusedIterator for CharIter<'_> {}
 
 impl<'de> FieldIter<'de> for usize {
     type Iter = UsizeIter<'de>;
@@ -1006,6 +1049,7 @@ impl Iterator for BoolIter<'_> {
 }
 
 impl ExactSizeIterator for BoolIter<'_> {}
+impl core::iter::FusedIterator for BoolIter<'_> {}
 
 impl Iterator for BoolBitpackIter<'_> {
     type Item = Result<bool>;
@@ -1031,6 +1075,7 @@ impl Iterator for BoolBitpackIter<'_> {
 }
 
 impl ExactSizeIterator for BoolBitpackIter<'_> {}
+impl core::iter::FusedIterator for BoolBitpackIter<'_> {}
 
 impl<'de> FieldIter<'de> for bool {
     type Iter = BoolIter<'de>;
@@ -1085,6 +1130,7 @@ where
 }
 
 impl<'de, T> ExactSizeIterator for FloatIter<'de, T> where T: FloatValue + FieldDecode<'de> + Clone {}
+impl<'de, T> core::iter::FusedIterator for FloatIter<'de, T> where T: FloatValue + FieldDecode<'de> + Clone {}
 
 macro_rules! impl_float_iter {
     ($ty:ty) => {
@@ -1184,6 +1230,7 @@ impl<'de, T: TextValue<'de>> Iterator for TextLengthsIter<'de, T> {
 }
 
 impl<'de, T: TextValue<'de>> ExactSizeIterator for TextLengthsIter<'de, T> {}
+impl<'de, T: TextValue<'de>> core::iter::FusedIterator for TextLengthsIter<'de, T> {}
 
 pub struct TextOffsetsIter<'de, T> {
     offsets_data: &'de [u8],
@@ -1232,6 +1279,7 @@ impl<'de, T: TextValue<'de>> Iterator for TextOffsetsIter<'de, T> {
 }
 
 impl<'de, T: TextValue<'de>> ExactSizeIterator for TextOffsetsIter<'de, T> {}
+impl<'de, T: TextValue<'de>> core::iter::FusedIterator for TextOffsetsIter<'de, T> {}
 
 pub enum TextIter<'de, T> {
     Lengths(TextLengthsIter<'de, T>),
@@ -1266,6 +1314,7 @@ where
 }
 
 impl<'de, T> ExactSizeIterator for TextIter<'de, T> where T: TextValue<'de> + FieldDecode<'de> + Clone {}
+impl<'de, T> core::iter::FusedIterator for TextIter<'de, T> where T: TextValue<'de> + FieldDecode<'de> + Clone {}
 
 fn text_lengths_iter<'de, T: TextValue<'de>>(
     d: &mut Decoder<'de>,
@@ -1441,6 +1490,7 @@ impl<'de> Iterator for BytesLengthsIter<'de> {
 }
 
 impl ExactSizeIterator for BytesLengthsIter<'_> {}
+impl core::iter::FusedIterator for BytesLengthsIter<'_> {}
 
 pub struct BytesOffsetsIter<'de> {
     offsets_data: &'de [u8],
@@ -1484,6 +1534,7 @@ impl<'de> Iterator for BytesOffsetsIter<'de> {
 }
 
 impl ExactSizeIterator for BytesOffsetsIter<'_> {}
+impl core::iter::FusedIterator for BytesOffsetsIter<'_> {}
 
 pub enum BytesIter<'de> {
     Lengths(BytesLengthsIter<'de>),
@@ -1515,6 +1566,7 @@ impl<'de> Iterator for BytesIter<'de> {
 }
 
 impl<'de> ExactSizeIterator for BytesIter<'de> {}
+impl<'de> core::iter::FusedIterator for BytesIter<'de> {}
 
 impl<'de> FieldIter<'de> for Cow<'de, [u8]> {
     type Iter = BytesIter<'de>;
@@ -1658,8 +1710,12 @@ where
                 }
                 let value = match inner.next() {
                     Some(Ok(value)) => value,
-                    Some(Err(error)) => return Some(Err(error)),
+                    Some(Err(error)) => {
+                        *index = *rows;
+                        return Some(Err(error));
+                    }
                     None => {
+                        *index = *rows;
                         return Some(Err(Error::LengthMismatch {
                             expected: *valid,
                             actual: 0,
@@ -1687,6 +1743,7 @@ where
 }
 
 impl<'de, I, T> ExactSizeIterator for OptionIter<'de, I> where I: Iterator<Item = Result<T>> {}
+impl<'de, I, T> core::iter::FusedIterator for OptionIter<'de, I> where I: Iterator<Item = Result<T>> {}
 
 impl<'de, T> FieldIter<'de> for Option<T>
 where
@@ -1740,6 +1797,7 @@ pub enum ListIter<'de, T, I> {
         rows: usize,
         row_index: usize,
         remaining_in_row: usize,
+        options: DecodeOptions,
         _ty: PhantomData<T>,
     },
     Offsets {
@@ -1749,6 +1807,7 @@ pub enum ListIter<'de, T, I> {
         rows: usize,
         row_index: usize,
         remaining_in_row: usize,
+        options: DecodeOptions,
         _ty: PhantomData<T>,
     },
 }
@@ -1768,17 +1827,29 @@ where
                 rows,
                 row_index,
                 remaining_in_row,
+                options,
                 ..
             } => {
                 if *row_index >= *rows {
                     return None;
                 }
-                let mut row = Vec::with_capacity(*remaining_in_row);
+                let capacity = match options.output_capacity::<T>(*remaining_in_row) {
+                    Ok(capacity) => capacity,
+                    Err(error) => {
+                        *row_index = *rows;
+                        return Some(Err(error));
+                    }
+                };
+                let mut row = Vec::with_capacity(capacity);
                 for _ in 0..*remaining_in_row {
                     match inner.next() {
                         Some(Ok(value)) => row.push(value),
-                        Some(Err(error)) => return Some(Err(error)),
+                        Some(Err(error)) => {
+                            *row_index = *rows;
+                            return Some(Err(error));
+                        }
                         None => {
+                            *row_index = *rows;
                             return Some(Err(Error::LengthMismatch {
                                 expected: *remaining_in_row,
                                 actual: 0,
@@ -1791,9 +1862,15 @@ where
                     let len = match read_varint(length_data, length_position) {
                         Ok(len) => match usize::try_from(len) {
                             Ok(len) => len,
-                            Err(_) => return Some(Err(Error::LengthOverflow)),
+                            Err(_) => {
+                                *row_index = *rows;
+                                return Some(Err(Error::LengthOverflow));
+                            }
                         },
-                        Err(error) => return Some(Err(error)),
+                        Err(error) => {
+                            *row_index = *rows;
+                            return Some(Err(error));
+                        }
                     };
                     *remaining_in_row = len;
                 } else {
@@ -1808,17 +1885,29 @@ where
                 rows,
                 row_index,
                 remaining_in_row,
+                options,
                 ..
             } => {
                 if *row_index >= *rows {
                     return None;
                 }
-                let mut row = Vec::with_capacity(*remaining_in_row);
+                let capacity = match options.output_capacity::<T>(*remaining_in_row) {
+                    Ok(capacity) => capacity,
+                    Err(error) => {
+                        *row_index = *rows;
+                        return Some(Err(error));
+                    }
+                };
+                let mut row = Vec::with_capacity(capacity);
                 for _ in 0..*remaining_in_row {
                     match inner.next() {
                         Some(Ok(value)) => row.push(value),
-                        Some(Err(error)) => return Some(Err(error)),
+                        Some(Err(error)) => {
+                            *row_index = *rows;
+                            return Some(Err(error));
+                        }
                         None => {
+                            *row_index = *rows;
                             return Some(Err(Error::LengthMismatch {
                                 expected: *remaining_in_row,
                                 actual: 0,
@@ -1830,13 +1919,20 @@ where
                 if *row_index < *rows {
                     let start = match offset_at(offsets_data, *width, *row_index) {
                         Ok(start) => start,
-                        Err(error) => return Some(Err(error)),
+                        Err(error) => {
+                            *row_index = *rows;
+                            return Some(Err(error));
+                        }
                     };
                     let end = match offset_at(offsets_data, *width, *row_index + 1) {
                         Ok(end) => end,
-                        Err(error) => return Some(Err(error)),
+                        Err(error) => {
+                            *row_index = *rows;
+                            return Some(Err(error));
+                        }
                     };
                     if end < start {
+                        *row_index = *rows;
                         return Some(Err(Error::InvalidOffset));
                     }
                     *remaining_in_row = (end - start) as usize;
@@ -1865,6 +1961,7 @@ where
 }
 
 impl<'de, T, I> ExactSizeIterator for ListIter<'de, T, I> where I: Iterator<Item = Result<T>> {}
+impl<'de, T, I> core::iter::FusedIterator for ListIter<'de, T, I> where I: Iterator<Item = Result<T>> {}
 
 fn list_lengths_iter<'de, T: FieldIter<'de>>(
     d: &mut Decoder<'de>,
@@ -1888,6 +1985,8 @@ fn list_lengths_iter<'de, T: FieldIter<'de>>(
     if total > options.max_list_len {
         return Err(Error::LimitExceeded("list length"));
     }
+    options.check_output_bytes::<T>(total)?;
+    options.check_output_bytes::<Vec<T>>(rows)?;
     let inner = T::decode_column_iter(d, total, options)?;
     let mut first_position = 0;
     let remaining_in_row = if rows > 0 {
@@ -1902,6 +2001,7 @@ fn list_lengths_iter<'de, T: FieldIter<'de>>(
         rows,
         row_index: 0,
         remaining_in_row,
+        options: *options,
         _ty: PhantomData,
     })
 }
@@ -1917,7 +2017,10 @@ fn list_offsets_iter<'de, T: FieldIter<'de>>(
         return Err(Error::InvalidEncoding(width as u64));
     }
     let offsets_data = d.bytes()?;
-    let expected = (rows + 1).checked_mul(width).ok_or(Error::LengthOverflow)?;
+    let expected = rows
+        .checked_add(1)
+        .and_then(|count| count.checked_mul(width))
+        .ok_or(Error::LengthOverflow)?;
     if offsets_data.len() != expected {
         return Err(Error::LengthMismatch {
             expected,
@@ -1939,6 +2042,8 @@ fn list_offsets_iter<'de, T: FieldIter<'de>>(
     if total > options.max_list_len {
         return Err(Error::LimitExceeded("list length"));
     }
+    options.check_output_bytes::<T>(total)?;
+    options.check_output_bytes::<Vec<T>>(rows)?;
     let inner = T::decode_column_iter(d, total, options)?;
     let remaining_in_row = if rows > 0 {
         usize::try_from(offset_at(offsets_data, width, 1)?).map_err(|_| Error::LimitExceeded("list length"))?
@@ -1952,6 +2057,7 @@ fn list_offsets_iter<'de, T: FieldIter<'de>>(
         rows,
         row_index: 0,
         remaining_in_row,
+        options: *options,
         _ty: PhantomData,
     })
 }
@@ -2000,8 +2106,12 @@ where
         for _ in 0..self.remaining_in_row {
             let key = match self.keys.next() {
                 Some(Ok(key)) => key,
-                Some(Err(error)) => return Some(Err(error)),
+                Some(Err(error)) => {
+                    self.row_index = self.rows;
+                    return Some(Err(error));
+                }
                 None => {
+                    self.row_index = self.rows;
                     return Some(Err(Error::LengthMismatch {
                         expected: self.remaining_in_row,
                         actual: 0,
@@ -2010,8 +2120,12 @@ where
             };
             let value = match self.values.next() {
                 Some(Ok(value)) => value,
-                Some(Err(error)) => return Some(Err(error)),
+                Some(Err(error)) => {
+                    self.row_index = self.rows;
+                    return Some(Err(error));
+                }
                 None => {
+                    self.row_index = self.rows;
                     return Some(Err(Error::LengthMismatch {
                         expected: self.remaining_in_row,
                         actual: 0,
@@ -2019,6 +2133,7 @@ where
                 }
             };
             if map.insert(key, value).is_some() {
+                self.row_index = self.rows;
                 return Some(Err(Error::DuplicateMapKey));
             }
         }
@@ -2027,9 +2142,15 @@ where
             let len = match read_varint(self.length_data, &mut self.length_position) {
                 Ok(len) => match usize::try_from(len) {
                     Ok(len) => len,
-                    Err(_) => return Some(Err(Error::LengthOverflow)),
+                    Err(_) => {
+                        self.row_index = self.rows;
+                        return Some(Err(Error::LengthOverflow));
+                    }
                 },
-                Err(error) => return Some(Err(error)),
+                Err(error) => {
+                    self.row_index = self.rows;
+                    return Some(Err(error));
+                }
             };
             self.remaining_in_row = len;
         } else {
@@ -2044,6 +2165,13 @@ where
 }
 
 impl<'de, K, V, KI, VI> ExactSizeIterator for MapIter<'de, K, V, KI, VI>
+where
+    KI: Iterator<Item = Result<K>>,
+    VI: Iterator<Item = Result<V>>,
+    K: Ord,
+{
+}
+impl<'de, K, V, KI, VI> core::iter::FusedIterator for MapIter<'de, K, V, KI, VI>
 where
     KI: Iterator<Item = Result<K>>,
     VI: Iterator<Item = Result<V>>,
@@ -2080,6 +2208,8 @@ where
         if total > options.max_list_len {
             return Err(Error::LimitExceeded("map length"));
         }
+        options.check_output_bytes::<K>(total)?;
+        options.check_output_bytes::<V>(total)?;
         let child = read_column(d)?;
         if child != ENC_STRUCT {
             return Err(Error::InvalidEncoding(child));
@@ -2133,6 +2263,7 @@ where
 }
 
 impl<I, T> ExactSizeIterator for BoxIter<I> where I: Iterator<Item = Result<T>> {}
+impl<I, T> core::iter::FusedIterator for BoxIter<I> where I: Iterator<Item = Result<T>> + core::iter::FusedIterator {}
 
 impl<'de, T> FieldIter<'de> for Box<T>
 where
@@ -2168,6 +2299,7 @@ impl Iterator for UnitIter {
 }
 
 impl ExactSizeIterator for UnitIter {}
+impl core::iter::FusedIterator for UnitIter {}
 
 impl<'de> FieldIter<'de> for () {
     type Iter = UnitIter;
@@ -2206,6 +2338,7 @@ impl<T> Iterator for PhantomIter<T> {
 }
 
 impl<T> ExactSizeIterator for PhantomIter<T> {}
+impl<T> core::iter::FusedIterator for PhantomIter<T> {}
 
 impl<'de, T: 'de> FieldIter<'de> for PhantomData<T> {
     type Iter = PhantomIter<T>;
@@ -2267,6 +2400,10 @@ where
 }
 
 impl<I, T> ExactSizeIterator for MaybeDefault<I, T> where I: Iterator<Item = Result<T>> {}
+impl<I, T> core::iter::FusedIterator for MaybeDefault<I, T> where
+    I: Iterator<Item = Result<T>> + core::iter::FusedIterator
+{
+}
 
 /// Materialized iterator for custom field types that do not implement a
 /// streaming state machine.
@@ -2303,3 +2440,4 @@ impl<T> Iterator for Materialized<T> {
 }
 
 impl<T> ExactSizeIterator for Materialized<T> {}
+impl<T> core::iter::FusedIterator for Materialized<T> {}

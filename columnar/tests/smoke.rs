@@ -97,3 +97,30 @@ fn nested_roundtrip() {
     let decoded: Vec<Nested> = columnar::from_slice(&bytes).unwrap();
     assert_eq!(decoded, rows);
 }
+
+#[test]
+fn to_vec_into_replaces_the_buffer_and_reuses_capacity() {
+    use columnar::Columnar;
+
+    #[derive(Columnar, Debug, PartialEq)]
+    struct Row {
+        #[columnar(key = 1)]
+        value: u64,
+    }
+
+    let rows: Vec<Row> = (0..1_000)
+        .map(|value| Row {
+            value: value * 7,
+        })
+        .collect();
+    let expected = columnar::to_vec(&rows).unwrap();
+
+    let mut buffer = vec![0xAA; 32];
+    columnar::to_vec_into(&rows, &mut buffer).unwrap();
+    assert_eq!(buffer, expected);
+
+    let capacity = buffer.capacity();
+    columnar::to_vec_into(&rows, &mut buffer).unwrap();
+    assert_eq!(buffer, expected);
+    assert!(buffer.capacity() >= capacity);
+}

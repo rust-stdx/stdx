@@ -690,7 +690,7 @@ fn delta_rle_truncated_delta_is_rejected() {
     });
     assert!(matches!(
         columnar::from_slice::<DeltaRleRow>(&e.into_inner()),
-        Err(Error::InvalidHeader)
+        Err(Error::InvalidVarint)
     ));
 }
 

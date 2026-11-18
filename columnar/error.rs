@@ -45,6 +45,8 @@ pub enum Error {
     InvalidChar(u32),
     /// A bit-packed payload contains a value that does not fit its width.
     InvalidBitpackedValue,
+    /// A variable-length integer is overlong or does not fit in 128 bits.
+    InvalidVarint,
     /// A run-length encoded payload contains a zero-length run.
     ZeroRun,
     /// A map column contains the same key twice in one row.
@@ -94,6 +96,7 @@ impl fmt::Display for Error {
             Error::InvalidUtf8 => f.write_str("invalid UTF-8 in string column"),
             Error::InvalidChar(value) => write!(f, "invalid Unicode scalar value {value:#x}"),
             Error::InvalidBitpackedValue => f.write_str("bit-packed value does not fit its width"),
+            Error::InvalidVarint => f.write_str("invalid or overlong variable-length integer"),
             Error::ZeroRun => f.write_str("run-length encoding contains a zero-length run"),
             Error::DuplicateMapKey => f.write_str("duplicate key in map column"),
             Error::DictionaryIndex {

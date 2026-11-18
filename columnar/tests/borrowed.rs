@@ -552,7 +552,9 @@ fn cow_str_decode_does_not_allocate_per_value() {
     let (decoded, counters) = measure(|| columnar::from_slice::<TwoStrings<'_>>(&bytes).unwrap());
     assert_eq!(decoded.len(), ROWS);
     assert!(decoded.iter().all(|row| matches!(row.first, Cow::Borrowed(_))));
-    assert!(counters.calls <= 4, "borrowed string decode allocated {} times", counters.calls);
+    // Auto chooses RLE for a constant column: one run-value vector per field,
+    // one output vector per field, and the row vector.
+    assert!(counters.calls <= 6, "borrowed string decode allocated {} times", counters.calls);
 }
 
 #[derive(Columnar, Debug, PartialEq)]

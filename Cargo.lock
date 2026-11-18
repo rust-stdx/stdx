@@ -286,6 +286,7 @@ dependencies = [
  "alloc_counter",
  "cbor",
  "columnar_derive",
+ "utf8",
 ]
 
 [[package]]

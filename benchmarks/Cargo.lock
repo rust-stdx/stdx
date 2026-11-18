@@ -481,6 +481,7 @@ version = "0.1.0"
 dependencies = [
  "cbor 0.1.0",
  "columnar_derive",
+ "utf8 0.1.0",
 ]
 
 [[package]]

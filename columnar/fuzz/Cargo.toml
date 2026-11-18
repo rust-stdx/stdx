@@ -8,7 +8,7 @@ edition = "2024"
 cargo-fuzz = true
 
 [dependencies]
-columnar = { path = "..", features = ["derive"] }
+columnar = { path = ".." }
 libfuzzer-sys = "0.4"
 
 [workspace]

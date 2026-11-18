@@ -11,7 +11,6 @@
 //! # Quick start
 //!
 //! ```
-//! # #[cfg(feature = "derive")] {
 //! use columnar::Columnar;
 //!
 //! #[derive(Columnar)]
@@ -32,7 +31,6 @@
 //! let bytes = columnar::to_vec(&sales).unwrap();
 //! let decoded: Vec<Sale> = columnar::from_slice(&bytes).unwrap();
 //! assert_eq!(decoded.len(), sales.len());
-//! # }
 //! ```
 //!
 //! # Borrowed decoding
@@ -41,7 +39,6 @@
 //! of the input envelope, with no per-value byte copy:
 //!
 //! ```
-//! # #[cfg(feature = "derive")] {
 //! use std::borrow::Cow;
 //! use columnar::Columnar;
 //!
@@ -57,7 +54,6 @@
 //! let bytes = columnar::to_vec(&rows).unwrap();
 //! let decoded: Vec<Blob<'_>> = columnar::from_slice(&bytes).unwrap();
 //! assert!(matches!(decoded[0].data, Cow::Borrowed(_)));
-//! # }
 //! ```
 //!
 //! Strings work the same way; `Cow<str>` validates UTF-8 and borrows the
@@ -66,7 +62,6 @@
 //! A type with more than one lifetime needs an explicit decode lifetime:
 //!
 //! ```rust
-//! # #[cfg(feature = "derive")] {
 //! use std::borrow::Cow;
 //! use std::marker::PhantomData;
 //! use columnar::Columnar;
@@ -79,7 +74,6 @@
 //!     #[columnar(key = 2)]
 //!     marker: PhantomData<&'b ()>,
 //! }
-//! # }
 //! ```
 //!
 //! # Streaming rows
@@ -87,7 +81,6 @@
 //! Mark a type with `#[columnar(iterable)]` to decode rows lazily:
 //!
 //! ```
-//! # #[cfg(feature = "derive")] {
 //! use columnar::Columnar;
 //!
 //! #[derive(Columnar)]
@@ -105,14 +98,15 @@
 //!     let row = row.unwrap();
 //!     assert_eq!(row.id, 1);
 //! }
-//! # }
 //! ```
 //!
 //! The row iterator decodes column data on demand. It does not allocate a
 //! `Vec` of rows, a `Vec` per column, or intermediate length/offset/tag
-//! vectors. Per-value allocations still depend on the field type: `String`,
-//! `Vec<T>`, `BTreeMap<K, V>` and `Box<T>` allocate when a row is yielded;
-//! `Cow<'a, str>` and `Cow<'a, [u8]>` borrow from the input.
+//! vectors, with two exceptions: RLE and dictionary columns materialize their
+//! run values or dictionary once per column. Per-value allocations still
+//! depend on the field type: `String`, `Vec<T>`, `BTreeMap<K, V>` and `Box<T>`
+//! allocate when a row is yielded; `Cow<'a, str>` and `Cow<'a, [u8]>` borrow
+//! from the input.
 //!
 //! Every field type must implement [`FieldIter`]. Built-in types and iterable
 //! derived types do. A custom type that only implements [`FieldDecode`] can
@@ -170,14 +164,14 @@
 //!
 //! | Rust type | Default encoding |
 //! |---|---|
-//! | `bool` | 1 bit per value |
-//! | `u8`–`u64`, `i8`–`i64`, `usize`, `isize` | packed when the range fills the type, otherwise frame-of-reference + bit-packing |
-//! | `u128`, `i128` | 128-bit little-endian |
-//! | `f32`, `f64` | raw IEEE bits, little-endian |
-//! | `char` | `u32` values with Unicode validation |
-//! | `String` | varint lengths + UTF-8 bytes |
-//! | `Cow<'a, [u8]>` | varint lengths + raw bytes; decoded as borrowed slices |
-//! | `Cow<'a, str>` | varint lengths + UTF-8 bytes; decoded as borrowed slices |
+//! | `bool` | 1 bit per value, or RLE when Auto finds long runs |
+//! | `u8`–`u64`, `i8`–`i64`, `usize`, `isize` | Auto: packed when the range fills the type, otherwise frame-of-reference + bit-packing; switches to RLE or delta encodings when a linear scan shows they are smaller |
+//! | `u128`, `i128` | 128-bit little-endian, or RLE when Auto finds runs |
+//! | `f32`, `f64` | raw IEEE bits, little-endian, or RLE when Auto finds runs |
+//! | `char` | `u32` values with Unicode validation (Auto may use RLE/delta like `u32`) |
+//! | `String` | varint lengths + UTF-8 bytes; RLE when Auto finds long runs |
+//! | `Cow<'a, [u8]>` | varint lengths + raw bytes; decoded as borrowed slices; RLE when Auto finds long runs |
+//! | `Cow<'a, str>` | varint lengths + UTF-8 bytes; decoded as borrowed slices; RLE when Auto finds long runs |
 //! | `Vec<T>` | varint element lengths + child column |
 //! | `BTreeMap<K, V>` | lengths + sorted key/value child columns |
 //! | `Option<T>` | all-null, or validity bitmap + dense inner column |
@@ -214,10 +208,14 @@
 //! | `Vec<T>` | `lengths`, `offsets`, `list_lengths`, `list_offsets` |
 //! | `Option<T>` | `nullable` (inner defaults still apply) |
 //!
-//! The delta encodings are opt-in and are never selected by
-//! [`Encoding::Auto`]. They only support integer columns up to 64 bits
-//! (`u8`–`u64`, `i8`–`i64`, `usize`, `isize`, and `char` through `u32`);
-//! `u128`, `i128` and floats reject them:
+//! [`Encoding::Auto`] also considers `rle`, `delta_rle` and
+//! `delta_of_delta` using a cheap statistics scan (first/second differences are sampled on large columns). An alternative is
+//! chosen only when its estimated payload is at least 5% smaller than the
+//! packed/FOR payload and the column has at least 32 values, so small batches
+//! and random data keep the simple encodings. The delta encodings only support
+//! integer columns up to 64 bits (`u8`–`u64`, `i8`–`i64`, `usize`, `isize`,
+//! and `char` through `u32`); `u128`, `i128` and floats reject the explicit
+//! delta hints:
 //!
 //! - `rle` compresses adjacent equal values.
 //! - `delta_rle` compresses repeated first differences. It is the best choice
@@ -262,9 +260,12 @@
 //! # Limits
 //!
 //! [`from_slice`] and [`iter_from_slice`] use [`DecodeOptions::default`], which
-//! bounds rows, strings, list sizes, nesting depth and encoded envelope size.
-//! Use the `*_with_options` variants to tighten or relax the limits. Decoding
-//! never panics on malformed input; invalid data returns an [`Error`].
+//! bounds rows, strings, list sizes, nesting depth, encoded envelope size and
+//! the decoded size of one container. Use the `*_with_options` variants to
+//! tighten or relax the limits. With the default limits, decoding never panics
+//! on malformed input; invalid data returns an [`Error`]. With
+//! [`DecodeOptions::unlimited`], a forged header can request very large
+//! allocations, so only use it for trusted data.
 //!
 //! With [`iter_from_slice`], errors in a column payload can be returned later as
 //! an `Err` item from the row iterator. Envelope-level errors are returned when
@@ -301,13 +302,12 @@
 //! | Feature | Default | Description |
 //! |---|---|---|
 //! | `std` | yes | Standard library integration and `std::error::Error`. |
-//! | `derive` | yes | `#[derive(Columnar)]`. |
 //!
-//! The crate always requires `alloc`; `no_std` builds should disable default
-//! features and enable `derive` separately if needed:
+//! The crate always requires `alloc`, and `#[derive(Columnar)]` is always
+//! available. `no_std` builds should disable default features:
 //!
 //! ```toml
-//! columnar = { git = "https://github.com/rust-stdx/stdx", default-features = false, features = ["derive"] }
+//! columnar = { git = "https://github.com/rust-stdx/stdx", default-features = false }
 //! ```
 //!
 //! # Limitations
@@ -333,7 +333,6 @@ mod format;
 mod iterators;
 mod options;
 
-#[cfg(feature = "derive")]
 pub use columnar_derive::Columnar;
 pub use error::{Error, Result};
 pub use field::{Field, FieldDecode};
@@ -350,6 +349,18 @@ pub use options::DecodeOptions;
 pub trait Columnar: Sized {
     /// Encode a slice of rows into one CBOR envelope.
     fn encode_rows(rows: &[Self]) -> Result<alloc::vec::Vec<u8>>;
+
+    /// Encode a slice of rows into an existing buffer.
+    ///
+    /// The buffer is cleared first. Reusing a buffer avoids one allocation per
+    /// call on hot paths. If encoding fails, the buffer contains an unspecified
+    /// partial envelope and should be cleared before it is used again.
+    fn encode_rows_into(rows: &[Self], out: &mut alloc::vec::Vec<u8>) -> Result<()> {
+        let encoded = Self::encode_rows(rows)?;
+        out.clear();
+        out.extend_from_slice(&encoded);
+        Ok(())
+    }
 }
 
 /// Decode a columnar envelope while borrowing from `bytes`.
@@ -428,6 +439,14 @@ pub fn to_vec<T: Columnar>(rows: &[T]) -> Result<alloc::vec::Vec<u8>> {
     T::encode_rows(rows)
 }
 
+/// Encode rows into an existing buffer with the default options.
+///
+/// The buffer is cleared first and its allocation is reused. On error the
+/// buffer holds an unspecified partial envelope.
+pub fn to_vec_into<T: Columnar>(rows: &[T], out: &mut alloc::vec::Vec<u8>) -> Result<()> {
+    T::encode_rows_into(rows, out)
+}
+
 /// Decode rows with the default [`DecodeOptions`].
 pub fn from_slice<'de, T: ColumnarDecode<'de>>(bytes: &'de [u8]) -> Result<alloc::vec::Vec<T>> {
     T::decode_rows(bytes, DecodeOptions::default())
@@ -473,4 +492,29 @@ pub mod __private {
         },
         iterators::{Materialized, MaybeDefault, TagIter, count_enum_tags},
     };
+
+    /// Return an allocation hint for `count` decoded values of type `T`.
+    #[doc(hidden)]
+    pub fn output_capacity<T>(options: &DecodeOptions, count: usize) -> Result<usize> {
+        options.output_capacity::<T>(count)
+    }
+
+    /// Check that `count` decoded values of type `T` fit the output budget.
+    #[doc(hidden)]
+    pub fn check_output_bytes<T>(options: &DecodeOptions, count: usize) -> Result<()> {
+        options.check_output_bytes::<T>(count)
+    }
+
+    /// Take the next value from a decoded column or return an error.
+    ///
+    /// The derive uses this instead of `unwrap` so that a user-provided
+    /// `FieldDecode` that returns fewer values than `rows` is reported as an
+    /// error instead of panicking.
+    #[doc(hidden)]
+    pub fn column_value<T>(iter: &mut impl Iterator<Item = T>, expected: usize) -> Result<T> {
+        iter.next().ok_or(Error::LengthMismatch {
+            expected,
+            actual: 0,
+        })
+    }
 }
