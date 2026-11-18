@@ -83,17 +83,21 @@ impl DecodeOptions {
     /// Check that `count` values of type `T` fit in
     /// [`DecodeOptions::max_decoded_bytes`].
     ///
-    /// Returns [`Error::LengthOverflow`] when the multiplication overflows.
+    /// Returns [`Error::LimitExceeded`] when the values exceed the budget, even
+    /// on 32-bit targets where they may also be too large to allocate.
+    /// [`Error::LengthOverflow`] is returned when the multiplication overflows,
+    /// or when the budget is unlimited and the values cannot be represented for
+    /// allocation.
     #[doc(hidden)]
     pub fn check_output_bytes<T>(&self, count: usize) -> Result<()> {
         let bytes = count.checked_mul(size_of::<T>().max(1)).ok_or(Error::LengthOverflow)?;
+        if bytes > self.max_decoded_bytes {
+            return Err(Error::LimitExceeded("decoded bytes"));
+        }
         // `Vec::reserve` panics above `isize::MAX` even when the byte budget is
         // unlimited.
         if bytes > isize::MAX as usize {
             return Err(Error::LengthOverflow);
-        }
-        if bytes > self.max_decoded_bytes {
-            return Err(Error::LimitExceeded("decoded bytes"));
         }
         Ok(())
     }
