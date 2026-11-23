@@ -1,3 +1,8 @@
+// These tests spawn the compiled CLI binary. WASI has no process model, so
+// `std::process::Command::spawn` returns `Unsupported`; the crate's pure logic
+// is covered by the unit tests in `shamir_secret_sharing.rs` on every target.
+#![cfg(not(target_arch = "wasm32"))]
+
 use std::{
     io::Write,
     process::{Command, Output, Stdio},
