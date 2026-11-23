@@ -1,6 +1,20 @@
 use super::*;
 use crate::{Aead, AeadError, Bytes, Hash};
 
+/// Maximum total data (plaintext + associated data) processed with one key
+/// (NIST SP 800-232 §4.3: 2^54 bytes).
+const MAX_DATA_LEN: u64 = 1u64 << 54;
+
+/// Checks the per-message portion of the Ascon data limit.
+#[inline]
+fn check_data_len(aad_len: u64, msg_len: u64) -> Result<(), AeadError> {
+    let total = aad_len.checked_add(msg_len).ok_or(AeadError::MessageTooLong)?;
+    if total > MAX_DATA_LEN {
+        return Err(AeadError::MessageTooLong);
+    }
+    Ok(())
+}
+
 /// Ascon-AEAD128 authenticated encryption with associated data (NIST SP 800-232).
 ///
 /// # Parameters
@@ -25,7 +39,7 @@ use crate::{Aead, AeadError, Bytes, Hash};
 /// let cipher = AsconAead128::new(&key);
 ///
 /// let mut ct = plaintext.to_vec();
-/// let tag = cipher.encrypt_in_place(&mut ct, &nonce, aad);
+/// let tag = cipher.encrypt_in_place(&mut ct, &nonce, aad).unwrap();
 ///
 /// let mut pt = ct.clone();
 /// cipher.decrypt_in_place(&mut pt, &nonce, aad, tag.as_ref()).unwrap();
@@ -34,7 +48,9 @@ use crate::{Aead, AeadError, Bytes, Hash};
 ///
 /// # Usage limits (NIST SP 800-232 §4.3)
 ///
-/// - Max data per key: 2^54 bytes
+/// - Max data per key: 2^54 bytes. The API enforces the per-message portion
+///   (`plaintext + associated data`); callers reusing a key must track the
+///   cumulative total themselves.
 /// - Nonces must be distinct per key (up to 2^8 repetitions tolerated)
 /// - Max decryption failures: 2^(tag_len - 32) before key rotation
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
@@ -101,11 +117,14 @@ impl Aead for AsconAead128 {
     const TAG_SIZE: usize = 16;
     const NONCE_SIZE: usize = 16;
 
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if `nonce.len() != 16`.
-    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
-        let nonce: &[u8; 16] = nonce.try_into().expect("nonce must be 16 bytes");
+    /// Returns [`AeadError::InvalidNonce`] if `nonce.len() != 16` and
+    /// [`AeadError::MessageTooLong`] if `plaintext + associated data` exceeds
+    /// the per-message Ascon limit.
+    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Result<Hash, AeadError> {
+        let nonce: &[u8; 16] = nonce.try_into().map_err(|_| AeadError::InvalidNonce)?;
+        check_data_len(aad.len() as u64, in_out.len() as u64)?;
         let mut state = self.init_state(nonce);
         Self::process_ad(&mut state, aad);
         state.apply_domain_sep();
@@ -131,14 +150,21 @@ impl Aead for AsconAead128 {
         let tag_bytes = self.compute_tag(&state);
         let mut tag = Hash(Bytes::<64>::with_length(16));
         tag.as_mut().copy_from_slice(&tag_bytes);
-        tag
+        Ok(tag)
     }
 
+    /// # Errors
+    ///
+    /// Returns [`AeadError::InvalidNonce`] if `nonce.len() != 16`,
+    /// [`AeadError::InvalidCiphertext`] if `tag.len() != 16`, and
+    /// [`AeadError::MessageTooLong`] if `ciphertext + associated data` exceeds
+    /// the per-message Ascon limit.
     fn decrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8], tag: &[u8]) -> Result<(), AeadError> {
+        let nonce: &[u8; 16] = nonce.try_into().map_err(|_| AeadError::InvalidNonce)?;
         if tag.len() != Self::TAG_SIZE {
             return Err(AeadError::InvalidCiphertext);
         }
-        let nonce: &[u8; 16] = nonce.try_into().map_err(|_| AeadError::InvalidNonce)?;
+        check_data_len(aad.len() as u64, in_out.len() as u64)?;
 
         let mut state = self.init_state(nonce);
         Self::process_ad(&mut state, aad);
@@ -196,7 +222,7 @@ mod tests {
     fn empty_pt_empty_ad() {
         let ae = AsconAead128::new(&KEY);
         let mut pt = vec![];
-        let tag = ae.encrypt_in_place(&mut pt, &NONCE, &[]);
+        let tag = ae.encrypt_in_place(&mut pt, &NONCE, &[]).unwrap();
         let expected_ct = hex::decode("").unwrap();
         let expected_tag = hex::decode("4F9C278211BEC9316BF68F46EE8B2EC6").unwrap();
         assert_eq!(pt, expected_ct);
@@ -207,7 +233,7 @@ mod tests {
     fn one_byte_pt_empty_ad() {
         let ae = AsconAead128::new(&KEY);
         let mut pt = hex::decode("20").unwrap();
-        let tag = ae.encrypt_in_place(&mut pt, &NONCE, &[]);
+        let tag = ae.encrypt_in_place(&mut pt, &NONCE, &[]).unwrap();
         // CT line: E8DD576ABA1CD3E6FC704DE02AEDB79588 (34 hex chars = 17 bytes)
         // ciphertext = first byte = E8, tag = remaining 16 = DD576ABA1CD3E6FC704DE02AEDB79588
         let expected_ct = hex::decode("E8").unwrap();
@@ -221,7 +247,7 @@ mod tests {
         let ae = AsconAead128::new(&KEY);
         let mut pt = hex::decode("20").unwrap();
         let aad = hex::decode("30").unwrap();
-        let tag = ae.encrypt_in_place(&mut pt, &NONCE, &aad);
+        let tag = ae.encrypt_in_place(&mut pt, &NONCE, &aad).unwrap();
         // ciphertext=96, tag=2B8016836C75A7D86866588CA245D886
         let expected_ct = hex::decode("96").unwrap();
         let expected_tag = hex::decode("2B8016836C75A7D86866588CA245D886").unwrap();
@@ -234,7 +260,7 @@ mod tests {
         let ae = AsconAead128::new(&KEY);
         let mut pt = hex::decode("2021").unwrap();
         let aad = hex::decode("303132333435").unwrap();
-        let tag = ae.encrypt_in_place(&mut pt, &NONCE, &aad);
+        let tag = ae.encrypt_in_place(&mut pt, &NONCE, &aad).unwrap();
         // ciphertext=9310, tag=6848C186CA92DCC20741A92F7AAFE673
         let expected_ct = hex::decode("9310").unwrap();
         let expected_tag = hex::decode("6848C186CA92DCC20741A92F7AAFE673").unwrap();
@@ -247,7 +273,7 @@ mod tests {
         let ae = AsconAead128::new(&KEY);
         let mut pt = hex::decode("202122232425262728292A2B2C2D2E2F303132333435363738393A3B3C3D3E3F").unwrap();
         let aad = hex::decode("303132333435363738393A3B3C3D3E3F40414243444546474849").unwrap();
-        let tag = ae.encrypt_in_place(&mut pt, &NONCE, &aad);
+        let tag = ae.encrypt_in_place(&mut pt, &NONCE, &aad).unwrap();
         // ciphertext=32 bytes, tag=16 bytes
         let expected_ct = hex::decode("A92EF70DF2EF0FAA74A21F9739FB89237DF62F9A2B4080B850046DDD386DED48").unwrap();
         let expected_tag = hex::decode("E7833CF56F755945AEB70D2BAAAA361C").unwrap();
@@ -264,7 +290,7 @@ mod tests {
 
         let ae = AsconAead128::new(&key);
         let mut ct = plaintext.to_vec();
-        let tag = ae.encrypt_in_place(&mut ct, &nonce, aad);
+        let tag = ae.encrypt_in_place(&mut ct, &nonce, aad).unwrap();
 
         let mut decrypted = ct.clone();
         ae.decrypt_in_place(&mut decrypted, &nonce, aad, tag.as_ref()).unwrap();
@@ -278,7 +304,7 @@ mod tests {
 
         let ae = AsconAead128::new(&key);
         let mut ct = vec![];
-        let tag = ae.encrypt_in_place(&mut ct, &nonce, b"ad");
+        let tag = ae.encrypt_in_place(&mut ct, &nonce, b"ad").unwrap();
 
         let mut decrypted = ct.clone();
         ae.decrypt_in_place(&mut decrypted, &nonce, b"ad", tag.as_ref())
@@ -293,7 +319,7 @@ mod tests {
 
         let ae = AsconAead128::new(&key);
         let mut ct = b"secret".to_vec();
-        let mut tag = ae.encrypt_in_place(&mut ct, &nonce, b"");
+        let mut tag = ae.encrypt_in_place(&mut ct, &nonce, b"").unwrap();
         tag.as_mut()[0] ^= 1;
 
         let mut decrypted = ct.clone();
@@ -309,7 +335,7 @@ mod tests {
 
         let ae = AsconAead128::new(&key);
         let mut ct = b"secret".to_vec();
-        let tag = ae.encrypt_in_place(&mut ct, &nonce, b"");
+        let tag = ae.encrypt_in_place(&mut ct, &nonce, b"").unwrap();
         ct[3] ^= 1;
 
         let mut decrypted = ct.clone();
@@ -323,7 +349,7 @@ mod tests {
 
         let ae = AsconAead128::new(&key);
         let mut ct = b"secret".to_vec();
-        let tag = ae.encrypt_in_place(&mut ct, &[0u8; 16], b"");
+        let tag = ae.encrypt_in_place(&mut ct, &[0u8; 16], b"").unwrap();
         let mut decrypted = ct.clone();
         let result = ae.decrypt_in_place(&mut decrypted, &[1u8; 16], b"", tag.as_ref());
         assert!(result.is_err());
@@ -336,7 +362,7 @@ mod tests {
 
         let ae = AsconAead128::new(&key);
         let mut ct = b"secret".to_vec();
-        let tag = ae.encrypt_in_place(&mut ct, &nonce, b"correct ad");
+        let tag = ae.encrypt_in_place(&mut ct, &nonce, b"correct ad").unwrap();
         let mut decrypted = ct.clone();
         let result = ae.decrypt_in_place(&mut decrypted, &nonce, b"wrong ad", tag.as_ref());
         assert!(result.is_err());
@@ -348,7 +374,7 @@ mod tests {
 
         let ae = AsconAead128::new(&[0x55u8; 16]);
         let mut ct = b"secret".to_vec();
-        let tag = ae.encrypt_in_place(&mut ct, &nonce, b"");
+        let tag = ae.encrypt_in_place(&mut ct, &nonce, b"").unwrap();
         let mut decrypted = ct.clone();
         let ae2 = AsconAead128::new(&[0xAAu8; 16]);
         let result = ae2.decrypt_in_place(&mut decrypted, &nonce, b"", tag.as_ref());
@@ -362,7 +388,7 @@ mod tests {
 
         let ae = AsconAead128::new(&key);
         let mut ct = b"data with empty AD".to_vec();
-        let tag = ae.encrypt_in_place(&mut ct, &nonce, b"");
+        let tag = ae.encrypt_in_place(&mut ct, &nonce, b"").unwrap();
 
         let mut decrypted = ct.clone();
         ae.decrypt_in_place(&mut decrypted, &nonce, b"", tag.as_ref()).unwrap();
@@ -394,7 +420,7 @@ mod tests {
 
                     let ae = AsconAead128::new(&key_bytes);
                     let mut enc = pt.clone();
-                    let tag = ae.encrypt_in_place(&mut enc, &nonce_bytes, &aad);
+                    let tag = ae.encrypt_in_place(&mut enc, &nonce_bytes, &aad).unwrap();
                     assert_eq!(enc, expected_ct, "KAT AEAD Count={count} ct mismatch");
                     assert_eq!(tag.as_ref(), expected_tag, "KAT AEAD Count={count} tag mismatch");
 
@@ -451,7 +477,7 @@ mod tests {
 
             let ae = AsconAead128::new(&key_bytes);
             let mut enc = pt.clone();
-            let tag = ae.encrypt_in_place(&mut enc, &nonce_bytes, &aad);
+            let tag = ae.encrypt_in_place(&mut enc, &nonce_bytes, &aad).unwrap();
             assert_eq!(enc, expected_ct, "KAT AEAD Count={count} ct mismatch");
             assert_eq!(tag.as_ref(), expected_tag, "KAT AEAD Count={count} tag mismatch");
 
@@ -460,5 +486,14 @@ mod tests {
                 .unwrap_or_else(|e| panic!("KAT AEAD Count={count} decrypt failed: {e:?}"));
             assert_eq!(dec, pt, "KAT AEAD Count={count} decrypt pt mismatch");
         }
+    }
+
+    #[test]
+    fn data_limit_is_enforced() {
+        assert!(check_data_len(0, MAX_DATA_LEN).is_ok());
+        assert!(check_data_len(MAX_DATA_LEN, 0).is_ok());
+        assert_eq!(check_data_len(1, MAX_DATA_LEN), Err(AeadError::MessageTooLong));
+        assert_eq!(check_data_len(MAX_DATA_LEN, 1), Err(AeadError::MessageTooLong));
+        assert_eq!(check_data_len(u64::MAX, 1), Err(AeadError::MessageTooLong));
     }
 }

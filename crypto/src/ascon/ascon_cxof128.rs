@@ -4,6 +4,25 @@ use crate::Xof;
 /// Ascon-CXOF128 initialization vector (NIST SP 800-232).
 const IV: u64 = 0x0000_0800_00cc_0004;
 
+/// Errors returned when creating an [`AsconCxof128`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AsconCxofError {
+    /// The customization string exceeds NIST SP 800-232's 256-byte limit.
+    CustomizationTooLong,
+}
+
+impl core::fmt::Display for AsconCxofError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            AsconCxofError::CustomizationTooLong => {
+                write!(f, "Ascon-CXOF128 customization string must be at most 256 bytes")
+            }
+        }
+    }
+}
+
+impl core::error::Error for AsconCxofError {}
+
 /// Ascon-CXOF128 customizable extensible-output function (NIST SP 800-232 §5.3).
 ///
 /// Extends Ascon-XOF128 with a customization string `Z` (up to 256 bytes).
@@ -12,16 +31,12 @@ const IV: u64 = 0x0000_0800_00cc_0004;
 ///
 /// Implements the [`Xof`] trait.
 ///
-/// # Panics
-///
-/// Panics if the customization string exceeds 256 bytes.
-///
 /// # Incremental API
 ///
 /// ```ignore
 /// use crypto::{ascon::AsconCxof128, Xof};
 ///
-/// let mut cxof = AsconCxof128::new_with_customization(b"my-app-v1");
+/// let mut cxof = AsconCxof128::new_with_customization(b"my-app-v1").unwrap();
 /// cxof.absorb(b"hello world");
 /// let mut out = [0u8; 32];
 /// cxof.squeeze(&mut out);
@@ -41,16 +56,28 @@ impl AsconCxof128 {
     /// Creates a new Ascon-CXOF128 with an empty customization string.
     #[inline]
     pub fn new() -> Self {
-        Self::new_with_customization(&[])
+        Self::new_with_customization_unchecked(&[])
     }
 
     /// Creates a new Ascon-CXOF128 with the given customization string.
     ///
+    /// # Errors
+    ///
+    /// Returns [`AsconCxofError::CustomizationTooLong`] if `z.len() > 256`.
+    pub fn new_with_customization(z: &[u8]) -> Result<Self, AsconCxofError> {
+        if z.len() > 256 {
+            return Err(AsconCxofError::CustomizationTooLong);
+        }
+        return Ok(Self::new_with_customization_unchecked(z));
+    }
+
+    /// Creates a new Ascon-CXOF128 without validating the customization length.
+    ///
     /// # Panics
     ///
-    /// Panics if `z.len() > 256`.
-    pub fn new_with_customization(z: &[u8]) -> Self {
-        assert!(z.len() <= 256, "CXOF customization string must be at most 256 bytes");
+    /// Panics in debug builds if `z.len() > 256`.
+    pub(crate) fn new_with_customization_unchecked(z: &[u8]) -> Self {
+        debug_assert!(z.len() <= 256, "CXOF customization string must be at most 256 bytes");
         let mut state = State::init_hash(IV);
         p12(&mut state);
 
@@ -173,7 +200,7 @@ mod tests {
     #[test]
     fn cxof_with_customization() {
         let mut out = [0u8; 64];
-        let mut cxof = AsconCxof128::new_with_customization(b"\x10");
+        let mut cxof = AsconCxof128::new_with_customization(b"\x10").unwrap();
         cxof.absorb(b"");
         cxof.squeeze(&mut out);
         let expected = hex::decode("0C93A483E7D574D49FE52CCE03EE646117977D57A8AA57704AB4DAF44B501430FF6AC11A5D1FD6F2154B5C65728268270C8BB578508487B8965718ADA6272FD6").unwrap();
@@ -190,7 +217,7 @@ mod tests {
         }
 
         let mut cxof_out = [0u8; 32];
-        let mut cxof = AsconCxof128::new_with_customization(b"test");
+        let mut cxof = AsconCxof128::new_with_customization(b"test").unwrap();
         cxof.absorb(b"");
         cxof.squeeze(&mut cxof_out);
 
@@ -198,9 +225,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "CXOF customization string must be at most 256 bytes")]
     fn cxof_customization_too_long() {
-        AsconCxof128::new_with_customization(&[0u8; 257]);
+        assert!(matches!(
+            AsconCxof128::new_with_customization(&[0u8; 257]),
+            Err(AsconCxofError::CustomizationTooLong)
+        ));
+        assert!(AsconCxof128::new_with_customization(&[0u8; 256]).is_ok());
     }
 
     #[test]
@@ -233,7 +263,7 @@ mod tests {
                 let msg = hex::decode(&msg_hex).unwrap();
                 let z = hex::decode(&z_hex).unwrap();
                 let expected = hex::decode(expected_md).unwrap();
-                let mut cxof = AsconCxof128::new_with_customization(&z);
+                let mut cxof = AsconCxof128::new_with_customization(&z).unwrap();
                 cxof.absorb(&msg);
                 let mut out = vec![0u8; expected.len()];
                 cxof.squeeze(&mut out);

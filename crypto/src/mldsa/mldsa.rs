@@ -174,6 +174,25 @@ fn wipe(bytes: &mut [u8]) {
     }
 }
 
+/// Zeroize a list of secret intermediate values when the feature is enabled.
+#[cfg(feature = "zeroize")]
+macro_rules! wipe_secrets {
+    ($($value:expr),* $(,)?) => {{
+        $(
+            zeroize::Zeroize::zeroize(&mut $value);
+        )*
+    }};
+}
+
+#[cfg(not(feature = "zeroize"))]
+macro_rules! wipe_secrets {
+    ($($value:expr),* $(,)?) => {{
+        $(
+            let _ = &mut $value;
+        )*
+    }};
+}
+
 fn field_to_montgomery(a: u32) -> FieldElement {
     debug_assert!(a < Q);
     field_montgomery_mul(a, RR)
@@ -1540,7 +1559,7 @@ impl<const K: usize, const L: usize, const PK_SIZE: usize> MlDsaKeyMaterial<K, L
             }
             iterations += 1;
 
-            let y = expand_mask_batch::<L>(&nonce, kappa, params);
+            let mut y = expand_mask_batch::<L>(&nonce, kappa, params);
             kappa += L;
 
             let mut y_hat: [NttPoly; L] = core::array::from_fn(|_| NttPoly::default());
@@ -1569,8 +1588,8 @@ impl<const K: usize, const L: usize, const PK_SIZE: usize> MlDsaKeyMaterial<K, L
             let mut ct = [0u8; MAX_LAMBDA_OVER_4];
             ch_shake.squeeze(&mut ct[..lo4]);
 
-            let c = sample_in_ball(&ct[..lo4], params.tau);
-            let c_hat = ntt(&c);
+            let mut c = sample_in_ball(&ct[..lo4], params.tau);
+            let mut c_hat = ntt(&c);
 
             let mut cs1: [Poly; L] = core::array::from_fn(|_| Poly::default());
             for i in 0..L {
@@ -1590,6 +1609,7 @@ impl<const K: usize, const L: usize, const PK_SIZE: usize> MlDsaKeyMaterial<K, L
                 reject |= coefficients_exceed_bound(&z[i], gamma1beta);
             }
             if reject {
+                wipe_secrets!(y, y_hat, w, w1, c, c_hat, cs1, cs2, z);
                 continue;
             }
 
@@ -1598,6 +1618,7 @@ impl<const K: usize, const L: usize, const PK_SIZE: usize> MlDsaKeyMaterial<K, L
                 reject |= lowbits_exceed_bound(&r0, gamma2beta, params.gamma2_den);
             }
             if reject {
+                wipe_secrets!(y, y_hat, w, w1, c, c_hat, cs1, cs2, z);
                 continue;
             }
 
@@ -1607,6 +1628,7 @@ impl<const K: usize, const L: usize, const PK_SIZE: usize> MlDsaKeyMaterial<K, L
                 reject |= coefficients_exceed_bound(&ct0[i], gamma2);
             }
             if reject {
+                wipe_secrets!(y, y_hat, w, w1, c, c_hat, cs1, cs2, z, ct0);
                 continue;
             }
 
@@ -1618,11 +1640,14 @@ impl<const K: usize, const L: usize, const PK_SIZE: usize> MlDsaKeyMaterial<K, L
                 total_hints += count;
             }
             if total_hints > params.omega {
+                wipe_secrets!(y, y_hat, w, w1, c, c_hat, cs1, cs2, z, ct0);
                 continue;
             }
 
             sig_encode::<K, L>(params, &ct[..lo4], &z, &h, sig_out);
-            // FIPS 204 Section 3.6.2: destroy the secret nonce seed.
+            // FIPS 204 Section 3.6.2: destroy the secret intermediates and
+            // nonce seed.
+            wipe_secrets!(y, y_hat, w, w1, c, c_hat, cs1, cs2, z, ct0);
             wipe(&mut nonce);
             return Ok(());
         }
@@ -1983,7 +2008,7 @@ mod neon {
 ///
 /// Selected at runtime with `is_x86_feature_detected!("avx2")`. Correctness is
 /// checked against the scalar kernels by the `*_matches_scalar` tests (run
-/// under emulation if no AVX2 host is available) and end-to-end by the FIPS 204
+/// under emulation if no AVX2 target is available) and end-to-end by the FIPS 204
 /// known-answer tests.
 #[cfg(all(target_arch = "x86_64", feature = "std"))]
 mod avx2 {
@@ -2238,7 +2263,23 @@ mod avx2 {
 
 #[cfg(test)]
 mod tests {
+    use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
+
     use super::*;
+
+    #[cfg(feature = "zeroize")]
+    #[test]
+    fn wipe_helpers_clear_buffers() {
+        let mut bytes = [0xAAu8; 32];
+        wipe(&mut bytes);
+        assert_eq!(bytes, [0u8; 32]);
+
+        let mut polys: [Poly; 2] = core::array::from_fn(|_| Poly::default());
+        polys[0].coeffs[0] = 1;
+        polys[1].coeffs[1] = 2;
+        wipe_secrets!(polys);
+        assert!(polys.iter().all(|p| p.coeffs.iter().all(|&c| c == 0)));
+    }
 
     #[test]
     fn ntt_round_trip() {
@@ -2752,6 +2793,375 @@ mod tests {
         check(&PARAMS_44);
         check(&PARAMS_65);
         check(&PARAMS_87);
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // SIMD kernel differential tests and key-material initialization
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    /// Fixed-seed seeded `StdRng` generator. Deterministic so failures reproduce.
+    fn poly_from_fn(mut f: impl FnMut(usize) -> u32) -> Poly {
+        let mut p = Poly::default();
+        for (i, c) in p.coeffs.iter_mut().enumerate() {
+            let v = f(i);
+            assert!(v < Q, "adversarial corpus must stay canonical (index {i}, value {v})");
+            *c = v;
+        }
+        p
+    }
+
+    /// Adversarial and pseudo-random canonical polynomials (every coefficient in
+    /// `[0, q)`), covering the all-zero / all-max / alternating / bit-pattern /
+    /// around-q/2 boundary cases plus a fixed-seed random sweep.
+    fn adversarial_polys() -> Vec<Poly> {
+        let mut out = Vec::new();
+
+        // Degenerate and extremal vectors.
+        out.push(poly_from_fn(|_| 0));
+        out.push(poly_from_fn(|_| 1));
+        out.push(poly_from_fn(|_| Q - 1));
+        out.push(poly_from_fn(|_| Q / 2));
+        out.push(poly_from_fn(|_| Q / 2 + 1));
+        out.push(poly_from_fn(|_| Q / 2 - 1));
+
+        // Alternating patterns (exercise the 8-lane add/sub reduction paths).
+        out.push(poly_from_fn(|i| if i % 2 == 0 { 0 } else { Q - 1 }));
+        out.push(poly_from_fn(|i| if i % 2 == 0 { Q - 1 } else { 0 }));
+        out.push(poly_from_fn(|i| if i % 2 == 0 { 1 } else { Q - 2 }));
+        out.push(poly_from_fn(|i| if i % 2 == 0 { Q / 2 } else { Q / 2 + 1 }));
+        out.push(poly_from_fn(|i| if i % 4 == 0 { Q - 1 } else { 0 }));
+        out.push(poly_from_fn(|i| if i % 8 == 7 { Q - 1 } else { 1 }));
+
+        // Monotone / strided / power-of-two patterns.
+        out.push(poly_from_fn(|i| i as u32 % Q));
+        out.push(poly_from_fn(|i| ((i as u32).wrapping_mul(7919)) % Q));
+        out.push(poly_from_fn(|i| ((i as u32).wrapping_mul(1_000_003)) % Q));
+        out.push(poly_from_fn(|i| 1u32 << (i % 23)));
+        out.push(poly_from_fn(|i| Q - 1 - (i as u32 % 7)));
+        out.push(poly_from_fn(|i| match i % 6 {
+            0 => 0,
+            1 => 1,
+            2 => 2,
+            3 => Q - 1,
+            4 => Q - 2,
+            _ => Q / 2,
+        }));
+
+        // Single-nonzero spikes at each NTT stage boundary.
+        for spike in [0usize, 1, 2, 3, 4, 7, 8, 63, 64, 127, 128, 129, 191, 254, 255] {
+            out.push(poly_from_fn(|i| if i == spike { Q - 1 } else { 0 }));
+        }
+
+        // Montgomery-domain images of the interesting residues.
+        for v in [0u32, 1, 2, Q - 1, Q - 2, Q / 2, Q / 2 + 1] {
+            let m = field_to_montgomery(v);
+            out.push(poly_from_fn(|_| m));
+        }
+
+        // Fixed-seed random sweep.
+        let mut rng = StdRng::seed_from_u64(0x0D15_EA5E_0BAD_F00D);
+        for _ in 0..400 {
+            out.push(poly_from_fn(|_| rng.random_range(0..Q)));
+        }
+        // Biased random sweep: small values and values near q.
+        for _ in 0..100 {
+            out.push(poly_from_fn(|_| match rng.next_u64() % 4 {
+                0 => 0,
+                1 => 1,
+                2 => rng.random_range(0..Q) % 4,
+                _ => Q - 1 - (rng.random_range(0..Q) % 4),
+            }));
+        }
+
+        out
+    }
+
+    /// Runs every NTT kernel against its scalar reference over the adversarial
+    /// corpus, checks the outputs stay canonical (`< q`, which is what makes the
+    /// one-shot reduction in `field_reduce_once` valid), and checks the inverse
+    /// transform round-trips exactly.
+    fn check_kernels_against_scalar<E, I, M, A, S>(
+        label: &str,
+        ntt_fn: E,
+        invntt_fn: I,
+        mul_fn: M,
+        mul_add_fn: A,
+        mul_sub_fn: S,
+    ) where
+        E: Fn(&Poly) -> NttPoly,
+        I: Fn(&NttPoly) -> Poly,
+        M: Fn(&NttPoly, &NttPoly) -> NttPoly,
+        A: Fn(&NttPoly, &NttPoly, &mut NttPoly),
+        S: Fn(&NttPoly, &NttPoly, &mut NttPoly),
+    {
+        let polys = adversarial_polys();
+        let mut transformed = Vec::with_capacity(polys.len());
+
+        for (index, p) in polys.iter().enumerate() {
+            let simd = ntt_fn(p);
+            let scalar = ntt_scalar(p);
+            assert_eq!(simd.coeffs, scalar.coeffs, "{label}: ntt mismatch on corpus poly {index}");
+            assert!(
+                simd.coeffs.iter().all(|&c| c < Q),
+                "{label}: ntt output not canonical on corpus poly {index}"
+            );
+
+            let back = invntt_fn(&simd);
+            let back_scalar = invntt_scalar(&scalar);
+            assert_eq!(
+                back.coeffs, back_scalar.coeffs,
+                "{label}: invntt mismatch on corpus poly {index}"
+            );
+            assert!(
+                back.coeffs.iter().all(|&c| c < Q),
+                "{label}: invntt output not canonical on corpus poly {index}"
+            );
+            assert_eq!(
+                back.coeffs, p.coeffs,
+                "{label}: invntt(ntt(p)) is not the identity on corpus poly {index}"
+            );
+
+            transformed.push(scalar);
+        }
+
+        for (index, chunk) in transformed.chunks(4).enumerate() {
+            let a = &chunk[0];
+            let b = &chunk[chunk.len() - 1];
+
+            let product = mul_fn(a, b);
+            let product_scalar = ntt_mul_scalar(a, b);
+            assert_eq!(product.coeffs, product_scalar.coeffs, "{label}: ntt_mul mismatch at {index}");
+            assert!(product.coeffs.iter().all(|&c| c < Q), "{label}: ntt_mul output not canonical");
+
+            // Accumulate across a full matrix row (k <= 8 terms) and check the
+            // accumulator never leaves the canonical range.
+            let mut acc = chunk[chunk.len() - 1].clone();
+            let mut acc_scalar = acc.clone();
+            for term in chunk.iter() {
+                mul_add_fn(term, b, &mut acc);
+                ntt_mul_add_scalar(term, b, &mut acc_scalar);
+            }
+            assert_eq!(acc.coeffs, acc_scalar.coeffs, "{label}: ntt_mul_add mismatch at {index}");
+            assert!(
+                acc.coeffs.iter().all(|&c| c < Q),
+                "{label}: ntt_mul_add accumulator left the canonical range"
+            );
+
+            let mut acc = chunk[chunk.len() - 1].clone();
+            let mut acc_scalar = acc.clone();
+            for term in chunk.iter() {
+                mul_sub_fn(term, b, &mut acc);
+                ntt_mul_sub_scalar(term, b, &mut acc_scalar);
+            }
+            assert_eq!(acc.coeffs, acc_scalar.coeffs, "{label}: ntt_mul_sub mismatch at {index}");
+            assert!(
+                acc.coeffs.iter().all(|&c| c < Q),
+                "{label}: ntt_mul_sub accumulator left the canonical range"
+            );
+        }
+    }
+
+    /// The dispatch-selected kernels must agree with the scalar reference. On
+    /// x86-64 with AVX2 this exercises the AVX2 module; on aarch64 the NEON
+    /// module; elsewhere both sides are the scalar implementation.
+    #[test]
+    fn dispatched_ntt_kernels_match_scalar_adversarial() {
+        check_kernels_against_scalar("dispatched", ntt, invntt, ntt_mul, ntt_mul_add, ntt_mul_sub);
+    }
+
+    /// Force the NEON kernels on aarch64 instead of relying on dispatch.
+    #[test]
+    #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+    fn neon_ntt_kernels_match_scalar_adversarial() {
+        check_kernels_against_scalar(
+            "neon",
+            neon::ntt,
+            neon::invntt,
+            neon::ntt_mul,
+            neon::ntt_mul_add,
+            neon::ntt_mul_sub,
+        );
+    }
+
+    /// Force the AVX2 kernels when the CPU supports them. Set `REQUIRE_AVX2=1`
+    /// to turn a missing AVX2 CPU into a failure (used under emulation so the
+    /// report can state that the AVX2 code actually ran).
+    #[test]
+    #[cfg(all(target_arch = "x86_64", feature = "std"))]
+    fn avx2_ntt_kernels_match_scalar_adversarial() {
+        if !std::arch::is_x86_feature_detected!("avx2") {
+            if std::env::var_os("REQUIRE_AVX2").is_some() {
+                panic!("REQUIRE_AVX2 is set but AVX2 is not detected");
+            }
+            eprintln!("avx2_ntt_kernels_match_scalar_adversarial: skipped, no AVX2 CPU");
+            return;
+        }
+
+        check_kernels_against_scalar(
+            "avx2",
+            // SAFETY: AVX2 availability was checked above.
+            |p| unsafe { avx2::ntt(p) },
+            // SAFETY: AVX2 availability was checked above.
+            |p| unsafe { avx2::invntt(p) },
+            // SAFETY: AVX2 availability was checked above.
+            |a, b| unsafe { avx2::ntt_mul(a, b) },
+            // SAFETY: AVX2 availability was checked above.
+            |a, b, acc| unsafe { avx2::ntt_mul_add(a, b, acc) },
+            // SAFETY: AVX2 availability was checked above.
+            |a, b, acc| unsafe { avx2::ntt_mul_sub(a, b, acc) },
+        );
+    }
+
+    /// Exhaustively enumerate the (finite) loop index sets of the SIMD kernels
+    /// and assert every vector access stays inside the 256-element coefficient
+    /// arrays. `lanes` is 8 for AVX2 and 4 for NEON.
+    #[test]
+    fn simd_kernel_index_bounds_stay_within_n() {
+        fn forward(lanes: usize) {
+            let mut len = 128usize;
+            while len >= 8 {
+                let mut start = 0usize;
+                while start < N {
+                    let mut j = start;
+                    while j < start + len {
+                        assert!(j + lanes <= N, "forward load at {j} (+{lanes}) with len={len}");
+                        assert!(j + len + lanes <= N, "forward load at {}+{len} (+{lanes}) with len={len}", j);
+                        j += lanes;
+                    }
+                    start += 2 * len;
+                }
+                len /= 2;
+            }
+        }
+
+        fn inverse(lanes: usize) {
+            let mut len = 8usize;
+            while len < N {
+                let mut start = 0usize;
+                while start < N {
+                    let mut j = start;
+                    while j < start + len {
+                        assert!(j + lanes <= N, "inverse load at {j} (+{lanes}) with len={len}");
+                        assert!(j + len + lanes <= N, "inverse load at {}+{len} (+{lanes}) with len={len}", j);
+                        j += lanes;
+                    }
+                    start += 2 * len;
+                }
+                len *= 2;
+            }
+
+            // Final N^-1 scaling: i = 0, lanes, ..., N - lanes.
+            let mut i = 0usize;
+            while i < N {
+                assert!(i + lanes <= N, "scaling load at {i} (+{lanes})");
+                i += lanes;
+            }
+        }
+
+        for lanes in [4usize, 8] {
+            forward(lanes);
+            inverse(lanes);
+        }
+    }
+
+    /// `MlDsaKeyMaterial::new()` is a fully zeroed value and `init` overwrites
+    /// every field, so a key can never sign with stale or partially
+    /// initialized material.
+    #[test]
+    fn key_material_new_is_zeroed_and_init_overwrites_every_field() {
+        type Km = MlDsaKeyMaterial<6, 5, 1952>;
+
+        // All-zero bit pattern is the documented `new()` state.
+        let zero = Km::new();
+        assert_eq!(zero.seed(), &[0u8; SEED_SIZE]);
+        assert_eq!(zero.public_key(), &[0u8; 1952]);
+        assert!(zero.key_bytes.iter().all(|&b| b == 0));
+        assert!(zero.tr.iter().all(|&b| b == 0));
+        assert!(zero.a.iter().flatten().all(|p| p.coeffs.iter().all(|&c| c == 0)));
+        assert!(zero.s1_hat.iter().all(|p| p.coeffs.iter().all(|&c| c == 0)));
+        assert!(zero.s2_hat.iter().all(|p| p.coeffs.iter().all(|&c| c == 0)));
+        assert!(zero.t0_hat.iter().all(|p| p.coeffs.iter().all(|&c| c == 0)));
+
+        // Poison every field, then re-initialize. If `init` skipped any field the
+        // resulting key would differ from a freshly expanded one.
+        let mut poisoned = Km::new();
+        poisoned.seed = [0xFF; SEED_SIZE];
+        poisoned.key_bytes = [0xFF; 32];
+        poisoned.pk = [0xFF; 1952];
+        poisoned.tr = [0xFF; 64];
+        poisoned.a = core::array::from_fn(|_| {
+            core::array::from_fn(|_| NttPoly {
+                coeffs: [Q - 1; N],
+            })
+        });
+        poisoned.s1_hat = core::array::from_fn(|_| NttPoly {
+            coeffs: [Q - 1; N],
+        });
+        poisoned.s2_hat = core::array::from_fn(|_| NttPoly {
+            coeffs: [Q - 1; N],
+        });
+        poisoned.t0_hat = core::array::from_fn(|_| NttPoly {
+            coeffs: [Q - 1; N],
+        });
+
+        let seed = [0x5Au8; SEED_SIZE];
+        poisoned.init(&PARAMS_65, &seed);
+        let fresh = Km::from_seed(&PARAMS_65, &seed);
+
+        assert_eq!(poisoned.seed, fresh.seed, "init must overwrite the seed");
+        assert_eq!(poisoned.key_bytes, fresh.key_bytes, "init must overwrite key_bytes");
+        assert_eq!(poisoned.pk, fresh.pk, "init must overwrite the public key");
+        assert_eq!(poisoned.tr, fresh.tr, "init must overwrite tr");
+        assert_eq!(poisoned.a, fresh.a, "init must overwrite the matrix A");
+        assert_eq!(poisoned.s1_hat, fresh.s1_hat, "init must overwrite s1_hat");
+        assert_eq!(poisoned.s2_hat, fresh.s2_hat, "init must overwrite s2_hat");
+        assert_eq!(poisoned.t0_hat, fresh.t0_hat, "init must overwrite t0_hat");
+
+        let rnd = [0x11u8; 32];
+        let mut sig_poisoned = [0u8; PARAMS_65.signature_size];
+        let mut sig_fresh = [0u8; PARAMS_65.signature_size];
+        poisoned
+            .sign_derand_into(&PARAMS_65, b"poison check", b"ctx", &rnd, &mut sig_poisoned)
+            .unwrap();
+        fresh
+            .sign_derand_into(&PARAMS_65, b"poison check", b"ctx", &rnd, &mut sig_fresh)
+            .unwrap();
+        assert_eq!(
+            sig_poisoned, sig_fresh,
+            "a re-initialized key must sign exactly like a fresh key"
+        );
+    }
+
+    /// The randomized constructor must store the seed it used and produce the
+    /// same key as `from_seed` with that seed, even when the destination held
+    /// unrelated bytes.
+    #[test]
+    #[cfg(feature = "random")]
+    fn key_material_generate_overwrites_poisoned_state() {
+        type Km = MlDsaKeyMaterial<4, 4, 1312>;
+
+        let mut generated = Km::new();
+        generated.key_bytes = [0xFF; 32];
+        generated.a = core::array::from_fn(|_| {
+            core::array::from_fn(|_| NttPoly {
+                coeffs: [Q - 1; N],
+            })
+        });
+        generated.s1_hat = core::array::from_fn(|_| NttPoly {
+            coeffs: [Q - 1; N],
+        });
+        generated.t0_hat = core::array::from_fn(|_| NttPoly {
+            coeffs: [Q - 1; N],
+        });
+
+        let seed = generated.generate(&PARAMS_44).unwrap();
+        let fresh = Km::from_seed(&PARAMS_44, &seed);
+
+        assert_eq!(generated.pk, fresh.pk);
+        assert_eq!(generated.key_bytes, fresh.key_bytes);
+        assert_eq!(generated.a, fresh.a);
+        assert_eq!(generated.s1_hat, fresh.s1_hat);
+        assert_eq!(generated.s2_hat, fresh.s2_hat);
+        assert_eq!(generated.t0_hat, fresh.t0_hat);
     }
 
     /// The hint decoder checks the *current* cumulative count on every row.

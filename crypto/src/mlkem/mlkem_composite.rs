@@ -244,19 +244,22 @@ impl MlKem1024X25519SecretKey {
         let ct_pq: &[u8; CIPHERTEXT_SIZE_1024] = ct_pq.try_into().expect("split length is fixed");
         let ct_t: &[u8; x25519::KEY_SIZE] = ct_t.try_into().expect("split length is fixed");
 
-        let ss_pq = self
+        let mut ss_pq = self
             .mlkem_secret_key
             .decapsulate(ct_pq)
             .map_err(|_| MlKem1024X25519Error::InvalidSecretKey)?;
 
         let ct_t_key = x25519::PublicKey::from_bytes(ct_t);
-        let ss_t = self
+        let mut ss_t = self
             .x25519_secret_key
             .ecdh(&ct_t_key)
             .map_err(|_| MlKem1024X25519Error::InvalidCiphertext)?;
 
         let ek_pq = self.mlkem_secret_key.public_key().to_bytes();
-        Ok(combiner(&ss_pq, &ss_t, ct_pq, ct_t, &ek_pq, &self.x25519_public_key_bytes))
+        let ss = combiner(&ss_pq, &ss_t, ct_pq, ct_t, &ek_pq, &self.x25519_public_key_bytes);
+        wipe(&mut ss_pq);
+        wipe(&mut ss_t);
+        Ok(ss)
     }
 
     fn expand(seed: &[u8; MLKEM_1024_X25519_SEED_SIZE]) -> (Self, MlKem1024X25519PublicKey) {
@@ -392,13 +395,13 @@ impl MlKem1024X25519PublicKey {
         MlKem1024X25519Error,
     > {
         let (mlkem_coins, x25519_seed) = randomness.split_at(32);
-        let (ss_pq, ct_pq) = self
+        let (mut ss_pq, ct_pq) = self
             .mlkem_public_key
             .encapsulate_derand(mlkem_coins.try_into().expect("split length is fixed"));
 
         let ephemeral = x25519::SecretKey::from_bytes(x25519_seed.try_into().expect("split length is fixed"));
         let ct_t = ephemeral.public_key().to_bytes();
-        let ss_t = ephemeral
+        let mut ss_t = ephemeral
             .ecdh(&self.x25519_public_key)
             .map_err(|_| MlKem1024X25519Error::InvalidPublicKey)?;
 
@@ -410,6 +413,8 @@ impl MlKem1024X25519PublicKey {
             &self.mlkem_public_key.to_bytes(),
             &self.x25519_public_key.to_bytes(),
         );
+        wipe(&mut ss_pq);
+        wipe(&mut ss_t);
 
         let mut ciphertext = [0u8; MLKEM_1024_X25519_CIPHERTEXT_SIZE];
         ciphertext[..CIPHERTEXT_SIZE_1024].copy_from_slice(&ct_pq);

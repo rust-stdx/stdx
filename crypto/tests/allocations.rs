@@ -297,12 +297,12 @@ fn parallel_hash_does_not_allocate() {
 
     assert_no_alloc("parallel-hash one-shot", || {
         let mut out = [0u8; 64];
-        ParallelHash256::hash(&data, 1024, b"alloc", &mut out);
+        ParallelHash256::hash(&data, 1024, b"alloc", &mut out).unwrap();
         out[0]
     });
 
     assert_no_alloc("parallel-hash streaming", || {
-        let mut hasher = ParallelHash256::new(1024, b"alloc");
+        let mut hasher = ParallelHash256::new(1024, b"alloc").unwrap();
         for chunk in data.chunks(7) {
             hasher.update(chunk);
         }
@@ -312,7 +312,7 @@ fn parallel_hash_does_not_allocate() {
     });
 
     assert_no_alloc("parallel-hash xof", || {
-        let mut hasher = ParallelHash256::new(1024, b"alloc");
+        let mut hasher = ParallelHash256::new(1024, b"alloc").unwrap();
         hasher.update(&data);
         let mut reader = hasher.finalize_xof();
         let mut out = [0u8; 512];
@@ -336,7 +336,7 @@ fn turboshake_does_not_allocate() {
     });
 
     assert_no_alloc("turboshake incremental", || {
-        let mut xof = TurboShake256::new(0x07);
+        let mut xof = TurboShake256::new(0x07).unwrap();
         for chunk in data.chunks(7) {
             xof.absorb(chunk);
         }
@@ -363,7 +363,7 @@ fn turboshake_does_not_leak() {
 
     for i in 0..1000usize {
         // Vary the domain separator too: it must not be retained anywhere.
-        let mut xof = TurboShake256::new(0x01 + (i % 0x7f) as u8);
+        let mut xof = TurboShake256::new(0x01 + (i % 0x7f) as u8).unwrap();
         xof.absorb(&data);
         let mut out = [0u8; 128];
         xof.squeeze(&mut out);
@@ -393,7 +393,7 @@ fn parallel_hash_does_not_leak() {
     for i in 0..1000usize {
         // Vary the block size too: it must not be retained anywhere.
         let mut out = [0u8; 64];
-        ParallelHash256::hash(&data, 136 + (i % 7), b"leak", &mut out);
+        ParallelHash256::hash(&data, 136 + (i % 7), b"leak", &mut out).unwrap();
     }
 
     assert_eq!(
@@ -610,38 +610,38 @@ fn aegis_does_not_allocate() {
 
     assert_no_alloc("aegis-256 encrypt", || {
         let cipher = Aegis256::<16>::new(&key);
-        let _tag = cipher.encrypt_in_place(&mut buffer, &nonce, b"aad");
+        let _tag = cipher.encrypt_in_place(&mut buffer, &nonce, b"aad").unwrap();
     });
     assert_no_alloc("aegis-256 decrypt", || {
         let cipher = Aegis256::<16>::new(&key);
         let mut data = buffer;
-        let tag = cipher.encrypt_in_place(&mut data, &nonce, b"aad");
+        let tag = cipher.encrypt_in_place(&mut data, &nonce, b"aad").unwrap();
         cipher
             .decrypt_in_place(&mut data, &nonce, b"aad", tag.as_ref())
             .unwrap();
     });
     assert_no_alloc("aegis-256x2 encrypt", || {
         let cipher = Aegis256X2::<32>::new(&key);
-        let _tag = cipher.encrypt_in_place(&mut buffer, &nonce, b"aad");
+        let _tag = cipher.encrypt_in_place(&mut buffer, &nonce, b"aad").unwrap();
     });
     assert_no_alloc("aegis-256x4 encrypt", || {
         let cipher = Aegis256X4::<32>::new(&key);
-        let _tag = cipher.encrypt_in_place(&mut buffer, &nonce, b"aad");
+        let _tag = cipher.encrypt_in_place(&mut buffer, &nonce, b"aad").unwrap();
     });
 
     assert_no_alloc("aegis-256 mac", || {
         let mut mac = Aegis256Mac::<16>::new_with_nonce(&key, &nonce);
-        mac.update(&buffer);
+        mac.update(&buffer).unwrap();
         let _tag = mac.finalize();
     });
     assert_no_alloc("aegis-256x2 mac", || {
         let mut mac = Aegis256X2Mac::<32>::new_with_nonce(&key, &nonce);
-        mac.update(&buffer);
+        mac.update(&buffer).unwrap();
         let _tag = mac.finalize();
     });
     assert_no_alloc("aegis-256x4 mac", || {
         let mut mac = Aegis256X4Mac::<32>::new_with_nonce(&key, &nonce);
-        mac.update(&buffer);
+        mac.update(&buffer).unwrap();
         let _tag = mac.finalize();
     });
 
@@ -652,7 +652,7 @@ fn aegis_does_not_allocate() {
     });
     assert_no_alloc("aegis-256x2 stream", || {
         let mut stream = Aegis256X2Stream::new(&key, &nonce);
-        StreamCipher::xor_keystream(&mut stream, &mut buffer);
+        StreamCipher::xor_keystream(&mut stream, &mut buffer).unwrap();
     });
     assert_no_alloc("aegis-256x4 stream", || {
         let mut stream = Aegis256X4Stream::new(&key, &nonce);

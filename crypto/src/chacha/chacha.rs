@@ -1,7 +1,7 @@
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use crate::StreamCipher;
+use crate::{StreamCipher, StreamCipherError};
 
 /// The number of 32-bit words that compose ChaCha's state.
 pub(crate) const STATE_WORDS: usize = 16;
@@ -13,12 +13,16 @@ pub(crate) const BLOCK_SIZE: usize = 64;
 /// IETF (RFC 8439) layout.
 ///
 /// RFC 8439 Section 2.8 caps the IETF variant at `2^32 - 1` blocks of 64 bytes because the block
-/// counter is 32 bits wide. This constant keeps one block of margin (`2^32 - 2` blocks) so the
-/// final counter value is never used and the counter can never wrap and reuse keystream.
+/// counter is 32 bits wide. The AEADs use counter 0 for the Poly1305 key and start the payload at
+/// counter 1, and this implementation reserves the final counter value, so the largest payload is
+/// `2^32 - 2` blocks (`(u32::MAX - 1) * 64` bytes). The final counter is never used and the
+/// counter can never wrap and reuse keystream.
 ///
-/// Exceeding this limit makes the ChaCha20-Poly1305 / XChaCha20-Poly1305 / ChaCha8-Poly1305 AEADs
-/// panic on encryption and return [`AeadError::InvalidCiphertext`](crate::AeadError) on decryption,
-/// and makes [`StreamCipher::xor_keystream`](crate::StreamCipher::xor_keystream) panic.
+/// Exceeding this limit makes the ChaCha20-Poly1305 / XChaCha20-Poly1305 AEADs
+/// return [`AeadError::MessageTooLong`](crate::AeadError) on both encryption and decryption.
+/// A raw [`StreamCipher::xor_keystream`](crate::StreamCipher::xor_keystream) that starts at
+/// counter 0 can use one additional block before it returns
+/// [`StreamCipherError::CounterExhausted`](crate::StreamCipherError::CounterExhausted).
 pub const CHACHA20_IETF_MAX_LEN: u64 = (u32::MAX as u64 - 1) * BLOCK_SIZE as u64;
 
 /// The "sigma" constant which is the value of the first row of ChaCha's state.
@@ -38,6 +42,10 @@ pub type XChaCha20Ietf = XChaCha<20, true>;
 /// XChaCha20 with the original (DJB) 64-bit counter and 64-bit nonce layout.
 pub type XChaCha20Djb = XChaCha<20, false>;
 
+// The cipher state is deliberately kept at exactly 128 bytes.
+const _: () = assert!(core::mem::size_of::<ChaCha<20, true>>() == 128);
+const _: () = assert!(core::mem::size_of::<XChaCha<20, true>>() == 128);
+
 /// ChaCha stream cipher.
 ///
 /// `IS_IETF` selects the nonce/counter layout:
@@ -45,7 +53,10 @@ pub type XChaCha20Djb = XChaCha<20, false>;
 /// - `true` (IETF / RFC 8439): 32-bit counter at word 12, 96-bit nonce at words 13–15.
 ///
 /// The IETF layout can only encrypt up to [`CHACHA20_IETF_MAX_LEN`] bytes per `(key, nonce)` pair;
-/// [`xor_keystream`](StreamCipher::xor_keystream) panics instead of wrapping the counter.
+/// [`xor_keystream`](StreamCipher::xor_keystream) returns
+/// [`StreamCipherError::CounterExhausted`](crate::StreamCipherError::CounterExhausted) instead of
+/// wrapping the counter. A zeroized cipher returns
+/// [`StreamCipherError::Zeroized`](crate::StreamCipherError::Zeroized) and cannot be reused.
 #[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
 pub struct ChaCha<const ROUNDS: usize, const IS_IETF: bool> {
     state: [u32; STATE_WORDS],
@@ -85,24 +96,24 @@ impl<const ROUNDS: usize, const IS_IETF: bool> ChaCha<ROUNDS, IS_IETF> {
         }
     }
 
-    /// Panics if `new_blocks` more blocks would use the reserved final counter
-    /// value or wrap the counter.
+    /// Returns [`StreamCipherError::CounterExhausted`] if `new_blocks` more
+    /// blocks would use the reserved final counter value or wrap the counter.
     ///
     /// The final counter value is never used, so the stored counter can never
     /// wrap and silently repeat keystream.
     #[inline]
-    fn check_overflow(&self, new_blocks: u64) {
+    fn check_overflow(&self, new_blocks: u64) -> Result<(), StreamCipherError> {
         if new_blocks == 0 {
-            return;
+            return Ok(());
         }
 
         let counter = Self::extract_counter(&self.state);
         let max = if IS_IETF { u32::MAX as u64 } else { u64::MAX };
 
-        assert!(
-            new_blocks <= max && counter <= max - new_blocks,
-            "input exceeds maximum allowed length: the ChaCha block counter would wrap"
-        );
+        if new_blocks > max || counter > max - new_blocks {
+            return Err(StreamCipherError::CounterExhausted);
+        }
+        Ok(())
     }
 }
 
@@ -166,7 +177,8 @@ impl<const ROUNDS: usize> ChaCha<ROUNDS, true> {
     ///
     /// The `(key, nonce, counter)` triple must never be reused across distinct messages. Setting
     /// the counter near `u32::MAX` leaves little room before the counter space is exhausted;
-    /// streaming past it will panic rather than reuse keystream (see [`CHACHA20_IETF_MAX_LEN`]).
+    /// streaming past it returns [`StreamCipherError::CounterExhausted`] rather than reusing
+    /// keystream (see [`CHACHA20_IETF_MAX_LEN`]).
     #[inline(always)]
     pub fn set_counter(&mut self, counter: u32) {
         Self::inject_counter(&mut self.state, counter as u64);
@@ -177,17 +189,24 @@ impl<const ROUNDS: usize> ChaCha<ROUNDS, true> {
 impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, IS_IETF> {
     /// XOR `plaintext` with the ChaCha keystream.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if this call would use the reserved final block counter value or
-    /// advance past it and silently reuse keystream. The final counter value is
-    /// never used, so the counter can never wrap.
+    /// Returns [`StreamCipherError::CounterExhausted`] if this call would use
+    /// the reserved final block counter value or advance past it and silently
+    /// reuse keystream. The final counter value is never used, so the counter
+    /// can never wrap. For the IETF layout, this also happens when encrypting
+    /// near the end of the counter space (see [`CHACHA20_IETF_MAX_LEN`]).
     ///
-    /// For the IETF layout, this also happens when encrypting near the end of
-    /// the counter space (see [`CHACHA20_IETF_MAX_LEN`]).
-    fn xor_keystream(&mut self, mut in_out: &mut [u8]) {
+    /// Returns [`StreamCipherError::Zeroized`] if the cipher has been zeroized.
+    fn xor_keystream(&mut self, mut in_out: &mut [u8]) -> Result<(), StreamCipherError> {
+        // A live ChaCha state always starts with the sigma constant. Zeroize
+        // wipes the state, so `state[0] == 0` is an unambiguous indication that the state has been
+        // zeroized and is no longer safe to use.
+        if self.state[0] == 0 {
+            return Err(StreamCipherError::Zeroized);
+        }
         if in_out.is_empty() {
-            return;
+            return Ok(());
         }
 
         // Compute how many new blocks this call needs, taking into account the
@@ -199,7 +218,7 @@ impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, I
             0
         };
         let new_blocks = in_out.len().saturating_sub(leftover_len).div_ceil(BLOCK_SIZE) as u64;
-        self.check_overflow(new_blocks);
+        self.check_overflow(new_blocks)?;
 
         // first, consume the keystream leftover, if any
         if self.keystream_leftover_offset < (BLOCK_SIZE - 1) as u8 {
@@ -214,12 +233,12 @@ impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, I
                 in_out = &mut in_out[keystream_leftover.len()..];
             } else if in_out.len() < keystream_leftover.len() {
                 self.keystream_leftover_offset += in_out.len() as u8;
-                return;
+                return Ok(());
             } else {
                 // in_out.len() == keystream_leftover.len() -> in_out has consumed exactly all the
                 // leftover keystream
                 self.keystream_leftover_offset = (BLOCK_SIZE - 1) as u8;
-                return;
+                return Ok(());
             }
         }
         // at this point, we already know how many bytes of leftover there will be
@@ -230,14 +249,14 @@ impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, I
         if in_out.len() >= 128 && is_x86_feature_detected!("avx512f") {
             use super::chacha_avx512::chacha_avx512;
             unsafe { chacha_avx512::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover) };
-            return;
+            return Ok(());
         }
 
         #[cfg(all(feature = "std", target_arch = "x86_64"))]
         if in_out.len() >= 128 && is_x86_feature_detected!("avx2") {
             use super::chacha_avx2::chacha_avx2;
             unsafe { chacha_avx2::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover) };
-            return;
+            return Ok(());
         }
 
         // compile-time dispatch
@@ -245,14 +264,14 @@ impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, I
         if in_out.len() >= 128 {
             use super::chacha_avx512::chacha_avx512;
             unsafe { chacha_avx512::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover) };
-            return;
+            return Ok(());
         }
 
         #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
         if in_out.len() >= 128 {
             use super::chacha_avx2::chacha_avx2;
             unsafe { chacha_avx2::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover) };
-            return;
+            return Ok(());
         }
 
         // aarch64 assumes that NEON is always available so compile-time dispatch is enough
@@ -260,7 +279,7 @@ impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, I
         if in_out.len() >= 128 {
             use super::chacha_neon::chacha_neon;
             unsafe { chacha_neon::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover) };
-            return;
+            return Ok(());
         }
 
         // wasm32 only supports compile-time features detection
@@ -268,11 +287,12 @@ impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for ChaCha<ROUNDS, I
         if in_out.len() >= 128 {
             use super::chacha_wasm_simd128::chacha_wasm_simd128;
             chacha_wasm_simd128::<ROUNDS, IS_IETF>(&mut self.state, in_out, &mut self.keystream_leftover);
-            return;
+            return Ok(());
         }
 
         // fallback for when SIMD acceleration is not available
         chacha_generic::<ROUNDS, IS_IETF>(&mut self.state, &mut self.keystream_leftover, in_out);
+        Ok(())
     }
 }
 
@@ -336,6 +356,9 @@ fn chacha_generic<const ROUNDS: usize, const IS_IETF: bool>(
             .for_each(|(plaintext, keystream)| *plaintext ^= keystream);
 
         counter = counter.wrapping_add(1);
+
+        #[cfg(feature = "zeroize")]
+        zeroize::Zeroize::zeroize(&mut tmp_state);
     }
 
     ChaCha::<ROUNDS, IS_IETF>::inject_counter(state, counter);
@@ -344,6 +367,9 @@ fn chacha_generic<const ROUNDS: usize, const IS_IETF: bool>(
         // copy the last 63 bytes of the leftover keystream block
         keystream_leftover.copy_from_slice(&keystream[1..]);
     }
+
+    #[cfg(feature = "zeroize")]
+    zeroize::Zeroize::zeroize(&mut keystream);
 }
 
 #[inline(always)]
@@ -423,8 +449,8 @@ impl<const ROUNDS: usize> XChaCha<ROUNDS, false> {
 }
 
 impl<const ROUNDS: usize, const IS_IETF: bool> StreamCipher for XChaCha<ROUNDS, IS_IETF> {
-    fn xor_keystream(&mut self, in_out: &mut [u8]) {
-        self.inner.xor_keystream(in_out);
+    fn xor_keystream(&mut self, in_out: &mut [u8]) -> Result<(), StreamCipherError> {
+        self.inner.xor_keystream(in_out)
     }
 }
 
@@ -433,7 +459,7 @@ mod test {
     use super::{
         CHACHA20_IETF_MAX_LEN, ChaCha8Djb, ChaCha12Djb, ChaCha20Djb, ChaCha20Ietf, XChaCha20Djb, XChaCha20Ietf,
     };
-    use crate::StreamCipher;
+    use crate::{StreamCipher, StreamCipherError};
 
     struct TestDjb {
         key: [u8; 32],
@@ -592,7 +618,7 @@ f39c6402c42234e32a356b3e764312a6\
             cipher.set_counter(test.initial_counter);
 
             let mut plaintext = test.plaintext.clone();
-            cipher.xor_keystream(&mut plaintext);
+            cipher.xor_keystream(&mut plaintext).unwrap();
 
             assert_eq!(
                 plaintext,
@@ -606,7 +632,7 @@ Expected ciphertext: {}",
 
             let mut cipher = ChaCha20Djb::new(&test.key, &test.nonce);
             cipher.set_counter(test.initial_counter);
-            cipher.xor_keystream(&mut plaintext);
+            cipher.xor_keystream(&mut plaintext).unwrap();
 
             assert_eq!(
                 plaintext,
@@ -627,13 +653,13 @@ Expected: {}",
             // cipher.xor_keystream(plaintext[0..35])
 
             let mut cipher = ChaCha20Djb::new(&test.key, &test.nonce);
-            cipher.xor_keystream(&mut plaintext);
+            cipher.xor_keystream(&mut plaintext).unwrap();
             for n in 0..10 {
                 let mut partial_plaintext: Vec<u8> = test.plaintext.clone();
 
                 let mut cipher = ChaCha20Djb::new(&test.key, &test.nonce);
-                cipher.xor_keystream(&mut partial_plaintext[..n]);
-                cipher.xor_keystream(&mut partial_plaintext[n..]);
+                cipher.xor_keystream(&mut partial_plaintext[..n]).unwrap();
+                cipher.xor_keystream(&mut partial_plaintext[n..]).unwrap();
 
                 assert_eq!(
                     plaintext,
@@ -671,7 +697,7 @@ Expected: {}",
         .unwrap();
 
         let mut expected = plaintext.clone();
-        ChaCha20Djb::new(&key, &nonce).xor_keystream(&mut expected);
+        ChaCha20Djb::new(&key, &nonce).xor_keystream(&mut expected).unwrap();
 
         // call 1: partial block -> leaves leftover
         // call 2: partially consumes leftover
@@ -679,9 +705,9 @@ Expected: {}",
         {
             let mut buf = plaintext.clone();
             let mut cipher = ChaCha20Djb::new(&key, &nonce);
-            cipher.xor_keystream(&mut buf[..10]);
-            cipher.xor_keystream(&mut buf[10..15]);
-            cipher.xor_keystream(&mut buf[15..]);
+            cipher.xor_keystream(&mut buf[..10]).unwrap();
+            cipher.xor_keystream(&mut buf[10..15]).unwrap();
+            cipher.xor_keystream(&mut buf[15..]).unwrap();
             assert_eq!(buf, expected, "partial leftover consumption");
         }
 
@@ -691,9 +717,9 @@ Expected: {}",
         {
             let mut buf = plaintext.clone();
             let mut cipher = ChaCha20Djb::new(&key, &nonce);
-            cipher.xor_keystream(&mut buf[..10]);
-            cipher.xor_keystream(&mut buf[10..64]);
-            cipher.xor_keystream(&mut buf[64..]);
+            cipher.xor_keystream(&mut buf[..10]).unwrap();
+            cipher.xor_keystream(&mut buf[10..64]).unwrap();
+            cipher.xor_keystream(&mut buf[64..]).unwrap();
             assert_eq!(buf, expected, "exact leftover exhaustion");
         }
 
@@ -703,10 +729,10 @@ Expected: {}",
         {
             let mut buf = plaintext.clone();
             let mut cipher = ChaCha20Djb::new(&key, &nonce);
-            cipher.xor_keystream(&mut buf[..8]);
-            cipher.xor_keystream(&mut buf[8..13]);
-            cipher.xor_keystream(&mut buf[13..33]);
-            cipher.xor_keystream(&mut buf[33..]);
+            cipher.xor_keystream(&mut buf[..8]).unwrap();
+            cipher.xor_keystream(&mut buf[8..13]).unwrap();
+            cipher.xor_keystream(&mut buf[13..33]).unwrap();
+            cipher.xor_keystream(&mut buf[33..]).unwrap();
             assert_eq!(buf, expected, "multiple partial leftover consumptions");
         }
     }
@@ -874,7 +900,7 @@ f39c6402c42234e32a356b3e764312a6\
             cipher.set_counter(test.initial_counter);
 
             let mut plaintext = test.plaintext.clone();
-            cipher.xor_keystream(&mut plaintext);
+            cipher.xor_keystream(&mut plaintext).unwrap();
 
             assert_eq!(
                 plaintext,
@@ -889,7 +915,7 @@ Expected ciphertext: {}",
             // decrypt
             let mut cipher = ChaCha20Ietf::new(&test.key, &test.nonce);
             cipher.set_counter(test.initial_counter);
-            cipher.xor_keystream(&mut plaintext);
+            cipher.xor_keystream(&mut plaintext).unwrap();
 
             assert_eq!(
                 plaintext,
@@ -904,14 +930,14 @@ Expected: {}",
             // partial encryption check
             let mut cipher = ChaCha20Ietf::new(&test.key, &test.nonce);
             cipher.set_counter(test.initial_counter);
-            cipher.xor_keystream(&mut plaintext);
+            cipher.xor_keystream(&mut plaintext).unwrap();
             for n in 0..10 {
                 let mut partial_plaintext: Vec<u8> = test.plaintext.clone();
 
                 let mut cipher = ChaCha20Ietf::new(&test.key, &test.nonce);
                 cipher.set_counter(test.initial_counter);
-                cipher.xor_keystream(&mut partial_plaintext[..n]);
-                cipher.xor_keystream(&mut partial_plaintext[n..]);
+                cipher.xor_keystream(&mut partial_plaintext[..n]).unwrap();
+                cipher.xor_keystream(&mut partial_plaintext[n..]).unwrap();
 
                 assert_eq!(
                     plaintext,
@@ -935,7 +961,7 @@ Expected: {}",
         ];
 
         let mut buffer = [0u8; 100];
-        ChaCha12Djb::new(key, nonce).xor_keystream(&mut buffer);
+        ChaCha12Djb::new(key, nonce).xor_keystream(&mut buffer).unwrap();
 
         assert_eq!(
             buffer,
@@ -959,7 +985,7 @@ Expected: {}",
         let nonce = &[0xa1, 0x4a, 0x11, 0x68, 0x27, 0x1d, 0x45, 0x9b];
 
         let mut buffer = [0u8; 100];
-        ChaCha8Djb::new(key, nonce).xor_keystream(&mut buffer);
+        ChaCha8Djb::new(key, nonce).xor_keystream(&mut buffer).unwrap();
 
         assert_eq!(
             buffer,
@@ -1014,12 +1040,12 @@ Expected: {}",
 
         let mut cipher = XChaCha20Ietf::new(&key, &nonce);
         let mut buf = plaintext.clone();
-        cipher.xor_keystream(&mut buf);
+        cipher.xor_keystream(&mut buf).unwrap();
         assert_eq!(buf, expected_ciphertext);
 
         // Decrypt
         cipher.set_counter(0);
-        cipher.xor_keystream(&mut buf);
+        cipher.xor_keystream(&mut buf).unwrap();
         assert_eq!(buf, plaintext);
     }
 
@@ -1031,13 +1057,13 @@ Expected: {}",
 
         let mut cipher1 = XChaCha20Ietf::new(&key, &nonce);
         let mut buf1 = plaintext.to_vec();
-        cipher1.xor_keystream(&mut buf1);
+        cipher1.xor_keystream(&mut buf1).unwrap();
 
         // Same cipher but with set_counter(0) should produce same output
         let mut cipher2 = XChaCha20Ietf::new(&key, &nonce);
         cipher2.set_counter(0);
         let mut buf2 = plaintext.to_vec();
-        cipher2.xor_keystream(&mut buf2);
+        cipher2.xor_keystream(&mut buf2).unwrap();
 
         assert_eq!(buf1, buf2);
 
@@ -1045,7 +1071,7 @@ Expected: {}",
         let mut cipher3 = XChaCha20Ietf::new(&key, &nonce);
         cipher3.set_counter(1);
         let mut buf3 = plaintext.to_vec();
-        cipher3.xor_keystream(&mut buf3);
+        cipher3.xor_keystream(&mut buf3).unwrap();
         assert_ne!(buf1, buf3);
     }
 
@@ -1056,19 +1082,19 @@ Expected: {}",
     /// Helper: encrypt in one shot to get the expected reference.
     fn encrypt_one_shot_djb(key: &[u8; 32], nonce: &[u8; 8], plaintext: &[u8]) -> Vec<u8> {
         let mut buf = plaintext.to_vec();
-        ChaCha20Djb::new(key, nonce).xor_keystream(&mut buf);
+        ChaCha20Djb::new(key, nonce).xor_keystream(&mut buf).unwrap();
         buf
     }
 
     fn encrypt_one_shot_ietf(key: &[u8; 32], nonce: &[u8; 12], plaintext: &[u8]) -> Vec<u8> {
         let mut buf = plaintext.to_vec();
-        ChaCha20Ietf::new(key, nonce).xor_keystream(&mut buf);
+        ChaCha20Ietf::new(key, nonce).xor_keystream(&mut buf).unwrap();
         buf
     }
 
     fn encrypt_one_shot_xchacha(key: &[u8; 32], nonce: &[u8; 24], plaintext: &[u8]) -> Vec<u8> {
         let mut buf = plaintext.to_vec();
-        XChaCha20Ietf::new(key, nonce).xor_keystream(&mut buf);
+        XChaCha20Ietf::new(key, nonce).xor_keystream(&mut buf).unwrap();
         buf
     }
 
@@ -1113,9 +1139,9 @@ Expected: {}",
         {
             let mut buf = pt.clone();
             let mut c = ChaCha20Ietf::new(&key, &nonce);
-            c.xor_keystream(&mut buf[..10]);
-            c.xor_keystream(&mut buf[10..15]);
-            c.xor_keystream(&mut buf[15..]);
+            c.xor_keystream(&mut buf[..10]).unwrap();
+            c.xor_keystream(&mut buf[10..15]).unwrap();
+            c.xor_keystream(&mut buf[15..]).unwrap();
             assert_eq!(buf, expected, "ietf partial leftover consumption");
         }
 
@@ -1123,9 +1149,9 @@ Expected: {}",
         {
             let mut buf = pt.clone();
             let mut c = ChaCha20Ietf::new(&key, &nonce);
-            c.xor_keystream(&mut buf[..3]);
-            c.xor_keystream(&mut buf[3..64]);
-            c.xor_keystream(&mut buf[64..]);
+            c.xor_keystream(&mut buf[..3]).unwrap();
+            c.xor_keystream(&mut buf[3..64]).unwrap();
+            c.xor_keystream(&mut buf[64..]).unwrap();
             assert_eq!(buf, expected, "ietf exact leftover exhaustion");
         }
 
@@ -1133,10 +1159,10 @@ Expected: {}",
         {
             let mut buf = pt.clone();
             let mut c = ChaCha20Ietf::new(&key, &nonce);
-            c.xor_keystream(&mut buf[..5]);
-            c.xor_keystream(&mut buf[5..12]);
-            c.xor_keystream(&mut buf[12..20]);
-            c.xor_keystream(&mut buf[20..]);
+            c.xor_keystream(&mut buf[..5]).unwrap();
+            c.xor_keystream(&mut buf[5..12]).unwrap();
+            c.xor_keystream(&mut buf[12..20]).unwrap();
+            c.xor_keystream(&mut buf[20..]).unwrap();
             assert_eq!(buf, expected, "ietf multiple partial leftover consumptions");
         }
     }
@@ -1154,9 +1180,9 @@ Expected: {}",
         {
             let mut buf = pt.clone();
             let mut c = XChaCha20Ietf::new(&key, &nonce);
-            c.xor_keystream(&mut buf[..8]);
-            c.xor_keystream(&mut buf[8..20]);
-            c.xor_keystream(&mut buf[20..]);
+            c.xor_keystream(&mut buf[..8]).unwrap();
+            c.xor_keystream(&mut buf[8..20]).unwrap();
+            c.xor_keystream(&mut buf[20..]).unwrap();
             assert_eq!(buf, expected, "xchacha partial leftover consumption");
         }
 
@@ -1164,10 +1190,10 @@ Expected: {}",
         {
             let mut buf = pt.clone();
             let mut c = XChaCha20Ietf::new(&key, &nonce);
-            c.xor_keystream(&mut buf[..13]);
-            c.xor_keystream(&mut buf[13..27]);
-            c.xor_keystream(&mut buf[27..40]);
-            c.xor_keystream(&mut buf[40..]);
+            c.xor_keystream(&mut buf[..13]).unwrap();
+            c.xor_keystream(&mut buf[13..27]).unwrap();
+            c.xor_keystream(&mut buf[27..40]).unwrap();
+            c.xor_keystream(&mut buf[40..]).unwrap();
             assert_eq!(buf, expected, "xchacha multiple partial leftover consumptions");
         }
     }
@@ -1183,9 +1209,9 @@ Expected: {}",
         let mut cipher = ChaCha20Djb::new(&key, &nonce);
         let mut buf = pt.clone();
         for n in 0..10 {
-            cipher.xor_keystream(&mut buf[n..n + 1]);
+            cipher.xor_keystream(&mut buf[n..n + 1]).unwrap();
         }
-        cipher.xor_keystream(&mut buf[10..]);
+        cipher.xor_keystream(&mut buf[10..]).unwrap();
         let expected = encrypt_one_shot_djb(&key, &nonce, &pt);
         assert_eq!(buf, expected, "tiny-chunk DJB failed");
 
@@ -1194,9 +1220,9 @@ Expected: {}",
         let mut buf = pt.clone();
         let mut cipher = ChaCha20Ietf::new(&key, &nonce12);
         for n in 0..10 {
-            cipher.xor_keystream(&mut buf[n..n + 1]);
+            cipher.xor_keystream(&mut buf[n..n + 1]).unwrap();
         }
-        cipher.xor_keystream(&mut buf[10..]);
+        cipher.xor_keystream(&mut buf[10..]).unwrap();
         let expected = encrypt_one_shot_ietf(&key, &nonce12, &pt);
         assert_eq!(buf, expected, "tiny-chunk IETF failed");
 
@@ -1205,9 +1231,9 @@ Expected: {}",
         let mut buf = pt.clone();
         let mut cipher = XChaCha20Ietf::new(&key, &nonce24);
         for n in 0..10 {
-            cipher.xor_keystream(&mut buf[n..n + 1]);
+            cipher.xor_keystream(&mut buf[n..n + 1]).unwrap();
         }
-        cipher.xor_keystream(&mut buf[10..]);
+        cipher.xor_keystream(&mut buf[10..]).unwrap();
         let expected = encrypt_one_shot_xchacha(&key, &nonce24, &pt);
         assert_eq!(buf, expected, "tiny-chunk XChaCha failed");
     }
@@ -1240,7 +1266,7 @@ Expected: {}",
                     let mut buf = pt.clone();
                     let mut offset = 0;
                     for &size in &splits {
-                        cipher.xor_keystream(&mut buf[offset..offset + size]);
+                        cipher.xor_keystream(&mut buf[offset..offset + size]).unwrap();
                         offset += size;
                     }
                     assert_eq!(buf, expected, "Boundary DJB failed for len={len} splits={splits:?}",);
@@ -1265,8 +1291,8 @@ Expected: {}",
                 }
                 let mut cipher = ChaCha20Ietf::new(&key, &nonce);
                 let mut buf = pt.clone();
-                cipher.xor_keystream(&mut buf[..a]);
-                cipher.xor_keystream(&mut buf[a..]);
+                cipher.xor_keystream(&mut buf[..a]).unwrap();
+                cipher.xor_keystream(&mut buf[a..]).unwrap();
                 assert_eq!(buf, expected, "Boundary IETF failed for len={len} a={a}",);
             }
         }
@@ -1284,15 +1310,15 @@ Expected: {}",
         let mut cipher = ChaCha20Djb::new(&key, &nonce);
 
         // first partial call
-        cipher.xor_keystream(&mut buf[..10]);
+        cipher.xor_keystream(&mut buf[..10]).unwrap();
         // zero-byte call in the middle
-        cipher.xor_keystream(&mut []);
+        cipher.xor_keystream(&mut []).unwrap();
         // second partial call
-        cipher.xor_keystream(&mut buf[10..20]);
+        cipher.xor_keystream(&mut buf[10..20]).unwrap();
         // another zero-byte call
-        cipher.xor_keystream(&mut []);
+        cipher.xor_keystream(&mut []).unwrap();
         // final call
-        cipher.xor_keystream(&mut buf[20..]);
+        cipher.xor_keystream(&mut buf[20..]).unwrap();
 
         assert_eq!(buf, expected, "zero-byte intermediate DJB failed");
     }
@@ -1311,17 +1337,17 @@ Expected: {}",
         // encrypt all at once with a fresh cipher
         let mut buf = pt.clone();
         let mut cipher = ChaCha20Djb::new(&key, &nonce);
-        cipher.xor_keystream(&mut buf);
+        cipher.xor_keystream(&mut buf).unwrap();
         assert_eq!(buf, full_encrypted, "baseline DJB");
 
         // encrypt 10 bytes, reset counter to 0, re-encrypt those 10 bytes
         // (this XORs again -> back to plaintext), then encrypt the rest.
         let mut buf = pt.clone();
         let mut cipher = ChaCha20Djb::new(&key, &nonce);
-        cipher.xor_keystream(&mut buf[..10]);
+        cipher.xor_keystream(&mut buf[..10]).unwrap();
         cipher.set_counter(0);
-        cipher.xor_keystream(&mut buf[..10]); // re-XOR -> bytes 0-9 are plaintext again
-        cipher.xor_keystream(&mut buf[10..]);
+        cipher.xor_keystream(&mut buf[..10]).unwrap(); // re-XOR -> bytes 0-9 are plaintext again
+        cipher.xor_keystream(&mut buf[10..]).unwrap();
 
         // first 10 bytes are back to plaintext
         assert_eq!(
@@ -1338,10 +1364,10 @@ Expected: {}",
 
         let mut buf = pt.clone();
         let mut cipher = ChaCha20Ietf::new(&key, &nonce12);
-        cipher.xor_keystream(&mut buf[..10]);
+        cipher.xor_keystream(&mut buf[..10]).unwrap();
         cipher.set_counter(0);
-        cipher.xor_keystream(&mut buf[..10]);
-        cipher.xor_keystream(&mut buf[10..]);
+        cipher.xor_keystream(&mut buf[..10]).unwrap();
+        cipher.xor_keystream(&mut buf[10..]).unwrap();
         assert_eq!(&buf[..10], &pt[..10], "set_counter mid-stream: IETF first 10 bytes");
         assert_eq!(&buf[10..], &full_encrypted[10..], "set_counter mid-stream IETF failed");
     }
@@ -1371,7 +1397,7 @@ Expected: {}",
             // ChaCha20
             let expected20 = {
                 let mut b = pt.clone();
-                ChaCha20Djb::new(&key, &nonce).xor_keystream(&mut b);
+                ChaCha20Djb::new(&key, &nonce).xor_keystream(&mut b).unwrap();
                 b
             };
             for &splits in split_patterns {
@@ -1380,14 +1406,14 @@ Expected: {}",
                 let mut c = ChaCha20Djb::new(&key, &nonce);
                 for &size in splits {
                     let end = core::cmp::min(offset + size, buf.len());
-                    c.xor_keystream(&mut buf[offset..end]);
+                    c.xor_keystream(&mut buf[offset..end]).unwrap();
                     offset = end;
                     if offset >= buf.len() {
                         break;
                     }
                 }
                 if offset < buf.len() {
-                    c.xor_keystream(&mut buf[offset..]);
+                    c.xor_keystream(&mut buf[offset..]).unwrap();
                 }
                 assert_eq!(buf, expected20, "Stress ChaCha20 failed for len={len} splits={splits:?}",);
             }
@@ -1395,7 +1421,7 @@ Expected: {}",
             // ChaCha12
             let expected12 = {
                 let mut b = pt.clone();
-                ChaCha12Djb::new(&key, &nonce).xor_keystream(&mut b);
+                ChaCha12Djb::new(&key, &nonce).xor_keystream(&mut b).unwrap();
                 b
             };
             for &splits in split_patterns {
@@ -1404,14 +1430,14 @@ Expected: {}",
                 let mut c = ChaCha12Djb::new(&key, &nonce);
                 for &size in splits {
                     let end = core::cmp::min(offset + size, buf.len());
-                    c.xor_keystream(&mut buf[offset..end]);
+                    c.xor_keystream(&mut buf[offset..end]).unwrap();
                     offset = end;
                     if offset >= buf.len() {
                         break;
                     }
                 }
                 if offset < buf.len() {
-                    c.xor_keystream(&mut buf[offset..]);
+                    c.xor_keystream(&mut buf[offset..]).unwrap();
                 }
                 assert_eq!(buf, expected12, "Stress ChaCha12 failed for len={len} splits={splits:?}",);
             }
@@ -1419,7 +1445,7 @@ Expected: {}",
             // ChaCha8
             let expected8 = {
                 let mut b = pt.clone();
-                ChaCha8Djb::new(&key, &nonce).xor_keystream(&mut b);
+                ChaCha8Djb::new(&key, &nonce).xor_keystream(&mut b).unwrap();
                 b
             };
             for &splits in split_patterns {
@@ -1428,14 +1454,14 @@ Expected: {}",
                 let mut c = ChaCha8Djb::new(&key, &nonce);
                 for &size in splits {
                     let end = core::cmp::min(offset + size, buf.len());
-                    c.xor_keystream(&mut buf[offset..end]);
+                    c.xor_keystream(&mut buf[offset..end]).unwrap();
                     offset = end;
                     if offset >= buf.len() {
                         break;
                     }
                 }
                 if offset < buf.len() {
-                    c.xor_keystream(&mut buf[offset..]);
+                    c.xor_keystream(&mut buf[offset..]).unwrap();
                 }
                 assert_eq!(buf, expected8, "Stress ChaCha8 failed for len={len} splits={splits:?}",);
             }
@@ -1468,14 +1494,14 @@ Expected: {}",
                 let mut cipher = ChaCha20Ietf::new(&key, &nonce);
                 for &size in splits {
                     let end = core::cmp::min(offset + size, buf.len());
-                    cipher.xor_keystream(&mut buf[offset..end]);
+                    cipher.xor_keystream(&mut buf[offset..end]).unwrap();
                     offset = end;
                     if offset >= buf.len() {
                         break;
                     }
                 }
                 if offset < buf.len() {
-                    cipher.xor_keystream(&mut buf[offset..]);
+                    cipher.xor_keystream(&mut buf[offset..]).unwrap();
                 }
                 assert_eq!(buf, expected, "Stress IETF failed for len={len} splits={splits:?}",);
             }
@@ -1500,14 +1526,14 @@ Expected: {}",
                 let mut cipher = XChaCha20Ietf::new(&key, &nonce);
                 for &size in splits {
                     let end = core::cmp::min(offset + size, buf.len());
-                    cipher.xor_keystream(&mut buf[offset..end]);
+                    cipher.xor_keystream(&mut buf[offset..end]).unwrap();
                     offset = end;
                     if offset >= buf.len() {
                         break;
                     }
                 }
                 if offset < buf.len() {
-                    cipher.xor_keystream(&mut buf[offset..]);
+                    cipher.xor_keystream(&mut buf[offset..]).unwrap();
                 }
                 assert_eq!(buf, expected, "Stress XChaCha failed for len={len} splits={splits:?}",);
             }
@@ -1535,28 +1561,27 @@ Expected: {}",
         let mut a = [0u8; 64];
         let mut cipher = ChaCha20Ietf::new(&key, &nonce);
         cipher.set_counter(counter);
-        cipher.xor_keystream(&mut a);
+        cipher.xor_keystream(&mut a).unwrap();
 
         let mut b = [0u8; 64];
         let mut reference = ChaCha20Ietf::new(&key, &nonce);
         reference.set_counter(counter);
-        reference.xor_keystream(&mut b);
+        reference.xor_keystream(&mut b).unwrap();
 
         assert_eq!(a, b);
         assert_ne!(a, [0u8; 64], "keystream must be non-trivial");
     }
 
-    /// The final counter value is reserved and must panic rather than wrap.
+    /// The final counter value is reserved and must error rather than wrap.
     #[test]
-    #[should_panic(expected = "input exceeds maximum allowed")]
-    fn chacha20_ietf_counter_wrap_panics() {
+    fn chacha20_ietf_counter_wrap_returns_error() {
         let key = test_key_32();
         let nonce = test_nonce_12();
 
         let mut cipher = ChaCha20Ietf::new(&key, &nonce);
         cipher.set_counter(u32::MAX);
         let mut buf = [0u8; 64];
-        cipher.xor_keystream(&mut buf);
+        assert_eq!(cipher.xor_keystream(&mut buf), Err(StreamCipherError::CounterExhausted));
     }
 
     /// Streaming near the end of the counter space: partially consuming leftover must not be
@@ -1571,26 +1596,25 @@ Expected: {}",
 
         // First call consumes block u32::MAX - 1 and buffers 54 bytes of leftover.
         let mut first = [0u8; 10];
-        cipher.xor_keystream(&mut first);
+        cipher.xor_keystream(&mut first).unwrap();
 
         // Second call is fully served from the leftover: no new block, no panic.
         let mut second = [0u8; 5];
-        cipher.xor_keystream(&mut second);
+        cipher.xor_keystream(&mut second).unwrap();
 
         let mut expected_first = [0u8; 10];
         let mut expected_second = [0u8; 5];
         let mut reference = ChaCha20Ietf::new(&key, &nonce);
         reference.set_counter(u32::MAX - 1);
-        reference.xor_keystream(&mut expected_first);
-        reference.xor_keystream(&mut expected_second);
+        reference.xor_keystream(&mut expected_first).unwrap();
+        reference.xor_keystream(&mut expected_second).unwrap();
         assert_eq!(first, expected_first);
         assert_eq!(second, expected_second);
     }
 
-    /// Once the leftover is exhausted, the next call needs the reserved block and must panic.
+    /// Once the leftover is exhausted, the next call needs the reserved block and must error.
     #[test]
-    #[should_panic(expected = "input exceeds maximum allowed")]
-    fn chacha20_ietf_wrap_after_leftover_panics() {
+    fn chacha20_ietf_wrap_after_leftover_returns_error() {
         let key = test_key_32();
         let nonce = test_nonce_12();
 
@@ -1598,39 +1622,37 @@ Expected: {}",
         cipher.set_counter(u32::MAX - 1);
 
         let mut first = [0u8; 10];
-        cipher.xor_keystream(&mut first);
+        cipher.xor_keystream(&mut first).unwrap();
         let mut second = [0u8; 5];
-        cipher.xor_keystream(&mut second);
+        cipher.xor_keystream(&mut second).unwrap();
 
         // 5 bytes of leftover remain; asking for more requires the reserved block.
         let mut third = [0u8; 64];
-        cipher.xor_keystream(&mut third);
+        assert_eq!(cipher.xor_keystream(&mut third), Err(StreamCipherError::CounterExhausted));
     }
 
     /// XChaCha20-IETF wraps the IETF ChaCha20 stream and must enforce the same limit.
     #[test]
-    #[should_panic(expected = "input exceeds maximum allowed")]
-    fn xchacha20_counter_wrap_panics() {
+    fn xchacha20_counter_wrap_returns_error() {
         let key = test_key_32();
         let nonce = test_nonce_24();
 
         let mut cipher = XChaCha20Ietf::new(&key, &nonce);
         cipher.set_counter(u32::MAX);
         let mut buf = [0u8; 64];
-        cipher.xor_keystream(&mut buf);
+        assert_eq!(cipher.xor_keystream(&mut buf), Err(StreamCipherError::CounterExhausted));
     }
 
     /// The DJB layout reserves the final 64-bit counter value too.
     #[test]
-    #[should_panic(expected = "input exceeds maximum allowed")]
-    fn chacha20_djb_counter_wrap_panics() {
+    fn chacha20_djb_counter_wrap_returns_error() {
         let key = test_key_32();
         let nonce = test_nonce_8();
 
         let mut cipher = ChaCha20Djb::new(&key, &nonce);
         cipher.set_counter(u64::MAX);
         let mut buf = [0u8; 64];
-        cipher.xor_keystream(&mut buf);
+        assert_eq!(cipher.xor_keystream(&mut buf), Err(StreamCipherError::CounterExhausted));
     }
 
     /// Reserving the final counter block means no extra state is needed and the struct stays at
@@ -1646,37 +1668,54 @@ Expected: {}",
     /// The IETF layout must reject a block count larger than its counter space without
     /// underflowing the subtraction in `check_overflow`.
     #[test]
-    #[should_panic(expected = "input exceeds maximum allowed")]
     fn chacha20_ietf_check_overflow_rejects_more_blocks_than_counter_space() {
         let cipher = ChaCha20Ietf::new(&test_key_32(), &test_nonce_12());
-        cipher.check_overflow(u32::MAX as u64 + 1);
+        assert_eq!(
+            cipher.check_overflow(u32::MAX as u64 + 1),
+            Err(StreamCipherError::CounterExhausted)
+        );
+    }
+
+    /// The AEAD length limit accounts for both the Poly1305 key block (counter
+    /// 0) and the reserved final counter.
+    ///
+    /// `check_overflow` accepts `u32::MAX` blocks from counter 0, which is
+    /// RFC 8439 §2.8's `P_MAX` (274,877,906,880 bytes). The AEADs use counter
+    /// 0 for the Poly1305 key and start the payload at counter 1, so their
+    /// largest payload is `u32::MAX - 1` blocks, exactly
+    /// `CHACHA20_IETF_MAX_LEN`.
+    #[test]
+    fn ietf_max_len_accounts_for_poly1305_block_and_reserved_counter() {
+        let cipher = ChaCha20Ietf::new(&test_key_32(), &test_nonce_12());
+        // Stream cipher from counter 0: u32::MAX blocks, last counter u32::MAX - 1.
+        cipher.check_overflow(u32::MAX as u64).unwrap();
+
+        // AEAD payload from counter 1: u32::MAX - 1 blocks, last counter u32::MAX - 1.
+        let mut payload = ChaCha20Ietf::new(&test_key_32(), &test_nonce_12());
+        payload.set_counter(1);
+        payload.check_overflow(u32::MAX as u64 - 1).unwrap();
+        assert_eq!(
+            payload.check_overflow(u32::MAX as u64),
+            Err(StreamCipherError::CounterExhausted)
+        );
+
+        assert_eq!(CHACHA20_IETF_MAX_LEN / 64, u32::MAX as u64 - 1);
+        assert_eq!(CHACHA20_IETF_MAX_LEN, 274_877_906_816);
     }
 
     /// The DJB path must reject an overflowing range without performing an overflowing `u64`
     /// addition.
     #[test]
-    #[should_panic(expected = "input exceeds maximum allowed")]
     fn chacha20_djb_check_overflow_does_not_overflow() {
         let mut cipher = ChaCha20Djb::new(&test_key_32(), &test_nonce_8());
         cipher.set_counter(1);
-        cipher.check_overflow(u64::MAX);
-    }
-
-    /// Only used by the panic-observing test below, which is skipped on
-    /// `panic = "abort"` targets such as `wasm32-wasip1`.
-    #[cfg_attr(panic = "abort", allow(dead_code))]
-    fn catch_panic<F: FnOnce() -> Vec<u8> + std::panic::UnwindSafe>(f: F) -> Option<Vec<u8>> {
-        std::panic::catch_unwind(f).ok()
+        assert_eq!(cipher.check_overflow(u64::MAX), Err(StreamCipherError::CounterExhausted));
     }
 
     /// Counter carry and exhaustion boundaries from Wycheproof.
     ///
     /// This implementation reserves the final counter value, so valid vectors that consume the
     /// final block are rejected by policy. They are asserted as such rather than silently skipped.
-    #[cfg_attr(
-        panic = "abort",
-        ignore = "counter wrap panics cannot be observed when the target aborts on panic"
-    )]
     #[test]
     fn wycheproof_stream_cipher_counter_vectors() {
         let data: serde_json::Value = serde_json::from_str(include_str!(
@@ -1712,41 +1751,43 @@ Expected: {}",
                 };
                 let uses_reserved_final = counter as u128 + new_blocks as u128 > max_counter as u128;
 
-                let output = match algorithm {
+                let output: Result<Vec<u8>, StreamCipherError> = match algorithm {
                     "XChaCha20" => {
                         let nonce: [u8; 24] = iv.try_into().expect("XChaCha20 nonce must be 24 bytes");
-                        catch_panic(move || {
-                            let mut buf = message;
-                            let mut cipher = XChaCha20Djb::new(&key, &nonce);
-                            cipher.set_counter(counter);
-                            cipher.xor_keystream(&mut buf);
-                            buf
-                        })
+                        let mut buf = message;
+                        let mut cipher = XChaCha20Djb::new(&key, &nonce);
+                        cipher.set_counter(counter);
+                        cipher.xor_keystream(&mut buf).map(|()| buf)
                     }
                     "ChaCha20-IETF" => {
                         let nonce: [u8; 12] = iv.try_into().expect("ChaCha20-IETF nonce must be 12 bytes");
-                        catch_panic(move || {
-                            let mut buf = message;
-                            let mut cipher = ChaCha20Ietf::new(&key, &nonce);
-                            cipher.set_counter(counter as u32);
-                            cipher.xor_keystream(&mut buf);
-                            buf
-                        })
+                        let mut buf = message;
+                        let mut cipher = ChaCha20Ietf::new(&key, &nonce);
+                        cipher.set_counter(counter as u32);
+                        cipher.xor_keystream(&mut buf).map(|()| buf)
                     }
                     other => panic!("unexpected algorithm {other}"),
                 };
 
                 match result {
                     "valid" if !uses_reserved_final => {
-                        let output = output.unwrap_or_else(|| panic!("tcId={tc_id}: valid vector panicked"));
+                        let output = output.unwrap_or_else(|err| panic!("tcId={tc_id}: valid vector failed: {err}"));
                         assert_eq!(hex::encode(output), expected, "tcId={tc_id}: ciphertext mismatch");
                     }
                     "valid" => {
-                        assert!(output.is_none(), "tcId={tc_id}: the reserved final block must be rejected");
+                        assert_eq!(
+                            output,
+                            Err(StreamCipherError::CounterExhausted),
+                            "tcId={tc_id}: the reserved final block must be rejected"
+                        );
                         reserved_final_rejected += 1;
                     }
                     "invalid" => {
-                        assert!(output.is_none(), "tcId={tc_id}: expected counter wrap to panic");
+                        assert_eq!(
+                            output,
+                            Err(StreamCipherError::CounterExhausted),
+                            "tcId={tc_id}: expected counter exhaustion"
+                        );
                         invalid_tested += 1;
                     }
                     other => panic!("tcId={tc_id}: unexpected result {other}"),
@@ -1769,6 +1810,93 @@ Expected: {}",
         assert_eq!(invalid_tested, 6, "expected 6 overflow vectors");
     }
 
+    /// `zeroize` support: an explicit wipe must clear every secret-bearing
+    /// field, and dropping a cipher must wipe it too (`ZeroizeOnDrop` is a
+    /// marker trait, so the drop half is checked as a compile-time bound).
+    ///
+    /// Note: this only covers the struct fields. Stack temporaries inside
+    /// `xor_keystream` (the keystream and working-state buffers) are not wiped.
+    #[cfg(feature = "zeroize")]
+    #[test]
+    fn chacha_zeroize_clears_secret_state() {
+        use zeroize::Zeroize;
+
+        fn assert_zeroize_on_drop<T: zeroize::ZeroizeOnDrop>() {}
+        assert_zeroize_on_drop::<ChaCha20Ietf>();
+        assert_zeroize_on_drop::<ChaCha20Djb>();
+        assert_zeroize_on_drop::<XChaCha20Ietf>();
+        assert_zeroize_on_drop::<XChaCha20Djb>();
+
+        let mut cipher = ChaCha20Ietf::new(&test_key_32(), &test_nonce_12());
+        let mut buf = [0u8; 10];
+        cipher.xor_keystream(&mut buf).unwrap();
+        assert_ne!(cipher.state, [0u32; super::STATE_WORDS]);
+        cipher.zeroize();
+        assert_eq!(cipher.state, [0u32; super::STATE_WORDS]);
+        assert_eq!(cipher.keystream_leftover, [0u8; super::BLOCK_SIZE - 1]);
+        assert_eq!(cipher.keystream_leftover_offset, 0);
+
+        let mut x = XChaCha20Ietf::new(&test_key_32(), &test_nonce_24());
+        let mut buf = [0u8; 10];
+        x.xor_keystream(&mut buf).unwrap();
+        x.zeroize();
+        assert_eq!(x.inner.state, [0u32; super::STATE_WORDS]);
+        assert_eq!(x.inner.keystream_leftover_offset, 0);
+    }
+
+    /// A zeroized cipher must be rejected, not silently used with a zero key.
+    ///
+    /// A live state always starts with the sigma constant; `Zeroize` clears the
+    /// state, so `state[0] == 0` is an unambiguous poison marker.
+    #[cfg(feature = "zeroize")]
+    #[test]
+    fn chacha_use_after_zeroize_returns_error() {
+        use zeroize::Zeroize;
+
+        let mut cipher = ChaCha20Ietf::new(&test_key_32(), &test_nonce_12());
+        cipher.zeroize();
+        let mut buf = [0xa5u8; 70];
+        assert_eq!(
+            cipher.xor_keystream(&mut buf),
+            Err(StreamCipherError::Zeroized),
+            "a zeroized cipher must be rejected"
+        );
+        assert_eq!(buf, [0xa5u8; 70], "a failed call must not touch the buffer");
+    }
+
+    /// `set_counter` must not panic on a zeroized cipher. It may update the
+    /// counter word, but the cipher stays poisoned and remains unusable.
+    #[cfg(feature = "zeroize")]
+    #[test]
+    fn chacha_set_counter_after_zeroize_does_not_panic() {
+        use zeroize::Zeroize;
+
+        let mut cipher = ChaCha20Ietf::new(&test_key_32(), &test_nonce_12());
+        cipher.zeroize();
+        cipher.set_counter(42);
+        let mut buf = [0xa5u8; 16];
+        assert_eq!(
+            cipher.xor_keystream(&mut buf),
+            Err(StreamCipherError::Zeroized),
+            "set_counter must not revive a zeroized cipher"
+        );
+        assert_eq!(buf, [0xa5u8; 16], "a failed call must not touch the buffer");
+        assert_eq!(
+            cipher.xor_keystream(&mut []),
+            Err(StreamCipherError::Zeroized),
+            "empty calls must also report Zeroized"
+        );
+
+        let mut x = XChaCha20Ietf::new(&test_key_32(), &test_nonce_24());
+        x.zeroize();
+        x.set_counter(7);
+        assert_eq!(
+            x.xor_keystream(&mut buf),
+            Err(StreamCipherError::Zeroized),
+            "XChaCha must inherit the zeroize poison"
+        );
+    }
+
     /// The SIMD dispatch must produce exactly the generic keystream for every
     /// short length, including all partial-block and leftover boundaries.
     #[test]
@@ -1783,7 +1911,7 @@ Expected: {}",
             let mut dispatched = vec![0u8; len];
             let mut generic = vec![0u8; len];
 
-            dispatch.xor_keystream(&mut dispatched);
+            dispatch.xor_keystream(&mut dispatched).unwrap();
 
             let mut state = reference.state;
             let mut leftover = [0u8; super::BLOCK_SIZE - 1];

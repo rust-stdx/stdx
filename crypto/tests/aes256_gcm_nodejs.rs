@@ -82,7 +82,7 @@ fn aes256_gcm_rust_encrypt_node_decrypt_roundtrip() {
     for (key, nonce, aad, plaintext) in test_cases {
         let cipher = Aes256Gcm::new(&key);
         let mut buf = plaintext.clone();
-        let tag = cipher.encrypt_in_place(&mut buf, &nonce[..], &aad);
+        let tag = cipher.encrypt_in_place(&mut buf, &nonce[..], &aad).unwrap();
 
         let decrypted = node_decrypt(&key, &nonce, &aad, &buf, tag.as_ref());
         assert_eq!(decrypted, plaintext, "Roundtrip failed for key={}", hex::encode(key));
@@ -132,7 +132,7 @@ fn aes256_gcm_bidirectional_large_payload() {
 
     let cipher = Aes256Gcm::new(&key);
     let mut buf = plaintext.clone();
-    let tag = cipher.encrypt_in_place(&mut buf, &nonce[..], aad);
+    let tag = cipher.encrypt_in_place(&mut buf, &nonce[..], aad).unwrap();
 
     let decrypted = node_decrypt(&key, &nonce, aad, &buf, tag.as_ref());
     assert_eq!(decrypted, plaintext);
@@ -155,7 +155,7 @@ fn aes256_gcm_bidirectional_empty_plaintext_with_aad() {
 
     let cipher = Aes256Gcm::new(&key);
     let mut buf = plaintext.clone();
-    let tag = cipher.encrypt_in_place(&mut buf, &nonce[..], aad);
+    let tag = cipher.encrypt_in_place(&mut buf, &nonce[..], aad).unwrap();
 
     let decrypted = node_decrypt(&key, &nonce, aad, &buf, tag.as_ref());
     assert_eq!(decrypted, plaintext);
@@ -180,7 +180,7 @@ fn aes256_gcm_bidirectional_various_sizes() {
 
         let cipher = Aes256Gcm::new(&key);
         let mut buf = plaintext.clone();
-        let tag = cipher.encrypt_in_place(&mut buf, &nonce[..], aad);
+        let tag = cipher.encrypt_in_place(&mut buf, &nonce[..], aad).unwrap();
 
         let decrypted = node_decrypt(&key, &nonce, aad, &buf, tag.as_ref());
         assert_eq!(decrypted, plaintext, "Failed for size {}", size);

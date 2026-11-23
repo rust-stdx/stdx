@@ -5,30 +5,21 @@
 //! and the byte-length assumptions made by callers.
 
 use big_number::{Error, Uint};
+use rand::{Rng, SeedableRng, rngs::StdRng};
 
 type U128 = Uint<128, 2>;
 type U256 = Uint<256, 4>;
 type U130 = Uint<130, 3>;
 
-fn rng(state: &mut u64) -> u64 {
-    // xorshift64: deterministic, dependency-free.
-    let mut x = *state;
-    x ^= x << 13;
-    x ^= x >> 7;
-    x ^= x << 17;
-    *state = x;
-    x
-}
-
 #[test]
 fn round_trips_all_radices() {
-    let mut state = 0x9E37_79B9_7F4A_7C15u64;
+    let mut rng = StdRng::seed_from_u64(0x9E37_79B9_7F4A_7C15);
     let values = [
         U128::ZERO,
         U128::ONE,
         U128::MAX,
         U128::from_u64(u64::MAX),
-        U128::from_limbs([rng(&mut state), rng(&mut state)]),
+        U128::from_limbs([rng.next_u64(), rng.next_u64()]),
     ];
     for value in values {
         for radix in 2..=36u32 {
@@ -148,11 +139,11 @@ fn u128_operands_do_not_panic() {
 
 #[test]
 fn div_rem_u128_matches_definition() {
-    let mut state = 0xDEAD_BEEF_CAFE_F00Du64;
+    let mut rng = StdRng::seed_from_u64(0xDEAD_BEEF_CAFE_F00D);
     for _ in 0..2_000 {
-        let a = U256::from_limbs([rng(&mut state), rng(&mut state), rng(&mut state), rng(&mut state)]);
+        let a = U256::from_limbs([rng.next_u64(), rng.next_u64(), rng.next_u64(), rng.next_u64()]);
         // Exercise both the single-limb fast path and the two-limb path.
-        let d = (rng(&mut state) as u128) | ((rng(&mut state) as u128) << 64);
+        let d = (rng.next_u64() as u128) | ((rng.next_u64() as u128) << 64);
         if d == 0 {
             continue;
         }

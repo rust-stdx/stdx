@@ -7,6 +7,7 @@
 use std::{error::Error as _, io::Cursor};
 
 use csv::*;
+use rand::{RngExt, SeedableRng, rngs::StdRng};
 
 // ── Read sources used by the tests ────────────────────────────────────
 
@@ -93,36 +94,19 @@ fn read_source_without_progress_in_quoted_field_does_not_panic() {
     );
 }
 
-/// A deterministic xorshift PRNG, so the property test needs no dependencies.
-struct Rng(u64);
-
-impl Rng {
-    fn next(&mut self) -> u64 {
-        let mut x = self.0;
-        x ^= x << 13;
-        x ^= x >> 7;
-        x ^= x << 17;
-        self.0 = x;
-        x
-    }
-
-    fn below(&mut self, n: usize) -> usize {
-        (self.next() % n as u64) as usize
-    }
-}
-
+/// A deterministic seeded RNG so failures reproduce.
 #[test]
 fn parser_never_panics_on_arbitrary_bytes() {
     // A small alphabet biased towards the bytes that drive the state machine,
     // including the three bytes of the UTF-8 BOM so a leading mark can form.
     const ALPHABET: &[u8] = b"ab,\"\r\n\x00\xff\xef\xbb\xbf";
 
-    let mut rng = Rng(0x9E37_79B9_7F4A_7C15);
+    let mut rng = StdRng::seed_from_u64(0x9E37_79B9_7F4A_7C15);
     for case in 0..2000 {
-        let len = rng.below(64);
+        let len = rng.random_range(0..64);
         let mut data = Vec::with_capacity(len);
         for _ in 0..len {
-            data.push(ALPHABET[rng.below(ALPHABET.len())]);
+            data.push(ALPHABET[rng.random_range(0..(ALPHABET.len()))]);
         }
 
         // Every chunk size from 1 to 5 exercises the cross-buffer state.
@@ -730,7 +714,7 @@ fn writer_output_round_trips() {
         'a', 'b', 'Z', ',', '"', '\n', '\r', ' ', '\t', 'é', '日', '\\', '\'', '=', '+', '@',
     ];
 
-    let mut rng = Rng(0x1234_5678_9ABC_DEF0);
+    let mut rng = StdRng::seed_from_u64(0x1234_5678_9ABC_DEF0);
     let mut writer = Writer::new(Vec::new()).set_flexible(true);
     let mut expected: Vec<Vec<String>> = Vec::new();
 
@@ -738,11 +722,13 @@ fn writer_output_round_trips() {
         // At least two fields: a record consisting of a single empty field is
         // written as a blank line, which every CSV reader (including this one)
         // skips, so it cannot round-trip.
-        let fields = 2 + rng.below(5);
+        let fields = 2 + rng.random_range(0..5);
         let mut row = Vec::with_capacity(fields);
         for _ in 0..fields {
-            let len = rng.below(8);
-            let field: String = (0..len).map(|_| ALPHABET[rng.below(ALPHABET.len())]).collect();
+            let len = rng.random_range(0..8);
+            let field: String = (0..len)
+                .map(|_| ALPHABET[rng.random_range(0..(ALPHABET.len()))])
+                .collect();
             row.push(field);
         }
         writer.write_row(row.iter().map(|s| s.as_str())).unwrap();

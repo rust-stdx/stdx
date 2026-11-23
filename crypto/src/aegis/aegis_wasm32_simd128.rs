@@ -263,6 +263,15 @@ struct LaneState<const D: usize> {
     lanes: [Core<Wasm<1>>; D],
 }
 
+#[cfg(feature = "zeroize")]
+impl<const D: usize> Drop for LaneState<D> {
+    fn drop(&mut self) {
+        for lane in &mut self.lanes {
+            lane.wipe();
+        }
+    }
+}
+
 impl<const D: usize> LaneState<D> {
     fn new(key: &[u8; 32], nonce: &[u8; 32]) -> Self {
         let lanes = core::array::from_fn(|lane| {
@@ -478,7 +487,7 @@ impl<const D: usize> LaneState<D> {
 
     fn next_keystream(&mut self, out: &mut [u8]) {
         let rate = 16 * D;
-        debug_assert!(out.len() <= rate);
+        assert!(out.len() <= rate);
         for lane in 0..D {
             let z = self.lanes[lane].keystream_block();
             let raw = block_bytes(z);
@@ -493,7 +502,7 @@ impl<const D: usize> LaneState<D> {
 
     fn stream_xor(&mut self, in_out: &mut [u8]) {
         let rate = 16 * D;
-        debug_assert!(in_out.len().is_multiple_of(rate));
+        assert!(in_out.len().is_multiple_of(rate));
         for chunk in in_out.chunks_exact_mut(rate) {
             for lane in 0..D {
                 let block = &mut chunk[lane * 16..lane * 16 + 16];
@@ -509,7 +518,7 @@ impl<const D: usize> LaneState<D> {
 
     fn fill(&mut self, out: &mut [u8]) {
         let rate = 16 * D;
-        debug_assert!(out.len().is_multiple_of(rate));
+        assert!(out.len().is_multiple_of(rate));
         for chunk in out.chunks_exact_mut(rate) {
             for lane in 0..D {
                 let z = self.lanes[lane].keystream_block();
@@ -553,8 +562,13 @@ pub(crate) unsafe fn decrypt_lane<const D: usize>(
     state.finalize(ad.len(), msg.len(), &mut expected[..tag.len()]);
     let ok = constant_time_eq(tag, &expected[..tag.len()]);
     if !ok {
+        #[cfg(feature = "zeroize")]
+        zeroize::Zeroize::zeroize(msg);
+        #[cfg(not(feature = "zeroize"))]
         msg.fill(0);
     }
+    #[cfg(feature = "zeroize")]
+    zeroize::Zeroize::zeroize(&mut expected);
     ok
 }
 
@@ -585,4 +599,367 @@ pub(crate) unsafe fn fill_state_lane<const D: usize>(bytes: &mut [u8], out: &mut
     let mut state = LaneState::<D>::from_bytes(bytes);
     state.fill(out);
     state.to_bytes(bytes);
+}
+
+#[cfg(test)]
+mod kernel_tests {
+    //! Independent checks for the wasm SIMD AEGIS kernels.
+    //!
+    //! These live next to the kernel so they can reach the private swizzle
+    //! round and the private lane-major state machine, and compare both against
+    //! (a) a from-scratch scalar AES round and (b) the block-major
+    //! `Core<Wasm<D>>` path, which the public API does not distinguish.
+
+    use alloc::{vec, vec::Vec};
+
+    use super::*;
+    use crate::aegis::aegis_core::{Core, stream_fill_state, stream_xor_state};
+
+    fn vbytes(v: v128) -> [u8; 16] {
+        let mut out = [0u8; 16];
+        // SAFETY: `out` is exactly 16 bytes.
+        unsafe { v128_store(out.as_mut_ptr().cast(), v) };
+        out
+    }
+
+    fn gf_mul(mut a: u8, mut b: u8) -> u8 {
+        let mut p = 0u8;
+        for _ in 0..8 {
+            if b & 1 != 0 {
+                p ^= a;
+            }
+            let hi = a & 0x80;
+            a <<= 1;
+            if hi != 0 {
+                a ^= 0x1b;
+            }
+            b >>= 1;
+        }
+        p
+    }
+
+    fn gf_inv(a: u8) -> u8 {
+        if a == 0 {
+            return 0;
+        }
+        let mut r = 1u8;
+        for _ in 0..254 {
+            r = gf_mul(r, a);
+        }
+        r
+    }
+
+    fn sbox(x: u8) -> u8 {
+        let i = gf_inv(x);
+        i ^ i.rotate_left(1) ^ i.rotate_left(2) ^ i.rotate_left(3) ^ i.rotate_left(4) ^ 0x63
+    }
+
+    /// Scalar reference: SubBytes, ShiftRows, MixColumns, AddRoundKey.
+    fn ref_round(x: &[u8; 16], rk: &[u8; 16]) -> [u8; 16] {
+        let mut s = [0u8; 16];
+        for i in 0..16 {
+            s[i] = sbox(x[i]);
+        }
+        // State byte `4*c + r` is row `r`, column `c`; ShiftRows moves row `r`
+        // left by `r` columns.
+        let mut t = [0u8; 16];
+        for c in 0..4 {
+            for r in 0..4 {
+                t[4 * c + r] = s[4 * ((c + r) % 4) + r];
+            }
+        }
+        let mut o = [0u8; 16];
+        for c in 0..4 {
+            let a = [t[4 * c], t[4 * c + 1], t[4 * c + 2], t[4 * c + 3]];
+            o[4 * c] = gf_mul(a[0], 2) ^ gf_mul(a[1], 3) ^ a[2] ^ a[3];
+            o[4 * c + 1] = a[0] ^ gf_mul(a[1], 2) ^ gf_mul(a[2], 3) ^ a[3];
+            o[4 * c + 2] = a[0] ^ a[1] ^ gf_mul(a[2], 2) ^ gf_mul(a[3], 3);
+            o[4 * c + 3] = gf_mul(a[0], 3) ^ a[1] ^ a[2] ^ gf_mul(a[3], 2);
+        }
+        for i in 0..16 {
+            o[i] ^= rk[i];
+        }
+        o
+    }
+
+    fn rand16(st: &mut u32) -> [u8; 16] {
+        let mut out = [0u8; 16];
+        for b in out.iter_mut() {
+            *st ^= *st << 13;
+            *st ^= *st >> 17;
+            *st ^= *st << 5;
+            *b = *st as u8;
+        }
+        out
+    }
+
+    /// The swizzle-based round must match a scalar AES round exactly, including
+    /// the folded-in affine constant and every S-box input value.
+    #[test]
+    fn swizzle_aes_round_matches_scalar_reference() {
+        // Exhaustive S-box check: put every byte value through each position.
+        for value in 0..=255u8 {
+            let x = [value; 16];
+            let mut rk = [0u8; 16];
+            for b in rk.iter_mut() {
+                *b = value ^ 0x5a;
+            }
+            assert_eq!(
+                vbytes(aes_round(ld(&x), ld(&rk))),
+                ref_round(&x, &rk),
+                "input byte {value:#04x}"
+            );
+        }
+
+        let mut st = 0x9e37_79b9u32;
+        for _ in 0..64 {
+            let x = rand16(&mut st);
+            let rk = rand16(&mut st);
+            assert_eq!(vbytes(aes_round(ld(&x), ld(&rk))), ref_round(&x, &rk));
+        }
+    }
+
+    fn core_encrypt<const D: usize>(
+        key: &[u8; 32],
+        nonce: &[u8; 32],
+        ad: &[u8],
+        mut msg: Vec<u8>,
+        tag_len: usize,
+    ) -> (Vec<u8>, Vec<u8>) {
+        let mut core = Core::<Wasm<D>>::new(key, nonce);
+        core.absorb(ad);
+        core.encrypt_msg(&mut msg);
+        let mut tag = vec![0u8; tag_len];
+        core.finalize(ad.len(), msg.len(), &mut tag);
+        (msg, tag)
+    }
+
+    fn lane_encrypt<const D: usize>(
+        key: &[u8; 32],
+        nonce: &[u8; 32],
+        ad: &[u8],
+        mut msg: Vec<u8>,
+        tag_len: usize,
+    ) -> (Vec<u8>, Vec<u8>) {
+        let mut state = LaneState::<D>::new(key, nonce);
+        state.absorb(ad);
+        state.encrypt_msg(&mut msg);
+        let mut tag = vec![0u8; tag_len];
+        state.finalize(ad.len(), msg.len(), &mut tag);
+        (msg, tag)
+    }
+
+    fn core_decrypt<const D: usize>(
+        key: &[u8; 32],
+        nonce: &[u8; 32],
+        ad: &[u8],
+        mut msg: Vec<u8>,
+        tag_len: usize,
+    ) -> (Vec<u8>, Vec<u8>) {
+        let mut core = Core::<Wasm<D>>::new(key, nonce);
+        core.absorb(ad);
+        core.decrypt_msg(&mut msg);
+        let mut tag = vec![0u8; tag_len];
+        core.finalize(ad.len(), msg.len(), &mut tag);
+        (msg, tag)
+    }
+
+    fn lane_decrypt<const D: usize>(
+        key: &[u8; 32],
+        nonce: &[u8; 32],
+        ad: &[u8],
+        mut msg: Vec<u8>,
+        tag_len: usize,
+    ) -> (Vec<u8>, Vec<u8>) {
+        let mut state = LaneState::<D>::new(key, nonce);
+        state.absorb(ad);
+        state.decrypt_msg(&mut msg);
+        let mut tag = vec![0u8; tag_len];
+        state.finalize(ad.len(), msg.len(), &mut tag);
+        (msg, tag)
+    }
+
+    fn pat(len: usize, mul: u8, add: u8) -> Vec<u8> {
+        (0..len)
+            .map(|i| (i as u8).wrapping_mul(mul).wrapping_add(add))
+            .collect()
+    }
+
+    fn differential<const D: usize>() {
+        let key = [0x42u8; 32];
+        let nonce = [0x24u8; 32];
+        let lens = [
+            0usize, 1, 15, 16, 17, 31, 32, 33, 47, 48, 49, 63, 64, 65, 95, 96, 97, 127, 128, 129, 255, 256, 257, 1023,
+            1024, 1025,
+        ];
+        let aads = [0usize, 1, 7, 15, 16, 17, 31, 32, 33, 63, 64, 65, 100, 1023, 1024, 1025];
+        for &len in &lens {
+            for &ad_len in &aads {
+                let ad = pat(ad_len, 13, 9);
+                let pt = pat(len, 17, 5);
+                for tag_len in [16usize, 32] {
+                    let (want_ct, want_tag) = core_encrypt::<D>(&key, &nonce, &ad, pt.clone(), tag_len);
+                    let (got_ct, got_tag) = lane_encrypt::<D>(&key, &nonce, &ad, pt.clone(), tag_len);
+                    assert_eq!(got_ct, want_ct, "D={D} len={len} ad={ad_len} tag={tag_len}");
+                    assert_eq!(got_tag, want_tag, "tag D={D} len={len} ad={ad_len} tag={tag_len}");
+
+                    let (want_pt, want_dtag) = core_decrypt::<D>(&key, &nonce, &ad, want_ct.clone(), tag_len);
+                    let (got_pt, got_dtag) = lane_decrypt::<D>(&key, &nonce, &ad, want_ct, tag_len);
+                    assert_eq!(got_pt, want_pt, "dec D={D} len={len} ad={ad_len} tag={tag_len}");
+                    assert_eq!(got_dtag, want_dtag, "dec tag D={D} len={len} ad={ad_len}");
+                    assert_eq!(got_pt, pt);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn lane_matches_block_major() {
+        differential::<1>();
+        differential::<2>();
+        differential::<4>();
+    }
+
+    /// `next_keystream` may be called with any length up to the rate; the
+    /// lane-major and block-major layout must produce the same prefix and
+    /// leave the state in the same place.
+    #[test]
+    fn next_keystream_matches_block_major() {
+        let key = [0x11u8; 32];
+        let nonce = [0x22u8; 32];
+        macro_rules! check {
+            ($d:expr) => {{
+                const D: usize = $d;
+                let rate = 16 * D;
+                for out_len in [1usize, 15, 16, 17, rate - 1, rate] {
+                    if out_len == 0 || out_len > rate {
+                        continue;
+                    }
+                    let mut core = Core::<Wasm<D>>::new(&key, &nonce);
+                    let mut lane = LaneState::<D>::new(&key, &nonce);
+                    let mut a = vec![0u8; out_len];
+                    let mut b = vec![0u8; out_len];
+                    core.next_keystream(&mut a);
+                    lane.next_keystream(&mut b);
+                    assert_eq!(a, b, "D={D} out_len={out_len}");
+                    // A following full block must also agree, proving the
+                    // state advance is identical.
+                    let mut a = vec![0u8; rate];
+                    let mut b = vec![0u8; rate];
+                    core.next_keystream(&mut a);
+                    lane.next_keystream(&mut b);
+                    assert_eq!(a, b, "state advance D={D} out_len={out_len}");
+                }
+            }};
+        }
+        check!(1);
+        check!(2);
+        check!(4);
+    }
+
+    /// `stream_xor` and `fill` must match block-major for whole-rate buffers.
+    #[test]
+    fn stream_and_fill_match_block_major() {
+        let key = [0x33u8; 32];
+        let nonce = [0x44u8; 32];
+        macro_rules! check {
+            ($d:expr) => {{
+                const D: usize = $d;
+                let rate = 16 * D;
+                for blocks in [1usize, 2, 3, 4] {
+                    let len = blocks * rate;
+                    let input = pat(len, 7, 3);
+
+                    // Block-major state serialized in its own layout.
+                    let mut block_state = {
+                        let mut b = vec![0u8; 96 * D];
+                        Core::<Wasm<D>>::new(&key, &nonce).to_bytes(&mut b);
+                        b
+                    };
+                    let mut lane = LaneState::<D>::new(&key, &nonce);
+
+                    let mut want = input.clone();
+                    let mut got = input.clone();
+                    // SAFETY: `len` is a whole number of rate blocks.
+                    unsafe { stream_xor_state::<Wasm<D>>(&mut block_state, &mut want) };
+                    lane.stream_xor(&mut got);
+                    assert_eq!(got, want, "stream D={D} len={len}");
+
+                    // A second call proves both states advanced identically.
+                    let mut want = input.clone();
+                    let mut got = input.clone();
+                    // SAFETY: `len` is a whole number of rate blocks.
+                    unsafe { stream_xor_state::<Wasm<D>>(&mut block_state, &mut want) };
+                    lane.stream_xor(&mut got);
+                    assert_eq!(got, want, "stream advance D={D} len={len}");
+
+                    let mut want = vec![0u8; len];
+                    let mut got = vec![0u8; len];
+                    // SAFETY: `len` is a whole number of rate blocks.
+                    unsafe { stream_fill_state::<Wasm<D>>(&mut block_state, &mut want) };
+                    lane.fill(&mut got);
+                    assert_eq!(got, want, "fill D={D} len={len}");
+                }
+            }};
+        }
+        check!(1);
+        check!(2);
+        check!(4);
+    }
+
+    /// The serialized lane state must survive a round trip and keep advancing
+    /// identically, and `to_bytes` must not write outside the caller's slice.
+    #[test]
+    fn lane_state_serialization_and_canaries() {
+        const CANARY: u8 = 0xa5;
+        macro_rules! check {
+            ($d:expr) => {{
+                const D: usize = $d;
+                let key = [0x55u8; 32];
+                let nonce = [0x66u8; 32];
+                let size = 96 * D;
+                let pad = 5;
+                let mut buf = vec![CANARY; size + 2 * pad];
+                // SAFETY: the slice is exactly `96 * D` bytes.
+                unsafe { init_state_lane::<D>(&key, &nonce, &mut buf[pad..pad + size]) };
+                assert!(buf[..pad].iter().all(|&b| b == CANARY), "D={D}");
+                assert!(buf[pad + size..].iter().all(|&b| b == CANARY), "D={D}");
+
+                let state = buf[pad..pad + size].to_vec();
+                // Deserialize/re-serialize is the identity.
+                let mut again = vec![CANARY; size + 2 * pad];
+                again[pad..pad + size].copy_from_slice(&state);
+                // SAFETY: the slice is exactly `96 * D` bytes; an empty AAD
+                // performs no state update.
+                unsafe { absorb_state_lane::<D>(&mut again[pad..pad + size], &[]) };
+                assert_eq!(&again[pad..pad + size], &state[..], "D={D}");
+                assert!(again[..pad].iter().all(|&b| b == CANARY));
+                assert!(again[pad + size..].iter().all(|&b| b == CANARY));
+
+                // Two identical serialized states must stay identical and
+                // produce identical keystream, and the write must stay inside
+                // the `16 * D`-byte output slice.
+                let mut s1 = state.clone();
+                let mut s2 = state;
+                let mut a = vec![0u8; 16 * D];
+                let mut b = vec![0u8; 16 * D];
+                // SAFETY: buffers are the exact sizes required.
+                unsafe { next_keystream_state_lane::<D>(&mut s1, &mut a) };
+                // SAFETY: exact sizes.
+                unsafe { next_keystream_state_lane::<D>(&mut s2, &mut b) };
+                assert_eq!(a, b, "D={D}");
+                assert_eq!(s1, s2, "D={D}");
+
+                let mut guarded_out = vec![CANARY; 16 * D + 2 * pad];
+                let mut s3 = s1.clone();
+                // SAFETY: the output slice is exactly `16 * D` bytes.
+                unsafe { next_keystream_state_lane::<D>(&mut s3, &mut guarded_out[pad..pad + 16 * D]) };
+                assert!(guarded_out[..pad].iter().all(|&x| x == CANARY), "D={D}");
+                assert!(guarded_out[pad + 16 * D..].iter().all(|&x| x == CANARY), "D={D}");
+            }};
+        }
+        check!(1);
+        check!(2);
+        check!(4);
+    }
 }

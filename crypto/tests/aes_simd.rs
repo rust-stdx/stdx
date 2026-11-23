@@ -7,7 +7,7 @@
 //! hardware that supports them.
 
 use crypto::{
-    Aead, StreamCipher,
+    Aead, StreamCipher, StreamCipherError,
     aes::{Aes128Block, Aes128Ctr, Aes128Gcm, Aes256Block, Aes256Ctr, Aes256Gcm},
 };
 
@@ -75,9 +75,11 @@ fn boundary_lengths() -> Vec<usize> {
 fn ctr_matches_software_at_all_boundaries() {
     let counters: [[u8; 16]; 4] = [
         [0u8; 16],
-        [0xffu8; 16],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff],
         [0x5a; 16],
+        // High 64 bits are not at the maximum, so even the 1 MiB boundary
+        // lengths below cannot wrap the 128-bit counter.
+        [0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xfe],
     ];
 
     for len in boundary_lengths() {
@@ -87,7 +89,7 @@ fn ctr_matches_software_at_all_boundaries() {
             let mut got = input.clone();
             let mut cipher = Aes128Ctr::new(&KEY_128);
             cipher.set_counter(&counter);
-            cipher.xor_keystream(&mut got);
+            cipher.xor_keystream(&mut got).unwrap();
             let mut want = input.clone();
             ctr_reference_128(&counter, &mut want);
             assert_eq!(got, want, "AES-128-CTR mismatch at len={len}");
@@ -95,7 +97,7 @@ fn ctr_matches_software_at_all_boundaries() {
             let mut got = input.clone();
             let mut cipher = Aes256Ctr::new(&KEY_256);
             cipher.set_counter(&counter);
-            cipher.xor_keystream(&mut got);
+            cipher.xor_keystream(&mut got).unwrap();
             let mut want = input.clone();
             ctr_reference_256(&counter, &mut want);
             assert_eq!(got, want, "AES-256-CTR mismatch at len={len}");
@@ -115,7 +117,7 @@ fn gcm_roundtrip_at_all_boundaries() {
 
             let cipher128 = Aes128Gcm::new(&KEY_128);
             let mut buffer = plaintext.clone();
-            let tag = cipher128.encrypt_in_place(&mut buffer, &nonce, &aad);
+            let tag = cipher128.encrypt_in_place(&mut buffer, &nonce, &aad).unwrap();
             let mut decrypted = buffer.clone();
             cipher128
                 .decrypt_in_place(&mut decrypted, &nonce, &aad, tag.as_ref())
@@ -124,7 +126,7 @@ fn gcm_roundtrip_at_all_boundaries() {
 
             let cipher256 = Aes256Gcm::new(&KEY_256);
             let mut buffer = plaintext.clone();
-            let tag = cipher256.encrypt_in_place(&mut buffer, &nonce, &aad);
+            let tag = cipher256.encrypt_in_place(&mut buffer, &nonce, &aad).unwrap();
             let mut decrypted = buffer.clone();
             cipher256
                 .decrypt_in_place(&mut decrypted, &nonce, &aad, tag.as_ref())
@@ -132,6 +134,15 @@ fn gcm_roundtrip_at_all_boundaries() {
             assert_eq!(decrypted, plaintext, "AES-256-GCM mismatch at len={len} aad={aad_len}");
         }
     }
+}
+
+#[test]
+fn ctr_counter_overflow_returns_error_without_touching_the_buffer() {
+    let mut cipher = Aes128Ctr::new(&KEY_128);
+    cipher.set_counter(&[0xff; 16]);
+    let mut buf = [0xa5u8; 17];
+    assert_eq!(cipher.xor_keystream(&mut buf), Err(StreamCipherError::CounterExhausted));
+    assert_eq!(buf, [0xa5u8; 17], "a failed call must not touch the buffer");
 }
 
 #[test]
@@ -143,7 +154,7 @@ fn ctr_unaligned_slices_preserve_canaries() {
 
         let mut cipher = Aes128Ctr::new(&KEY_128);
         cipher.set_counter(&counter);
-        cipher.xor_keystream(&mut buffer[15..15 + len]);
+        cipher.xor_keystream(&mut buffer[15..15 + len]).unwrap();
 
         ctr_reference_128(&counter, &mut expected);
         assert_eq!(&buffer[15..15 + len], &expected[..], "len={len}");

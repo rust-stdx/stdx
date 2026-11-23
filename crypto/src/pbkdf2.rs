@@ -1,6 +1,23 @@
 //! PBKDF2 (Password-Based Key Derivation Function 2) as defined in RFC 2898.
 use crate::{Hasher, MAX_HASH_BLOCK_SIZE, hmac::Hmac};
 
+/// Errors returned by [`derive`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Pbkdf2Error {
+    /// `iterations` must be at least 1.
+    ZeroIterations,
+}
+
+impl core::fmt::Display for Pbkdf2Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Pbkdf2Error::ZeroIterations => write!(f, "PBKDF2 iterations must be >= 1"),
+        }
+    }
+}
+
+impl core::error::Error for Pbkdf2Error {}
+
 /// Derives a key using PBKDF2-HMAC with the given hash function.
 ///
 /// PBKDF2 applies the HMAC-based PRF repeatedly (`iterations` times) to
@@ -21,15 +38,22 @@ use crate::{Hasher, MAX_HASH_BLOCK_SIZE, hmac::Hmac};
 ///     b"password",
 ///     b"salt",
 ///     4096,
-/// );
+/// ).unwrap();
 /// ```
 ///
-/// # Panics
+/// # Errors
 ///
-/// `derive` panics if `iterations == 0` (iterations must be >= 1)
-/// or `N > (2^32 - 1) * H::OUTPUT_SIZE` (output length exceeds RFC 2898 limit).
-pub fn derive<H: Hasher, const N: usize>(password: &[u8], salt: &[u8], iterations: u32) -> [u8; N] {
-    assert!(iterations != 0, "PBKDF2 iterations must be >= 1");
+/// Returns [`Pbkdf2Error::ZeroIterations`] if `iterations == 0`.
+///
+/// `N > (2^32 - 1) * H::OUTPUT_SIZE` is rejected at compile time.
+pub fn derive<H: Hasher, const N: usize>(
+    password: &[u8],
+    salt: &[u8],
+    iterations: u32,
+) -> Result<[u8; N], Pbkdf2Error> {
+    if iterations == 0 {
+        return Err(Pbkdf2Error::ZeroIterations);
+    }
     const {
         let max_len: usize = if cfg!(target_pointer_width = "64") {
             (u32::MAX as usize) * H::OUTPUT_SIZE
@@ -71,7 +95,7 @@ pub fn derive<H: Hasher, const N: usize>(password: &[u8], salt: &[u8], iteration
         okm[start..end].copy_from_slice(&t[..end - start]);
     }
 
-    return okm;
+    return Ok(okm);
 }
 
 #[cfg(test)]
@@ -80,14 +104,13 @@ mod tests {
     use crate::sha2::{Sha256, Sha512};
 
     #[test]
-    #[should_panic(expected = "PBKDF2 iterations must be >= 1")]
     fn pbkdf2_zero_iterations() {
-        derive::<Sha256, 32>(b"password", b"salt", 0);
+        assert_eq!(derive::<Sha256, 32>(b"password", b"salt", 0), Err(Pbkdf2Error::ZeroIterations));
     }
 
     #[test]
     fn pbkdf2_zero_length_output() {
-        assert_eq!(derive::<Sha256, 0>(b"password", b"salt", 1), [] as [u8; 0]);
+        assert_eq!(derive::<Sha256, 0>(b"password", b"salt", 1).unwrap(), [] as [u8; 0]);
     }
 
     #[test]
@@ -110,7 +133,7 @@ mod tests {
                 let password = hex::decode(password_hex).unwrap();
                 let salt = hex::decode(salt_hex).unwrap();
 
-                let dk = derive::<Sha256, MAX_OUTPUT>(&password, &salt, iteration_count);
+                let dk = derive::<Sha256, MAX_OUTPUT>(&password, &salt, iteration_count).unwrap();
                 let dk_hex = hex::encode(&dk[..dk_len]);
                 assert_eq!(
                     dk_hex, expected_dk_hex,
@@ -143,7 +166,7 @@ mod tests {
                 let password = hex::decode(password_hex).unwrap();
                 let salt = hex::decode(salt_hex).unwrap();
 
-                let dk = derive::<Sha512, MAX_OUTPUT>(&password, &salt, iteration_count);
+                let dk = derive::<Sha512, MAX_OUTPUT>(&password, &salt, iteration_count).unwrap();
                 let dk_hex = hex::encode(&dk[..dk_len]);
                 assert_eq!(
                     dk_hex, expected_dk_hex,

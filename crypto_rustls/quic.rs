@@ -139,13 +139,14 @@ impl PacketAlgorithm {
 }
 
 impl PacketCipher {
-    fn encrypt(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> [u8; 16] {
+    fn encrypt(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Result<[u8; 16], Error> {
         let tag = match self {
             PacketCipher::Aes128(cipher) => cipher.encrypt_in_place(in_out, nonce, aad),
             PacketCipher::Aes256(cipher) => cipher.encrypt_in_place(in_out, nonce, aad),
             PacketCipher::ChaCha20Poly1305(cipher) => cipher.encrypt_in_place(in_out, nonce, aad),
-        };
-        tag.as_ref().try_into().expect("AEAD tag is 16 bytes")
+        }
+        .map_err(|_| Error::EncryptError)?;
+        Ok(tag.as_ref().try_into().expect("AEAD tag is 16 bytes"))
     }
 
     fn decrypt(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8], tag: &[u8]) -> Result<(), Error> {
@@ -168,7 +169,7 @@ struct QuicPacketKey {
 impl PacketKey for QuicPacketKey {
     fn encrypt_in_place(&self, packet_number: u64, header: &[u8], payload: &mut [u8]) -> Result<Tag, Error> {
         let nonce = Nonce::new(&self.iv, packet_number);
-        let tag = self.cipher.encrypt(payload, &nonce.0, header);
+        let tag = self.cipher.encrypt(payload, &nonce.0, header)?;
         Ok(Tag::from(&tag[..]))
     }
 
@@ -180,7 +181,7 @@ impl PacketKey for QuicPacketKey {
         payload: &mut [u8],
     ) -> Result<Tag, Error> {
         let nonce = Nonce::for_path(path_id, &self.iv, packet_number);
-        let tag = self.cipher.encrypt(payload, &nonce.0, header);
+        let tag = self.cipher.encrypt(payload, &nonce.0, header)?;
         Ok(Tag::from(&tag[..]))
     }
 
@@ -264,7 +265,9 @@ impl QuicHeaderProtectionKey {
                 let nonce: &[u8; 12] = sample[4..].try_into().expect("twelve bytes");
                 let mut cipher = ChaCha20Ietf::new(key, nonce);
                 cipher.set_counter(counter);
-                cipher.xor_keystream(&mut mask);
+                cipher
+                    .xor_keystream(&mut mask)
+                    .map_err(|_| Error::General("stream cipher counter exhausted".into()))?;
             }
         }
         Ok(mask)

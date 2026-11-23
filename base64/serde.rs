@@ -169,6 +169,13 @@ impl<'de, T: FromEncoded<'de>> Visitor<'de> for BytesVisitor<T> {
     fn visit_borrowed_bytes<E: de::Error>(self, v: &'de [u8]) -> Result<T, E> {
         T::from_borrowed(v).map_err(de::Error::custom)
     }
+
+    fn visit_seq<A: de::SeqAccess<'de>>(self, _seq: A) -> Result<T, A::Error> {
+        Err(de::Error::invalid_type(
+            de::Unexpected::Seq,
+            &"a base64-encoded string or raw bytes",
+        ))
+    }
 }
 
 /// Byte containers that the serde helpers can deserialize into.
@@ -615,5 +622,28 @@ mod tests {
         });
         assert_eq!(counters.calls, 0);
         assert_eq!(counters.bytes, 0);
+    }
+
+    struct EmptySeq;
+
+    impl<'de> serde::de::SeqAccess<'de> for EmptySeq {
+        type Error = serde::de::value::Error;
+
+        fn next_element_seed<T>(&mut self, _seed: T) -> Result<Option<T::Value>, Self::Error>
+        where
+            T: serde::de::DeserializeSeed<'de>,
+        {
+            Ok(None)
+        }
+    }
+
+    #[test]
+    fn visit_seq_is_rejected() {
+        let visitor = BytesVisitor::<[u8; 1]>(PhantomData);
+        let err = visitor.visit_seq(EmptySeq).unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "invalid type: sequence, expected a base64-encoded string or raw bytes"
+        );
     }
 }

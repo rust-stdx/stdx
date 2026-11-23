@@ -692,13 +692,6 @@ mod tests {
         0x11, 0xe4, 0x58, 0xb2, 0x46, 0xad, 0x75, 0x6d, 0x36, 0x17, 0xc7,
     ];
 
-    fn decode_hex(hex_str: &str) -> Vec<u8> {
-        (0..hex_str.len())
-            .step_by(2)
-            .map(|i| u8::from_str_radix(&hex_str[i..i + 2], 16).unwrap())
-            .collect()
-    }
-
     const TEST_DER_HEX: &str = "308187020100301306072a8648ce3d020106082a8648ce3d030107046d306b0201010420255582fd0cce4c24b9bedb09a76206f940dcf1c7437dea0ab71499c5ace733e9a144034200041e9c23e81a03c54dd3c9ed52cb2ade7a4713e5613d703579c7739e0f132060dcbc4a687d3eb09917d262fc2f23c476c7cbfcecf84f11e458b246ad756d3617c7";
 
     #[test]
@@ -712,7 +705,7 @@ mod tests {
 
     #[test]
     fn decode_known_vector() {
-        let der_bytes = decode_hex(TEST_DER_HEX);
+        let der_bytes = hex::decode(TEST_DER_HEX).unwrap();
         let key = decode_p256_pkcs8_der(&der_bytes).unwrap();
         assert_eq!(key.to_bytes(), TEST_PRIVATE_KEY);
         assert_eq!(key.public_key().to_bytes(), TEST_PUBLIC_KEY);
@@ -722,18 +715,18 @@ mod tests {
     fn encode_matches_known_der() {
         let key = SecretKey::from_bytes(&TEST_PRIVATE_KEY).unwrap();
         let der = encode_p256_pkcs8_der(&key).unwrap();
-        let expected = decode_hex(TEST_DER_HEX);
+        let expected = hex::decode(TEST_DER_HEX).unwrap();
         assert_eq!(der.as_slice(), expected.as_slice());
     }
 
     #[test]
     fn detects_rsa_pkcs8() {
         // A minimal PrivateKeyInfo with the rsaEncryption OID and NULL params.
-        let rsa = decode_hex("3016020100300d06092a864886f70d010101050004023000");
+        let rsa = hex::decode("3016020100300d06092a864886f70d010101050004023000").unwrap();
         assert!(is_rsa_pkcs8_der(&rsa));
 
         // A P-256 key is not classified as RSA.
-        assert!(!is_rsa_pkcs8_der(&decode_hex(TEST_DER_HEX)));
+        assert!(!is_rsa_pkcs8_der(&hex::decode(TEST_DER_HEX).unwrap()));
 
         // Malformed input is not classified as RSA.
         assert!(!is_rsa_pkcs8_der(&[0x30, 0x00]));
@@ -751,21 +744,21 @@ mod tests {
 
     #[test]
     fn decode_bad_sequence() {
-        let mut der = decode_hex(TEST_DER_HEX);
+        let mut der = hex::decode(TEST_DER_HEX).unwrap();
         der[0] = 0x31;
         assert!(matches!(decode_p256_pkcs8_der(&der), Err(Pkcs8Error::InvalidSequence)));
     }
 
     #[test]
     fn decode_bad_version() {
-        let mut der = decode_hex(TEST_DER_HEX);
+        let mut der = hex::decode(TEST_DER_HEX).unwrap();
         der[5] = 0x01;
         assert!(matches!(decode_p256_pkcs8_der(&der), Err(Pkcs8Error::InvalidVersion)));
     }
 
     #[test]
     fn decode_bad_algo_identifier() {
-        let mut der = decode_hex(TEST_DER_HEX);
+        let mut der = hex::decode(TEST_DER_HEX).unwrap();
         der[10] = 0x00;
         assert!(matches!(
             decode_p256_pkcs8_der(&der),
@@ -775,28 +768,28 @@ mod tests {
 
     #[test]
     fn decode_bad_ec_version() {
-        let mut der = decode_hex(TEST_DER_HEX);
+        let mut der = hex::decode(TEST_DER_HEX).unwrap();
         der[33] = 0x02;
         assert!(matches!(decode_p256_pkcs8_der(&der), Err(Pkcs8Error::InvalidEcVersion)));
     }
 
     #[test]
     fn decode_missing_public_key() {
-        let mut der = decode_hex(TEST_DER_HEX);
+        let mut der = hex::decode(TEST_DER_HEX).unwrap();
         der[68] = 0x00;
         assert!(matches!(decode_p256_pkcs8_der(&der), Err(Pkcs8Error::InvalidPublicKeyExplicit)));
     }
 
     #[test]
     fn decode_bad_public_key_prefix() {
-        let mut der = decode_hex(TEST_DER_HEX);
+        let mut der = hex::decode(TEST_DER_HEX).unwrap();
         der[73] = 0x02;
         assert!(matches!(decode_p256_pkcs8_der(&der), Err(Pkcs8Error::InvalidPublicKeyPrefix)));
     }
 
     #[test]
     fn decode_mismatched_public_key() {
-        let mut der = decode_hex(TEST_DER_HEX);
+        let mut der = hex::decode(TEST_DER_HEX).unwrap();
         der[80] ^= 0xff;
         assert!(matches!(decode_p256_pkcs8_der(&der), Err(Pkcs8Error::InvalidPublicKeyMismatch)));
     }
@@ -838,7 +831,7 @@ mod tests {
 
     #[test]
     fn decode_ec_pkcs8_p256_known_vector() {
-        let der = decode_hex(TEST_DER_HEX);
+        let der = hex::decode(TEST_DER_HEX).unwrap();
         match decode_ec_pkcs8_der(&der).unwrap() {
             EcPrivateKey::P256(key) => {
                 assert_eq!(key.to_bytes(), TEST_PRIVATE_KEY);
@@ -850,11 +843,14 @@ mod tests {
 
     #[test]
     fn decode_ec_pkcs8_p384_known_vector() {
-        let der = decode_hex(P384_PKCS8_DER_HEX);
+        let der = hex::decode(P384_PKCS8_DER_HEX).unwrap();
         match decode_ec_pkcs8_der(&der).unwrap() {
             EcPrivateKey::P384(key) => {
-                assert_eq!(key.to_bytes().as_slice(), decode_hex(P384_PRIVATE_KEY_HEX));
-                assert_eq!(key.public_key().to_bytes().as_slice(), decode_hex(P384_PUBLIC_KEY_HEX));
+                assert_eq!(key.to_bytes().as_slice(), hex::decode(P384_PRIVATE_KEY_HEX).unwrap());
+                assert_eq!(
+                    key.public_key().to_bytes().as_slice(),
+                    hex::decode(P384_PUBLIC_KEY_HEX).unwrap()
+                );
             }
             EcPrivateKey::P256(_) => panic!("expected P-384"),
         }
@@ -862,11 +858,14 @@ mod tests {
 
     #[test]
     fn decode_ec_sec1_p384_known_vector() {
-        let der = decode_hex(P384_SEC1_DER_HEX);
+        let der = hex::decode(P384_SEC1_DER_HEX).unwrap();
         match decode_ec_sec1_der(&der).unwrap() {
             EcPrivateKey::P384(key) => {
-                assert_eq!(key.to_bytes().as_slice(), decode_hex(P384_PRIVATE_KEY_HEX));
-                assert_eq!(key.public_key().to_bytes().as_slice(), decode_hex(P384_PUBLIC_KEY_HEX));
+                assert_eq!(key.to_bytes().as_slice(), hex::decode(P384_PRIVATE_KEY_HEX).unwrap());
+                assert_eq!(
+                    key.public_key().to_bytes().as_slice(),
+                    hex::decode(P384_PUBLIC_KEY_HEX).unwrap()
+                );
             }
             EcPrivateKey::P256(_) => panic!("expected P-384"),
         }
@@ -874,15 +873,15 @@ mod tests {
 
     #[test]
     fn encode_p384_matches_known_der() {
-        let scalar: [u8; 48] = decode_hex(P384_PRIVATE_KEY_HEX).try_into().unwrap();
+        let scalar: [u8; 48] = hex::decode(P384_PRIVATE_KEY_HEX).unwrap().try_into().unwrap();
         let key = p384::SecretKey::from_bytes(&scalar).unwrap();
         let der = encode_p384_pkcs8_der(&key);
-        assert_eq!(der.as_slice(), decode_hex(P384_PKCS8_DER_HEX).as_slice());
+        assert_eq!(der.as_slice(), hex::decode(P384_PKCS8_DER_HEX).unwrap().as_slice());
     }
 
     #[test]
     fn encode_p384_round_trip() {
-        let scalar: [u8; 48] = decode_hex(P384_PRIVATE_KEY_HEX).try_into().unwrap();
+        let scalar: [u8; 48] = hex::decode(P384_PRIVATE_KEY_HEX).unwrap().try_into().unwrap();
         let key = p384::SecretKey::from_bytes(&scalar).unwrap();
         let der = encode_p384_pkcs8_der(&key);
         match decode_ec_pkcs8_der(&der).unwrap() {
@@ -893,30 +892,30 @@ mod tests {
 
     #[test]
     fn decode_ed25519_known_vector() {
-        let der = decode_hex(ED25519_DER_HEX);
+        let der = hex::decode(ED25519_DER_HEX).unwrap();
         let key = decode_ed25519_pkcs8_der(&der).unwrap();
-        assert_eq!(key.to_bytes().as_slice(), decode_hex(ED25519_SEED_HEX));
+        assert_eq!(key.to_bytes().as_slice(), hex::decode(ED25519_SEED_HEX).unwrap());
     }
 
     #[test]
     fn encode_ed25519_matches_known_der() {
-        let seed: [u8; 32] = decode_hex(ED25519_SEED_HEX).try_into().unwrap();
+        let seed: [u8; 32] = hex::decode(ED25519_SEED_HEX).unwrap().try_into().unwrap();
         let key = crate::curve25519::ed25519::SecretKey::from_bytes(&seed);
         let der = encode_ed25519_pkcs8_der(&key);
-        assert_eq!(der.as_slice(), decode_hex(ED25519_DER_HEX).as_slice());
+        assert_eq!(der.as_slice(), hex::decode(ED25519_DER_HEX).unwrap().as_slice());
     }
 
     #[test]
     fn decode_ec_pkcs8_rejects_unsupported_curve() {
         // Replace the secp384r1 OID with an unsupported one.
-        let mut der = decode_hex(P384_PKCS8_DER_HEX);
+        let mut der = hex::decode(P384_PKCS8_DER_HEX).unwrap();
         der[21] = 0x01;
         assert!(matches!(decode_ec_pkcs8_der(&der), Err(Pkcs8Error::UnsupportedCurve)));
     }
 
     #[test]
     fn decode_ec_pkcs8_rejects_trailing_data() {
-        let mut der = decode_hex(P384_PKCS8_DER_HEX);
+        let mut der = hex::decode(P384_PKCS8_DER_HEX).unwrap();
         der.push(0x00);
         assert!(matches!(
             decode_ec_pkcs8_der(&der),
@@ -926,7 +925,7 @@ mod tests {
 
     #[test]
     fn decode_ed25519_rejects_wrong_algorithm() {
-        let mut der = decode_hex(ED25519_DER_HEX);
+        let mut der = hex::decode(ED25519_DER_HEX).unwrap();
         der[9] = 0x2c;
         assert!(matches!(decode_ed25519_pkcs8_der(&der), Err(Pkcs8Error::UnsupportedAlgorithm)));
     }
@@ -986,13 +985,13 @@ mod tests {
         let key = crate::mldsa::MlDsa44SecretKey::new(&ML_DSA_SEED);
         assert_eq!(
             encode_mldsa44_pkcs8_der(&key).as_slice(),
-            decode_hex(ML_DSA_44_SEED_PKCS8_HEX).as_slice()
+            hex::decode(ML_DSA_44_SEED_PKCS8_HEX).unwrap().as_slice()
         );
     }
 
     #[test]
     fn decode_mldsa44_seed_example() {
-        let der = decode_hex(ML_DSA_44_SEED_PKCS8_HEX);
+        let der = hex::decode(ML_DSA_44_SEED_PKCS8_HEX).unwrap();
         match decode_mldsa_pkcs8_der(&der).unwrap() {
             MlDsaPrivateKey::Dsa44(key) => assert_eq!(key.seed(), &ML_DSA_SEED),
             _ => panic!("expected ML-DSA-44"),
@@ -1071,7 +1070,7 @@ mod tests {
 
     #[test]
     fn decode_mldsa_rejects_trailing_data() {
-        let mut der = decode_hex(ML_DSA_44_SEED_PKCS8_HEX);
+        let mut der = hex::decode(ML_DSA_44_SEED_PKCS8_HEX).unwrap();
         der.push(0x00);
         assert!(matches!(
             decode_mldsa_pkcs8_der(&der),

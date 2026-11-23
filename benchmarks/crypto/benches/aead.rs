@@ -46,7 +46,9 @@ fn bench_encrypt(c: &mut Criterion) {
             b.iter_batched(
                 || vec![0xA5_u8; size],
                 |mut data| {
-                    let _tag = chacha20poly1305.encrypt_in_place(&mut data, &NONCE_96[..], &[]);
+                    let _tag = chacha20poly1305
+                        .encrypt_in_place(&mut data, &NONCE_96[..], &[])
+                        .unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );
@@ -56,7 +58,7 @@ fn bench_encrypt(c: &mut Criterion) {
             b.iter_batched(
                 || vec![0xA5_u8; size],
                 |mut data| {
-                    let _tag = ascon.encrypt_in_place(&mut data, &NONCE_128[..], &[]);
+                    let _tag = ascon.encrypt_in_place(&mut data, &NONCE_128[..], &[]).unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );
@@ -66,7 +68,7 @@ fn bench_encrypt(c: &mut Criterion) {
             b.iter_batched(
                 || vec![0xA5_u8; size],
                 |mut data| {
-                    let _tag = aes128.encrypt_in_place(&mut data, &NONCE_96[..], &[]);
+                    let _tag = aes128.encrypt_in_place(&mut data, &NONCE_96[..], &[]).unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );
@@ -76,7 +78,7 @@ fn bench_encrypt(c: &mut Criterion) {
             b.iter_batched(
                 || vec![0xA5_u8; size],
                 |mut data| {
-                    let _tag = aes256.encrypt_in_place(&mut data, &NONCE_96[..], &[]);
+                    let _tag = aes256.encrypt_in_place(&mut data, &NONCE_96[..], &[]).unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );
@@ -86,7 +88,7 @@ fn bench_encrypt(c: &mut Criterion) {
             b.iter_batched(
                 || vec![0xA5_u8; size],
                 |mut data| {
-                    let _tag = aegis256.encrypt_in_place(&mut data, &NONCE_256[..], &[]);
+                    let _tag = aegis256.encrypt_in_place(&mut data, &NONCE_256[..], &[]).unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );
@@ -96,7 +98,7 @@ fn bench_encrypt(c: &mut Criterion) {
             b.iter_batched(
                 || vec![0xA5_u8; size],
                 |mut data| {
-                    let _tag = aegis256x2.encrypt_in_place(&mut data, &NONCE_256[..], &[]);
+                    let _tag = aegis256x2.encrypt_in_place(&mut data, &NONCE_256[..], &[]).unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );
@@ -106,7 +108,7 @@ fn bench_encrypt(c: &mut Criterion) {
             b.iter_batched(
                 || vec![0xA5_u8; size],
                 |mut data| {
-                    let _tag = aegis256x4.encrypt_in_place(&mut data, &NONCE_256[..], &[]);
+                    let _tag = aegis256x4.encrypt_in_place(&mut data, &NONCE_256[..], &[]).unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );
@@ -133,7 +135,9 @@ fn bench_decrypt(c: &mut Criterion) {
             b.iter_batched(
                 || {
                     let mut data = vec![0xA5_u8; size];
-                    let tag = chacha20poly1305.encrypt_in_place(&mut data, &NONCE_96[..], &[]);
+                    let tag = chacha20poly1305
+                        .encrypt_in_place(&mut data, &NONCE_96[..], &[])
+                        .unwrap();
                     (data, tag)
                 },
                 |(mut data, tag)| {
@@ -147,7 +151,7 @@ fn bench_decrypt(c: &mut Criterion) {
             b.iter_batched(
                 || {
                     let mut data = vec![0xA5_u8; size];
-                    let tag = ascon.encrypt_in_place(&mut data, &NONCE_128[..], &[]);
+                    let tag = ascon.encrypt_in_place(&mut data, &NONCE_128[..], &[]).unwrap();
                     (data, tag)
                 },
                 |(mut data, tag)| {
@@ -161,7 +165,7 @@ fn bench_decrypt(c: &mut Criterion) {
             b.iter_batched(
                 || {
                     let mut data = vec![0xA5_u8; size];
-                    let tag = aes128.encrypt_in_place(&mut data, &NONCE_96[..], &[]);
+                    let tag = aes128.encrypt_in_place(&mut data, &NONCE_96[..], &[]).unwrap();
                     (data, tag)
                 },
                 |(mut data, tag)| {
@@ -175,7 +179,7 @@ fn bench_decrypt(c: &mut Criterion) {
             b.iter_batched(
                 || {
                     let mut data = vec![0xA5_u8; size];
-                    let tag = aes256.encrypt_in_place(&mut data, &NONCE_96[..], &[]);
+                    let tag = aes256.encrypt_in_place(&mut data, &NONCE_96[..], &[]).unwrap();
                     (data, tag)
                 },
                 |(mut data, tag)| {
@@ -189,7 +193,7 @@ fn bench_decrypt(c: &mut Criterion) {
             b.iter_batched(
                 || {
                     let mut data = vec![0xA5_u8; size];
-                    let tag = aegis256.encrypt_in_place(&mut data, &NONCE_256[..], &[]);
+                    let tag = aegis256.encrypt_in_place(&mut data, &NONCE_256[..], &[]).unwrap();
                     (data, tag)
                 },
                 |(mut data, tag)| {
@@ -203,7 +207,7 @@ fn bench_decrypt(c: &mut Criterion) {
             b.iter_batched(
                 || {
                     let mut data = vec![0xA5_u8; size];
-                    let tag = aegis256x2.encrypt_in_place(&mut data, &NONCE_256[..], &[]);
+                    let tag = aegis256x2.encrypt_in_place(&mut data, &NONCE_256[..], &[]).unwrap();
                     (data, tag)
                 },
                 |(mut data, tag)| {
@@ -217,7 +221,7 @@ fn bench_decrypt(c: &mut Criterion) {
             b.iter_batched(
                 || {
                     let mut data = vec![0xA5_u8; size];
-                    let tag = aegis256x4.encrypt_in_place(&mut data, &NONCE_256[..], &[]);
+                    let tag = aegis256x4.encrypt_in_place(&mut data, &NONCE_256[..], &[]).unwrap();
                     (data, tag)
                 },
                 |(mut data, tag)| {

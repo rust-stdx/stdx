@@ -237,6 +237,9 @@ fn final_block(h: &mut [u64; 3], r: &[u64; 2], partial: &[u8]) {
     let t0 = u64::from_le_bytes(m[0..8].try_into().unwrap());
     let t1 = u64::from_le_bytes(m[8..16].try_into().unwrap());
     absorb(h, r, t0, t1, false);
+
+    #[cfg(feature = "zeroize")]
+    zeroize::Zeroize::zeroize(&mut m);
 }
 
 /// Complete the reduction, add the secret pad `s` and serialize the 16-byte tag.
@@ -265,6 +268,16 @@ fn finish(h: &mut [u64; 3], s: &[u64; 2]) -> [u8; 16] {
 #[cfg(test)]
 mod tests {
     use super::Poly1305;
+
+    /// The `zeroize` feature must also wipe the state on drop, not only on an
+    /// explicit `zeroize()` call. `ZeroizeOnDrop` is a marker trait, so this is
+    /// checked as a compile-time bound.
+    #[cfg(feature = "zeroize")]
+    #[test]
+    fn poly1305_zeroize_on_drop_is_derived() {
+        fn assert_zeroize_on_drop<T: zeroize::ZeroizeOnDrop>() {}
+        assert_zeroize_on_drop::<Poly1305>();
+    }
 
     #[cfg(feature = "zeroize")]
     #[test]
@@ -369,21 +382,12 @@ mod tests {
         },
     ];
 
-    fn decode_hex(input: &str) -> Vec<u8> {
-        let input = input.replace(|c: char| c.is_whitespace(), "");
-        assert_eq!(input.len() % 2, 0, "hex input length must be even");
-        (0..input.len())
-            .step_by(2)
-            .map(|i| u8::from_str_radix(&input[i..i + 2], 16).unwrap())
-            .collect()
-    }
-
     #[test]
     fn poly1305_known_vectors() {
         for vector in TEST_VECTORS {
-            let key: [u8; 32] = decode_hex(vector.key_hex).try_into().unwrap();
-            let data = decode_hex(vector.data_hex);
-            let expected = decode_hex(vector.expected_hex);
+            let key: [u8; 32] = hex::decode(vector.key_hex).unwrap().try_into().unwrap();
+            let data = hex::decode(vector.data_hex).unwrap();
+            let expected = hex::decode(vector.expected_hex).unwrap();
 
             let mac = Poly1305::mac(&key, &data);
             assert_eq!(mac.as_slice(), expected.as_slice(), "{}", vector.source);
@@ -392,12 +396,13 @@ mod tests {
 
     #[test]
     fn poly1305_chunked_equivalence() {
-        let key: [u8; 32] = decode_hex("1c9240a5eb55d38af333888604f6b5f0473917c1402b80099dca5cbc207075c0")
+        let key: [u8; 32] = hex::decode("1c9240a5eb55d38af333888604f6b5f0473917c1402b80099dca5cbc207075c0")
+            .unwrap()
             .try_into()
             .unwrap();
-        let data = decode_hex(
+        let data = hex::decode(
             "2754776173206272696c6c69672c20616e642074686520736c6974687920746f7665730a446964206779726520616e642067696d626c6520696e2074686520776162653a0a416c6c206d696d737920776572652074686520626f726f676f7665732c0a416e6420746865206d6f6d65207261746873206f757467726162652e",
-        );
+        ).unwrap();
         let single = Poly1305::mac(&key, &data);
 
         let mut rebuilt = Vec::with_capacity(data.len());
@@ -800,9 +805,9 @@ mod tests {
             },
         ];
         for (i, v) in vectors.iter().enumerate() {
-            let key: [u8; 32] = decode_hex(v.key_hex).try_into().unwrap();
-            let data = decode_hex(v.data_hex);
-            let expected = decode_hex(v.expected_hex);
+            let key: [u8; 32] = hex::decode(v.key_hex).unwrap().try_into().unwrap();
+            let data = hex::decode(v.data_hex).unwrap();
+            let expected = hex::decode(v.expected_hex).unwrap();
             let mac = Poly1305::mac(&key, &data);
             assert_eq!(mac.as_slice(), expected.as_slice(), "go/crypto poly1305 vector {}", i + 1);
         }

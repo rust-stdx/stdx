@@ -347,7 +347,7 @@ impl TurboHashCore {
 
         // Absorb the length-prefixed context immediately. This may already
         // cross the first chunk boundary when the context is large.
-        core.update(left_encode(context.len()).as_ref());
+        core.update(left_encode(context.len() as u128).as_ref());
         core.update(context);
 
         return core;
@@ -584,7 +584,7 @@ mod tests {
     /// Literal transcription of the construction defined in the module docs.
     fn spec_turbohash(message: &[u8], context: &[u8], output_len: usize, xof: bool) -> Vec<u8> {
         let mut s = Vec::with_capacity(context.len() + 9 + message.len());
-        s.extend_from_slice(left_encode(context.len()).as_ref());
+        s.extend_from_slice(left_encode(context.len() as u128).as_ref());
         s.extend_from_slice(context);
         s.extend_from_slice(message);
 

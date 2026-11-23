@@ -909,6 +909,7 @@ fn test_lookup_before_and_after_tree_traversal() {
 
 // ====== Malformed Database Tests: Verify errors, not panics ======
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn test_bad_data_databases_do_not_panic() {
     let bad_dbs = [
@@ -952,6 +953,7 @@ fn test_bad_data_databases_do_not_panic() {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn test_broken_test_databases_do_not_panic() {
     let broken_dbs = [

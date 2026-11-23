@@ -480,6 +480,16 @@ unsafe fn gcm_finish_tag(state: __m128i, h: __m128i, ej0_bytes: &[u8; 16], aad: 
 ///
 /// `state` and `base` are carried across calls; `base` is in the byte-swapped
 /// GCM counter domain and is advanced by `inc32` for every complete block.
+///
+/// # Safety
+///
+/// On top of the declared target features, instantiating with `VPCLMUL = true`
+/// requires VPCLMULQDQ, because the 8-block branch calls
+/// `ghash_8blocks_vpclmul`. That feature is deliberately not listed on this
+/// function: the `false` instantiation is reachable on CPUs with VAES but
+/// without VPCLMULQDQ. Dispatch only selects `VPCLMUL = true` after
+/// `is_x86_feature_detected!("vpclmulqdq")` (or the matching `target_feature`
+/// in `no_std` builds), so the obligation is met by the caller.
 #[target_feature(enable = "vaes,avx2,pclmulqdq,ssse3,sse4.1")]
 #[inline]
 unsafe fn gcm_encrypt_tail_vaes256<const N: usize, const VPCLMUL: bool>(
@@ -592,6 +602,12 @@ unsafe fn gcm_encrypt_tail_vaes256<const N: usize, const VPCLMUL: bool>(
 }
 
 /// Authenticate the remaining GCM ciphertext blocks with 8/4/1-block groups.
+///
+/// # Safety
+///
+/// On top of the declared target features, instantiating with `VPCLMUL = true`
+/// requires VPCLMULQDQ (see [`gcm_encrypt_tail_vaes256`]); the caller is
+/// responsible for the same runtime detection guarantee.
 #[target_feature(enable = "vaes,avx2,pclmulqdq,ssse3,sse4.1")]
 #[inline]
 unsafe fn gcm_ghash_tail_vaes256<const VPCLMUL: bool>(h_powers: &[__m128i; 16], state: &mut __m128i, in_out: &[u8]) {
@@ -1177,6 +1193,131 @@ mod tests {
                 let mut back = vaes.clone();
                 unsafe { gcm_decrypt_vaes512(&rk, &hp, &mut back, &tag, &nonce, &aad) }.expect("decrypt");
                 assert_eq!(back, pt);
+            }
+        }
+    }
+
+    // ── AES-NI path: both key sizes, boundaries and tampering ───────────────
+
+    fn aesni_pattern(len: usize, mul: u8, add: u8) -> Vec<u8> {
+        gcm_pattern(len, mul, add)
+    }
+
+    fn make_rk_n<const N: usize>(key: &[u8]) -> [__m128i; N] {
+        let soft = crate::aes::aes::expand_key::<N>(key);
+        let mut rk = [unsafe { _mm_setzero_si128() }; N];
+        for (slot, bytes) in rk.iter_mut().zip(soft.iter()) {
+            *slot = unsafe { _mm_loadu_si128(bytes.as_ptr().cast()) };
+        }
+        rk
+    }
+
+    fn make_h_powers_n<const N: usize>(key: &[u8]) -> [__m128i; 16] {
+        let (bytes, _) = crate::aes::ghash::precompute_ghash_powers::<N>(key);
+        let mut hp = [unsafe { _mm_setzero_si128() }; 16];
+        for (slot, power) in hp.iter_mut().zip(bytes.iter()) {
+            *slot = unsafe { _mm_loadu_si128(power.as_ptr().cast()) };
+        }
+        hp
+    }
+
+    /// Direct AES-NI kernel (both N = 11 and N = 15) against the portable
+    /// software path over every length across the 1/4/8-block boundaries, with
+    /// AAD lengths that do not share the plaintext's partial-block shape.
+    #[test]
+    fn aesni_matches_soft_all_lengths() {
+        skip_unless_aesni!();
+
+        let nonce = [0x5au8; 12];
+        let aad_lengths = [0usize, 1, 15, 16, 17, 32, 33];
+
+        let key128 = [0x3cu8; 16];
+        let cipher128 = crate::aes::aes_gcm::Aes128Gcm::new(&key128);
+        let rk128 = make_rk_n::<11>(&key128);
+        let hp128 = make_h_powers_n::<11>(&key128);
+        let soft_rk128 = crate::aes::aes::expand_key::<11>(&key128);
+        let h128 = crate::aes::aes::encrypt_block(&soft_rk128, &[0u8; 16]);
+
+        let key256 = [0x7eu8; 32];
+        let cipher256 = crate::aes::aes_gcm::Aes256Gcm::new(&key256);
+        let rk256 = make_rk_n::<15>(&key256);
+        let hp256 = make_h_powers_n::<15>(&key256);
+        let soft_rk256 = crate::aes::aes::expand_key::<15>(&key256);
+        let h256 = crate::aes::aes::encrypt_block(&soft_rk256, &[0u8; 16]);
+
+        for pt_len in 0..=257usize {
+            let pt = aesni_pattern(pt_len, 37, 11);
+            for &aad_len in &aad_lengths {
+                let aad = aesni_pattern(aad_len, 53, 7);
+                let label = format!("pt_len={pt_len} aad_len={aad_len}");
+
+                let mut want = pt.clone();
+                let want_tag = cipher128
+                    .0
+                    .encrypt_in_place_soft(&mut want, &soft_rk128, &h128, &nonce, &aad);
+                let mut got = pt.clone();
+                let got_tag = unsafe { gcm_encrypt_aesni(&rk128, &hp128, &mut got, &nonce, &aad) };
+                assert_eq!(got, want, "AES-128 ciphertext mismatch ({label})");
+                assert_eq!(got_tag.as_ref(), want_tag.as_ref(), "AES-128 tag mismatch ({label})");
+
+                let tag: [u8; 16] = want_tag.as_ref().try_into().unwrap();
+                let mut back = got.clone();
+                unsafe { gcm_decrypt_aesni(&rk128, &hp128, &mut back, &tag, &nonce, &aad) }
+                    .unwrap_or_else(|e| panic!("AES-128 decrypt failed ({label}): {e}"));
+                assert_eq!(back, pt);
+
+                let mut want = pt.clone();
+                let want_tag = cipher256
+                    .0
+                    .encrypt_in_place_soft(&mut want, &soft_rk256, &h256, &nonce, &aad);
+                let mut got = pt.clone();
+                let got_tag = unsafe { gcm_encrypt_aesni(&rk256, &hp256, &mut got, &nonce, &aad) };
+                assert_eq!(got, want, "AES-256 ciphertext mismatch ({label})");
+                assert_eq!(got_tag.as_ref(), want_tag.as_ref(), "AES-256 tag mismatch ({label})");
+
+                let tag: [u8; 16] = want_tag.as_ref().try_into().unwrap();
+                let mut back = got.clone();
+                unsafe { gcm_decrypt_aesni(&rk256, &hp256, &mut back, &tag, &nonce, &aad) }
+                    .unwrap_or_else(|e| panic!("AES-256 decrypt failed ({label}): {e}"));
+                assert_eq!(back, pt);
+
+                // Tag failure must not return Ok and must leave the ciphertext
+                // untouched on the AES-NI authentic-then-decrypt path.
+                let mut bad = tag;
+                bad[pt_len % 16] ^= 0x40;
+                let mut untouched = got.clone();
+                assert!(unsafe { gcm_decrypt_aesni(&rk256, &hp256, &mut untouched, &bad, &nonce, &aad) }.is_err());
+                assert_eq!(untouched, got, "AES-NI modified the buffer on tag failure");
+            }
+        }
+    }
+
+    /// The AES-NI kernel must not read or write outside `in_out`, including
+    /// when the slice starts at a non-zero offset (unaligned loads).
+    #[test]
+    fn aesni_unaligned_slices_preserve_canaries() {
+        skip_unless_aesni!();
+
+        let key = [0x24u8; 32];
+        let nonce = [0x68u8; 12];
+        let aad = gcm_pattern(21, 9, 4);
+        let rk = make_rk_n::<15>(&key);
+        let hp = make_h_powers_n::<15>(&key);
+
+        for len in [0usize, 1, 15, 16, 17, 63, 64, 65, 127, 128, 129, 255, 256, 257] {
+            let plaintext = gcm_pattern(len, 43, 9);
+            for offset in [0usize, 1, 4, 8, 15] {
+                let mut storage = vec![0xa5u8; len + offset + 24];
+                storage[offset..offset + len].copy_from_slice(&plaintext);
+
+                let tag = unsafe { gcm_encrypt_aesni(&rk, &hp, &mut storage[offset..offset + len], &nonce, &aad) };
+                assert!(storage[..offset].iter().all(|&b| b == 0xa5));
+                assert!(storage[offset + len..].iter().all(|&b| b == 0xa5));
+
+                let mut back = storage[offset..offset + len].to_vec();
+                unsafe { gcm_decrypt_aesni(&rk, &hp, &mut back, tag.as_ref().try_into().unwrap(), &nonce, &aad) }
+                    .expect("decrypt");
+                assert_eq!(back, plaintext);
             }
         }
     }

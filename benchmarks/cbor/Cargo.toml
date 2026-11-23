@@ -18,6 +18,7 @@ bench = false
 cbor = { path = "../../cbor", features = ["derive", "bytes"] }
 
 minicbor = { workspace = true }
+rand = { workspace = true }
 serde = { workspace = true }
 
 [dev-dependencies]

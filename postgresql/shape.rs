@@ -187,7 +187,7 @@ impl RowShape for Vec<u8> {
     }];
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod tests {
     use super::*;
     use crate::types::INT4OID;

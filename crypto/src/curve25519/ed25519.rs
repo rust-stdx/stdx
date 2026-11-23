@@ -663,21 +663,11 @@ mod tests {
         0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
     ];
 
-    fn decode_hex<const N: usize>(hex_bytes: &str) -> [u8; N] {
-        let bytes = hex::decode(hex_bytes).unwrap();
-        assert_eq!(bytes.len(), N);
-        let mut out = [0u8; N];
-        out.copy_from_slice(&bytes);
-        out
-    }
-
-    fn decode_hex_vec(hex_bytes: &str) -> Vec<u8> {
-        hex::decode(hex_bytes).unwrap()
-    }
-
     #[test]
     fn sign_verify_roundtrip() {
-        let seed = decode_hex::<32>("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60");
+        let seed =
+            hex::decode_array::<32>(("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60").as_bytes())
+                .unwrap();
         let priv_key = SecretKey::from_bytes(&seed);
         let pub_key = priv_key.public_key();
 
@@ -691,7 +681,9 @@ mod tests {
 
     #[test]
     fn public_key_bytes_roundtrip() {
-        let seed = decode_hex::<32>("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60");
+        let seed =
+            hex::decode_array::<32>(("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60").as_bytes())
+                .unwrap();
         let priv_key = SecretKey::from_bytes(&seed);
         let pub_key = priv_key.public_key();
         let pub_bytes = pub_key.to_bytes();
@@ -701,7 +693,9 @@ mod tests {
 
     #[test]
     fn private_key_bytes_roundtrip() {
-        let seed = decode_hex::<32>("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60");
+        let seed =
+            hex::decode_array::<32>(("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60").as_bytes())
+                .unwrap();
         let priv_key = SecretKey::from_bytes(&seed);
         assert_eq!(priv_key.to_bytes(), seed);
     }
@@ -717,7 +711,9 @@ mod tests {
     #[test]
     fn rejects_invalid_public_key() {
         assert!(PublicKey::from_bytes(&[0xffu8; 32]).is_err());
-        let p_enc = decode_hex::<32>("edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f");
+        let p_enc =
+            hex::decode_array::<32>(("edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f").as_bytes())
+                .unwrap();
         assert!(PublicKey::from_bytes(&p_enc).is_err());
     }
 
@@ -727,10 +723,10 @@ mod tests {
         message_hex: &'static str,
         signature_hex: &'static str,
     ) {
-        let seed = decode_hex::<32>(seed_hex);
-        let pk_expected = decode_hex::<32>(public_key_hex);
-        let sig_expected = decode_hex::<64>(signature_hex);
-        let msg = decode_hex_vec(message_hex);
+        let seed = hex::decode_array::<32>((seed_hex).as_bytes()).unwrap();
+        let pk_expected = hex::decode_array::<32>((public_key_hex).as_bytes()).unwrap();
+        let sig_expected = hex::decode_array::<64>((signature_hex).as_bytes()).unwrap();
+        let msg = hex::decode(message_hex).unwrap();
 
         let priv_key = SecretKey::from_bytes(&seed);
         assert_eq!(priv_key.public_key().to_bytes(), pk_expected);
@@ -779,7 +775,9 @@ mod tests {
 
     #[test]
     fn verify_rejects_tampering_and_non_canonical_s() {
-        let seed = decode_hex::<32>("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60");
+        let seed =
+            hex::decode_array::<32>(("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60").as_bytes())
+                .unwrap();
         let pub_key = SecretKey::from_bytes(&seed).public_key();
         let signature = SecretKey::from_bytes(&seed).sign(b"message");
 
@@ -800,7 +798,9 @@ mod tests {
 
     #[test]
     fn public_key_validation_rejects_invalid_encodings() {
-        let valid = decode_hex::<32>("d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a");
+        let valid =
+            hex::decode_array::<32>(("d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a").as_bytes())
+                .unwrap();
         assert!(PublicKey::from_bytes(&valid).is_ok());
 
         let mut invalid = [0xffu8; 32];
@@ -829,7 +829,7 @@ mod tests {
         ];
 
         for hex_key in low_order_points {
-            let bytes = decode_hex::<32>(hex_key);
+            let bytes = hex::decode_array::<32>((hex_key).as_bytes()).unwrap();
             assert!(
                 PublicKey::from_bytes(&bytes).is_err(),
                 "low-order public key {hex_key} must be rejected",
@@ -843,9 +843,10 @@ mod tests {
         assert!(EdwardsPoint::identity().is_small_order());
 
         // Order-2 point y = p - 1.
-        let order_two = EdwardsPoint::from_bytes(&decode_hex::<32>(
-            "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
-        ))
+        let order_two = EdwardsPoint::from_bytes(
+            &hex::decode_array::<32>(("ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f").as_bytes())
+                .unwrap(),
+        )
         .unwrap();
         assert!(order_two.is_small_order());
     }
@@ -855,8 +856,12 @@ mod tests {
         // H-03: with a small-order public key A, `R = [s]B` verifies for any
         // `s` and message under the cofactored equation. Rejecting the key at
         // import means the forgery never reaches verification.
-        let identity = decode_hex::<32>("0100000000000000000000000000000000000000000000000000000000000000");
-        let order_two = decode_hex::<32>("ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f");
+        let identity =
+            hex::decode_array::<32>(("0100000000000000000000000000000000000000000000000000000000000000").as_bytes())
+                .unwrap();
+        let order_two =
+            hex::decode_array::<32>(("ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f").as_bytes())
+                .unwrap();
 
         for key in [identity, order_two] {
             assert!(PublicKey::from_bytes(&key).is_err());
@@ -869,7 +874,9 @@ mod tests {
         forged_signature[..32].copy_from_slice(&scalar_mul_base(&s).to_bytes().unwrap());
         forged_signature[32..].copy_from_slice(&s.to_bytes());
 
-        let genuine_seed = decode_hex::<32>("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60");
+        let genuine_seed =
+            hex::decode_array::<32>(("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60").as_bytes())
+                .unwrap();
         let genuine = SecretKey::from_bytes(&genuine_seed).public_key();
         assert!(genuine.verify(b"forged message", &forged_signature).is_err());
     }
@@ -903,9 +910,9 @@ mod tests {
             let has_low_order_residue = flags.contains(&"low_order_residue");
             let should_reject = has_non_canonical_a || has_non_canonical_r || has_low_order_a || has_low_order_residue;
 
-            let public_key = decode_hex::<32>(key_hex);
-            let signature = decode_hex::<64>(sig_hex);
-            let message = decode_hex_vec(msg_hex);
+            let public_key = hex::decode_array::<32>((key_hex).as_bytes()).unwrap();
+            let signature = hex::decode_array::<64>((sig_hex).as_bytes()).unwrap();
+            let message = hex::decode(msg_hex).unwrap();
 
             let pub_key = PublicKey::from_bytes(&public_key);
             let result = pub_key.and_then(|pk| pk.verify(&message, &signature));
@@ -936,7 +943,9 @@ mod tests {
 
     #[test]
     fn verify_rejects_all_zero_signature() {
-        let public_key = decode_hex::<32>("d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a");
+        let public_key =
+            hex::decode_array::<32>(("d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a").as_bytes())
+                .unwrap();
         let signature = [0u8; 64];
         let pk = PublicKey::from_bytes(&public_key).unwrap();
         let result = pk.verify(b"test", &signature);
@@ -945,7 +954,9 @@ mod tests {
 
     #[test]
     fn verify_rejects_s_equals_l() {
-        let seed = decode_hex::<32>("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60");
+        let seed =
+            hex::decode_array::<32>(("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60").as_bytes())
+                .unwrap();
         let pub_key = SecretKey::from_bytes(&seed).public_key();
         let signature = SecretKey::from_bytes(&seed).sign(b"test");
 
@@ -959,10 +970,14 @@ mod tests {
 
     #[test]
     fn verify_rejects_non_canonical_point_encodings() {
-        let non_canonical_key = decode_hex::<32>("edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f");
+        let non_canonical_key =
+            hex::decode_array::<32>(("edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f").as_bytes())
+                .unwrap();
         assert!(PublicKey::from_bytes(&non_canonical_key).is_err());
 
-        let seed = decode_hex::<32>("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60");
+        let seed =
+            hex::decode_array::<32>(("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60").as_bytes())
+                .unwrap();
         let pub_key = SecretKey::from_bytes(&seed).public_key();
         let mut bad_sig = SecretKey::from_bytes(&seed).sign(b"test");
         bad_sig[..32].copy_from_slice(&[
@@ -989,7 +1004,9 @@ mod tests {
 
     #[test]
     fn ed25519_to_montgomery_u_conversion() {
-        let seed = decode_hex::<32>("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60");
+        let seed =
+            hex::decode_array::<32>(("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60").as_bytes())
+                .unwrap();
         let priv_key = SecretKey::from_bytes(&seed);
         let ed_pub = priv_key.public_key();
 
@@ -1054,17 +1071,17 @@ mod tests {
         let mut skipped = 0usize;
 
         for group in &parsed.test_groups {
-            let public_key = decode_hex::<32>(&group.public_key.pk);
+            let public_key = hex::decode_array::<32>(group.public_key.pk.as_bytes()).unwrap();
             let parsed_public_key = PublicKey::from_bytes(&public_key);
 
             for test in &group.tests {
-                let msg = decode_hex_vec(&test.msg);
+                let msg = hex::decode(&test.msg).unwrap();
                 let sig_hex = &test.sig;
                 if sig_hex.len() != 128 {
                     skipped += 1;
                     continue;
                 }
-                let signature = decode_hex::<64>(sig_hex);
+                let signature = hex::decode_array::<64>((sig_hex).as_bytes()).unwrap();
 
                 match test.result.as_str() {
                     "valid" => {
@@ -1116,7 +1133,9 @@ mod tests {
 
     #[test]
     fn sign_verify_roundtrip_various_lengths() {
-        let seed = decode_hex::<32>("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60");
+        let seed =
+            hex::decode_array::<32>(("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60").as_bytes())
+                .unwrap();
         let priv_key = SecretKey::from_bytes(&seed);
         let pub_key = priv_key.public_key();
 

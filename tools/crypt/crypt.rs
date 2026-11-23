@@ -110,12 +110,16 @@ fn encrypt_with_params(password: &[u8], plaintext: &[u8], params: &crypto::argon
     // Encrypt inner layer with AEGIS-256X2
     let aegis = Aegis256X2::<16>::new(&aegis256x2_key);
     let mut inner_buf = plaintext.to_vec();
-    let tag = aegis.encrypt_in_place(&mut inner_buf, aegis256x2_nonce.as_slice(), &[]);
+    let tag = aegis
+        .encrypt_in_place(&mut inner_buf, aegis256x2_nonce.as_slice(), &[])
+        .map_err(|e| e.to_string())?;
     inner_buf.extend_from_slice(tag.as_ref());
 
     // Encrypt outer layer with XChaCha20-Poly1305
     let cipher = XChaCha20Poly1305::new(&xchacha20_key);
-    let outer_ciphertext = cipher.encrypt(&inner_buf, &*xchacha20_nonce, &[]);
+    let outer_ciphertext = cipher
+        .encrypt(&inner_buf, &*xchacha20_nonce, &[])
+        .map_err(|e| e.to_string())?;
 
     let mut result = Vec::with_capacity(NONCE_SEED_LENGTH + outer_ciphertext.len());
     result.extend_from_slice(&nonce_seed);

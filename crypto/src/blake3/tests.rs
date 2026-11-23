@@ -5,6 +5,7 @@
 //! reference code) and checks the optimized implementation against it over
 //! many input shapes, including every SIMD kernel that was compiled in.
 
+use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 
@@ -640,14 +641,9 @@ mod reference {
 /// Deterministic pseudorandom bytes, so tests do not depend on `rand` and are
 /// reproducible across platforms.
 fn pseudo_random(len: usize, seed: u64) -> Vec<u8> {
-    let mut state = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15).wrapping_add(1);
-    let mut out = Vec::with_capacity(len);
-    for _ in 0..len {
-        state ^= state << 13;
-        state ^= state >> 7;
-        state ^= state << 17;
-        out.push((state >> 24) as u8);
-    }
+    let mut rng = StdRng::seed_from_u64(seed);
+    let mut out = vec![0u8; len];
+    rng.fill(&mut out);
     out
 }
 
@@ -873,20 +869,14 @@ fn differential_all_split_points() {
 /// Deterministic pseudorandom update patterns, checking both plain and keyed hashing.
 #[test]
 fn differential_fuzz_incremental() {
-    let mut state = 0x1234_5678_9abc_def0u64;
-    let mut rng = move || {
-        state ^= state << 13;
-        state ^= state >> 7;
-        state ^= state << 17;
-        state
-    };
+    let mut rng = StdRng::seed_from_u64(0x1234_5678_9abc_def0);
 
     let key: [u8; 32] = pseudo_random(32, 42).try_into().unwrap();
     let max_len = 20_000usize;
     let data = pseudo_random(max_len, 0xF00D);
 
     for trial in 0..300 {
-        let total = (rng() as usize) % (max_len + 1);
+        let total = (rng.next_u64() as usize) % (max_len + 1);
         let input = &data[..total];
 
         let mut actual = Blake3::new();
@@ -897,7 +887,7 @@ fn differential_fuzz_incremental() {
             actual.update(&[]);
             actual_keyed.update(&[]);
             let remaining = input.len() - offset;
-            let step = 1 + (rng() as usize) % remaining;
+            let step = 1 + (rng.next_u64() as usize) % remaining;
             let end = offset + step;
             actual.update(&input[offset..end]);
             actual_keyed.update(&input[offset..end]);
@@ -916,19 +906,13 @@ fn differential_fuzz_incremental() {
 /// Pseudorandom piecemeal squeezing and seeking against the reference XOF.
 #[test]
 fn differential_fuzz_xof() {
-    let mut state = 0x0dd0_1234_5678_9abcu64;
-    let mut rng = move || {
-        state ^= state << 13;
-        state ^= state >> 7;
-        state ^= state << 17;
-        state
-    };
+    let mut rng = StdRng::seed_from_u64(0x0dd0_1234_5678_9abc);
 
     let data = pseudo_random(4096, 0xC0FFEE);
     for trial in 0..200 {
-        let total = (rng() as usize) % (data.len() + 1);
+        let total = (rng.next_u64() as usize) % (data.len() + 1);
         let input = &data[..total];
-        let position = rng() % (1 << 20);
+        let position = rng.next_u64() % (1 << 20);
 
         let mut hasher = super::hasher::Hasher::new();
         hasher.update(input);
@@ -943,7 +927,7 @@ fn differential_fuzz_xof() {
         let mut actual = [0u8; 517];
         let mut offset = 0;
         while offset < actual.len() {
-            let step = 1 + (rng() % 80) as usize;
+            let step = 1 + (rng.next_u64() % 80) as usize;
             let end = (offset + step).min(actual.len());
             xof.fill(&mut actual[offset..end]);
             offset = end;
@@ -1562,4 +1546,107 @@ fn xof_seek_near_u64_max_does_not_panic() {
     // is unspecified, but it must be memory-safe).
     let mut beyond = [0u8; 64];
     xof.fill(&mut beyond);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Backend-specific engine tests
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/// The portable (scalar) backend is a complete BLAKE3 implementation by itself;
+/// check it directly against the official vectors for all three modes and the
+/// XOF, without going through `Platform::detect()`.
+#[test]
+fn portable_backend_matches_official_vectors() {
+    use super::platform::Platform;
+
+    for case in TEST_CASES {
+        let input = test_input(case.input_len);
+        let expected = hex::decode(case.hash).unwrap();
+
+        assert_eq!(
+            &super::hasher::debug_hash_with(Platform::Portable, &input)[..],
+            &expected[..32],
+            "portable hash vector mismatch at len {}",
+            case.input_len
+        );
+        assert_eq!(
+            &super::hasher::debug_keyed_hash_with(Platform::Portable, TEST_KEY, &input)[..],
+            &hex::decode(case.keyed_hash).unwrap()[..32],
+            "portable keyed_hash vector mismatch at len {}",
+            case.input_len
+        );
+        assert_eq!(
+            &super::hasher::debug_derive_key_with(Platform::Portable, derive_key_context(), &input)[..],
+            &hex::decode(case.derive_key).unwrap()[..32],
+            "portable derive_key vector mismatch at len {}",
+            case.input_len
+        );
+
+        let mut xof = vec![0u8; expected.len()];
+        super::hasher::debug_xof_with(Platform::Portable, &input, &mut xof);
+        assert_eq!(xof, expected, "portable XOF vector mismatch at len {}", case.input_len);
+    }
+}
+
+fn derive_key_context() -> &'static str {
+    "BLAKE3 2019-12-27 16:29:52 test vectors context"
+}
+
+/// Every compiled backend must produce the same tree hash, keyed hash,
+/// derive-key and XOF output, including at the SIMD-degree boundaries where
+/// the wide subtree code changes shape.
+#[cfg(any(
+    all(
+        target_arch = "x86_64",
+        any(feature = "std", target_feature = "avx2", target_feature = "avx512f")
+    ),
+    all(target_arch = "aarch64", target_feature = "neon"),
+    all(target_arch = "wasm32", target_feature = "simd128"),
+))]
+#[test]
+fn every_backend_matches_portable_engine() {
+    use super::platform::Platform;
+
+    let mut platforms = vec![Platform::Portable];
+    platforms.extend(available_simd_platforms());
+
+    let later = [
+        2047usize, 2048, 2049, 3071, 3072, 3073, 4095, 4096, 4097, 6144, 8191, 8192, 8193, 12288, 16383, 16384, 16385,
+        30_000,
+    ];
+    let mut inputs: Vec<(usize, Vec<u8>)> = TEST_CASES
+        .iter()
+        .map(|c| (c.input_len, test_input(c.input_len)))
+        .collect();
+    inputs.extend(later.iter().map(|&len| (len, pseudo_random(len, len as u64 ^ 0xEC0))));
+
+    for platform in platforms {
+        for (len, input) in &inputs {
+            let expected_hash = reference::hash(input);
+            let expected_keyed = reference::keyed_hash(TEST_KEY, input);
+            let expected_derived = reference::derive_key(derive_key_context(), input);
+
+            assert_eq!(
+                &super::hasher::debug_hash_with(platform, input)[..],
+                &expected_hash[..],
+                "hash mismatch ({platform:?}, len {len})"
+            );
+            assert_eq!(
+                &super::hasher::debug_keyed_hash_with(platform, TEST_KEY, input)[..],
+                &expected_keyed[..],
+                "keyed hash mismatch ({platform:?}, len {len})"
+            );
+            assert_eq!(
+                &super::hasher::debug_derive_key_with(platform, derive_key_context(), input)[..],
+                &expected_derived[..],
+                "derive_key mismatch ({platform:?}, len {len})"
+            );
+
+            let mut portable_xof = vec![0u8; 131];
+            super::hasher::debug_xof_with(Platform::Portable, input, &mut portable_xof);
+            let mut xof = vec![0u8; 131];
+            super::hasher::debug_xof_with(platform, input, &mut xof);
+            assert_eq!(xof, portable_xof, "XOF mismatch ({platform:?}, len {len})");
+        }
+    }
 }

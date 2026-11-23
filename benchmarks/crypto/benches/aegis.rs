@@ -17,28 +17,28 @@ fn bench_mac(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter("AEGISMAC-256"), &data, |b, data| {
             b.iter(|| {
                 let mut mac = Aegis256Mac::<16>::new_with_nonce(&KEY, &NONCE);
-                mac.update(black_box(data));
+                mac.update(black_box(data)).unwrap();
                 black_box(mac.finalize())
             });
         });
         group.bench_with_input(BenchmarkId::from_parameter("AEGISMAC-256X2"), &data, |b, data| {
             b.iter(|| {
                 let mut mac = Aegis256X2Mac::<16>::new_with_nonce(&KEY, &NONCE);
-                mac.update(black_box(data));
+                mac.update(black_box(data)).unwrap();
                 black_box(mac.finalize())
             });
         });
         group.bench_with_input(BenchmarkId::from_parameter("AEGISMAC-256X4"), &data, |b, data| {
             b.iter(|| {
                 let mut mac = Aegis256X4Mac::<16>::new_with_nonce(&KEY, &NONCE);
-                mac.update(black_box(data));
+                mac.update(black_box(data)).unwrap();
                 black_box(mac.finalize())
             });
         });
         group.bench_with_input(BenchmarkId::from_parameter("AEGISMAC-256-256-bit"), &data, |b, data| {
             b.iter(|| {
                 let mut mac = Aegis256Mac::<32>::new_with_nonce(&KEY, &NONCE);
-                mac.update(black_box(data));
+                mac.update(black_box(data)).unwrap();
                 black_box(mac.finalize())
             });
         });
@@ -88,7 +88,7 @@ fn bench_chunked(c: &mut Criterion) {
             b.iter(|| {
                 let mut mac = Aegis256Mac::<16>::new_with_nonce(&KEY, &NONCE);
                 for piece in data.chunks(chunk) {
-                    mac.update(piece);
+                    mac.update(piece).unwrap();
                 }
                 black_box(mac.finalize())
             });

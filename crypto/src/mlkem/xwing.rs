@@ -67,17 +67,19 @@ pub fn generate_xwing_keypair() -> Result<(XWingSecretKey, XWingPublicKey), XWin
 /// keypair.
 pub fn generate_xwing_keypair_derand(secret_key: &[u8; XWING_SECRET_KEY_SIZE]) -> (XWingSecretKey, XWingPublicKey) {
     let (mlkem_sk, x25519_sk, mlkem_pk, x25519_pk) = expand_decapsulation_key(secret_key);
+    let x25519_pk_bytes = x25519_pk.to_bytes();
 
     let secret_key = XWingSecretKey {
         bytes: *secret_key,
         x25519_secret_key: x25519_sk,
-        x25519_public_key_bytes: x25519_pk.to_bytes(),
+        x25519_public_key_bytes: x25519_pk_bytes,
         mlkem_secret_key: mlkem_sk,
     };
 
     let public_key = XWingPublicKey {
         mlkem_public_key: mlkem_pk,
         x25519_public_key: x25519_pk,
+        x25519_public_key_bytes: x25519_pk_bytes,
     };
 
     (secret_key, public_key)
@@ -130,22 +132,31 @@ impl XWingSecretKey {
         return XWingPublicKey {
             mlkem_public_key: self.mlkem_secret_key.public_key(),
             x25519_public_key: x25519::PublicKey::from_bytes(&self.x25519_public_key_bytes),
+            x25519_public_key_bytes: self.x25519_public_key_bytes,
         };
     }
 
     pub fn decapsulate(&self, ct: &[u8; XWING_CIPHERTEXT_SIZE]) -> Result<[u8; XWING_SHARED_SECRET_SIZE], XWingError> {
         let ct_m = &ct[..mlkem::CIPHERTEXT_SIZE_768].try_into().unwrap();
-        let ct_x = x25519::PublicKey::from_bytes(&ct[mlkem::CIPHERTEXT_SIZE_768..].try_into().unwrap());
+        let ct_x_bytes: &[u8; x25519::KEY_SIZE] = ct[mlkem::CIPHERTEXT_SIZE_768..]
+            .try_into()
+            .expect("X-Wing ciphertext has a 32-byte X25519 component");
+        let ct_x = x25519::PublicKey::from_bytes(ct_x_bytes);
 
-        let ss_m = self.mlkem_secret_key.decapsulate(ct_m)?;
+        let mut ss_m = self.mlkem_secret_key.decapsulate(ct_m)?;
         // A low-order `ct_x` yields an all-zero (non-contributory) X25519 shared
         // secret. X-Wing is safe here because the combiner binds `ct_x` and the
         // recipient's `pk_x`, and the draft specifies that Decapsulate always
         // returns a shared secret, so the degenerate value is absorbed rather
         // than treated as an error.
-        let ss_x = self.x25519_secret_key.ecdh(&ct_x).unwrap_or_default();
+        let mut ss_x = self.x25519_secret_key.ecdh(&ct_x).unwrap_or_default();
 
-        Ok(combiner(&ss_m, &ss_x, &ct_x.to_bytes(), &self.x25519_public_key_bytes))
+        // The draft's Combiner binds the exact `ct_X` and `pk_X` octet strings,
+        // not their canonicalised group-element encodings.
+        let ss = combiner(&ss_m, &ss_x, ct_x_bytes, &self.x25519_public_key_bytes);
+        mlkem::wipe(&mut ss_m);
+        mlkem::wipe(&mut ss_x);
+        Ok(ss)
     }
 }
 
@@ -156,11 +167,19 @@ impl XWingSecretKey {
 pub struct XWingPublicKey {
     mlkem_public_key: mlkem::PublicKey768,
     x25519_public_key: x25519::PublicKey,
+    /// The exact X25519 public-key octets supplied to, or produced for, this
+    /// key. X-Wing's combiner binds this encoding verbatim.
+    x25519_public_key_bytes: [u8; x25519::KEY_SIZE],
 }
 
 impl XWingPublicKey {
     /// Parses an encapsulation key from its 1216-byte encoding
     /// (ML-KEM-768 encapsulation key followed by the X25519 public key).
+    ///
+    /// The X25519 component is decoded as specified by RFC 7748 (non-canonical
+    /// encodings are reduced modulo the field prime), but the original octets
+    /// are retained: [`to_bytes`](Self::to_bytes) returns the same bytes and
+    /// the X-Wing combiner binds them verbatim.
     ///
     /// # Errors
     ///
@@ -169,18 +188,22 @@ impl XWingPublicKey {
     pub fn from_bytes(bytes: &[u8; XWING_PUBLIC_KEY_SIZE]) -> Result<XWingPublicKey, MlKemError> {
         let mlkem_public_key =
             mlkem::PublicKey768::from_bytes(&bytes[..mlkem::PUBLIC_KEY_SIZE_768].try_into().unwrap())?;
-        let x25519_public_key = x25519::PublicKey::from_bytes(&bytes[mlkem::PUBLIC_KEY_SIZE_768..].try_into().unwrap());
+        let x25519_public_key_bytes: [u8; x25519::KEY_SIZE] = bytes[mlkem::PUBLIC_KEY_SIZE_768..]
+            .try_into()
+            .expect("X-Wing public key has a 32-byte X25519 component");
+        let x25519_public_key = x25519::PublicKey::from_bytes(&x25519_public_key_bytes);
 
         return Ok(XWingPublicKey {
             mlkem_public_key,
             x25519_public_key,
+            x25519_public_key_bytes,
         });
     }
 
     pub fn to_bytes(&self) -> [u8; XWING_PUBLIC_KEY_SIZE] {
         let mut bytes = [0u8; XWING_PUBLIC_KEY_SIZE];
         bytes[..mlkem::PUBLIC_KEY_SIZE_768].copy_from_slice(&self.mlkem_public_key.to_bytes());
-        bytes[mlkem::PUBLIC_KEY_SIZE_768..].copy_from_slice(&self.x25519_public_key.to_bytes());
+        bytes[mlkem::PUBLIC_KEY_SIZE_768..].copy_from_slice(&self.x25519_public_key_bytes);
         bytes
     }
 
@@ -209,12 +232,14 @@ impl XWingPublicKey {
         let ct_x = ek_x.public_key();
         // See `decapsulate`: an all-zero X25519 shared secret (low-order peer
         // key) is safe to absorb because the combiner binds `ct_x` and `pk_x`.
-        let ss_x = ek_x.ecdh(&self.x25519_public_key).unwrap_or_default();
+        let mut ss_x = ek_x.ecdh(&self.x25519_public_key).unwrap_or_default();
 
         let m = &eseed[..32].try_into().unwrap();
-        let (ss_m, ct_m) = self.mlkem_public_key.encapsulate_derand(m);
+        let (mut ss_m, ct_m) = self.mlkem_public_key.encapsulate_derand(m);
 
-        let ss = combiner(&ss_m, &ss_x, &ct_x.to_bytes(), &self.x25519_public_key.to_bytes());
+        let ss = combiner(&ss_m, &ss_x, &ct_x.to_bytes(), &self.x25519_public_key_bytes);
+        mlkem::wipe(&mut ss_m);
+        mlkem::wipe(&mut ss_x);
 
         let mut ct = [0u8; XWING_CIPHERTEXT_SIZE];
         ct[..mlkem::CIPHERTEXT_SIZE_768].copy_from_slice(&ct_m);
@@ -235,6 +260,7 @@ fn expand_decapsulation_key(
     let sk_x = x25519::SecretKey::from_bytes(&expanded_secret_key[64..96].try_into().unwrap());
     let pk_x = sk_x.public_key();
 
+    mlkem::wipe(&mut expanded_secret_key);
     (sk_m, sk_x, pk_m, pk_x)
 }
 

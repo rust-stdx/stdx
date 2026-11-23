@@ -52,7 +52,7 @@ fn bench_aes256_gcm(c: &mut Criterion) {
             b.iter_batched(
                 || vec![0xA5u8; size],
                 |mut buf| {
-                    let _tag = aes256.encrypt_in_place(&mut buf, &NONCE_96, &[]);
+                    let _tag = aes256.encrypt_in_place(&mut buf, &NONCE_96, &[]).unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );
@@ -93,7 +93,7 @@ fn bench_aes256_gcm(c: &mut Criterion) {
             b.iter_batched(
                 || {
                     let mut buf = vec![0xA5u8; size];
-                    let tag = aes256.encrypt_in_place(&mut buf, &NONCE_96, &[]);
+                    let tag = aes256.encrypt_in_place(&mut buf, &NONCE_96, &[]).unwrap();
                     (buf, tag)
                 },
                 |(mut buf, tag)| {
@@ -163,7 +163,7 @@ fn bench_aes128_gcm(c: &mut Criterion) {
             b.iter_batched(
                 || vec![0xA5u8; size],
                 |mut buf| {
-                    let _tag = aes128.encrypt_in_place(&mut buf, &NONCE_96, &[]);
+                    let _tag = aes128.encrypt_in_place(&mut buf, &NONCE_96, &[]).unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );
@@ -204,7 +204,7 @@ fn bench_aes128_gcm(c: &mut Criterion) {
             b.iter_batched(
                 || {
                     let mut buf = vec![0xA5u8; size];
-                    let tag = aes128.encrypt_in_place(&mut buf, &NONCE_96, &[]);
+                    let tag = aes128.encrypt_in_place(&mut buf, &NONCE_96, &[]).unwrap();
                     (buf, tag)
                 },
                 |(mut buf, tag)| {
@@ -274,7 +274,7 @@ fn bench_chacha20_poly1305(c: &mut Criterion) {
             b.iter_batched(
                 || vec![0xA5u8; size],
                 |mut buf| {
-                    let _tag = chacha.encrypt_in_place(&mut buf, &NONCE_96, &[]);
+                    let _tag = chacha.encrypt_in_place(&mut buf, &NONCE_96, &[]).unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );
@@ -315,7 +315,7 @@ fn bench_chacha20_poly1305(c: &mut Criterion) {
             b.iter_batched(
                 || {
                     let mut buf = vec![0xA5u8; size];
-                    let tag = chacha.encrypt_in_place(&mut buf, &NONCE_96, &[]);
+                    let tag = chacha.encrypt_in_place(&mut buf, &NONCE_96, &[]).unwrap();
                     (buf, tag)
                 },
                 |(mut buf, tag)| {
@@ -382,7 +382,7 @@ fn bench_ascon_aead128(c: &mut Criterion) {
             b.iter_batched(
                 || vec![0xA5u8; size],
                 |mut buf| {
-                    let _tag = ascon.encrypt_in_place(&mut buf, &NONCE_128, &[]);
+                    let _tag = ascon.encrypt_in_place(&mut buf, &NONCE_128, &[]).unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );
@@ -411,7 +411,7 @@ fn bench_ascon_aead128(c: &mut Criterion) {
             b.iter_batched(
                 || {
                     let mut buf = vec![0xA5u8; size];
-                    let tag = ascon.encrypt_in_place(&mut buf, &NONCE_128, &[]);
+                    let tag = ascon.encrypt_in_place(&mut buf, &NONCE_128, &[]).unwrap();
                     (buf, tag)
                 },
                 |(mut buf, tag)| {

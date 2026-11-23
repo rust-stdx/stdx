@@ -1,6 +1,7 @@
 //! Parser robustness: malformed and adversarial input must never panic, and a
 //! deterministic mini-fuzzer explores random template/expression sources.
 
+use rand::{Rng, SeedableRng, rngs::StdRng};
 use template::{Engine, EscapeMode, context};
 
 fn try_parse(source: &str) -> bool {
@@ -111,22 +112,15 @@ fn nesting_limits_error_without_panic() {
 /// dependencies, so it runs on every `cargo test`.
 #[test]
 fn fuzz_parser_never_panics() {
-    // Simple xorshift64 PRNG for reproducibility.
-    let mut state: u64 = 0x9E3779B97F4A7C15;
-    let mut next = move || {
-        state ^= state << 13;
-        state ^= state >> 7;
-        state ^= state << 17;
-        state
-    };
+    let mut rng = StdRng::seed_from_u64(0x9E3779B97F4A7C15);
 
     const ALPHABET: &[u8] = b"{}%#'\"\\|(),.[]=<>!+-*/:; \tabcxyz019_ntruefalslr";
 
     for _ in 0..30_000 {
-        let len = (next() % 48) as usize;
+        let len = (rng.next_u64() % 48) as usize;
         let mut source = String::with_capacity(len);
         for _ in 0..len {
-            let idx = (next() as usize) % ALPHABET.len();
+            let idx = (rng.next_u64() as usize) % ALPHABET.len();
             source.push(ALPHABET[idx] as char);
         }
         // Must not panic.
@@ -165,19 +159,13 @@ fn fuzz_fragments_never_panic() {
         "{{ range(3) }}",
     ];
 
-    let mut state: u64 = 0x1234_5678_9ABC_DEF0;
-    let mut next = move || {
-        state ^= state << 13;
-        state ^= state >> 7;
-        state ^= state << 17;
-        state
-    };
+    let mut rng = StdRng::seed_from_u64(0x1234_5678_9ABC_DEF0);
 
     for _ in 0..20_000 {
-        let count = (next() % 12) as usize;
+        let count = (rng.next_u64() % 12) as usize;
         let mut source = String::new();
         for _ in 0..count {
-            source.push_str(FRAGMENTS[(next() as usize) % FRAGMENTS.len()]);
+            source.push_str(FRAGMENTS[(rng.next_u64() as usize) % FRAGMENTS.len()]);
         }
         let _ = try_parse(&source);
     }

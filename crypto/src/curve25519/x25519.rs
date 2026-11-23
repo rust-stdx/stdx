@@ -336,7 +336,7 @@ fn x25519_inner(scalar: &[u8; 32], u: FieldElement) -> FieldElement {
         return FieldElement::ZERO;
     }
 
-    x_2.mul(z_2.invert().expect("z_2 must be non-zero"))
+    x_2.mul(z_2.invert().unwrap_or(FieldElement::ZERO))
 }
 
 #[cfg(test)]
@@ -370,14 +370,6 @@ mod tests {
         SecretKey::from_bytes(private_key).ecdh(&PublicKey::from_bytes(public_key))
     }
 
-    fn decode_hex<const N: usize>(hex_str: &str) -> [u8; N] {
-        let bytes = hex::decode(hex_str).unwrap();
-        assert_eq!(bytes.len(), N, "hex string must decode to exactly {N} bytes");
-        let mut out = [0u8; N];
-        out.copy_from_slice(&bytes);
-        out
-    }
-
     struct DhTestVector {
         alice_private: &'static str,
         alice_public: &'static str,
@@ -388,11 +380,21 @@ mod tests {
 
     #[test]
     fn key_exchange() {
-        let alice_priv = decode_hex::<32>("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a");
-        let bob_priv = decode_hex::<32>("5dab087e624a8a4b79e17f8b83800ee66f3bb1292618b6fd1c2f8b27ff88e0eb");
-        let expected_alice_pub = decode_hex::<32>("8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a");
-        let expected_bob_pub = decode_hex::<32>("de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f");
-        let expected_shared = decode_hex::<32>("4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742");
+        let alice_priv =
+            hex::decode_array::<32>(("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a").as_bytes())
+                .unwrap();
+        let bob_priv =
+            hex::decode_array::<32>(("5dab087e624a8a4b79e17f8b83800ee66f3bb1292618b6fd1c2f8b27ff88e0eb").as_bytes())
+                .unwrap();
+        let expected_alice_pub =
+            hex::decode_array::<32>(("8520f0098930a754748b7ddcb43ef75a0dbf3a0d26381af4eba4a98eaa9b4e6a").as_bytes())
+                .unwrap();
+        let expected_bob_pub =
+            hex::decode_array::<32>(("de9edb7d7b7dc1b4d35b61c2ece435373f8343c85b78674dadfc7e146f882b4f").as_bytes())
+                .unwrap();
+        let expected_shared =
+            hex::decode_array::<32>(("4a5d9d5ba4ce2de1728e3bf480350f25e07e21c947d19e3376f09b3c1e161742").as_bytes())
+                .unwrap();
 
         let alice = SecretKey::from_bytes(&alice_priv);
         let bob = SecretKey::from_bytes(&bob_priv);
@@ -438,7 +440,9 @@ mod tests {
 
     #[test]
     fn from_ed25519_public_key() {
-        let ed_seed = decode_hex::<32>("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60");
+        let ed_seed =
+            hex::decode_array::<32>(("9d61b19deffd5a60ba844af492ec2cc44449c5697b326919703bac031cae7f60").as_bytes())
+                .unwrap();
         let ed_priv = ed25519::SecretKey::from_bytes(&ed_seed);
         let ed_pub = ed_priv.public_key();
         let x_pub = PublicKey::try_from(&ed_pub).unwrap();
@@ -464,9 +468,15 @@ mod tests {
 
     #[test]
     fn rfc7748_section_5_2_vector_1() {
-        let scalar = decode_hex::<32>("a546e36bf0527c9d3b16154b82465edd62144c0ac1fc5a18506a2244ba449ac4");
-        let u = decode_hex::<32>("e6db6867583030db3594c1a424b15f7c726624ec26b3353b10a903a6d0ab1c4c");
-        let expected = decode_hex::<32>("c3da55379de9c6908e94ea4df28d084f32eccf03491c71f754b4075577a28552");
+        let scalar =
+            hex::decode_array::<32>(("a546e36bf0527c9d3b16154b82465edd62144c0ac1fc5a18506a2244ba449ac4").as_bytes())
+                .unwrap();
+        let u =
+            hex::decode_array::<32>(("e6db6867583030db3594c1a424b15f7c726624ec26b3353b10a903a6d0ab1c4c").as_bytes())
+                .unwrap();
+        let expected =
+            hex::decode_array::<32>(("c3da55379de9c6908e94ea4df28d084f32eccf03491c71f754b4075577a28552").as_bytes())
+                .unwrap();
 
         let output = x25519(&scalar, &u);
         assert_eq!(output, expected);
@@ -474,9 +484,15 @@ mod tests {
 
     #[test]
     fn rfc7748_section_5_2_vector_2() {
-        let scalar = decode_hex::<32>("4b66e9d4d1b4673c5ad22691957d6af5c11b6421e0ea01d42ca4169e7918ba0d");
-        let u = decode_hex::<32>("e5210f12786811d3f4b7959d0538ae2c31dbe7106fc03c3efc4cd549c715a493");
-        let expected = decode_hex::<32>("95cbde9476e8907d7aade45cb4b873f88b595a68799fa152e6f8f7647aac7957");
+        let scalar =
+            hex::decode_array::<32>(("4b66e9d4d1b4673c5ad22691957d6af5c11b6421e0ea01d42ca4169e7918ba0d").as_bytes())
+                .unwrap();
+        let u =
+            hex::decode_array::<32>(("e5210f12786811d3f4b7959d0538ae2c31dbe7106fc03c3efc4cd549c715a493").as_bytes())
+                .unwrap();
+        let expected =
+            hex::decode_array::<32>(("95cbde9476e8907d7aade45cb4b873f88b595a68799fa152e6f8f7647aac7957").as_bytes())
+                .unwrap();
 
         let output = x25519(&scalar, &u);
         assert_eq!(output, expected);
@@ -484,9 +500,13 @@ mod tests {
 
     #[test]
     fn rfc7748_section_5_2_iterative_1() {
-        let k = decode_hex::<32>("0900000000000000000000000000000000000000000000000000000000000000");
+        let k =
+            hex::decode_array::<32>(("0900000000000000000000000000000000000000000000000000000000000000").as_bytes())
+                .unwrap();
         let u = k;
-        let expected = decode_hex::<32>("422c8e7a6227d7bca1350b3e2bb7279f7897b87bb6854b783c60e80311ae3079");
+        let expected =
+            hex::decode_array::<32>(("422c8e7a6227d7bca1350b3e2bb7279f7897b87bb6854b783c60e80311ae3079").as_bytes())
+                .unwrap();
 
         let output = x25519(&k, &u);
         assert_eq!(output, expected);
@@ -494,28 +514,36 @@ mod tests {
 
     #[test]
     fn rfc7748_section_5_2_iterative_1000() {
-        let mut k = decode_hex::<32>("0900000000000000000000000000000000000000000000000000000000000000");
+        let mut k =
+            hex::decode_array::<32>(("0900000000000000000000000000000000000000000000000000000000000000").as_bytes())
+                .unwrap();
         let mut u = k;
         for _ in 0..1000 {
             let out = x25519(&k, &u);
             u = k;
             k = out;
         }
-        let expected = decode_hex::<32>("684cf59ba83309552800ef566f2f4d3c1c3887c49360e3875f2eb94d99532c51");
+        let expected =
+            hex::decode_array::<32>(("684cf59ba83309552800ef566f2f4d3c1c3887c49360e3875f2eb94d99532c51").as_bytes())
+                .unwrap();
         assert_eq!(k, expected);
     }
 
     #[test]
     #[ignore = "takes about 1 minute; run with -- --ignored"]
     fn rfc7748_section_5_2_iterative_1000000() {
-        let mut k = decode_hex::<32>("0900000000000000000000000000000000000000000000000000000000000000");
+        let mut k =
+            hex::decode_array::<32>(("0900000000000000000000000000000000000000000000000000000000000000").as_bytes())
+                .unwrap();
         let mut u = k;
         for _ in 0..1000000 {
             let out = x25519(&k, &u);
             u = k;
             k = out;
         }
-        let expected = decode_hex::<32>("7c3911e0ab2586fd864497297e575e6f3bc601c0883c30df5f4dd2d24f665424");
+        let expected =
+            hex::decode_array::<32>(("7c3911e0ab2586fd864497297e575e6f3bc601c0883c30df5f4dd2d24f665424").as_bytes())
+                .unwrap();
         assert_eq!(k, expected);
     }
 
@@ -530,11 +558,11 @@ mod tests {
         }];
 
         for v in &vectors {
-            let alice_private = decode_hex::<32>(v.alice_private);
-            let alice_public = decode_hex::<32>(v.alice_public);
-            let bob_private = decode_hex::<32>(v.bob_private);
-            let bob_public = decode_hex::<32>(v.bob_public);
-            let expected = decode_hex::<32>(v.shared_secret);
+            let alice_private = hex::decode_array::<32>((v.alice_private).as_bytes()).unwrap();
+            let alice_public = hex::decode_array::<32>((v.alice_public).as_bytes()).unwrap();
+            let bob_private = hex::decode_array::<32>((v.bob_private).as_bytes()).unwrap();
+            let bob_public = hex::decode_array::<32>((v.bob_public).as_bytes()).unwrap();
+            let expected = hex::decode_array::<32>((v.shared_secret).as_bytes()).unwrap();
 
             let alice_computed_public = SecretKey::from_bytes(&alice_private).public_key().to_bytes();
             assert_eq!(alice_computed_public, alice_public, "Alice public key mismatch");
@@ -552,16 +580,22 @@ mod tests {
 
     #[test]
     fn basepoint_multiplication_identity_pattern() {
-        let key = decode_hex::<32>("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a");
+        let key =
+            hex::decode_array::<32>(("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a").as_bytes())
+                .unwrap();
         let public = SecretKey::from_bytes(&key).public_key().to_bytes();
-        let basepoint = decode_hex::<32>("0900000000000000000000000000000000000000000000000000000000000000");
+        let basepoint =
+            hex::decode_array::<32>(("0900000000000000000000000000000000000000000000000000000000000000").as_bytes())
+                .unwrap();
         let direct = x25519(&key, &basepoint);
         assert_eq!(public, direct);
     }
 
     #[test]
     fn low_order_point_zero() {
-        let scalar = decode_hex::<32>("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a");
+        let scalar =
+            hex::decode_array::<32>(("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a").as_bytes())
+                .unwrap();
         let all_zero = [0u8; 32];
         assert_eq!(
             x25519_checked(&scalar, &all_zero),
@@ -572,7 +606,9 @@ mod tests {
 
     #[test]
     fn low_order_point_u_one() {
-        let scalar = decode_hex::<32>("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a");
+        let scalar =
+            hex::decode_array::<32>(("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a").as_bytes())
+                .unwrap();
         let mut u_one = [0u8; 32];
         u_one[0] = 1;
         assert_eq!(
@@ -584,7 +620,9 @@ mod tests {
 
     #[test]
     fn low_order_points_are_rejected() {
-        let scalar = decode_hex::<32>("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a");
+        let scalar =
+            hex::decode_array::<32>(("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a").as_bytes())
+                .unwrap();
         for u in LOW_ORDER_U {
             assert!(
                 PublicKey::from_bytes(&u).is_low_order(),
@@ -602,11 +640,15 @@ mod tests {
 
     #[test]
     fn non_canonical_low_order_points_are_rejected() {
-        let scalar = decode_hex::<32>("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a");
+        let scalar =
+            hex::decode_array::<32>(("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a").as_bytes())
+                .unwrap();
         // `u = p` reduces to 0 and `u = p + 1` reduces to 1; both are low order.
         let non_canonical = [
-            decode_hex::<32>("edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"),
-            decode_hex::<32>("eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"),
+            hex::decode_array::<32>(("edffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f").as_bytes())
+                .unwrap(),
+            hex::decode_array::<32>(("eeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f").as_bytes())
+                .unwrap(),
         ];
         for u in non_canonical {
             assert!(
@@ -625,7 +667,9 @@ mod tests {
 
     #[test]
     fn is_low_order_false_for_honest_keys() {
-        let basepoint = decode_hex::<32>("0900000000000000000000000000000000000000000000000000000000000000");
+        let basepoint =
+            hex::decode_array::<32>(("0900000000000000000000000000000000000000000000000000000000000000").as_bytes())
+                .unwrap();
         assert!(!PublicKey::from_bytes(&basepoint).is_low_order());
         for _ in 0..16 {
             assert!(!SecretKey::generate().unwrap().public_key().is_low_order());
@@ -635,10 +679,13 @@ mod tests {
     #[test]
     fn all_zero_private_key() {
         let key = [0u8; 32];
-        let u = decode_hex::<32>("e6db6867583030db3594c1a424b15f7c726624ec26b3353b10a903a6d0ab1c4c");
+        let u =
+            hex::decode_array::<32>(("e6db6867583030db3594c1a424b15f7c726624ec26b3353b10a903a6d0ab1c4c").as_bytes())
+                .unwrap();
         let output = x25519(&key, &u);
         let expected = x25519(
-            &decode_hex::<32>("0000000000000000000000000000000000000000000000000000000000000040"),
+            &hex::decode_array::<32>(("0000000000000000000000000000000000000000000000000000000000000040").as_bytes())
+                .unwrap(),
             &u,
         );
         assert_eq!(output, expected);
@@ -646,7 +693,7 @@ mod tests {
 
     // #[test]
     // fn public_key_exceeds_prime_is_reduced() {
-    //     let scalar = decode_hex::<32>("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a");
+    //     let scalar = hex::decode_array::<32>(("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a").as_bytes()).unwrap();
     //     let p_bytes = P.to_le_bytes_fixed::<32>();
     //     let result = x25519(&scalar, &p_bytes);
     //     assert!(result.is_ok(), "Non-canonical values must be accepted per RFC 7748");
@@ -655,36 +702,47 @@ mod tests {
     #[test]
     fn wycheproof_valid_vectors() {
         let shared = x25519(
-            &decode_hex::<32>("c8a9d5a91091ad851c668b0736c1c9a02936c0d3ad62670858088047ba057475"),
-            &decode_hex::<32>("504a36999f489cd2fdbc08baff3d88fa00569ba986cba22548ffde80f9806829"),
+            &hex::decode_array::<32>(("c8a9d5a91091ad851c668b0736c1c9a02936c0d3ad62670858088047ba057475").as_bytes())
+                .unwrap(),
+            &hex::decode_array::<32>(("504a36999f489cd2fdbc08baff3d88fa00569ba986cba22548ffde80f9806829").as_bytes())
+                .unwrap(),
         );
         assert_eq!(
             shared,
-            decode_hex::<32>("436a2c040cf45fea9b29a0cb81b1f41458f863d0d61b453d0a982720d6d61320")
+            hex::decode_array::<32>(("436a2c040cf45fea9b29a0cb81b1f41458f863d0d61b453d0a982720d6d61320").as_bytes())
+                .unwrap()
         );
 
         let shared = x25519(
-            &decode_hex::<32>("a8386f7f16c50731d64f82e6a170b142a4e34f31fd7768fcb8902925e7d1e25a"),
-            &decode_hex::<32>("0400000000000000000000000000000000000000000000000000000000000000"),
+            &hex::decode_array::<32>(("a8386f7f16c50731d64f82e6a170b142a4e34f31fd7768fcb8902925e7d1e25a").as_bytes())
+                .unwrap(),
+            &hex::decode_array::<32>(("0400000000000000000000000000000000000000000000000000000000000000").as_bytes())
+                .unwrap(),
         );
         assert_eq!(
             shared,
-            decode_hex::<32>("34b7e4fa53264420d9f943d15513902342b386b172a0b0b7c8b8f2dd3d669f59")
+            hex::decode_array::<32>(("34b7e4fa53264420d9f943d15513902342b386b172a0b0b7c8b8f2dd3d669f59").as_bytes())
+                .unwrap()
         );
 
         let shared = x25519(
-            &decode_hex::<32>("a046e36bf0527c9d3b16154b82465edd62144c0ac1fc5a18506a2244ba449a44"),
-            &decode_hex::<32>("e6db6867583030db3594c1a424b15f7c726624ec26b3353b10a903a6d0ab1c4c"),
+            &hex::decode_array::<32>(("a046e36bf0527c9d3b16154b82465edd62144c0ac1fc5a18506a2244ba449a44").as_bytes())
+                .unwrap(),
+            &hex::decode_array::<32>(("e6db6867583030db3594c1a424b15f7c726624ec26b3353b10a903a6d0ab1c4c").as_bytes())
+                .unwrap(),
         );
         assert_eq!(
             shared,
-            decode_hex::<32>("c3da55379de9c6908e94ea4df28d084f32eccf03491c71f754b4075577a28552")
+            hex::decode_array::<32>(("c3da55379de9c6908e94ea4df28d084f32eccf03491c71f754b4075577a28552").as_bytes())
+                .unwrap()
         );
     }
 
     #[test]
     fn wycheproof_low_order_and_zero_shared() {
-        let private = decode_hex::<32>("786a33a4f7af297a20e7642925932bf509e7070fa1bc36986af1eb13f4f50b55");
+        let private =
+            hex::decode_array::<32>(("786a33a4f7af297a20e7642925932bf509e7070fa1bc36986af1eb13f4f50b55").as_bytes())
+                .unwrap();
 
         for u in [
             "0000000000000000000000000000000000000000000000000000000000000000",
@@ -692,7 +750,7 @@ mod tests {
             "ecffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f",
         ] {
             assert_eq!(
-                x25519_checked(&private, &decode_hex::<32>(u)),
+                x25519_checked(&private, &hex::decode_array::<32>((u).as_bytes()).unwrap()),
                 Err(EllipticCurveError::InvalidSharedSecret),
                 "low-order u={u} must be rejected"
             );
@@ -702,12 +760,15 @@ mod tests {
     #[test]
     fn wycheproof_non_canonical_public_keys() {
         let shared = x25519(
-            &decode_hex::<32>("0016b62af5cabde8c40938ebf2108e05d27fa0533ed85d70015ad4ad39762d54"),
-            &decode_hex::<32>("efffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f"),
+            &hex::decode_array::<32>(("0016b62af5cabde8c40938ebf2108e05d27fa0533ed85d70015ad4ad39762d54").as_bytes())
+                .unwrap(),
+            &hex::decode_array::<32>(("efffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7f").as_bytes())
+                .unwrap(),
         );
         assert_eq!(
             shared,
-            decode_hex::<32>("b4d10e832714972f96bd3382e4d082a21a8333a16315b3ffb536061d2482360d")
+            hex::decode_array::<32>(("b4d10e832714972f96bd3382e4d082a21a8333a16315b3ffb536061d2482360d").as_bytes())
+                .unwrap()
         );
     }
 
@@ -721,14 +782,32 @@ mod tests {
 
         let vectors = [
             GoVector {
-                scalar: decode_hex::<32>("668fb9f76ad971c81ac900071a1560bce2ca00cac7e67af99348913761434014"),
-                base: decode_hex::<32>("db5f32b7f841e7a1a00968effded12735fc47a3eb13b579aacadeae80939a7dd"),
-                expected: decode_hex::<32>("090d85e599ea8e2beeb61304d37be10ec5c905f9927d32f42a9a0afb3e0b4074"),
+                scalar: hex::decode_array::<32>(
+                    ("668fb9f76ad971c81ac900071a1560bce2ca00cac7e67af99348913761434014").as_bytes(),
+                )
+                .unwrap(),
+                base: hex::decode_array::<32>(
+                    ("db5f32b7f841e7a1a00968effded12735fc47a3eb13b579aacadeae80939a7dd").as_bytes(),
+                )
+                .unwrap(),
+                expected: hex::decode_array::<32>(
+                    ("090d85e599ea8e2beeb61304d37be10ec5c905f9927d32f42a9a0afb3e0b4074").as_bytes(),
+                )
+                .unwrap(),
             },
             GoVector {
-                scalar: decode_hex::<32>("636695e34f75b9a279c8706fad1289f2c0b1e22e16f8b8861729c10a582958af"),
-                base: decode_hex::<32>("090d0701f8fde28f70043b83f2346225419b18a7f27e9e3d2bfd04e10f3d213e"),
-                expected: decode_hex::<32>("bf26ec7ec413061733d44070ea67cab02a85dc1be8cfe1ff73d541cc08325506"),
+                scalar: hex::decode_array::<32>(
+                    ("636695e34f75b9a279c8706fad1289f2c0b1e22e16f8b8861729c10a582958af").as_bytes(),
+                )
+                .unwrap(),
+                base: hex::decode_array::<32>(
+                    ("090d0701f8fde28f70043b83f2346225419b18a7f27e9e3d2bfd04e10f3d213e").as_bytes(),
+                )
+                .unwrap(),
+                expected: hex::decode_array::<32>(
+                    ("bf26ec7ec413061733d44070ea67cab02a85dc1be8cfe1ff73d541cc08325506").as_bytes(),
+                )
+                .unwrap(),
             },
         ];
 
@@ -748,14 +827,32 @@ mod tests {
 
         let vectors = [
             Vector {
-                scalar: decode_hex::<32>("203161c3159a876a2beaec29d2427fb0c7c30d382cd013d27cc3d393db0daf6f"),
-                base: decode_hex::<32>("6ab95d1abe68c09b005c3db9042cc91ac849f7e94a2a4a9b893678970b7b95bf"),
-                expected: decode_hex::<32>("11edaedc95ff78f563a1c8f15591c071dea092b4d7ecaac8e0387b5a160c4e5d"),
+                scalar: hex::decode_array::<32>(
+                    ("203161c3159a876a2beaec29d2427fb0c7c30d382cd013d27cc3d393db0daf6f").as_bytes(),
+                )
+                .unwrap(),
+                base: hex::decode_array::<32>(
+                    ("6ab95d1abe68c09b005c3db9042cc91ac849f7e94a2a4a9b893678970b7b95bf").as_bytes(),
+                )
+                .unwrap(),
+                expected: hex::decode_array::<32>(
+                    ("11edaedc95ff78f563a1c8f15591c071dea092b4d7ecaac8e0387b5a160c4e5d").as_bytes(),
+                )
+                .unwrap(),
             },
             Vector {
-                scalar: decode_hex::<32>("13d65491fe75f203a008b4415abc60d532e695dbd2f1e803accb34b2b72c3d70"),
-                base: decode_hex::<32>("2e784e04ca0073336256a839255ed2f7d4796a64cdc37f1eb0e5c4c8d1d1e0f5"),
-                expected: decode_hex::<32>("563e8c9adaa7d73101b0f2ead3cae1ea5d8fcd5cd36080bb8e6ec03d61450917"),
+                scalar: hex::decode_array::<32>(
+                    ("13d65491fe75f203a008b4415abc60d532e695dbd2f1e803accb34b2b72c3d70").as_bytes(),
+                )
+                .unwrap(),
+                base: hex::decode_array::<32>(
+                    ("2e784e04ca0073336256a839255ed2f7d4796a64cdc37f1eb0e5c4c8d1d1e0f5").as_bytes(),
+                )
+                .unwrap(),
+                expected: hex::decode_array::<32>(
+                    ("563e8c9adaa7d73101b0f2ead3cae1ea5d8fcd5cd36080bb8e6ec03d61450917").as_bytes(),
+                )
+                .unwrap(),
             },
         ];
 
@@ -768,21 +865,27 @@ mod tests {
     #[test]
     fn wycheproof_twist_vectors() {
         let shared = x25519(
-            &decode_hex::<32>("d85d8c061a50804ac488ad774ac716c3f5ba714b2712e048491379a500211958"),
-            &decode_hex::<32>("63aa40c6e38346c5caf23a6df0a5e6c80889a08647e551b3563449befcfc9733"),
+            &hex::decode_array::<32>(("d85d8c061a50804ac488ad774ac716c3f5ba714b2712e048491379a500211958").as_bytes())
+                .unwrap(),
+            &hex::decode_array::<32>(("63aa40c6e38346c5caf23a6df0a5e6c80889a08647e551b3563449befcfc9733").as_bytes())
+                .unwrap(),
         );
         assert_eq!(
             shared,
-            decode_hex::<32>("279df67a7c4611db4708a0e8282b195e5ac0ed6f4b2f292c6fbd0acac30d1332")
+            hex::decode_array::<32>(("279df67a7c4611db4708a0e8282b195e5ac0ed6f4b2f292c6fbd0acac30d1332").as_bytes())
+                .unwrap()
         );
 
         let shared = x25519(
-            &decode_hex::<32>("d03edde9f3e7b799045f9ac3793d4a9277dadeadc41bec0290f81f744f73775f"),
-            &decode_hex::<32>("0200000000000000000000000000000000000000000000000000000000000000"),
+            &hex::decode_array::<32>(("d03edde9f3e7b799045f9ac3793d4a9277dadeadc41bec0290f81f744f73775f").as_bytes())
+                .unwrap(),
+            &hex::decode_array::<32>(("0200000000000000000000000000000000000000000000000000000000000000").as_bytes())
+                .unwrap(),
         );
         assert_eq!(
             shared,
-            decode_hex::<32>("b87a1722cc6c1e2feecb54e97abd5a22acc27616f78f6e315fd2b73d9f221e57")
+            hex::decode_array::<32>(("b87a1722cc6c1e2feecb54e97abd5a22acc27616f78f6e315fd2b73d9f221e57").as_bytes())
+                .unwrap()
         );
     }
 
@@ -795,9 +898,18 @@ mod tests {
         }
 
         let vectors = [Vector {
-            scalar: decode_hex::<32>("203161c3159a876a2beaec29d2427fb0c7c30d382cd013d27cc3d393db0daf6f"),
-            base: decode_hex::<32>("6ab95d1abe68c09b005c3db9042cc91ac849f7e94a2a4a9b893678970b7b95bf"),
-            expected: decode_hex::<32>("11edaedc95ff78f563a1c8f15591c071dea092b4d7ecaac8e0387b5a160c4e5d"),
+            scalar: hex::decode_array::<32>(
+                ("203161c3159a876a2beaec29d2427fb0c7c30d382cd013d27cc3d393db0daf6f").as_bytes(),
+            )
+            .unwrap(),
+            base: hex::decode_array::<32>(
+                ("6ab95d1abe68c09b005c3db9042cc91ac849f7e94a2a4a9b893678970b7b95bf").as_bytes(),
+            )
+            .unwrap(),
+            expected: hex::decode_array::<32>(
+                ("11edaedc95ff78f563a1c8f15591c071dea092b4d7ecaac8e0387b5a160c4e5d").as_bytes(),
+            )
+            .unwrap(),
         }];
 
         for (i, v) in vectors.iter().enumerate() {
@@ -809,7 +921,9 @@ mod tests {
     #[test]
     fn clamped_zero_scalar_produces_known_public_key() {
         let scalar = [0u8; 32];
-        let expected = decode_hex::<32>("2fe57da347cd62431528daac5fbb290730fff684afc4cfc2ed90995f58cb3b74");
+        let expected =
+            hex::decode_array::<32>(("2fe57da347cd62431528daac5fbb290730fff684afc4cfc2ed90995f58cb3b74").as_bytes())
+                .unwrap();
         let pub_key = SecretKey::from_bytes(&scalar).public_key().to_bytes();
         assert_eq!(pub_key, expected, "clamped zero scalar must produce deterministic public key");
     }
@@ -820,7 +934,8 @@ mod tests {
         let pub_key = SecretKey::from_bytes(&scalar).public_key().to_bytes();
         let direct = x25519(
             &scalar,
-            &decode_hex::<32>("0900000000000000000000000000000000000000000000000000000000000000"),
+            &hex::decode_array::<32>(("0900000000000000000000000000000000000000000000000000000000000000").as_bytes())
+                .unwrap(),
         );
         assert_eq!(pub_key, direct);
     }
@@ -835,13 +950,17 @@ mod tests {
 
     #[test]
     fn non_canonical_above_p_reduces_correctly() {
-        let scalar = decode_hex::<32>("c8a9d5a91091ad851c668b0736c1c9a02936c0d3ad62670858088047ba057475");
+        let scalar =
+            hex::decode_array::<32>(("c8a9d5a91091ad851c668b0736c1c9a02936c0d3ad62670858088047ba057475").as_bytes())
+                .unwrap();
         let (sum, _) = P.add_raw(&U256::from_u64(2));
         let mut p_plus_2_bytes = sum.to_le_bytes_fixed::<32>();
         p_plus_2_bytes[31] &= 0x7f;
         let result = x25519(&scalar, &p_plus_2_bytes);
 
-        let u_2 = decode_hex::<32>("0200000000000000000000000000000000000000000000000000000000000000");
+        let u_2 =
+            hex::decode_array::<32>(("0200000000000000000000000000000000000000000000000000000000000000").as_bytes())
+                .unwrap();
         let expected = x25519(&scalar, &u_2);
         assert_eq!(result, expected, "X25519(scalar, p+2) must equal X25519(scalar, 2)");
     }
@@ -864,8 +983,8 @@ mod tests {
                 let expected_shared_hex = test["shared"].as_str().unwrap();
                 let result = test["result"].as_str().unwrap();
 
-                let public_key = decode_hex::<32>(public_hex);
-                let private_key = decode_hex::<32>(private_hex);
+                let public_key = hex::decode_array::<32>((public_hex).as_bytes()).unwrap();
+                let private_key = hex::decode_array::<32>((private_hex).as_bytes()).unwrap();
 
                 let shared = x25519_checked(&private_key, &public_key);
 
@@ -912,7 +1031,7 @@ mod tests {
             assert_eq!(group["montgomeryCurve"].as_str(), Some("curve25519"));
 
             for test in group["tests"].as_array().unwrap() {
-                let public_key = decode_hex::<32>(test["publicKey"].as_str().unwrap());
+                let public_key = hex::decode_array::<32>((test["publicKey"].as_str().unwrap()).as_bytes()).unwrap();
                 let parsed_public_key = ed25519::PublicKey::from_bytes(&public_key);
                 let converted = parsed_public_key
                     .as_ref()

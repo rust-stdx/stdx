@@ -107,14 +107,30 @@ pub fn backend_name() -> &'static str {
 //////////////////////////////////////////////////////////////////////////////////////////////////
 // ParallelHash
 //////////////////////////////////////////////////////////////////////////////////////////////////
+/// Errors returned when creating a [`ParallelHash256`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ParallelHashError {
+    /// `block_size` must be greater than zero.
+    ZeroBlockSize,
+}
+
+impl core::fmt::Display for ParallelHashError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            ParallelHashError::ZeroBlockSize => write!(f, "ParallelHash block size must be greater than zero"),
+        }
+    }
+}
+
+impl core::error::Error for ParallelHashError {}
 
 /// Builds the final cSHAKE node with its `bytepad(encode_string(N) ||
 /// encode_string(S), rate)` prefix already absorbed.
 fn cshake_node(rate: usize, customization: &[u8]) -> KeccakSponge<24> {
     let mut sponge = KeccakSponge::new(rate, CSHAKE_PAD);
 
-    let enc_w = left_encode(rate);
-    let enc_n = left_encode(PARALLEL_HASH_NAME.len() * 8);
+    let enc_w = left_encode(rate as u128);
+    let enc_n = left_encode(bit_len(PARALLEL_HASH_NAME.len()));
     let enc_s = left_encode(bit_len(customization.len()));
 
     sponge.absorb(enc_w.as_ref());
@@ -159,22 +175,25 @@ impl ParallelHash256 {
     /// Creates a hasher for the given block size (in bytes) and
     /// customization string.
     ///
-    /// # Panics
-    /// Panics if `block_size` is zero.
-    pub fn new(block_size: usize, customization: &[u8]) -> Self {
-        assert!(block_size > 0, "ParallelHash block size must be greater than zero");
+    /// # Errors
+    ///
+    /// Returns [`ParallelHashError::ZeroBlockSize`] if `block_size` is zero.
+    pub fn new(block_size: usize, customization: &[u8]) -> Result<Self, ParallelHashError> {
+        if block_size == 0 {
+            return Err(ParallelHashError::ZeroBlockSize);
+        }
 
         let mut outer = cshake_node(PH256_RATE, customization);
-        outer.absorb(left_encode(block_size).as_ref());
+        outer.absorb(left_encode(block_size as u128).as_ref());
 
-        return ParallelHash256 {
+        return Ok(ParallelHash256 {
             outer,
             queue: Shake256::new(),
             queue_len: 0,
             leaves: Leaves::new(PH256_RATE, SHAKE_PAD, Backend::detect()),
             block_size,
             blocks: 0,
-        };
+        });
     }
 
     /// Absorbs input.
@@ -250,10 +269,10 @@ impl ParallelHash256 {
     pub fn finalize_into(mut self, out: &mut [u8]) {
         self.flush_queue_if_needed();
 
-        let n = right_encode(self.blocks);
+        let n = right_encode(self.blocks as u128);
         self.outer.absorb(n.as_ref());
 
-        let bits = out.len().checked_mul(8).expect("ParallelHash output length overflow");
+        let bits = (out.len() as u128) * 8;
         let l = right_encode(bits);
         self.outer.absorb(l.as_ref());
 
@@ -264,7 +283,7 @@ impl ParallelHash256 {
     pub fn finalize_xof(mut self) -> XofReader {
         self.flush_queue_if_needed();
 
-        let n = right_encode(self.blocks);
+        let n = right_encode(self.blocks as u128);
         self.outer.absorb(n.as_ref());
         let l = right_encode(0);
         self.outer.absorb(l.as_ref());
@@ -278,13 +297,14 @@ impl ParallelHash256 {
 
     /// Hashes `data` in one call and writes `out.len()` bytes.
     ///
-    /// # Panics
-    /// Panics if `block_size` is zero, or if `out.len() * 8` overflows a
-    /// `usize` (which cannot happen for any realistic output length).
-    pub fn hash(data: &[u8], block_size: usize, customization: &[u8], out: &mut [u8]) {
-        let mut hasher = Self::new(block_size, customization);
+    /// # Errors
+    ///
+    /// Returns [`ParallelHashError::ZeroBlockSize`] if `block_size` is zero.
+    pub fn hash(data: &[u8], block_size: usize, customization: &[u8], out: &mut [u8]) -> Result<(), ParallelHashError> {
+        let mut hasher = Self::new(block_size, customization)?;
         hasher.update(data);
         hasher.finalize_into(out);
+        Ok(())
     }
 
     fn flush_queue_if_needed(&mut self) {
@@ -330,9 +350,10 @@ impl ParallelHash256 {
 //////////////////////////////////////////////////////////////////////////////////////////////////
 // Tests
 //////////////////////////////////////////////////////////////////////////////////////////////////
-
 #[cfg(test)]
 mod tests {
+    use rand::{RngExt, SeedableRng, rngs::StdRng};
+
     use super::*;
     use crate::sha3::keccak::{PI, RHO};
 
@@ -350,41 +371,31 @@ mod tests {
         0x46, 0x47, 0x48, 0x49, 0x4a, 0x4b, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5a, 0x5b,
     ];
 
-    fn next_u64(state: &mut u64) -> u64 {
-        // xorshift64*, adequate for test data.
-        *state ^= *state >> 12;
-        *state ^= *state << 25;
-        *state ^= *state >> 27;
-        return state.wrapping_mul(0x2545_f491_4f6c_dd1d);
-    }
-
-    fn random_bytes(len: usize, rng: &mut u64) -> std::vec::Vec<u8> {
+    fn random_bytes(len: usize, rng: &mut StdRng) -> std::vec::Vec<u8> {
         let mut out = std::vec![0u8; len];
-        for byte in out.iter_mut() {
-            *byte = next_u64(rng) as u8;
-        }
-        return out;
+        rng.fill(&mut out);
+        out
     }
 
     #[test]
     fn nist_parallel_hash_256_samples() {
         let mut out = [0u8; 64];
 
-        ParallelHash256::hash(&NIST_DATA_24, 8, b"", &mut out);
+        ParallelHash256::hash(&NIST_DATA_24, 8, b"", &mut out).unwrap();
         assert_eq!(
             hex::encode(out),
             "bc1ef124da34495e948ead207dd9842235da432d2bbc54b4c110e64c45110553\
              1b7f2a3e0ce055c02805e7c2de1fb746af97a1dd01f43b824e31b87612410429"
         );
 
-        ParallelHash256::hash(&NIST_DATA_24, 8, b"Parallel Data", &mut out);
+        ParallelHash256::hash(&NIST_DATA_24, 8, b"Parallel Data", &mut out).unwrap();
         assert_eq!(
             hex::encode(out),
             "cdf15289b54f6212b4bc270528b49526006dd9b54e2b6add1ef6900dda3963bb\
              33a72491f236969ca8afaea29c682d47a393c065b38e29fae651a2091c833110"
         );
 
-        ParallelHash256::hash(&NIST_DATA_72, 12, b"Parallel Data", &mut out);
+        ParallelHash256::hash(&NIST_DATA_72, 12, b"Parallel Data", &mut out).unwrap();
         assert_eq!(
             hex::encode(out),
             "69d0fcb764ea055dd09334bc6021cb7e4b61348dff375da262671cdec3effa8d\
@@ -492,7 +503,7 @@ mod tests {
         for (i, v) in PH_VECTORS.iter().enumerate() {
             let data = pattern_data(v.data_len);
             let mut out = std::vec![0u8; v.out_len];
-            ParallelHash256::hash(&data, v.block_size, v.customization, &mut out);
+            ParallelHash256::hash(&data, v.block_size, v.customization, &mut out).unwrap();
             assert_eq!(out, v.expected, "vector {i}: B={} len={}", v.block_size, v.data_len);
         }
     }
@@ -502,7 +513,7 @@ mod tests {
         for (i, v) in PH_XOF_VECTORS.iter().enumerate() {
             let data = pattern_data(v.data_len);
             let mut out = std::vec![0u8; v.out_len];
-            let mut h = ParallelHash256::new(v.block_size, v.customization);
+            let mut h = ParallelHash256::new(v.block_size, v.customization).unwrap();
             h.update(&data);
             h.finalize_xof().squeeze(&mut out);
             assert_eq!(out, v.expected, "XOF vector {i}: B={} len={}", v.block_size, v.data_len);
@@ -514,12 +525,12 @@ mod tests {
         let data = pattern_data(3 * 1024 + 7);
 
         let mut one_shot = [0u8; 96];
-        let mut h = ParallelHash256::new(1024, b"xof");
+        let mut h = ParallelHash256::new(1024, b"xof").unwrap();
         h.update(&data);
         h.finalize_xof().squeeze(&mut one_shot);
 
         let mut chunked = [0u8; 96];
-        let mut h = ParallelHash256::new(1024, b"xof");
+        let mut h = ParallelHash256::new(1024, b"xof").unwrap();
         h.update(&data);
         let mut reader = h.finalize_xof();
         let mut off = 0;
@@ -557,13 +568,13 @@ mod tests {
                 let data = pattern_data(len);
 
                 let mut one_shot = [0u8; 64];
-                ParallelHash256::hash(&data, block_size, b"stream", &mut one_shot);
+                ParallelHash256::hash(&data, block_size, b"stream", &mut one_shot).unwrap();
 
                 // Feed awkward chunk sizes: `1` and `block_size` force the
                 // serial path, `batch * block_size + 1` the batched path, and
                 // the final chunk exercises the queue.
                 for &chunk_size in &[1usize, 3, 7, block_size, 2 * block_size + 1, batch * block_size + 1] {
-                    let mut h = ParallelHash256::new(block_size, b"stream");
+                    let mut h = ParallelHash256::new(block_size, b"stream").unwrap();
                     for chunk in data.chunks(chunk_size) {
                         h.update(chunk);
                     }
@@ -582,7 +593,7 @@ mod tests {
     /// batch (so it takes the sequential path).
     #[test]
     fn batched_path_matches_sequential_reference() {
-        let mut rng = 0x6f4a_11e2_9d38_b705u64;
+        let mut rng = StdRng::seed_from_u64(0x6f4a_11e2_9d38_b705);
         let batch = batch_width();
         for &block_size in &[1usize, 8, 63, 136, 137, 1024] {
             for &len in &[
@@ -599,11 +610,11 @@ mod tests {
                 let data = random_bytes(len, &mut rng);
 
                 let mut batched = [0u8; 64];
-                ParallelHash256::hash(&data, block_size, b"ref", &mut batched);
+                ParallelHash256::hash(&data, block_size, b"ref", &mut batched).unwrap();
 
                 let mut sequential = [0u8; 64];
                 {
-                    let mut h = ParallelHash256::new(block_size, b"ref");
+                    let mut h = ParallelHash256::new(block_size, b"ref").unwrap();
                     for block in data.chunks(block_size) {
                         h.update(block);
                     }
@@ -640,7 +651,7 @@ mod tests {
         let data = pattern_data(100);
         for &block_size in &[101usize, 1024, 1 << 20, usize::MAX / 2, usize::MAX - 1, usize::MAX] {
             let mut out = [0u8; 64];
-            ParallelHash256::hash(&data, block_size, b"leaf", &mut out);
+            ParallelHash256::hash(&data, block_size, b"leaf", &mut out).unwrap();
             assert_eq!(out, spec_single_leaf(&data, block_size, b"leaf"), "B={block_size}");
         }
     }
@@ -657,7 +668,7 @@ mod tests {
 
         for &block_size in HUGE_BLOCK_SIZES {
             let mut out = [0u8; 64];
-            ParallelHash256::hash(b"hello world", block_size, b"", &mut out);
+            ParallelHash256::hash(b"hello world", block_size, b"", &mut out).unwrap();
             assert_ne!(out, [0u8; 64], "B={block_size}");
         }
     }
@@ -666,11 +677,11 @@ mod tests {
     fn zero_length_output_is_allowed() {
         // A zero-byte request binds `L = 0` and writes nothing.
         let mut out = [0u8; 0];
-        ParallelHash256::hash(b"data", 8, b"", &mut out);
+        ParallelHash256::hash(b"data", 8, b"", &mut out).unwrap();
 
         // The XOF stream must still be well defined and match the same prefix.
         let mut one_byte = [0u8; 1];
-        let mut h = ParallelHash256::new(8, b"");
+        let mut h = ParallelHash256::new(8, b"").unwrap();
         h.update(b"data");
         h.finalize_xof().squeeze(&mut one_byte);
         assert_ne!(one_byte, [0u8]);
@@ -681,8 +692,8 @@ mod tests {
         let data = pattern_data(200);
         let mut a = [0u8; 64];
         let mut b = [0u8; 64];
-        ParallelHash256::hash(&data, 16, b"one", &mut a);
-        ParallelHash256::hash(&data, 16, b"two", &mut b);
+        ParallelHash256::hash(&data, 16, b"one", &mut a).unwrap();
+        ParallelHash256::hash(&data, 16, b"two", &mut b).unwrap();
         assert_ne!(a, b);
     }
 
@@ -717,7 +728,7 @@ mod tests {
             let data = pattern_data(data_len);
             let customization = pattern_data(customization_len);
             let mut out = [0u8; 64];
-            ParallelHash256::hash(&data, block_size, &customization, &mut out);
+            ParallelHash256::hash(&data, block_size, &customization, &mut out).unwrap();
             assert_eq!(hex::encode(out), expected, "B={block_size} len={data_len}");
         }
     }
@@ -729,9 +740,9 @@ mod tests {
         let data = pattern_data(3 * 1024 + 7);
 
         let mut a = [0u8; 64];
-        ParallelHash256::hash(&data, 12, b"Parallel Data", &mut a);
+        ParallelHash256::hash(&data, 12, b"Parallel Data", &mut a).unwrap();
 
-        let mut h = ParallelHash256::new(12, b"Parallel Data");
+        let mut h = ParallelHash256::new(12, b"Parallel Data").unwrap();
         h.update(&data[..500]);
         let mut clone = h.clone();
         h.update(&data[500..]);
@@ -752,7 +763,7 @@ mod tests {
         // empty message, B = 62, an awkward customization string and a 16-bit
         // (2-byte) output. The XOF form binds `L = 0`.
         let customization = b"Ny0LL2tUmt<+kuN5:Z7pZ_7]R; l/i:%pWbo4}";
-        let mut h = ParallelHash256::new(62, customization);
+        let mut h = ParallelHash256::new(62, customization).unwrap();
         h.update(&[]);
         let mut out = [0u8; 2];
         h.finalize_xof().squeeze(&mut out);
@@ -760,7 +771,7 @@ mod tests {
 
         // BouncyCastle's long XOF vector for ParallelHash256, B = 12.
         let data = NIST_DATA_72;
-        let mut h = ParallelHash256::new(12, b"Parallel Data");
+        let mut h = ParallelHash256::new(12, b"Parallel Data").unwrap();
         h.update(&data);
         let mut out = [0u8; 64];
         h.finalize_xof().squeeze(&mut out);
@@ -777,8 +788,8 @@ mod tests {
         let mut short = [0u8; 32];
         let mut long = [0u8; 64];
 
-        ParallelHash256::hash(&data, 16, b"", &mut short);
-        ParallelHash256::hash(&data, 16, b"", &mut long);
+        ParallelHash256::hash(&data, 16, b"", &mut short).unwrap();
+        ParallelHash256::hash(&data, 16, b"", &mut long).unwrap();
 
         // Different requested lengths must give unrelated outputs, not a
         // truncation of one another.
@@ -793,7 +804,7 @@ mod tests {
         // `cSHAKE(left_encode(B) || right_encode(0) || right_encode(L), L,
         //        "ParallelHash", S)`.
         let mut out = [0u8; 64];
-        ParallelHash256::hash(&[], 1024, b"", &mut out);
+        ParallelHash256::hash(&[], 1024, b"", &mut out).unwrap();
         assert_eq!(
             hex::encode(out),
             "f3cde98becd1a0ee2b2601e4d2d027d3efe0f8ebd5231041bd38f326036d0d37\
@@ -802,9 +813,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "block size must be greater than zero")]
     fn zero_block_size_is_rejected() {
-        let _ = ParallelHash256::new(0, b"");
+        assert_eq!(ParallelHash256::new(0, b"").err(), Some(ParallelHashError::ZeroBlockSize));
+        assert!(ParallelHash256::new(1, b"").is_ok());
     }
 
     // Keep the imported bytecode-table names used by the NEON fallback in sync

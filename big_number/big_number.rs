@@ -1850,20 +1850,6 @@ mod tests {
         0x7fff_ffff_ffff_ffff,
     ]);
 
-    fn decode_hex<const N: usize>(input: &str) -> [u8; N] {
-        assert_eq!(input.len(), N * 2);
-        let mut out = [0u8; N];
-        let bytes = input.as_bytes();
-        let mut i = 0;
-        while i < N {
-            let hi = char_to_digit(bytes[i * 2]).unwrap() as u8;
-            let lo = char_to_digit(bytes[i * 2 + 1]).unwrap() as u8;
-            out[i] = (hi << 4) | lo;
-            i += 1;
-        }
-        out
-    }
-
     #[test]
     fn raw_arithmetic_reports_carry_and_borrow() {
         let (sum, carry) = U128::MAX.add_raw(&U128::ONE);
@@ -1897,9 +1883,12 @@ mod tests {
             U256::ZERO,
             U256::ONE,
             U256::MAX,
-            U256::from_be_slice(&decode_hex::<32>(
-                "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296",
-            )),
+            U256::from_be_slice(
+                &hex::decode_array::<32>(
+                    ("6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296").as_bytes(),
+                )
+                .unwrap(),
+            ),
         ];
 
         for value in values {
@@ -1969,8 +1958,8 @@ mod tests {
         let modulus_hex = "ffffffff00000001000000000000000000000000ffffffffffffffffffffffff";
         let order_hex = "ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551";
 
-        let modulus_bytes = decode_hex::<32>(modulus_hex);
-        let order_bytes = decode_hex::<32>(order_hex);
+        let modulus_bytes = hex::decode_array::<32>((modulus_hex).as_bytes()).unwrap();
+        let order_bytes = hex::decode_array::<32>((order_hex).as_bytes()).unwrap();
 
         let modulus = U256::from_be_slice(&modulus_bytes);
         let order = U256::from_be_slice(&order_bytes);
@@ -1985,9 +1974,10 @@ mod tests {
 
     #[test]
     fn little_endian_round_trip_works() {
-        let value = U256::from_be_slice(&decode_hex::<32>(
-            "4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5",
-        ));
+        let value = U256::from_be_slice(
+            &hex::decode_array::<32>(("4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5").as_bytes())
+                .unwrap(),
+        );
         let le = value.to_le_bytes_fixed::<32>();
         assert_eq!(U256::from_le_slice(&le), value);
     }
@@ -2740,15 +2730,18 @@ mod tests {
     #[test]
     fn p256_mul_mod_with_generator_coordinates() {
         // Vectors verified with Python's arbitrary-precision arithmetic.
-        let gx_gy_mod_p = U256::from_be_slice(&decode_hex::<32>(
-            "823cd15f6dd3c71933565064513a6b2bd183e554c6a08622f713ebbbface98be",
-        ));
-        let gx_sq_mod_p = U256::from_be_slice(&decode_hex::<32>(
-            "98f6b84d29bef2b281819a5e0e3690d833b699495d694dd1002ae56c426b3f8c",
-        ));
-        let gy_sq_mod_p = U256::from_be_slice(&decode_hex::<32>(
-            "55df5d5850f47bad82149139979369fe498a9022a412b5e0bedd2cfc21c3ed91",
-        ));
+        let gx_gy_mod_p = U256::from_be_slice(
+            &hex::decode_array::<32>(("823cd15f6dd3c71933565064513a6b2bd183e554c6a08622f713ebbbface98be").as_bytes())
+                .unwrap(),
+        );
+        let gx_sq_mod_p = U256::from_be_slice(
+            &hex::decode_array::<32>(("98f6b84d29bef2b281819a5e0e3690d833b699495d694dd1002ae56c426b3f8c").as_bytes())
+                .unwrap(),
+        );
+        let gy_sq_mod_p = U256::from_be_slice(
+            &hex::decode_array::<32>(("55df5d5850f47bad82149139979369fe498a9022a412b5e0bedd2cfc21c3ed91").as_bytes())
+                .unwrap(),
+        );
 
         assert_eq!(P256_GX.mul_mod(&P256_GY, &P256_MODULUS), gx_gy_mod_p, "Gx*Gy mod p");
         // Commutativity
@@ -2764,17 +2757,20 @@ mod tests {
     #[test]
     fn p256_add_sub_mod_with_generator_coordinates() {
         // Gx + Gy mod p256_p  (Python: hex((Gx + Gy) % p))
-        let gx_plus_gy = U256::from_be_slice(&decode_hex::<32>(
-            "bafb14d5df46c1e387a4d22fdfb3df08a2d1b0d8991c926fc05779ae1058148b",
-        ));
+        let gx_plus_gy = U256::from_be_slice(
+            &hex::decode_array::<32>(("bafb14d5df46c1e387a4d22fdfb3df08a2d1b0d8991c926fc05779ae1058148b").as_bytes())
+                .unwrap(),
+        );
         // Gx - Gy mod p256_p  (Python: hex((Gx - Gy) % p))
-        let gx_minus_gy = U256::from_be_slice(&decode_hex::<32>(
-            "1b348f0fe311c2ac69d4fb9ae794a2dc4b354a29c2b9d4d228eaf8dda0d970a1",
-        ));
+        let gx_minus_gy = U256::from_be_slice(
+            &hex::decode_array::<32>(("1b348f0fe311c2ac69d4fb9ae794a2dc4b354a29c2b9d4d228eaf8dda0d970a1").as_bytes())
+                .unwrap(),
+        );
         // Gy - Gx mod p256_p
-        let gy_minus_gx = U256::from_be_slice(&decode_hex::<32>(
-            "e4cb70ef1cee3d54962b0465186b5d23b4cab5d73d462b2dd71507225f268f5e",
-        ));
+        let gy_minus_gx = U256::from_be_slice(
+            &hex::decode_array::<32>(("e4cb70ef1cee3d54962b0465186b5d23b4cab5d73d462b2dd71507225f268f5e").as_bytes())
+                .unwrap(),
+        );
 
         assert_eq!(P256_GX.add_mod(&P256_GY, &P256_MODULUS), gx_plus_gy);
         assert_eq!(P256_GX.sub_mod(&P256_GY, &P256_MODULUS), gx_minus_gy);
@@ -2877,41 +2873,56 @@ mod tests {
             Test {
                 dividend: P256_MODULUS,
                 divisor: 2,
-                expected_quotient: U256::from_be_slice(&decode_hex::<32>(
-                    "7fffffff800000008000000000000000000000007fffffffffffffffffffffff",
-                )),
+                expected_quotient: U256::from_be_slice(
+                    &hex::decode_array::<32>(
+                        ("7fffffff800000008000000000000000000000007fffffffffffffffffffffff").as_bytes(),
+                    )
+                    .unwrap(),
+                ),
                 expected_rem: 1,
             },
             Test {
                 dividend: P256_MODULUS,
                 divisor: 10,
-                expected_quotient: U256::from_be_slice(&decode_hex::<32>(
-                    "1999999980000000199999999999999999999999b33333333333333333333333",
-                )),
+                expected_quotient: U256::from_be_slice(
+                    &hex::decode_array::<32>(
+                        ("1999999980000000199999999999999999999999b33333333333333333333333").as_bytes(),
+                    )
+                    .unwrap(),
+                ),
                 expected_rem: 1,
             },
             Test {
                 dividend: P256_MODULUS,
                 divisor: 16,
-                expected_quotient: U256::from_be_slice(&decode_hex::<32>(
-                    "0ffffffff00000001000000000000000000000000fffffffffffffffffffffff",
-                )),
+                expected_quotient: U256::from_be_slice(
+                    &hex::decode_array::<32>(
+                        ("0ffffffff00000001000000000000000000000000fffffffffffffffffffffff").as_bytes(),
+                    )
+                    .unwrap(),
+                ),
                 expected_rem: 0xf,
             },
             Test {
                 dividend: P256_MODULUS,
                 divisor: 0xffff_ffff,
-                expected_quotient: U256::from_be_slice(&decode_hex::<32>(
-                    "0000000100000000000000010000000100000001000000020000000200000002",
-                )),
+                expected_quotient: U256::from_be_slice(
+                    &hex::decode_array::<32>(
+                        ("0000000100000000000000010000000100000001000000020000000200000002").as_bytes(),
+                    )
+                    .unwrap(),
+                ),
                 expected_rem: 1,
             },
             Test {
                 dividend: P256_MODULUS,
                 divisor: 0x1_0000_0000,
-                expected_quotient: U256::from_be_slice(&decode_hex::<32>(
-                    "00000000ffffffff00000001000000000000000000000000ffffffffffffffff",
-                )),
+                expected_quotient: U256::from_be_slice(
+                    &hex::decode_array::<32>(
+                        ("00000000ffffffff00000001000000000000000000000000ffffffffffffffff").as_bytes(),
+                    )
+                    .unwrap(),
+                ),
                 expected_rem: 0xffff_ffff,
             },
             Test {
@@ -2944,12 +2955,14 @@ mod tests {
     fn add_word_vectors() {
         // Vectors: Python hex(Gx + k) for small k
         let gx = P256_GX;
-        let gx_plus_1 = U256::from_be_slice(&decode_hex::<32>(
-            "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c297",
-        ));
-        let gx_minus_1 = U256::from_be_slice(&decode_hex::<32>(
-            "6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c295",
-        ));
+        let gx_plus_1 = U256::from_be_slice(
+            &hex::decode_array::<32>(("6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c297").as_bytes())
+                .unwrap(),
+        );
+        let gx_minus_1 = U256::from_be_slice(
+            &hex::decode_array::<32>(("6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c295").as_bytes())
+                .unwrap(),
+        );
 
         let (sum, carry) = gx.add_word(1);
         assert_eq!(sum, gx_plus_1, "Gx + 1");
@@ -2980,9 +2993,10 @@ mod tests {
     fn mul_word_vectors() {
         // Gx * 2 = 2*Gx (no overflow since Gx < 2^255)
         // Python: hex(Gx * 2)
-        let gx_times_2 = U256::from_be_slice(&decode_hex::<32>(
-            "d62fa3e5c258848ff179cdcac74881e4ee06fb025bd66741e942728bb131852c",
-        ));
+        let gx_times_2 = U256::from_be_slice(
+            &hex::decode_array::<32>(("d62fa3e5c258848ff179cdcac74881e4ee06fb025bd66741e942728bb131852c").as_bytes())
+                .unwrap(),
+        );
         let (prod, carry) = P256_GX.mul_word(2);
         assert_eq!(prod, gx_times_2, "Gx * 2");
         assert_eq!(carry, 0, "Gx * 2 carry");

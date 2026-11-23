@@ -120,6 +120,7 @@ name = "base32"
 version = "0.1.0"
 dependencies = [
  "alloc_counter",
+ "rand",
  "serde",
  "serde_json",
  "serde_test",
@@ -131,6 +132,7 @@ name = "base64"
 version = "0.1.0"
 dependencies = [
  "alloc_counter",
+ "rand",
  "serde",
  "serde_json",
  "serde_test",
@@ -188,6 +190,8 @@ version = "0.1.0"
 dependencies = [
  "alloc_counter",
  "crypto",
+ "hex",
+ "rand",
  "zeroize 1.9.1",
 ]
 
@@ -239,6 +243,7 @@ dependencies = [
  "cbor_derive",
  "heapless",
  "hex",
+ "rand",
  "small_collections",
  "utf8",
 ]
@@ -313,6 +318,7 @@ name = "constant_time_eq"
 version = "0.6.1"
 dependencies = [
  "count_instructions",
+ "rand",
 ]
 
 [[package]]
@@ -425,6 +431,7 @@ dependencies = [
  "alloc_counter",
  "csv_derive",
  "memchr",
+ "rand",
  "zmij 1.0.23",
 ]
 
@@ -731,6 +738,7 @@ name = "hex"
 version = "0.1.0"
 dependencies = [
  "alloc_counter",
+ "rand",
  "serde",
  "serde_json",
  "serde_test",
@@ -984,6 +992,7 @@ name = "indexmap"
 version = "2.14.2"
 dependencies = [
  "hashbrown",
+ "rand",
  "serde",
  "serde_core",
  "serde_json",
@@ -1994,6 +2003,7 @@ version = "0.1.0"
 dependencies = [
  "alloc_counter",
  "memchr",
+ "rand",
  "template_derive",
 ]
 
@@ -2514,6 +2524,7 @@ name = "xxhash"
 version = "0.1.0"
 dependencies = [
  "alloc_counter",
+ "rand",
 ]
 
 [[package]]

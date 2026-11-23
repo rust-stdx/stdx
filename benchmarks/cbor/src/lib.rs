@@ -1,5 +1,6 @@
 //! Shared fixtures for the CBOR benchmark suite.
 
+use rand::{Rng, SeedableRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
 
 /// A structured telemetry record, serde/cbor text-key map flavor.
@@ -47,14 +48,6 @@ pub struct IntEntry {
     pub count: u64,
 }
 
-fn splitmix(state: &mut u64) -> u64 {
-    *state = state.wrapping_add(0x9E37_79B9_7F4A_7C15);
-    let mut z = *state;
-    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-    z ^ (z >> 31)
-}
-
 const TARGETS: [&str; 6] = [
     "net::http::server",
     "db::pool",
@@ -78,21 +71,21 @@ const WORDS: [&str; 8] = [
 const LABELS: [&str; 8] = ["prod", "region=eu", "shard=3", "tls", "h2", "ipv6", "warm", "canary"];
 
 pub fn logs(n: usize) -> Vec<LogEntry> {
-    let mut state = 0xC0DE_CAFE;
+    let mut rng = StdRng::seed_from_u64(0xC0DE_CAFE);
     (0..n)
         .map(|i| {
-            let r = splitmix(&mut state);
+            let r = rng.next_u64();
             let words = 2 + (r >> 8) as usize % 4;
             let mut message = String::new();
             for w in 0..words {
                 if w > 0 {
                     message.push(' ');
                 }
-                message.push_str(WORDS[(splitmix(&mut state) as usize) % WORDS.len()]);
+                message.push_str(WORDS[(rng.next_u64() as usize) % WORDS.len()]);
             }
             let label_count = (r >> 16) as usize % 4;
             let labels = (0..label_count)
-                .map(|k| LABELS[(splitmix(&mut state) as usize + k) % LABELS.len()].to_string())
+                .map(|k| LABELS[(rng.next_u64() as usize + k) % LABELS.len()].to_string())
                 .collect();
             LogEntry {
                 timestamp: 1_700_000_000_000 + i as u64 * 37,

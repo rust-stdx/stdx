@@ -6,20 +6,17 @@ const CSHAKE256_DOMAIN_SEPARATOR: u8 = 0x04;
 const SHAKE256_DOMAIN_SEPARATOR: u8 = 0x1f;
 
 // fixed-size buffer to avoid allocations when encoding inputs
-type EncodedBytes = Bytes<9>;
+//
+// SP 800-185 bit lengths are computed in `u128`, so even `usize::MAX * 8`
+// fits and the encoding never needs a fallible path.
+type EncodedBytes = Bytes<17>;
 
 /// Converts a byte length to the bit length used by SP 800-185.
 ///
-/// # Panics
-///
-/// Panics if `bytes * 8` overflows `usize`. This cannot happen on 64-bit
-/// targets for any slice that fits in memory, but it is reachable on 32-bit
-/// targets for inputs larger than 512 MiB.
+/// `u128` is wide enough that `usize::MAX * 8` cannot overflow on any target.
 #[inline]
-pub(crate) fn bit_len(bytes: usize) -> usize {
-    return bytes
-        .checked_mul(8)
-        .expect("input length too large for SP 800-185 bit-length encoding");
+pub(crate) fn bit_len(bytes: usize) -> u128 {
+    return (bytes as u128) * 8;
 }
 
 /// SHAKE256 extensible-output function (XOF) as defined in FIPS 202.
@@ -167,7 +164,7 @@ impl CShake256 {
         // absorb bytepad(encode_string(N) || encode_string(S), w)
 
         // bytepad: left_encode(w)
-        let enc_w = left_encode(SHAKE256_RATE);
+        let enc_w = left_encode(SHAKE256_RATE as u128);
         keccak.absorb(enc_w.as_ref());
 
         // encode_string(N): left_encode(bitlen(N)) || N
@@ -223,7 +220,7 @@ impl Xof for CShake256 {
 // SP 800-185 encoding helpers
 
 #[inline]
-pub(crate) fn left_encode(x: usize) -> EncodedBytes {
+pub(crate) fn left_encode(x: u128) -> EncodedBytes {
     let bytes = x.to_be_bytes();
     let first_non_zero = bytes.iter().position(|&b| b != 0).unwrap_or(bytes.len() - 1);
     let n = bytes.len() - first_non_zero;
@@ -235,7 +232,7 @@ pub(crate) fn left_encode(x: usize) -> EncodedBytes {
 }
 
 #[inline]
-pub(crate) fn right_encode(x: usize) -> EncodedBytes {
+pub(crate) fn right_encode(x: u128) -> EncodedBytes {
     let mut bytes = left_encode(x);
     let out = bytes.as_mut();
     let n = out[0];
@@ -459,11 +456,24 @@ mod tests {
         assert_eq!(left_encode(65535).as_ref(), &[0x02, 0xff, 0xff]);
         assert_eq!(left_encode(65536).as_ref(), &[0x03, 0x01, 0x00, 0x00]);
 
-        let encoded = left_encode(usize::MAX);
+        let encoded = left_encode(usize::MAX as u128);
         let n = encoded[0] as usize;
         assert_eq!(n, core::mem::size_of::<usize>());
         assert_eq!(encoded.as_ref().len(), n + 1);
         assert!(encoded.as_ref()[1..].iter().all(|&b| b == 0xff));
+
+        // The full u128 range is encodable as well.
+        let encoded = left_encode(u128::MAX);
+        assert_eq!(encoded[0], 16);
+        assert_eq!(encoded.as_ref().len(), 17);
+        assert!(encoded.as_ref()[1..].iter().all(|&b| b == 0xff));
+    }
+
+    #[test]
+    fn bit_len_is_total() {
+        assert_eq!(super::bit_len(0), 0);
+        assert_eq!(super::bit_len(1), 8);
+        assert_eq!(super::bit_len(usize::MAX), (usize::MAX as u128) * 8);
     }
 
     #[test]
@@ -475,11 +485,16 @@ mod tests {
         assert_eq!(right_encode(65535).as_ref(), &[0xff, 0xff, 0x02]);
         assert_eq!(right_encode(65536).as_ref(), &[0x01, 0x00, 0x00, 0x03]);
 
-        let encoded = right_encode(usize::MAX);
+        let encoded = right_encode(usize::MAX as u128);
         let n = core::mem::size_of::<usize>();
         assert_eq!(encoded.as_ref().len(), n + 1);
         assert!(encoded.as_ref()[..n].iter().all(|&b| b == 0xff));
         assert_eq!(encoded.as_ref()[n], n as u8);
+
+        let encoded = right_encode(u128::MAX);
+        assert_eq!(encoded.as_ref().len(), 17);
+        assert!(encoded.as_ref()[..16].iter().all(|&b| b == 0xff));
+        assert_eq!(encoded.as_ref()[16], 16);
     }
 
     /// Regression test for the SP 800-185 bytepad rule: when

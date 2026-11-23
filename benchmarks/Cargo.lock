@@ -315,6 +315,7 @@ dependencies = [
  "ciborium",
  "criterion",
  "minicbor",
+ "rand",
  "serde",
  "serde_bytes",
 ]

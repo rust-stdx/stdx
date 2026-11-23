@@ -61,7 +61,7 @@ impl Kmac256 {
         // absorb bytepad(encode_string(key), KMAC256_RATE)
 
         // bytepad(encode_string(key), w)
-        let enc_w = left_encode(KMAC256_RATE);
+        let enc_w = left_encode(KMAC256_RATE as u128);
         cshake.absorb(enc_w.as_ref());
 
         let enc_key = left_encode(bit_len(key.len()));
@@ -85,9 +85,10 @@ impl Kmac256 {
         self.cshake.absorb(data);
     }
 
+    /// Finalizes the MAC into `output`.
     #[inline]
     pub fn finalize_into(mut self, output: &mut [u8]) {
-        let output_bits = output.len().checked_mul(8).expect("output size too large for KMAC");
+        let output_bits = (output.len() as u128) * 8;
         let encoded_output_len = right_encode(output_bits);
         self.cshake.absorb(encoded_output_len.as_ref());
         self.cshake.squeeze(output);
@@ -107,6 +108,7 @@ impl Kmac256 {
         return self.cshake.finalize_xof();
     }
 
+    /// Computes a KMAC256 tag in one call.
     #[inline]
     pub fn mac(key: &[u8], data: &[u8], customization: &[u8], output: &mut [u8]) {
         let mut kmac = Kmac256::new(key, customization);

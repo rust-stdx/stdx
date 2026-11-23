@@ -131,14 +131,6 @@ mod tests {
         expected_okm: &'static str,
     }
 
-    fn decode_hex(input: &str) -> Vec<u8> {
-        let input = input.replace(|c: char| c.is_whitespace(), "");
-        (0..input.len())
-            .step_by(2)
-            .map(|i| u8::from_str_radix(&input[i..i + 2], 16).unwrap())
-            .collect()
-    }
-
     const SHA256_VECTORS: [TestVector; 4] = [
         TestVector {
             ikm: "0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b",
@@ -148,17 +140,11 @@ mod tests {
             expected_okm: "3cb25f25faacd57a90434f64d0362f2a2d2d0a90cf1a5a4c5db02d56ecc4c5bf34007208d5b887185865",
         },
         TestVector {
-            ikm: "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\
-                  202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f\
-                  404142434445464748494a4b4c4d4e4f",
+            ikm: "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f",
             salt: Some(
-                "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f\
-                 808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f\
-                 a0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
+                "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
             ),
-            info: "b0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecf\
-                  d0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeef\
-                  f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+            info: "b0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
             expected_prk: "06a6b88c5853361a06104c9ceb35b45cef760014904671014a193f40c15fc244",
             expected_okm: "b11e398dc80327a1c8e7f78c596a49344f012eda2d4efad8a050cc4c19afa97c59045a99cac7827271cb41c65e590e09da3275600c2f09b8367793a9aca3db71cc30c58179ec3e87c14c01d5c1f3434f1d87",
         },
@@ -187,17 +173,11 @@ mod tests {
             expected_okm: "832390086cda71fb47625bb5ceb168e4c8e26a1a16ed34d9fc7fe92c1481579338da362cb8d9f925d7cb",
         },
         TestVector {
-            ikm: "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\
-                  202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f\
-                  404142434445464748494a4b4c4d4e4f",
+            ikm: "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f",
             salt: Some(
-                "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f\
-                 808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9f\
-                 a0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
+                "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeaf",
             ),
-            info: "b0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecf\
-                  d0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeef\
-                  f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+            info: "b0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
             expected_prk: "35672542907d4e142c00e84499e74e1de08be86535f924e022804ad775dde27ec86cd1e5b7d178c74489bdbeb30712beb82d4f97416c5a94ea81ebdf3e629e4a",
             expected_okm: "ce6c97192805b346e6161e821ed165673b84f400a2b514b2fe23d84cd189ddf1b695b48cbd1c8388441137b3ce28f16aa64ba33ba466b24df6cfcb021ecff235f6a2056ce3af1de44d572097a8505d9e7a93",
         },
@@ -220,11 +200,11 @@ mod tests {
     #[test]
     fn hkdf_sha256_vectors() {
         for (i, vector) in SHA256_VECTORS.iter().enumerate() {
-            let ikm = decode_hex(vector.ikm);
-            let salt = vector.salt.map(decode_hex);
-            let info = decode_hex(vector.info);
-            let expected_prk = decode_hex(vector.expected_prk);
-            let expected_okm = decode_hex(vector.expected_okm);
+            let ikm = hex::decode(vector.ikm).unwrap();
+            let salt = vector.salt.map(|s| hex::decode(s).unwrap());
+            let info = hex::decode(vector.info).unwrap();
+            let expected_prk = hex::decode(vector.expected_prk).unwrap();
+            let expected_okm = hex::decode(vector.expected_okm).unwrap();
 
             let prk = extract::<Sha256>(&ikm, salt.as_deref());
             assert_eq!(prk.as_ref(), expected_prk.as_slice(), "vector {} PRK", i);
@@ -249,11 +229,11 @@ mod tests {
     #[test]
     fn hkdf_sha512_vectors() {
         for (i, vector) in SHA512_VECTORS.iter().enumerate() {
-            let ikm = decode_hex(vector.ikm);
-            let salt = vector.salt.map(decode_hex);
-            let info = decode_hex(vector.info);
-            let expected_prk = decode_hex(vector.expected_prk);
-            let expected_okm = decode_hex(vector.expected_okm);
+            let ikm = hex::decode(vector.ikm).unwrap();
+            let salt = vector.salt.map(|s| hex::decode(s).unwrap());
+            let info = hex::decode(vector.info).unwrap();
+            let expected_prk = hex::decode(vector.expected_prk).unwrap();
+            let expected_okm = hex::decode(vector.expected_okm).unwrap();
 
             let prk = extract::<Sha512>(&ikm, salt.as_deref());
             assert_eq!(prk.as_ref(), expected_prk.as_slice(), "vector {} PRK", i);

@@ -1106,3 +1106,197 @@ mod tests {
         }
     }
 }
+
+/// Hardware/software kernel equivalence and the
+/// documented message-length counter behaviour. These live next to the private
+/// kernel because the comparison needs `compress_blocks` and the private state.
+#[cfg(test)]
+mod kernel_tests {
+    use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
+
+    use super::{Sha256, compress_block_software, compress_blocks, detect_sha256_ext};
+    use crate::Hasher;
+
+    /// Deterministic seeded `StdRng`.
+    fn pattern_blocks() -> Vec<[u8; 64]> {
+        let mut blocks = vec![
+            [0x00u8; 64],
+            [0xFFu8; 64],
+            [0x80u8; 64],
+            [b'a'; 64],
+            core::array::from_fn(|i| if i % 2 == 0 { 0xAA } else { 0x55 }),
+            core::array::from_fn(|i| i as u8),
+            // High bit set at every 4-byte word boundary.
+            core::array::from_fn(|i| if i % 4 == 0 { 0x80 } else { 0x00 }),
+            // A single walking high bit.
+            core::array::from_fn(|i| 0x80u8 >> (i % 8)),
+            // Only the last byte set.
+            core::array::from_fn(|i| if i == 63 { 0xFF } else { 0x00 }),
+        ];
+        let mut rng = StdRng::seed_from_u64(0x0123_4567_89AB_CDEF);
+        for _ in 0..8 {
+            let mut block = [0u8; 64];
+            block.copy_from_slice(&{
+                let mut v = vec![0u8; 64];
+                rng.fill(&mut v);
+                v
+            });
+            blocks.push(block);
+        }
+        blocks
+    }
+
+    fn pattern_states() -> Vec<[u32; 8]> {
+        let iv = Sha256::new().state;
+        let mut states = vec![
+            iv,
+            [0u32; 8],
+            [u32::MAX; 8],
+            [0x8000_0000u32; 8],
+            core::array::from_fn(|i| i as u32),
+            core::array::from_fn(|i| 0x8000_0000u32 >> (i % 32)),
+        ];
+        let mut rng = StdRng::seed_from_u64(0x0DEA_DBEE_FC12);
+        for _ in 0..8 {
+            let mut state = [0u32; 8];
+            for word in state.iter_mut() {
+                *word = rng.next_u64() as u32;
+            }
+            states.push(state);
+        }
+        states
+    }
+
+    /// The hardware kernel and `compress_block_software` must agree for every
+    /// (state, block) pair, including all-zero/all-one and high-bit patterns.
+    #[test]
+    fn hardware_and_software_compress_agree() {
+        let hw = detect_sha256_ext();
+        eprintln!("detect_sha256_ext() = {hw}");
+        if !hw {
+            eprintln!("SKIPPED: target has no SHA-256 extension; hardware path not executable here");
+            return;
+        }
+
+        for state in pattern_states() {
+            for block in pattern_blocks() {
+                let mut software = state;
+                let mut hardware = state;
+                compress_blocks(&mut software, &block, false);
+                compress_blocks(&mut hardware, &block, true);
+                assert_eq!(software, hardware, "hw/sw mismatch state={state:?} block={block:?}");
+            }
+        }
+    }
+
+    /// Multi-block chains, including a trailing partial block that must be
+    /// ignored by both kernels, and a run of exactly `n` full blocks.
+    #[test]
+    fn hardware_and_software_multi_block_agree() {
+        if !detect_sha256_ext() {
+            eprintln!("SKIPPED: no SHA-256 extension");
+            return;
+        }
+
+        let blocks = pattern_blocks();
+        let mut rng = StdRng::seed_from_u64(0x0123_4C12);
+        for count in [1usize, 2, 3, 4, 8, 17] {
+            let mut data = Vec::with_capacity(count * 64 + 63);
+            for i in 0..count {
+                data.extend_from_slice(&blocks[i % blocks.len()]);
+            }
+            let tail_len = 63;
+            data.extend_from_slice(&{
+                let mut v = vec![0u8; tail_len];
+                rng.fill(&mut v);
+                v
+            });
+
+            for state in pattern_states() {
+                let mut software = state;
+                let mut hardware = state;
+                compress_blocks(&mut software, &data, false);
+                compress_blocks(&mut hardware, &data, true);
+                assert_eq!(software, hardware, "count={count} state={state:?}");
+            }
+        }
+    }
+
+    /// The software path must be chosen whenever the extension is unavailable,
+    /// and it must be bit-identical to the hardware path for whole messages.
+    #[test]
+    fn forced_software_path_matches_hardware_path() {
+        let hw = detect_sha256_ext();
+        eprintln!("detect_sha256_ext() = {hw}");
+        let mut rng = StdRng::seed_from_u64(0x050F_7C12);
+        for len in [
+            0usize, 1, 2, 3, 31, 54, 55, 56, 57, 62, 63, 64, 65, 119, 120, 121, 127, 128, 129, 130, 191, 192, 239, 240,
+            241, 255, 256, 257, 1000, 4096, 65536,
+        ] {
+            let data = {
+                let mut v = vec![0u8; len];
+                rng.fill(&mut v);
+                v
+            };
+
+            let mut hardware = Sha256::new();
+            let mut software = Sha256::new();
+            software.has_sha_ext = false;
+            assert_eq!(hardware.has_sha_ext, hw);
+
+            hardware.update(&data);
+            software.update(&data);
+            assert_eq!(hardware.total_len, len as u64);
+
+            // Re-hash with odd splits on the forced-software path as well.
+            let mut split = Sha256::new();
+            split.has_sha_ext = false;
+            for piece in data.chunks(7) {
+                split.update(piece);
+            }
+
+            let one_shot = hardware.sum();
+            let forced = software.sum();
+            assert_eq!(one_shot.as_ref(), forced.as_ref(), "len={len}");
+            assert_eq!(one_shot.as_ref(), split.sum().as_ref(), "len={len} split");
+        }
+    }
+
+    /// `total_len` is encoded as `total_len * 8` modulo 2^64. The documented
+    /// limit is `< 2^61` bytes; exactly `2^61` wraps the field to zero and thus
+    /// produces the empty-message digest (i.e. an undefined result, not a panic).
+    #[test]
+    fn total_len_wrap_matches_documented_limit() {
+        let iv = Sha256::new().state;
+        let empty = Sha256::hash(b"");
+
+        // Below the limit the field is 2^64 - 8.
+        let mut hasher = Sha256::new();
+        hasher.total_len = (1u64 << 61) - 1;
+        let below_limit = hasher.sum();
+
+        let mut state = iv;
+        let mut block = [0u8; 64];
+        block[0] = 0x80;
+        block[56..].copy_from_slice(&0xFFFF_FFFF_FFFF_FFF8u64.to_be_bytes());
+        compress_block_software(&mut state, &block);
+        let mut expected = [0u8; 32];
+        for (i, word) in state.iter().enumerate() {
+            expected[4 * i..4 * i + 4].copy_from_slice(&word.to_be_bytes());
+        }
+        assert_eq!(below_limit.as_ref(), expected, "2^61 - 1 byte length field");
+
+        // At exactly 2^61 bytes the 64-bit bit-length field wraps to zero, so
+        // the digest is the same as for the empty message.
+        let mut hasher = Sha256::new();
+        hasher.total_len = 1u64 << 61;
+        assert_eq!(hasher.sum().as_ref(), empty.as_ref());
+
+        // The maximum 64-bit counter value encodes a bit length of
+        // (2^64 - 1) * 8 == 2^64 - 8 (mod 2^64), i.e. the same field as a
+        // message of 2^61 - 1 bytes.
+        let mut hasher = Sha256::new();
+        hasher.total_len = u64::MAX;
+        assert_eq!(hasher.sum().as_ref(), below_limit.as_ref());
+    }
+}

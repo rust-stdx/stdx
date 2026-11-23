@@ -134,9 +134,9 @@ impl ChunkState {
     /// Test-only: whether the fields selected for zeroization have been cleared.
     #[cfg(all(test, feature = "zeroize"))]
     fn debug_is_zeroized(&self) -> bool {
-        // `buf` is intentionally skipped (the backing `Aligned64` has no zeroize impl for now).
         self.cv == [0u32; 8]
             && self.chunk_counter == 0
+            && self.buf.0 == [0u8; BLOCK_LEN]
             && self.buf_len == 0
             && self.blocks_compressed == 0
             && self.flags == 0
@@ -204,8 +204,11 @@ impl Output {
     /// Test-only: whether the fields selected for zeroization have been cleared.
     #[cfg(all(test, feature = "zeroize"))]
     fn debug_is_zeroized(&self) -> bool {
-        // `block` is intentionally skipped (the backing `Aligned64` has no zeroize impl for now).
-        self.input_chaining_value == [0u32; 8] && self.block_len == 0 && self.counter == 0 && self.flags == 0
+        self.input_chaining_value == [0u32; 8]
+            && self.block.0 == [0u8; BLOCK_LEN]
+            && self.block_len == 0
+            && self.counter == 0
+            && self.flags == 0
     }
 }
 
@@ -797,5 +800,236 @@ impl OutputReader {
     #[cfg(all(test, feature = "zeroize"))]
     pub(crate) fn debug_is_zeroized(&self) -> bool {
         self.inner.debug_is_zeroized() && self.position_within_block == 0 && self.block.iter().all(|b| *b == 0)
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Test-only entry points that force a specific backend
+////////////////////////////////////////////////////////////////////////////////
+
+/// One-shot hash with an explicitly chosen backend, so tests can exercise the
+/// portable (scalar) path on a machine where a SIMD backend is available.
+#[cfg(test)]
+pub(crate) fn debug_hash_with(platform: Platform, input: &[u8]) -> [u8; OUT_LEN] {
+    hash_all_at_once(input, &IV, 0, platform).root_hash()
+}
+
+/// Keyed hash with an explicitly chosen backend.
+#[cfg(test)]
+pub(crate) fn debug_keyed_hash_with(platform: Platform, key: &[u8; KEY_LEN], input: &[u8]) -> [u8; OUT_LEN] {
+    let key_words = words_from_le_bytes_32(key);
+    hash_all_at_once(input, &key_words, KEYED_HASH, platform).root_hash()
+}
+
+/// Key derivation with an explicitly chosen backend.
+#[cfg(test)]
+pub(crate) fn debug_derive_key_with(platform: Platform, context: &str, material: &[u8]) -> [u8; OUT_LEN] {
+    let context_key = hash_all_at_once(context.as_bytes(), &IV, DERIVE_KEY_CONTEXT, platform).root_hash();
+    let key_words = words_from_le_bytes_32(&context_key);
+    hash_all_at_once(material, &key_words, DERIVE_KEY_MATERIAL, platform).root_hash()
+}
+
+/// Extended output (from offset 0) with an explicitly chosen backend.
+#[cfg(test)]
+pub(crate) fn debug_xof_with(platform: Platform, input: &[u8], out: &mut [u8]) {
+    OutputReader::new(hash_all_at_once(input, &IV, 0, platform)).fill(out);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Deterministic test bytes.
+    fn pattern(len: usize, seed: u8) -> Vec<u8> {
+        (0..len)
+            .map(|i| ((i as u8).wrapping_mul(31).wrapping_add(seed)) % 251)
+            .collect()
+    }
+
+    /// The CV stack never exceeds `MAX_DEPTH + 1` entries, and when the chunk
+    /// buffer is empty the stack is either empty or has at least two entries
+    /// (the invariant `final_output` relies on).
+    #[test]
+    fn cv_stack_invariants_hold_while_hashing() {
+        assert_eq!(MAX_DEPTH, 54, "MAX_DEPTH encodes 2^54 chunks of 2^10 bytes");
+        assert!(MAX_DEPTH < u8::MAX as usize, "stack length must fit in u8");
+
+        let data = pattern(20_000, 7);
+        for &len in &[
+            0usize, 1, 63, 64, 65, 1023, 1024, 1025, 2047, 2048, 2049, 3072, 4095, 4096, 4097, 8191, 8192, 8193, 16384,
+            20_000,
+        ] {
+            let mut hasher = Hasher::new();
+            hasher.update(&data[..len]);
+            assert!(
+                hasher.cv_stack_len as usize <= MAX_DEPTH + 1,
+                "stack overflow at len {len}: {}",
+                hasher.cv_stack_len
+            );
+            if hasher.chunk_state.count() == 0 {
+                assert!(
+                    hasher.cv_stack_len == 0 || hasher.cv_stack_len >= 2,
+                    "a non-empty stack with an empty chunk buffer must have >= 2 entries at len {len}"
+                );
+            }
+            // Any number of extra empty updates must not change the state.
+            let before = hasher.cv_stack_len;
+            hasher.update(&[]);
+            assert_eq!(before, hasher.cv_stack_len);
+        }
+    }
+
+    /// The stack cannot grow past `MAX_DEPTH + 1` even at the counter with the
+    /// maximum possible number of set bits (54 ones, i.e. `2^54 - 1` chunks).
+    #[test]
+    fn cv_stack_bounds_at_maximum_popcount_counter() {
+        let max_counter = (1u64 << 54) - 1;
+        assert_eq!(max_counter.count_ones() as usize, MAX_DEPTH);
+
+        let mut hasher = Hasher::new();
+        // Pretend 54 subtrees are already on the stack; merging for a counter
+        // with 54 ones keeps all of them, and the push adds the 55th slot.
+        hasher.cv_stack_len = MAX_DEPTH as u8;
+        hasher.push_cv([0xAAu8; OUT_LEN], max_counter);
+        assert_eq!(hasher.cv_stack_len as usize, MAX_DEPTH + 1);
+        assert_eq!(hasher.cv_stack[MAX_DEPTH], [0xAAu8; OUT_LEN]);
+        assert!(hasher.cv_stack[..MAX_DEPTH].iter().all(|cv| *cv == [0u8; OUT_LEN]));
+
+        // A counter with one set bit collapses the whole stack before pushing.
+        hasher.push_cv([0xBBu8; OUT_LEN], 1u64 << 54);
+        assert_eq!(hasher.cv_stack_len, 2);
+        assert_eq!(hasher.cv_stack[1], [0xBBu8; OUT_LEN]);
+
+        // `merge_cv_stack` is monotone: it never leaves more entries than the
+        // target popcount (or the previous length, whichever is smaller). The
+        // lengths used here are the ones a real hasher can produce: either
+        // `ones(counter)` or the extra un-merged slot above it.
+        for &counter in &[
+            1u64,
+            2,
+            3,
+            7,
+            8,
+            u32::MAX as u64,
+            (1u64 << 32) + 1,
+            (1u64 << 54) - 1,
+            u64::MAX,
+        ] {
+            let target = counter.count_ones() as usize;
+            for extra in 0..=1usize {
+                let mut hasher = Hasher::new();
+                let before = core::cmp::min(target + extra, MAX_DEPTH + 1);
+                hasher.cv_stack_len = before as u8;
+                hasher.merge_cv_stack(counter);
+                assert_eq!(
+                    hasher.cv_stack_len as usize,
+                    core::cmp::min(before, target),
+                    "merge_cv_stack({counter}) produced the wrong length"
+                );
+            }
+        }
+    }
+
+    /// `final_output` walks a maximum-depth stack (55 entries) without
+    /// panicking, and the merging loop is in bounds for every length.
+    #[test]
+    fn final_output_at_maximum_depth() {
+        let mut hasher = Hasher::new();
+        hasher.chunk_state.chunk_counter = (1u64 << 54) - 1;
+        // A full-size lazy stack with an empty chunk buffer.
+        hasher.cv_stack_len = (MAX_DEPTH + 1) as u8;
+        for (i, cv) in hasher.cv_stack.iter_mut().enumerate() {
+            *cv = [i as u8; OUT_LEN];
+        }
+        let output = hasher.final_output();
+        // The output must be stable and must never apply ROOT early.
+        assert_eq!(output.root_hash(), hasher.finalize());
+
+        // A counter with the maximum popcount and a non-empty chunk buffer.
+        let mut hasher = Hasher::new();
+        hasher.chunk_state.chunk_counter = (1u64 << 54) - 1;
+        hasher.cv_stack_len = MAX_DEPTH as u8;
+        hasher.chunk_state.update(b"x");
+        let _ = hasher.finalize();
+    }
+
+    /// `update` at the maximum *documented* chunk counter (`2^54`, i.e. 2^64
+    /// bytes of input) must keep the stack bounded and must not panic.
+    /// Counters beyond that are outside the documented input limit (the digest
+    /// is unspecified there); see the report.
+    #[test]
+    fn update_at_maximum_documented_chunk_counter() {
+        let data = pattern(3 * CHUNK_LEN + 1, 11);
+        for &start in &[(1u64 << 54) - 4, (1u64 << 54) - 3, (1u64 << 54) - 1] {
+            let mut hasher = Hasher::new();
+            hasher.chunk_state.chunk_counter = start;
+            hasher.update(&data);
+            // Three whole chunks were consumed; the trailing byte sits in chunk 3.
+            assert_eq!(hasher.chunk_state.chunk_counter, start.wrapping_add(3));
+            assert_eq!(hasher.chunk_state.count(), 1);
+            assert!(hasher.cv_stack_len as usize <= MAX_DEPTH + 1);
+        }
+    }
+
+    // The `u64` chunk counter is documented as wrapping, but the lazy CV
+    // stack only has `MAX_DEPTH + 1` slots, so a stream long enough to push
+    // the chunk counter past `2^54` chunks is outside the documented input
+    // limit and can panic (`pop_stack`/`push_stack`). No test constructs such
+    // a stream: it would need more than 2^64 bytes of input, which cannot be
+    // supplied on any current target.
+
+    /// `compress_chunks_parallel` must give each lane `chunk_counter + i`,
+    /// including when that wraps past `u64::MAX`, and must agree with hashing
+    /// each chunk separately.
+    #[test]
+    fn compress_chunks_parallel_counter_wrap() {
+        for platform in [Platform::Portable, Platform::detect()] {
+            let degree = platform.simd_degree();
+            let input = pattern(degree * CHUNK_LEN, 3);
+            let start = u64::MAX - (degree as u64) / 2;
+
+            let mut out = vec![0u8; (degree + 1) * OUT_LEN];
+            let written = compress_chunks_parallel(&input, &IV, start, 0, platform, &mut out);
+            assert_eq!(written, degree, "platform {platform:?}");
+
+            for i in 0..degree {
+                let counter = start.wrapping_add(i as u64);
+                let mut chunk = ChunkState::new(&IV, counter, 0, Platform::Portable);
+                chunk.update(&input[i * CHUNK_LEN..(i + 1) * CHUNK_LEN]);
+                assert_eq!(
+                    &out[i * OUT_LEN..(i + 1) * OUT_LEN],
+                    &chunk.output().chaining_value()[..],
+                    "platform {platform:?}, lane {i}, counter {counter}"
+                );
+            }
+        }
+    }
+
+    /// A trailing partial chunk gets `chunk_counter + num_full_chunks`, also
+    /// with wrapping.
+    #[test]
+    fn compress_chunks_parallel_partial_counter_wrap() {
+        for platform in [Platform::Portable, Platform::detect()] {
+            let degree = platform.simd_degree();
+            if degree < 2 {
+                continue;
+            }
+            let full = degree - 1;
+            let input = pattern(full * CHUNK_LEN + 5, 9);
+            let start = u64::MAX - (full as u64);
+
+            let mut out = vec![0u8; (full + 2) * OUT_LEN];
+            let written = compress_chunks_parallel(&input, &IV, start, 0, platform, &mut out);
+            assert_eq!(written, full + 1, "platform {platform:?}");
+
+            let counter = start.wrapping_add(full as u64);
+            let mut chunk = ChunkState::new(&IV, counter, 0, Platform::Portable);
+            chunk.update(&input[full * CHUNK_LEN..]);
+            assert_eq!(
+                &out[full * OUT_LEN..(full + 1) * OUT_LEN],
+                &chunk.output().chaining_value()[..],
+                "platform {platform:?}, partial counter {counter}"
+            );
+        }
     }
 }

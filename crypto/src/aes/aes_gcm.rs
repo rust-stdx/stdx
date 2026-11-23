@@ -16,8 +16,28 @@ use crate::{
 /// AES-128-GCM authenticated cipher.
 ///
 /// Create a new cipher with [`new`](Aes128Gcm::new).
-/// [`encrypt_in_place`](Aead::encrypt_in_place) and
+/// Call [`encrypt_in_place`](Aead::encrypt_in_place) and
 /// [`decrypt_in_place`](Aead::decrypt_in_place) for authenticated encryption.
+///
+/// # Nonce requirements
+///
+/// Only 12-byte (96-bit) nonces are supported. A nonce must **never** be
+/// reused with the same key: doing so breaks both confidentiality and
+/// authenticity. Use a counter or a random value that is unique per message.
+///
+/// The 16-byte authentication tag must be stored with the ciphertext and
+/// supplied to `decrypt_in_place`; truncated or extended tags are rejected.
+///
+/// # Failure behavior
+///
+/// Encryption returns [`AeadError::InvalidNonce`] for a non-12-byte nonce and
+/// [`AeadError::MessageTooLong`] when the plaintext exceeds the GCM limit,
+/// without modifying the buffer.
+///
+/// On tag failure the buffer contents are unspecified: the ARMv8 single-pass
+/// decrypt may leave unauthenticated plaintext in it, while the software and
+/// x86 paths leave the ciphertext. Callers must not use the buffer after an
+/// `Err`.
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Aes128Gcm(pub(crate) AesGcm<11>);
 
@@ -26,9 +46,13 @@ impl Aes128Gcm {
 
     /// Create a new AES-128-GCM instance from a 16-byte key.
     ///
-    /// Precomputes the target-specific round keys and GHASH powers (H, H², H³, H⁴)
-    /// using software GF(2¹²⁸) multiplication, so `new()` is safe on any CPU
-    /// and does not require hardware feature detection.
+    /// Precomputes the target-specific round keys and the GHASH powers the
+    /// selected backend uses (H¹…H¹⁶ on the 512-bit x86 path, H¹…H⁸ on the
+    /// 128/256-bit paths, or H alone in the software path). H and its powers
+    /// are derived with constant-time software GF(2¹²⁸) multiplication, so
+    /// construction itself works on any CPU; a hardware backend is selected at
+    /// runtime when present, otherwise the constant-time software path is
+    /// used.
     #[inline]
     pub fn new(key: &[u8; Self::KEY_SIZE]) -> Self {
         Self(AesGcm::<11>::new(key))
@@ -40,12 +64,13 @@ impl Aead for Aes128Gcm {
     const TAG_SIZE: usize = 16;
     const NONCE_SIZE: usize = 12;
 
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if `nonce.len() != 12`.
+    /// Returns [`AeadError::InvalidNonce`] if `nonce.len() != 12` and
+    /// [`AeadError::MessageTooLong`] if `in_out` exceeds the GCM limit.
     #[inline]
-    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
-        let nonce_arr: &[u8; 12] = nonce.try_into().map_err(|_| AeadError::InvalidNonce).unwrap();
+    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Result<Hash, AeadError> {
+        let nonce_arr: &[u8; 12] = nonce.try_into().map_err(|_| AeadError::InvalidNonce)?;
 
         self.0.encrypt_in_place(in_out, nonce_arr, aad)
     }
@@ -62,8 +87,28 @@ impl Aead for Aes128Gcm {
 /// AES-256-GCM authenticated cipher.
 ///
 /// Create a new cipher with [`new`](Aes256Gcm::new).
-/// [`encrypt_in_place`](Aead::encrypt_in_place) and
+/// Call [`encrypt_in_place`](Aead::encrypt_in_place) and
 /// [`decrypt_in_place`](Aead::decrypt_in_place) for authenticated encryption.
+///
+/// # Nonce requirements
+///
+/// Only 12-byte (96-bit) nonces are supported. A nonce must **never** be
+/// reused with the same key: doing so breaks both confidentiality and
+/// authenticity. Use a counter or a random value that is unique per message.
+///
+/// The 16-byte authentication tag must be stored with the ciphertext and
+/// supplied to `decrypt_in_place`; truncated or extended tags are rejected.
+///
+/// # Failure behavior
+///
+/// Encryption returns [`AeadError::InvalidNonce`] for a non-12-byte nonce and
+/// [`AeadError::MessageTooLong`] when the plaintext exceeds the GCM limit,
+/// without modifying the buffer.
+///
+/// On tag failure the buffer contents are unspecified: the ARMv8 single-pass
+/// decrypt may leave unauthenticated plaintext in it, while the software and
+/// x86 paths leave the ciphertext. Callers must not use the buffer after an
+/// `Err`.
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Aes256Gcm(pub(crate) AesGcm<15>);
 
@@ -72,9 +117,13 @@ impl Aes256Gcm {
 
     /// Create a new AES-256-GCM instance from a 32-byte key.
     ///
-    /// Precomputes the target-specific round keys and GHASH powers (H, H², H³, H⁴)
-    /// using software GF(2¹²⁸) multiplication, so `new()` is safe on any CPU
-    /// and does not require hardware feature detection.
+    /// Precomputes the target-specific round keys and the GHASH powers the
+    /// selected backend uses (H¹…H¹⁶ on the 512-bit x86 path, H¹…H⁸ on the
+    /// 128/256-bit paths, or H alone in the software path). H and its powers
+    /// are derived with constant-time software GF(2¹²⁸) multiplication, so
+    /// construction itself works on any CPU; a hardware backend is selected at
+    /// runtime when present, otherwise the constant-time software path is
+    /// used.
     #[inline]
     pub fn new(key: &[u8; Self::KEY_SIZE]) -> Self {
         Self(AesGcm::<15>::new(key))
@@ -86,12 +135,13 @@ impl Aead for Aes256Gcm {
     const TAG_SIZE: usize = 16;
     const NONCE_SIZE: usize = 12;
 
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if `nonce.len() != 12`.
+    /// Returns [`AeadError::InvalidNonce`] if `nonce.len() != 12` and
+    /// [`AeadError::MessageTooLong`] if `in_out` exceeds the GCM limit.
     #[inline]
-    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
-        let nonce_arr: &[u8; 12] = nonce.try_into().map_err(|_| AeadError::InvalidNonce).unwrap();
+    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Result<Hash, AeadError> {
+        let nonce_arr: &[u8; 12] = nonce.try_into().map_err(|_| AeadError::InvalidNonce)?;
 
         self.0.encrypt_in_place(in_out, nonce_arr, aad)
     }
@@ -172,6 +222,14 @@ fn x86_h_powers<const N: usize>(
         h_powers[i] = unsafe { _mm_loadu_si128(power.as_ptr().cast()) };
     }
     h_powers
+}
+
+/// Whether a GCM message length is within the NIST SP 800-38D limit of
+/// 2³² − 2 blocks. The comparison is performed in `u64`, so it is exact on
+/// 32-bit targets too and cannot overflow.
+#[inline]
+fn within_gcm_limit(len: usize) -> bool {
+    len as u64 <= GCM_MAX_LEN
 }
 
 impl<const N: usize> AesGcm<N> {
@@ -262,13 +320,12 @@ impl<const N: usize> AesGcm<N> {
         }
     }
 
-    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8; 12], aad: &[u8]) -> Hash {
-        assert!(
-            in_out.len() as u64 <= GCM_MAX_LEN,
-            "GCM plaintext exceeds maximum allowed length (2^32 - 2 blocks)"
-        );
+    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8; 12], aad: &[u8]) -> Result<Hash, AeadError> {
+        if !within_gcm_limit(in_out.len()) {
+            return Err(AeadError::MessageTooLong);
+        }
 
-        match (&self.round_keys, &self.h_powers) {
+        return Ok(match (&self.round_keys, &self.h_powers) {
             #[cfg(target_arch = "aarch64")]
             (RoundKeys::Armv8(round_keys), GHashPowers::Armv8(h_powers)) => unsafe {
                 use crate::aes::aes_gcm_arm64::gcm_encrypt_armv8;
@@ -296,7 +353,7 @@ impl<const N: usize> AesGcm<N> {
                 self.encrypt_in_place_soft(in_out, round_keys, h, nonce, aad)
             }
             _ => unreachable!(),
-        }
+        });
     }
 
     fn decrypt_in_place(
@@ -306,8 +363,8 @@ impl<const N: usize> AesGcm<N> {
         aad: &[u8],
         tag: &[u8; 16],
     ) -> Result<(), AeadError> {
-        if in_out.len() as u64 > GCM_MAX_LEN {
-            return Err(AeadError::InvalidCiphertext);
+        if !within_gcm_limit(in_out.len()) {
+            return Err(AeadError::MessageTooLong);
         }
 
         match (&self.round_keys, &self.h_powers) {
@@ -466,7 +523,7 @@ mod tests_128 {
 
         let cipher = Aes128Gcm::new(&key);
         let mut buf = plaintext.clone();
-        let tag = cipher.encrypt_in_place(&mut buf, &nonce, aad);
+        let tag = cipher.encrypt_in_place(&mut buf, &nonce, aad).unwrap();
         let tag_bytes: [u8; 16] = tag.as_ref().try_into().unwrap();
         cipher
             .decrypt_in_place(&mut buf, &nonce, aad, &tag_bytes)
@@ -481,7 +538,7 @@ mod tests_128 {
         let aad = b"test";
         let cipher = Aes128Gcm::new(&key);
         let mut buf: Vec<u8> = vec![];
-        let tag = cipher.encrypt_in_place(&mut buf, &nonce, aad);
+        let tag = cipher.encrypt_in_place(&mut buf, &nonce, aad).unwrap();
         let tag_bytes: [u8; 16] = tag.as_ref().try_into().unwrap();
         cipher
             .decrypt_in_place(&mut buf, &nonce, aad, &tag_bytes)
@@ -494,7 +551,7 @@ mod tests_128 {
         let nonce = [0u8; 12];
         let cipher = Aes128Gcm::new(&key);
         let mut buf = b"hello world".to_vec();
-        let tag = cipher.encrypt_in_place(&mut buf, &nonce, &[]);
+        let tag = cipher.encrypt_in_place(&mut buf, &nonce, &[]).unwrap();
         let mut bad_tag: [u8; 16] = tag.as_ref().try_into().unwrap();
         bad_tag[0] ^= 0xff;
         let mut buf2 = buf.clone();
@@ -564,7 +621,7 @@ mod tests_128 {
 
                 if result == "valid" {
                     let mut buf = pt.clone();
-                    let tag = cipher.encrypt_in_place(&mut buf, &nonce, &aad);
+                    let tag = cipher.encrypt_in_place(&mut buf, &nonce, &aad).unwrap();
                     assert_eq!(buf, expected_ct, "wycheproof tcId={} ct mismatch", test["tcId"]);
                     assert_eq!(tag.as_ref(), &expected_tag[..], "wycheproof tcId={} tag mismatch", test["tcId"]);
 
@@ -584,6 +641,145 @@ mod tests_128 {
         }
         assert!(valid_tested > 0, "no valid AES-128-GCM wycheproof tests were run");
         assert!(invalid_tested > 0, "no invalid AES-128-GCM wycheproof tests were run");
+    }
+}
+
+#[cfg(test)]
+mod regression_tests {
+    use super::*;
+
+    /// The NIST SP 800-38D length limit must be enforced with arithmetic that
+    /// cannot overflow, including for lengths that no allocation could hold.
+    #[test]
+    fn gcm_length_limit_check_cannot_overflow() {
+        const LIMIT_BYTES: u64 = (u32::MAX as u64 - 1) * 16;
+        assert_eq!(GCM_MAX_LEN, LIMIT_BYTES);
+        assert_eq!(GCM_MAX_LEN, 68_719_476_704);
+        assert_eq!(GCM_MAX_LEN % 16, 0);
+        assert_eq!(GCM_MAX_LEN / 16, u32::MAX as u64 - 1);
+
+        assert!(within_gcm_limit(0));
+        assert!(within_gcm_limit(1));
+        assert!(within_gcm_limit(16));
+
+        #[cfg(target_pointer_width = "64")]
+        {
+            assert!(within_gcm_limit(GCM_MAX_LEN as usize));
+            assert!(!within_gcm_limit(GCM_MAX_LEN as usize + 1));
+            assert!(!within_gcm_limit(GCM_MAX_LEN as usize * 2));
+            assert!(!within_gcm_limit(usize::MAX));
+        }
+
+        // On 32-bit targets a slice can never reach the 64 GiB limit, so the
+        // check must accept every representable length (and still not
+        // overflow when widened to u64).
+        #[cfg(target_pointer_width = "32")]
+        assert!(within_gcm_limit(usize::MAX));
+    }
+
+    /// A mismatched `RoundKeys`/`GHashPowers` pair is impossible through the
+    /// public constructors; the private constructors only ever pair matching
+    /// variants. This checks the tags dispatch actually selects.
+    #[test]
+    fn constructed_cipher_has_matching_dispatch_variant() {
+        let cipher = Aes128Gcm::new(&[0x11; 16]);
+        match (&cipher.0.round_keys, &cipher.0.h_powers) {
+            #[cfg(target_arch = "aarch64")]
+            (RoundKeys::Armv8(_), GHashPowers::Armv8(_)) => {}
+            #[cfg(target_arch = "x86_64")]
+            (RoundKeys::X86_64(_), GHashPowers::X86_64(_)) => {}
+            (RoundKeys::Software(_), GHashPowers::Software(_)) => {}
+            _ => panic!("round keys and GHASH powers were built for different backends"),
+        }
+
+        let cipher = Aes256Gcm::new(&[0x22; 32]);
+        match (&cipher.0.round_keys, &cipher.0.h_powers) {
+            #[cfg(target_arch = "aarch64")]
+            (RoundKeys::Armv8(_), GHashPowers::Armv8(_)) => {}
+            #[cfg(target_arch = "x86_64")]
+            (RoundKeys::X86_64(_), GHashPowers::X86_64(_)) => {}
+            (RoundKeys::Software(_), GHashPowers::Software(_)) => {}
+            _ => panic!("round keys and GHASH powers were built for different backends"),
+        }
+    }
+
+    /// The SSE2/NEON intrinsics used by the constructors only need a feature
+    /// that is part of the target's baseline; otherwise the un-attributed
+    /// `unsafe` blocks in `x86_h_powers`/`new_inner` would be unsound.
+    #[test]
+    fn constructor_intrinsics_have_baseline_features() {
+        #[cfg(target_arch = "x86_64")]
+        assert!(cfg!(target_feature = "sse2"), "SSE2 must be baseline on x86_64");
+        #[cfg(target_arch = "aarch64")]
+        const {
+            assert!(cfg!(target_feature = "neon"), "NEON must be baseline on aarch64");
+        }
+    }
+
+    /// Construction must only store hardware round keys/powers when the CPU
+    /// (or, in `no_std` builds, the compile-time target) has the instructions
+    /// the dispatch arm will execute.
+    #[cfg(all(feature = "std", target_arch = "aarch64"))]
+    #[test]
+    fn aarch64_dispatch_follows_feature_detection() {
+        let cipher = Aes128Gcm::new(&[0x11; 16]);
+        let expected_armv8 = std::arch::is_aarch64_feature_detected!("aes");
+        match &cipher.0.round_keys {
+            RoundKeys::Armv8(_) => assert!(expected_armv8),
+            RoundKeys::Software(_) => assert!(!expected_armv8),
+        }
+        match &cipher.0.h_powers {
+            GHashPowers::Armv8(powers) => {
+                assert!(expected_armv8);
+                assert_eq!(powers.len(), 8, "the aarch64 kernel indexes only H¹..H⁸");
+            }
+            GHashPowers::Software(_) => assert!(!expected_armv8),
+        }
+    }
+
+    /// x86 construction must select the best backend and compute all sixteen
+    /// GHASH powers exactly when the dispatch arm may use them.
+    #[cfg(all(feature = "std", target_arch = "x86_64"))]
+    #[test]
+    fn x86_dispatch_follows_feature_detection() {
+        use crate::aes::aes_amd64::X86Backend;
+
+        let cipher = Aes256Gcm::new(&[0x22; 32]);
+        let have = std::arch::is_x86_feature_detected!("aes")
+            && std::arch::is_x86_feature_detected!("pclmulqdq")
+            && std::arch::is_x86_feature_detected!("ssse3")
+            && std::arch::is_x86_feature_detected!("sse4.1");
+        let vpclmul = std::arch::is_x86_feature_detected!("vpclmulqdq");
+
+        if have {
+            let mut expected = X86Backend::detect();
+            if expected == X86Backend::Vaes512 && !vpclmul {
+                expected = X86Backend::Vaes256;
+            }
+            assert_eq!(cipher.0.backend, expected);
+            assert_eq!(cipher.0.vpclmul, vpclmul);
+            match (&cipher.0.round_keys, &cipher.0.h_powers) {
+                (RoundKeys::X86_64(_), GHashPowers::X86_64(powers)) => {
+                    // Entries 8..16 are only consumed by the 512-bit path.
+                    // When that backend is selected all sixteen must have been
+                    // computed; H¹⁶ and H⁸ differ for any non-zero H.
+                    fn power_bytes(value: core::arch::x86_64::__m128i) -> [u8; 16] {
+                        let mut bytes = [0u8; 16];
+                        // SAFETY: SSE2 is baseline on x86_64 and `bytes` is a
+                        // full 16-byte destination.
+                        unsafe { core::arch::x86_64::_mm_storeu_si128(bytes.as_mut_ptr().cast(), value) };
+                        bytes
+                    }
+                    if expected == X86Backend::Vaes512 {
+                        assert_ne!(power_bytes(powers[15]), power_bytes(powers[7]), "H¹⁶ must be distinct from H⁸");
+                    }
+                }
+                _ => panic!("hardware features detected but software keys stored"),
+            }
+        } else {
+            assert!(matches!(cipher.0.round_keys, RoundKeys::Software(_)));
+            assert!(matches!(cipher.0.h_powers, GHashPowers::Software(_)));
+        }
     }
 }
 
@@ -688,7 +884,7 @@ mod tests_256 {
                 let mut soft = pt.clone();
                 let soft_tag = cipher.0.encrypt_in_place_soft(&mut soft, &round_keys, &h, &nonce, &aad);
                 let mut dispatch = pt.clone();
-                let dispatch_tag = cipher.encrypt_in_place(&mut dispatch, &nonce, &aad);
+                let dispatch_tag = cipher.encrypt_in_place(&mut dispatch, &nonce, &aad).unwrap();
 
                 assert_eq!(soft, dispatch, "ciphertext mismatch for pt_len={pt_len} aad_len={aad_len}");
                 assert_eq!(
@@ -720,7 +916,7 @@ mod tests_256 {
         let nonce = [0u8; 12];
         let cipher = Aes256Gcm::new(&key);
         let mut buf = b"hello world".to_vec();
-        let tag = cipher.encrypt_in_place(&mut buf, &nonce, &[]);
+        let tag = cipher.encrypt_in_place(&mut buf, &nonce, &[]).unwrap();
         let mut bad_tag: [u8; 16] = tag.as_ref().try_into().unwrap();
         bad_tag[0] ^= 0xff;
         let mut buf2 = buf.clone();
@@ -778,7 +974,7 @@ mod tests_256 {
             let cipher = Aes256Gcm::new(&key);
 
             let mut buf = pt.clone();
-            let tag = cipher.encrypt_in_place(&mut buf, &nonce[..], &aad);
+            let tag = cipher.encrypt_in_place(&mut buf, &nonce[..], &aad).unwrap();
             assert_eq!(&buf[..], &expected_ct[..], "dispatch ciphertext mismatch key={}", v.key);
             assert_eq!(tag.as_ref(), &expected_tag[..], "dispatch tag mismatch key={}", v.key);
 
@@ -826,7 +1022,7 @@ mod tests_256 {
 
                 if result == "valid" {
                     let mut buf = pt.clone();
-                    let tag = cipher.encrypt_in_place(&mut buf, &nonce[..], &aad);
+                    let tag = cipher.encrypt_in_place(&mut buf, &nonce[..], &aad).unwrap();
                     assert_eq!(buf, expected_ct, "wycheproof GCM tcId={} ct mismatch", test["tcId"]);
                     assert_eq!(
                         tag.as_ref(),

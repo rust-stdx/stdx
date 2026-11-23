@@ -96,12 +96,15 @@ impl<const D: usize> BlockOps for AesNi<D> {
 
     #[inline(always)]
     fn ctx_all() -> Self {
+        const {
+            assert!(D <= 4, "AEGIS degree must be at most 4");
+        }
         let mut raw = [0u8; 64];
         for lane in 0..D {
             raw[lane * 16] = lane as u8;
             raw[lane * 16 + 1] = (D - 1) as u8;
         }
-        // SAFETY: `raw` is at least `D * 16` bytes.
+        // SAFETY: `raw` is at least `D * 16` bytes, and `D <= 4`.
         unsafe { Self::load(raw.as_ptr()) }
     }
 }
@@ -190,12 +193,15 @@ impl<const L: usize> BlockOps for Vaes256<L> {
 
     #[inline(always)]
     fn ctx_all() -> Self {
+        const {
+            assert!(2 * L <= 4, "AEGIS degree must be at most 4");
+        }
         let mut raw = [0u8; 64];
         for lane in 0..2 * L {
             raw[lane * 16] = lane as u8;
             raw[lane * 16 + 1] = (2 * L - 1) as u8;
         }
-        // SAFETY: `raw` is at least `2 * L * 16` bytes.
+        // SAFETY: `raw` is at least `2 * L * 16` bytes, and `2 * L <= 4`.
         unsafe { Self::load(raw.as_ptr()) }
     }
 }
@@ -282,12 +288,15 @@ impl<const L: usize> BlockOps for Vaes512<L> {
 
     #[inline(always)]
     fn ctx_all() -> Self {
+        const {
+            assert!(4 * L <= 4, "AEGIS degree must be at most 4");
+        }
         let mut raw = [0u8; 64];
         for lane in 0..4 * L {
             raw[lane * 16] = lane as u8;
             raw[lane * 16 + 1] = (4 * L - 1) as u8;
         }
-        // SAFETY: `raw` is at least `4 * L * 16` bytes.
+        // SAFETY: `raw` is at least `4 * L * 16` bytes, and `4 * L <= 4`.
         unsafe { Self::load(raw.as_ptr()) }
     }
 }
@@ -442,3 +451,334 @@ state_impl!(
     "vaes,avx512f,avx512bw,avx2",
     Vaes512<1>
 );
+
+#[cfg(all(test, feature = "std"))]
+mod kernel_tests {
+    //! Independent checks for the x86-64 AEGIS kernels.
+    //!
+    //! Each hardware backends is compared against the portable `aegis_soft`
+    //! backend, both at the `BlockOps` level (load/store/round/xor/and/fold/
+    //! broadcast/ctx_all) and through every macro-generated wrapper that
+    //! `aegis/mod.rs` dispatches to. Buffers are placed at non-zero offsets
+    //! inside canary allocations so an over-read or over-write is visible.
+    //!
+    //! These tests need a CPU (or emulator) with the corresponding features;
+    //! they return early when detection says the feature is absent.
+
+    use alloc::{vec, vec::Vec};
+
+    use super::*;
+    use crate::aegis::{
+        aegis_core::{
+            absorb_state, finalize_mac_state, init_state, next_keystream_state, stream_fill_state, stream_xor_state,
+        },
+        aegis_soft::Soft,
+    };
+
+    const CANARY: u8 = 0xa5;
+
+    fn bytes_of<B: BlockOps>(b: B) -> Vec<u8> {
+        let mut out = vec![0u8; 16 * B::D];
+        // SAFETY: `out` is exactly `D * 16` bytes.
+        unsafe { b.store(out.as_mut_ptr()) };
+        out
+    }
+
+    fn pat(len: usize, mul: u8, add: u8) -> Vec<u8> {
+        (0..len)
+            .map(|i| (i as u8).wrapping_mul(mul).wrapping_add(add))
+            .collect()
+    }
+
+    fn rand(st: &mut u32, out: &mut [u8]) {
+        for b in out.iter_mut() {
+            *st ^= *st << 13;
+            *st ^= *st >> 17;
+            *st ^= *st << 5;
+            *b = *st as u8;
+        }
+    }
+
+    macro_rules! block_ops_check {
+        ($t:ty) => {{
+            const D: usize = <$t as BlockOps>::D;
+            let mut st = 0x9e37_79b9u32;
+            for _ in 0..128 {
+                let mut a = vec![0u8; 16 * D];
+                let mut k = vec![0u8; 16 * D];
+                rand(&mut st, &mut a);
+                rand(&mut st, &mut k);
+
+                // Unaligned load/store at a non-zero offset with canaries.
+                let pad = 3;
+                let mut src = vec![CANARY; 16 * D + 2 * pad];
+                src[pad..pad + 16 * D].copy_from_slice(&a);
+                // SAFETY: the slice holds `16 * D` readable bytes.
+                let x = unsafe { <$t as BlockOps>::load(src[pad..].as_ptr()) };
+                let mut dst = vec![CANARY; 16 * D + 2 * pad];
+                // SAFETY: the slice holds `16 * D` writable bytes.
+                unsafe { x.store(dst[pad..].as_mut_ptr()) };
+                assert_eq!(&dst[pad..pad + 16 * D], &a[..]);
+                assert!(dst[..pad].iter().all(|&b| b == CANARY));
+                assert!(dst[pad + 16 * D..].iter().all(|&b| b == CANARY));
+
+                // round / xor / and must match lane-wise software AES.
+                // SAFETY: 16 * D readable bytes in `k`.
+                let khw = unsafe { <$t as BlockOps>::load(k.as_ptr()) };
+                // SAFETY: 16 * D readable bytes in `a`.
+                let asoft = unsafe { Soft::<D>::load(a.as_ptr()) };
+                // SAFETY: likewise.
+                let ksoft = unsafe { Soft::<D>::load(k.as_ptr()) };
+                assert_eq!(bytes_of(x.round(khw)), bytes_of(asoft.round(ksoft)), "round D={D}");
+                assert_eq!(bytes_of(x.xor(khw)), bytes_of(asoft.xor(ksoft)), "xor D={D}");
+                assert_eq!(bytes_of(x.and(khw)), bytes_of(asoft.and(ksoft)), "and D={D}");
+                assert_eq!(bytes_of(x), bytes_of(asoft), "load D={D}");
+
+                // fold XORs all lanes.
+                let folded = x.fold();
+                let mut want = [0u8; 16];
+                for lane in 0..D {
+                    for i in 0..16 {
+                        want[i] ^= a[lane * 16 + i];
+                    }
+                }
+                assert_eq!(folded, want, "fold D={D}");
+
+                // broadcast repeats one block in every lane.
+                let block = [0x5au8; 16];
+                let mut want = vec![0u8; 16 * D];
+                for lane in 0..D {
+                    want[lane * 16..(lane + 1) * 16].copy_from_slice(&block);
+                }
+                assert_eq!(bytes_of(<$t as BlockOps>::broadcast(&block)), want, "broadcast D={D}");
+
+                // ctx_all must be { lane, D - 1, 0, ... } per lane.
+                let mut want = vec![0u8; 16 * D];
+                for lane in 0..D {
+                    want[lane * 16] = lane as u8;
+                    want[lane * 16 + 1] = (D - 1) as u8;
+                }
+                assert_eq!(bytes_of(<$t as BlockOps>::ctx_all()), want, "ctx_all D={D}");
+                assert!(bytes_of(<$t as BlockOps>::zero()).iter().all(|&b| b == 0), "zero D={D}");
+            }
+        }};
+    }
+
+    macro_rules! wrapper_check {
+        ($d:expr, $enc:path, $dec:path, $init:path, $absorb:path, $fin:path, $next:path, $stream:path, $fill:path) => {{
+            const D: usize = $d;
+            let key = [0x42u8; 32];
+            let nonce = [0x24u8; 32];
+            let rate = 16 * D;
+
+            for &len in &[
+                0usize, 1, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 129, 1023, 1024, 1025,
+            ] {
+                for &ad_len in &[0usize, 1, 15, 16, 17, 31, 32, 33, 63, 64, 65, 1023, 1024, 1025] {
+                    let ad = pat(ad_len, 13, 9);
+                    let pt = pat(len, 17, 5);
+                    for tag_len in [16usize, 32] {
+                        let mut want_ct = pt.clone();
+                        let mut core = Core::<Soft<D>>::new(&key, &nonce);
+                        core.absorb(&ad);
+                        core.encrypt_msg(&mut want_ct);
+                        let mut want_tag = vec![0u8; tag_len];
+                        core.finalize(ad.len(), len, &mut want_tag);
+
+                        let mut got_ct = pt.clone();
+                        let mut got_tag = vec![0u8; tag_len];
+                        // SAFETY: features checked by the caller.
+                        unsafe { $enc(&key, &nonce, &ad, &mut got_ct, &mut got_tag) };
+                        assert_eq!(got_ct, want_ct, "enc D={D} len={len} ad={ad_len} tag={tag_len}");
+                        assert_eq!(got_tag, want_tag, "tag D={D} len={len} ad={ad_len} tag={tag_len}");
+
+                        let mut dec = got_ct.clone();
+                        // SAFETY: features checked by the caller.
+                        let ok = unsafe { $dec(&key, &nonce, &ad, &mut dec, &got_tag) };
+                        assert!(ok, "decrypt rejected valid tag D={D} len={len} ad={ad_len} tag={tag_len}");
+                        assert_eq!(dec, pt, "dec D={D} len={len} ad={ad_len}");
+
+                        let mut bad = got_tag.clone();
+                        bad[0] ^= 1;
+                        let mut tampered = got_ct;
+                        // SAFETY: features checked by the caller.
+                        let ok = unsafe { $dec(&key, &nonce, &ad, &mut tampered, &bad) };
+                        assert!(!ok, "tampered tag accepted D={D} len={len}");
+                        assert!(tampered.iter().all(|&b| b == 0), "tampered output not zeroed D={D}");
+                    }
+                }
+            }
+
+            // Serialized-state entry points, including canaries around the
+            // caller-owned state buffer.
+            let size = 96 * D;
+            let pad = 5;
+            let mut hw = vec![CANARY; size + 2 * pad];
+            let mut sw = vec![0u8; size];
+            // SAFETY: features checked by the caller; slice is `96 * D` bytes.
+            unsafe { $init(&key, &nonce, &mut hw[pad..pad + size]) };
+            init_state::<Soft<D>>(&key, &nonce, &mut sw);
+            assert_eq!(&hw[pad..pad + size], &sw[..], "init D={D}");
+            assert!(hw[..pad].iter().all(|&b| b == CANARY));
+            assert!(hw[pad + size..].iter().all(|&b| b == CANARY));
+
+            let ad = pat(37, 3, 1);
+            // SAFETY: features checked by the caller.
+            unsafe { $absorb(&mut hw[pad..pad + size], &ad) };
+            absorb_state::<Soft<D>>(&mut sw, &ad);
+            assert_eq!(&hw[pad..pad + size], &sw[..], "absorb_state D={D}");
+
+            let mut tag_hw = vec![0u8; 32];
+            let mut tag_sw = vec![0u8; 32];
+            // SAFETY: features checked by the caller.
+            unsafe { $fin(&hw[pad..pad + size], 1234, &mut tag_hw) };
+            finalize_mac_state::<Soft<D>>(&sw, 1234, &mut tag_sw);
+            assert_eq!(tag_hw, tag_sw, "finalize_mac_state D={D}");
+
+            let mut state_hw = hw[pad..pad + size].to_vec();
+            let mut state_sw = sw.clone();
+            let mut out_hw = vec![0u8; rate];
+            let mut out_sw = vec![0u8; rate];
+            // SAFETY: features checked by the caller.
+            unsafe { $next(&mut state_hw, &mut out_hw) };
+            next_keystream_state::<Soft<D>>(&mut state_sw, &mut out_sw);
+            assert_eq!(out_hw, out_sw, "next_keystream_state D={D}");
+            assert_eq!(state_hw, state_sw, "next_keystream_state state D={D}");
+
+            let mut stream_hw = pat(3 * rate, 11, 2);
+            let mut stream_sw = stream_hw.clone();
+            // SAFETY: features checked by the caller; length is 3 * rate.
+            unsafe { $stream(&mut state_hw, &mut stream_hw) };
+            stream_xor_state::<Soft<D>>(&mut state_sw, &mut stream_sw);
+            assert_eq!(stream_hw, stream_sw, "stream_state D={D}");
+
+            let mut fill_hw = vec![0u8; 2 * rate];
+            let mut fill_sw = vec![0u8; 2 * rate];
+            // SAFETY: features checked by the caller; length is 2 * rate.
+            unsafe { $fill(&mut state_hw, &mut fill_hw) };
+            stream_fill_state::<Soft<D>>(&mut state_sw, &mut fill_sw);
+            assert_eq!(fill_hw, fill_sw, "fill_state D={D}");
+        }};
+    }
+
+    #[target_feature(enable = "aes")]
+    unsafe fn aesni_checks() {
+        block_ops_check!(AesNi<1>);
+        block_ops_check!(AesNi<2>);
+        block_ops_check!(AesNi<4>);
+        wrapper_check!(
+            1,
+            encrypt_aesni_1,
+            decrypt_aesni_1,
+            init_aesni_1,
+            absorb_aesni_1,
+            finalize_aesni_1,
+            next_aesni_1,
+            stream_aesni_1,
+            fill_aesni_1
+        );
+        wrapper_check!(
+            2,
+            encrypt_aesni_2,
+            decrypt_aesni_2,
+            init_aesni_2,
+            absorb_aesni_2,
+            finalize_aesni_2,
+            next_aesni_2,
+            stream_aesni_2,
+            fill_aesni_2
+        );
+        wrapper_check!(
+            4,
+            encrypt_aesni_4,
+            decrypt_aesni_4,
+            init_aesni_4,
+            absorb_aesni_4,
+            finalize_aesni_4,
+            next_aesni_4,
+            stream_aesni_4,
+            fill_aesni_4
+        );
+    }
+
+    #[target_feature(enable = "vaes,avx2")]
+    unsafe fn vaes256_checks() {
+        block_ops_check!(Vaes256<1>);
+        block_ops_check!(Vaes256<2>);
+        wrapper_check!(
+            2,
+            encrypt_vaes256_2,
+            decrypt_vaes256_2,
+            init_vaes256_2,
+            absorb_vaes256_2,
+            finalize_vaes256_2,
+            next_vaes256_2,
+            stream_vaes256_2,
+            fill_vaes256_2
+        );
+        wrapper_check!(
+            4,
+            encrypt_vaes256_4,
+            decrypt_vaes256_4,
+            init_vaes256_4,
+            absorb_vaes256_4,
+            finalize_vaes256_4,
+            next_vaes256_4,
+            stream_vaes256_4,
+            fill_vaes256_4
+        );
+    }
+
+    #[target_feature(enable = "vaes,avx512f,avx512bw,avx2")]
+    unsafe fn vaes512_checks() {
+        block_ops_check!(Vaes512<1>);
+        wrapper_check!(
+            4,
+            encrypt_vaes512_4,
+            decrypt_vaes512_4,
+            init_vaes512_4,
+            absorb_vaes512_4,
+            finalize_vaes512_4,
+            next_vaes512_4,
+            stream_vaes512_4,
+            fill_vaes512_4
+        );
+    }
+
+    #[test]
+    fn aesni_matches_soft() {
+        if !std::arch::is_x86_feature_detected!("aes") {
+            eprintln!("skipping: AES-NI not available");
+            return;
+        }
+        // SAFETY: AES-NI was detected.
+        unsafe { aesni_checks() };
+    }
+
+    #[test]
+    fn vaes256_matches_soft() {
+        if !(std::arch::is_x86_feature_detected!("aes")
+            && std::arch::is_x86_feature_detected!("vaes")
+            && std::arch::is_x86_feature_detected!("avx2"))
+        {
+            eprintln!("skipping: VAES + AVX2 not available");
+            return;
+        }
+        // SAFETY: VAES and AVX2 were detected.
+        unsafe { vaes256_checks() };
+    }
+
+    #[test]
+    fn vaes512_matches_soft() {
+        if !(std::arch::is_x86_feature_detected!("vaes")
+            && std::arch::is_x86_feature_detected!("avx2")
+            && std::arch::is_x86_feature_detected!("avx512f")
+            && std::arch::is_x86_feature_detected!("avx512bw"))
+        {
+            eprintln!("skipping: VAES-512 not available");
+            return;
+        }
+        // SAFETY: VAES, AVX2, AVX-512F and AVX-512BW were detected.
+        unsafe { vaes512_checks() };
+    }
+}

@@ -98,6 +98,23 @@ check_all:
 	RUSTFLAGS="-C target-feature=+simd128" cargo check --target=wasm32-wasip1 $(WASM_SIMD_PKGS) --no-default-features
 
 
+# Run the workspace tests with the strongest SIMD feature set the host CPU can
+# execute. Falls back to compile-only checks for features the host lacks.
+.PHONY: test_simd_native
+test_simd_native:
+	node tools/ci/test_simd_native.js
+
+# Run every crate that builds for wasm32-wasip1 with simd128 enabled.
+.PHONY: test_wasm_simd
+test_wasm_simd:
+	RUSTFLAGS="-C target-feature=+simd128" node tools/wasm_test/wasm_test.js --all-features
+
+# Explicit all-features test run (catches feature-unification gaps).
+.PHONY: test_all_features
+test_all_features:
+	cargo test --workspace --all-features
+
+
 .PHONY: docs
 docs:
 	RUSTDOCFLAGS='--cfg docsrs' cargo +nightly doc --no-deps --all-features

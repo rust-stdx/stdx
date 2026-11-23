@@ -360,7 +360,7 @@ mod tests {
     use hex;
 
     use super::*;
-    use crate::aes::aes::expand_key;
+    use crate::{Aead, aes::aes::expand_key};
 
     fn make_round_keys(key: &[u8; 32]) -> [uint8x16_t; 15] {
         let soft = crate::aes::aes::expand_key::<15>(key);
@@ -403,5 +403,189 @@ mod tests {
 
         assert_eq!(arm_buf, soft_buf);
         assert_eq!(arm_tag.as_ref(), soft_tag.as_ref());
+    }
+
+    fn make_round_keys_128(key: &[u8; 16]) -> [uint8x16_t; 11] {
+        let soft = crate::aes::aes::expand_key::<11>(key);
+        let mut rk = [unsafe { vdupq_n_u8(0) }; 11];
+        for (slot, bytes) in rk.iter_mut().zip(soft.iter()) {
+            *slot = unsafe { vld1q_u8(bytes.as_ptr()) };
+        }
+        rk
+    }
+
+    fn make_h_powers_128(key: &[u8; 16]) -> [uint8x16_t; 8] {
+        let (bytes, _) = crate::aes::ghash::precompute_ghash_powers_8::<11>(key);
+        let mut hp = [unsafe { vdupq_n_u8(0) }; 8];
+        for (slot, power) in hp.iter_mut().zip(bytes.iter()) {
+            *slot = unsafe { vld1q_u8(power.as_ptr()) };
+        }
+        hp
+    }
+
+    fn have_armv8_crypto() -> bool {
+        std::arch::is_aarch64_feature_detected!("aes") && std::arch::is_aarch64_feature_detected!("neon")
+    }
+
+    fn pattern(len: usize, mul: u8, add: u8) -> Vec<u8> {
+        (0..len)
+            .map(|i| (i as u8).wrapping_mul(mul).wrapping_add(add))
+            .collect()
+    }
+
+    /// The `aes,pmull` GCM kernel must agree with the constant-time software
+    /// path for AES-128 and AES-256 at every length across the 1/4/8-block loop
+    /// boundaries and for partial final blocks. The kernel is called directly so
+    /// that both `N = 11` and `N = 15` instantiations are exercised.
+    #[test]
+    fn arm_kernel_matches_soft_all_lengths() {
+        if !have_armv8_crypto() {
+            eprintln!("skipping arm_kernel_matches_soft_all_lengths: ARMv8 crypto extensions not available");
+            return;
+        }
+
+        let nonce = [0x5au8; 12];
+        let aad_lengths = [0usize, 1, 15, 16, 17, 32, 33];
+
+        let key128 = [0x3cu8; 16];
+        let cipher128 = crate::aes::Aes128Gcm::new(&key128);
+        let rk128 = make_round_keys_128(&key128);
+        let hp128 = make_h_powers_128(&key128);
+        let soft_rk128 = crate::aes::aes::expand_key::<11>(&key128);
+        let h128 = crate::aes::aes::encrypt_block(&soft_rk128, &[0u8; 16]);
+
+        let key256 = [0x7eu8; 32];
+        let cipher256 = crate::aes::Aes256Gcm::new(&key256);
+        let rk256 = make_round_keys(&key256);
+        let hp256 = make_h_powers(&key256);
+        let soft_rk256 = crate::aes::aes::expand_key::<15>(&key256);
+        let h256 = crate::aes::aes::encrypt_block(&soft_rk256, &[0u8; 16]);
+
+        for pt_len in 0..=130usize {
+            let pt = pattern(pt_len, 37, 11);
+            for &aad_len in &aad_lengths {
+                let aad = pattern(aad_len, 53, 7);
+                let label = format!("pt_len={pt_len} aad_len={aad_len}");
+
+                // AES-128.
+                let mut want = pt.clone();
+                let want_tag = cipher128
+                    .0
+                    .encrypt_in_place_soft(&mut want, &soft_rk128, &h128, &nonce, &aad);
+                let mut got = pt.clone();
+                let got_tag = unsafe { gcm_encrypt_armv8(&rk128, &hp128, &mut got, &nonce, &aad) };
+                assert_eq!(got, want, "AES-128 ciphertext mismatch ({label})");
+                assert_eq!(got_tag.as_ref(), want_tag.as_ref(), "AES-128 tag mismatch ({label})");
+
+                let mut back = got.clone();
+                unsafe {
+                    gcm_decrypt_armv8(&rk128, &hp128, &mut back, want_tag.as_ref().try_into().unwrap(), &nonce, &aad)
+                }
+                .unwrap_or_else(|e| panic!("AES-128 kernel decrypt failed ({label}): {e}"));
+                assert_eq!(back, pt, "AES-128 roundtrip mismatch ({label})");
+
+                // AES-256.
+                let mut want = pt.clone();
+                let want_tag = cipher256
+                    .0
+                    .encrypt_in_place_soft(&mut want, &soft_rk256, &h256, &nonce, &aad);
+                let mut got = pt.clone();
+                let got_tag = unsafe { gcm_encrypt_armv8(&rk256, &hp256, &mut got, &nonce, &aad) };
+                assert_eq!(got, want, "AES-256 ciphertext mismatch ({label})");
+                assert_eq!(got_tag.as_ref(), want_tag.as_ref(), "AES-256 tag mismatch ({label})");
+
+                let mut back = got.clone();
+                unsafe {
+                    gcm_decrypt_armv8(&rk256, &hp256, &mut back, want_tag.as_ref().try_into().unwrap(), &nonce, &aad)
+                }
+                .unwrap_or_else(|e| panic!("AES-256 kernel decrypt failed ({label}): {e}"));
+                assert_eq!(back, pt, "AES-256 roundtrip mismatch ({label})");
+            }
+        }
+    }
+
+    /// Non-zero-offset slices and canaries: the kernel must not read or write
+    /// outside `in_out`, including for partial final blocks.
+    #[test]
+    fn arm_kernel_unaligned_slices_preserve_canaries() {
+        if !have_armv8_crypto() {
+            eprintln!("skipping arm_kernel_unaligned_slices_preserve_canaries: ARMv8 crypto extensions not available");
+            return;
+        }
+
+        let key = [0x24u8; 32];
+        let nonce = [0x68u8; 12];
+        let aad = pattern(21, 9, 4);
+        let rk = make_round_keys(&key);
+        let hp = make_h_powers(&key);
+
+        for len in [0usize, 1, 15, 16, 17, 63, 64, 65, 127, 128, 129, 255, 256, 257] {
+            let plaintext = pattern(len, 43, 9);
+            for offset in [0usize, 1, 4, 8, 15] {
+                let mut storage = vec![0xa5u8; len + offset + 24];
+                storage[offset..offset + len].copy_from_slice(&plaintext);
+
+                let tag = unsafe { gcm_encrypt_armv8(&rk, &hp, &mut storage[offset..offset + len], &nonce, &aad) };
+
+                assert!(
+                    storage[..offset].iter().all(|&b| b == 0xa5),
+                    "prefix canary len={len} off={offset}"
+                );
+                assert!(
+                    storage[offset + len..].iter().all(|&b| b == 0xa5),
+                    "suffix canary len={len} off={offset}"
+                );
+
+                let mut back = storage[offset..offset + len].to_vec();
+                unsafe { gcm_decrypt_armv8(&rk, &hp, &mut back, tag.as_ref().try_into().unwrap(), &nonce, &aad) }
+                    .expect("kernel decrypt");
+                assert_eq!(back, plaintext);
+            }
+        }
+    }
+
+    /// A bad tag must return `InvalidCiphertext` for every bit position and
+    /// every loop shape, and must never return `Ok`.
+    #[test]
+    fn arm_kernel_rejects_bad_tags() {
+        if !have_armv8_crypto() {
+            eprintln!("skipping arm_kernel_rejects_bad_tags: ARMv8 crypto extensions not available");
+            return;
+        }
+
+        let key = [0x31u8; 32];
+        let nonce = [0x72u8; 12];
+        let aad = pattern(19, 5, 6);
+        let rk = make_round_keys(&key);
+        let hp = make_h_powers(&key);
+        let cipher = crate::aes::Aes256Gcm::new(&key);
+
+        for len in [0usize, 1, 15, 16, 17, 64, 128, 129, 256] {
+            let pt = pattern(len, 27, 3);
+            let mut buf = pt.clone();
+            let tag: [u8; 16] = unsafe { gcm_encrypt_armv8(&rk, &hp, &mut buf, &nonce, &aad) }
+                .as_ref()
+                .try_into()
+                .unwrap();
+            for bit in 0..128 {
+                let mut bad = tag;
+                bad[bit / 8] ^= 1 << (bit % 8);
+                let mut tampered = buf.clone();
+                assert_eq!(
+                    unsafe { gcm_decrypt_armv8(&rk, &hp, &mut tampered, &bad, &nonce, &aad) }.unwrap_err(),
+                    crate::AeadError::InvalidCiphertext,
+                    "accepted forged tag len={len} bit={bit}"
+                );
+            }
+            let mut good = buf.clone();
+            unsafe { gcm_decrypt_armv8(&rk, &hp, &mut good, &tag, &nonce, &aad) }.expect("genuine tag rejected");
+            assert_eq!(good, pt);
+            // The public wrapper agrees.
+            let mut via_dispatch = buf.clone();
+            cipher
+                .decrypt_in_place(&mut via_dispatch, &nonce, &aad, &tag)
+                .expect("dispatch decrypt");
+            assert_eq!(via_dispatch, pt);
+        }
     }
 }

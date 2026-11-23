@@ -19,6 +19,11 @@
 //! | `Crockford`           | `0-9 A-H J-K M-N P-Z`   | none    | Crockford (no I L O U)     |
 //! | `Z32`                 | `ybndrfg8ejkmcpqxot1uwisza345h769` | none | Z-base-32 (zooko) |
 //!
+//! The padded variants require canonical padding when decoding: an input with
+//! no trailing `=` must be a whole number of 8-character blocks. Use a
+//! `*NoPadding` variant to decode unpadded input. `Z32` is not constant-time
+//! (it uses table lookups).
+//!
 //! # Feature flags
 //!
 //! | Flag    | Description                                             |
@@ -99,6 +104,9 @@ const Z32_ENCODE_TABLE: [u8; 32] = *b"ybndrfg8ejkmcpqxot1uwisza345h769";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Alphabet {
+    /// Crockford base32: `0-9 A-H J-K M-N P-Z`, uppercase only.
+    ///
+    /// Decoding does not accept the `I`/`L` → `1` or `O` → `0` aliases.
     Crockford,
     Rfc4648,
     Rfc4648NoPadding,
@@ -125,6 +133,24 @@ impl Alphabet {
             Alphabet::Rfc4648HexLower => true,
             Alphabet::Rfc4648HexLowerNoPadding => false,
             Alphabet::Z32 => false,
+        }
+    }
+
+    /// The same alphabet with padding disabled.
+    ///
+    /// SIMD kernels receive the content bytes with any trailing `=` already
+    /// stripped by the public dispatcher. Their scalar tail therefore decodes
+    /// an unpadded fragment and must not apply the padded-alphabet canonicality
+    /// rule to it.
+    #[inline]
+    pub(crate) const fn without_padding(self) -> Alphabet {
+        match self {
+            Alphabet::Rfc4648 | Alphabet::Rfc4648NoPadding => Alphabet::Rfc4648NoPadding,
+            Alphabet::Rfc4648Lower | Alphabet::Rfc4648LowerNoPadding => Alphabet::Rfc4648LowerNoPadding,
+            Alphabet::Rfc4648Hex | Alphabet::Rfc4648HexNoPadding => Alphabet::Rfc4648HexNoPadding,
+            Alphabet::Rfc4648HexLower | Alphabet::Rfc4648HexLowerNoPadding => Alphabet::Rfc4648HexLowerNoPadding,
+            Alphabet::Crockford => Alphabet::Crockford,
+            Alphabet::Z32 => Alphabet::Z32,
         }
     }
 }
@@ -189,21 +215,18 @@ pub const fn encoded_length(bytes_len: usize, padding: bool) -> Option<usize> {
     } else if padding {
         base.checked_add(8)
     } else {
-        let bits = match bytes_len.checked_mul(8) {
-            Some(v) => v,
-            None => return None,
-        };
-        match bits.checked_add(4) {
-            Some(v) => Some(v / 5),
-            None => None,
-        }
+        // `ceil(8 * bytes_len / 5)`, computed as `8 * complete_chunks +
+        // ceil(8 * rem / 5)`. Multiplying `bytes_len` by 8 first would overflow
+        // for representable inputs whose encoded size still fits in `usize`
+        // (e.g. `encoded_length(1 << 61, false)`).
+        let extra = (rem * 8).div_ceil(5);
+        base.checked_add(extra)
     }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Encode
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
 /// Encodes bytes to a base32 string using the given [`Alphabet`].
 ///
 /// # Example
@@ -291,6 +314,11 @@ pub fn encode_into(output: &mut [u8], data: &[u8], alphabet: Alphabet) -> Result
 ///
 /// Consumers may prefer the faster [`encode_into`] which dispatches to
 /// a SIMD-accelerated path when available (non constant-time).
+///
+/// # Z32
+///
+/// [`Alphabet::Z32`] uses secret-indexed table lookups and is **not**
+/// constant-time. The other alphabets use branchless arithmetic.
 ///
 /// # Example
 ///
@@ -416,12 +444,12 @@ pub fn encode_into_string(output: &mut alloc::string::String, data: &[u8], alpha
         let mut buf = [0u8; 256];
         let buf = &mut buf[..encoded_length];
         encode_into(buf, data, alphabet).unwrap();
-        // SAFETY: base64 only produces ASCII characters, which are valid UTF-8.
+        // SAFETY: base32 only produces ASCII characters, which are valid UTF-8.
         output.push_str(unsafe { core::str::from_utf8_unchecked(buf) });
     } else {
         let mut buf = alloc::vec![0u8; encoded_length];
         encode_into(&mut buf, data, alphabet).unwrap();
-        // SAFETY: base64 only produces ASCII characters, which are valid UTF-8.
+        // SAFETY: base32 only produces ASCII characters, which are valid UTF-8.
         output.push_str(unsafe { core::str::from_utf8_unchecked(&buf) });
     }
 }
@@ -526,7 +554,6 @@ const fn quintet_to_crockford(v: u8) -> u8 {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Decode
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
 #[inline]
 const fn decoded_length(encoded_content_len: usize) -> Result<usize, DecodeError> {
     let full_blocks = encoded_content_len / 8;
@@ -622,6 +649,8 @@ pub const fn decode_array<const OUT: usize>(encoded_data: &[u8], alphabet: Alpha
 /// [`Alphabet`], if the input length is not valid, if padding is incorrect,
 /// or if `output.len()` is too small to hold the decoded data.
 ///
+/// On error, the contents of `output` are unspecified.
+///
 /// # Example
 ///
 /// ```rust
@@ -652,12 +681,20 @@ pub fn decode_into(output: &mut [u8], encoded_data: &[u8], alphabet: Alphabet) -
     decode_into_constant_time(output, encoded_data, alphabet)
 }
 
-/// Constant-time base32 decoding. Processes all input data without
-/// secret-dependent branches or memory accesses, making it suitable
+/// Constant-time base32 decoding. The character mapping and data processing
+/// use no secret-dependent branches or memory accesses, making it suitable
 /// for cryptographic applications.
+///
+/// Padding detection inspects the trailing bytes and is not constant-time;
+/// only the decoded-data path is.
 ///
 /// Consumers may prefer the faster [`decode_into`] which dispatches to
 /// a SIMD-accelerated path when available (non constant-time).
+///
+/// # Z32
+///
+/// [`Alphabet::Z32`] uses a secret-indexed table lookup and is **not**
+/// constant-time. The other alphabets use branchless arithmetic.
 ///
 /// # Example
 ///
@@ -821,6 +858,16 @@ const fn strip_padding_info(data: &[u8], expect_padding: bool) -> Result<(usize,
 
         let count = count_trailing_padding(data);
         let content_len = in_len - count;
+
+        // A padded alphabet requires canonical padding: with no trailing `=`
+        // the input must be exactly a whole number of 8-character blocks.
+        if count == 0 {
+            return match in_len % 8 {
+                0 => Ok((in_len, 0)),
+                1 | 3 | 6 => Err(DecodeError::InvalidLength),
+                _ => Err(DecodeError::InvalidPadding),
+            };
+        }
 
         let err = (count > 0 && !in_len.is_multiple_of(8))
             || count > 6
@@ -1137,6 +1184,27 @@ mod tests {
     }
 
     #[test]
+    fn test_encoded_length_overflow_boundaries() {
+        // Compile-time evaluation: this also proves the size arithmetic stays
+        // usable in `const` context (`div_ceil` is a `const fn`).
+        const MAX_NO_PAD: Option<usize> = encoded_length(usize::MAX, false);
+        const MAX_PAD: Option<usize> = encoded_length(usize::MAX, true);
+        assert_eq!(MAX_NO_PAD, None);
+        assert_eq!(MAX_PAD, None);
+    }
+
+    #[cfg(target_pointer_width = "64")]
+    #[test]
+    fn test_encoded_length_2_61_boundary() {
+        // The old code computed `bytes_len * 8` first and returned `None` here,
+        // even though `ceil(bytes_len * 8 / 5)` still fits in `usize`.
+        const BIG_NO_PAD: Option<usize> = encoded_length(1 << 61, false);
+        assert_eq!(BIG_NO_PAD, Some(3_689_348_814_741_910_324));
+        assert_eq!(encoded_length((1 << 61) + 1, false), Some(3_689_348_814_741_910_325));
+        assert_eq!(encoded_length((1 << 61) + 1, true), Some(3_689_348_814_741_910_328));
+    }
+
+    #[test]
     fn test_decoded_length_does_not_overflow() {
         // The size computation is checked: even the largest possible content
         // length must be accepted or rejected explicitly, never wrap.
@@ -1188,7 +1256,9 @@ mod tests {
             let data: Vec<u8> = (0..len as u8).collect();
             for alphabet in ALL_ALPHABETS {
                 let encoded = encode(&data, *alphabet);
-                let decoded = decode(encoded.as_bytes(), *alphabet).unwrap();
+                let decoded = decode(encoded.as_bytes(), *alphabet).unwrap_or_else(|err| {
+                    panic!("roundtrip decode failed len={len} alphabet={alphabet:?} encoded={encoded:?}: {err:?}")
+                });
                 assert_eq!(decoded, data, "roundtrip len={len} alphabet={alphabet:?}");
             }
         }
@@ -1377,8 +1447,17 @@ mod tests {
             );
         }
 
-        // remaining == 7: bottom 3 bits of v6 must be zero
-        assert_eq!(decode_into_constant_time(&mut out, b"NBSWY3DP", Alphabet::Rfc4648), Ok(()));
+        // remaining == 7: bottom 3 bits of v6 must be zero. This is an
+        // unpadded fragment, so use the no-padding alphabet variant.
+        assert_eq!(
+            decode_into_constant_time(&mut out, b"MZXW6YQ", Alphabet::Rfc4648NoPadding),
+            Ok(())
+        );
+        assert_eq!(
+            decode_into_constant_time(&mut out, b"MZXW6YR", Alphabet::Rfc4648NoPadding),
+            Err(DecodeError::InvalidInput),
+            "non-canonical 7-character remainder (low 3 bits of last char set)"
+        );
     }
 
     #[test]

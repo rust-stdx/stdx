@@ -33,6 +33,26 @@ const SIGMA: [[u8; 16]; 12] = [
     [14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3],
 ];
 
+/// Errors returned when creating a keyed [`Blake2b`] instance.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Blake2Error {
+    /// The requested output length is not in `1..=64` bytes.
+    InvalidOutputLength,
+    /// The key is longer than BLAKE2b's 64-byte maximum.
+    KeyTooLong,
+}
+
+impl core::fmt::Display for Blake2Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Blake2Error::InvalidOutputLength => write!(f, "BLAKE2b output length must be in 1..=64 bytes"),
+            Blake2Error::KeyTooLong => write!(f, "BLAKE2b key must be at most 64 bytes"),
+        }
+    }
+}
+
+impl core::error::Error for Blake2Error {}
+
 #[derive(Clone)]
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Blake2b {
@@ -135,9 +155,32 @@ fn compress(h: &mut [u64; 8], total_len: u128, block: &[u8; 128], last: bool) {
 }
 
 impl Blake2b {
-    pub fn new_keyed(key: &[u8], outlen: usize) -> Self {
-        assert!((1..=64).contains(&outlen));
-        assert!(key.len() <= 64);
+    /// Creates a keyed BLAKE2b instance with the given output length.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Blake2Error::InvalidOutputLength`] if `outlen` is not in
+    /// `1..=64`, or [`Blake2Error::KeyTooLong`] if `key.len() > 64`.
+    pub fn new_keyed(key: &[u8], outlen: usize) -> Result<Self, Blake2Error> {
+        if !(1..=64).contains(&outlen) {
+            return Err(Blake2Error::InvalidOutputLength);
+        }
+        if key.len() > 64 {
+            return Err(Blake2Error::KeyTooLong);
+        }
+        return Ok(Self::new_keyed_unchecked(key, outlen));
+    }
+
+    /// Creates a keyed BLAKE2b instance without validating the parameters.
+    ///
+    /// # Panics
+    ///
+    /// Panics in debug builds if `outlen` is not in `1..=64` or
+    /// `key.len() > 64`.
+    #[inline]
+    pub(crate) fn new_keyed_unchecked(key: &[u8], outlen: usize) -> Self {
+        debug_assert!((1..=64).contains(&outlen));
+        debug_assert!(key.len() <= 64);
 
         let mut state = Blake2b {
             h: IV,
@@ -248,21 +291,14 @@ mod tests {
     use super::Blake2b;
     use crate::Hasher;
 
-    fn decode_hex(s: &str) -> Vec<u8> {
-        (0..s.len())
-            .step_by(2)
-            .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
-            .collect()
-    }
-
     #[test]
     fn rfc_blake2b_512_abc() {
         let mut h = Blake2b::new();
         h.update(b"abc");
         let digest = h.sum();
-        let expected = decode_hex(
+        let expected = hex::decode(
             "ba80a53f981c4d0d6a2797b69f12f6e94c212f14685ac4b74b12bb6fdbffa2d17d87c5392aab792dc252d5de4533cc9518d38aa8dbf1925ab92386edd4009923",
-        );
+        ).unwrap();
         assert_eq!(digest.as_ref(), expected.as_slice());
     }
 
@@ -271,48 +307,48 @@ mod tests {
         let mut h = Blake2b::new();
         h.update(b"");
         let digest = h.sum();
-        let expected = decode_hex(
+        let expected = hex::decode(
             "786a02f742015903c6c6fd852552d272912f4740e15847618a86e217f71f5419d25e1031afee585313896444934eb04b903a685b1448b755d56f701afe9be2ce",
-        );
+        ).unwrap();
         assert_eq!(digest.as_ref(), expected.as_slice());
     }
 
     #[test]
     fn blake2b_empty_variants() {
-        let mut h = Blake2b::new_keyed(&[], 20);
+        let mut h = Blake2b::new_keyed(&[], 20).unwrap();
         h.update(b"");
         assert_eq!(h.sum().len(), 20);
 
-        let mut h = Blake2b::new_keyed(&[], 32);
+        let mut h = Blake2b::new_keyed(&[], 32).unwrap();
         h.update(b"");
         assert_eq!(h.sum().len(), 32);
 
-        let mut h = Blake2b::new_keyed(&[], 48);
+        let mut h = Blake2b::new_keyed(&[], 48).unwrap();
         h.update(b"");
         assert_eq!(h.sum().len(), 48);
     }
 
     #[test]
     fn blake2b_keyed_empty_key() {
-        let key = decode_hex(
+        let key = hex::decode(
             "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
-        );
-        let mut h = Blake2b::new_keyed(&key, 64);
+        ).unwrap();
+        let mut h = Blake2b::new_keyed(&key, 64).unwrap();
         h.update(b"");
         let digest = h.sum();
-        let expected = decode_hex(
+        let expected = hex::decode(
             "10ebb67700b1868efb4417987acf4690ae9d972fb7a590c2f02871799aaa4786b5e996e8f0f4eb981fc214b005f42d2ff4233499391653df7aefcbc13fc51568",
-        );
+        ).unwrap();
         assert_eq!(hex::encode(digest.as_ref()), hex::encode(expected));
     }
 
     #[test]
     fn blake2b_keyed_nonempty() {
-        let key = decode_hex(
+        let key = hex::decode(
             "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
-        );
-        let input = decode_hex("00");
-        let mut h = Blake2b::new_keyed(&key, 64);
+        ).unwrap();
+        let input = hex::decode("00").unwrap();
+        let mut h = Blake2b::new_keyed(&key, 64).unwrap();
         h.update(&input);
         let digest = h.sum();
         let expected = "961f6dd1e4dd30f63901690c512e78e4b45e4742ed197c3c5e45c549fd25f2e4187b0bc9fe30492b16b0d0bc4ef9b0f34c7003fac09a5ef1532e69430234cebd";
@@ -457,21 +493,21 @@ mod tests {
             ),
         ];
 
-        let mut ctx = Blake2b::new_keyed(&[], 32);
+        let mut ctx = Blake2b::new_keyed(&[], 32).unwrap();
         for (label, unkeyed_exp, keyed_exp) in expected_hashes.iter() {
             let (outlen_str, inlen_str) = label.split_once(',').unwrap();
             let outlen: usize = outlen_str.parse().unwrap();
             let inlen: usize = inlen_str.parse().unwrap();
             let input = selftest_seq(inlen, inlen as u32);
 
-            let mut h = Blake2b::new_keyed(&[], outlen);
+            let mut h = Blake2b::new_keyed(&[], outlen).unwrap();
             h.update(&input);
             let md = h.sum();
             assert_eq!(hex::encode(md.as_ref()), *unkeyed_exp, "unkeyed mismatch at {}", label);
             ctx.update(md.as_ref());
 
             let key = selftest_seq(outlen, outlen as u32);
-            let mut h2 = Blake2b::new_keyed(&key, outlen);
+            let mut h2 = Blake2b::new_keyed(&key, outlen).unwrap();
             h2.update(&input);
             let md2 = h2.sum();
             assert_eq!(hex::encode(md2.as_ref()), *keyed_exp, "keyed mismatch at {}", label);
@@ -499,17 +535,17 @@ mod tests {
         let b2b_md_len: [usize; 4] = [20, 32, 48, 64];
         let b2b_in_len: [usize; 6] = [0, 3, 128, 129, 255, 1024];
 
-        let mut ctx = Blake2b::new_keyed(&[], 32);
+        let mut ctx = Blake2b::new_keyed(&[], 32).unwrap();
         for &outlen in &b2b_md_len {
             for &inlen in &b2b_in_len {
                 let input = selftest_seq(inlen, inlen as u32);
-                let mut h = Blake2b::new_keyed(&[], outlen);
+                let mut h = Blake2b::new_keyed(&[], outlen).unwrap();
                 h.update(&input);
                 let md = h.sum();
                 ctx.update(md.as_ref());
 
                 let key = selftest_seq(outlen, outlen as u32);
-                let mut h2 = Blake2b::new_keyed(&key, outlen);
+                let mut h2 = Blake2b::new_keyed(&key, outlen).unwrap();
                 h2.update(&input);
                 let md2 = h2.sum();
                 ctx.update(md2.as_ref());
@@ -553,18 +589,18 @@ mod tests {
 
     #[test]
     fn blake2b_truncated_outputs() {
-        let mut h = Blake2b::new_keyed(&[], 32);
+        let mut h = Blake2b::new_keyed(&[], 32).unwrap();
         h.update(b"abc");
         assert_eq!(h.sum().len(), 32);
 
-        let mut h = Blake2b::new_keyed(&[], 16);
+        let mut h = Blake2b::new_keyed(&[], 16).unwrap();
         h.update(b"abc");
         assert_eq!(h.sum().len(), 16);
     }
 
     #[test]
     fn blake2b_keyed_empty() {
-        let mut h = Blake2b::new_keyed(&[], 64);
+        let mut h = Blake2b::new_keyed(&[], 64).unwrap();
         h.update(b"");
         assert_eq!(h.sum().len(), 64);
     }
@@ -573,13 +609,6 @@ mod tests {
     fn blake2b_generated_vectors() {
         use super::Blake2b;
         use crate::Hasher;
-
-        fn decode_hex(s: &str) -> Vec<u8> {
-            (0..s.len())
-                .step_by(2)
-                .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
-                .collect()
-        }
 
         let test_cases: &[(&str, &str)] = &[
             (
@@ -1385,7 +1414,7 @@ mod tests {
         ];
 
         for &(input_hex, expected) in test_cases {
-            let input = decode_hex(input_hex);
+            let input = hex::decode(input_hex).unwrap();
             let mut h = Blake2b::new();
             h.update(&input);
             let digest = h.sum();

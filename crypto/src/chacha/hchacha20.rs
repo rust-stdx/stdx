@@ -46,6 +46,9 @@ pub fn hchacha20(key: &[u8; 32], input: &[u8; 16]) -> [u8; 32] {
         output[16 + i * 4..16 + (i + 1) * 4].copy_from_slice(&state[12 + i].to_le_bytes());
     }
 
+    #[cfg(feature = "zeroize")]
+    zeroize::Zeroize::zeroize(&mut state);
+
     return output;
 }
 

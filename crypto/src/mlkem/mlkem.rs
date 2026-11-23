@@ -555,6 +555,12 @@ fn polyvec_getnoise_batched<const K: usize, const W: usize>(
         for w in 0..take {
             out.vec[stream + w] = cbd2(&blocks[w]);
         }
+        for message in &mut messages {
+            wipe(message);
+        }
+        for block in &mut blocks {
+            wipe(block);
+        }
         stream += take;
     }
 
@@ -571,7 +577,10 @@ pub(crate) fn poly_getnoise(seed: &[u8; 32], nonce: u8, eta: usize) -> Poly {
     let mut shake256 = Shake256::new();
     shake256.absorb(&input);
     shake256.squeeze(&mut buf);
-    cbd2(&buf)
+    let poly = cbd2(&buf);
+    wipe(&mut input);
+    wipe(&mut buf);
+    poly
 }
 
 #[inline]
@@ -1189,7 +1198,7 @@ fn array_ref_32(input: &[u8]) -> &[u8; 32] {
 /// otherwise this is a no-op. Secret heap/stack buffers that hold intermediate
 /// values (FIPS 203 Section 3.3) are wiped through this helper before returning.
 #[inline]
-fn wipe(bytes: &mut [u8]) {
+pub(crate) fn wipe(bytes: &mut [u8]) {
     #[cfg(feature = "zeroize")]
     {
         use zeroize::Zeroize;
@@ -1202,14 +1211,6 @@ fn wipe(bytes: &mut [u8]) {
 }
 
 #[cfg(test)]
-pub(crate) fn decode_hex_array<const N: usize>(s: &str) -> [u8; N] {
-    let bytes = hex::decode(s).expect("valid hex");
-    assert_eq!(bytes.len(), N);
-    let mut out = [0u8; N];
-    out.copy_from_slice(&bytes);
-    out
-}
-
 #[cfg(test)]
 pub(crate) fn sha3_256_hex(data: &[u8]) -> String {
     use crate::Hasher;
@@ -1221,6 +1222,14 @@ pub(crate) fn sha3_256_hex(data: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(feature = "zeroize")]
+    #[test]
+    fn wipe_clears_buffer() {
+        let mut bytes = [0xAAu8; 64];
+        wipe(&mut bytes);
+        assert_eq!(bytes, [0u8; 64]);
+    }
 
     #[test]
     fn poly_frommsg_tomsg_roundtrip() {
@@ -1528,9 +1537,12 @@ mod tests {
     fn nist_acvp_ml_kem_768_full_vector() {
         // Verify against NIST FIPS 203 intermediate test vector (ML-KEM-768.txt)
         // These values come from the NIST test file and are validated by the CCTV tests
-        let d: [u8; 32] = decode_hex_array("f688563f7c66a5da2d8bdb5a5f3e07bd8dce6f7efcec7f41298d79863459f7cd");
-        let z: [u8; 32] = decode_hex_array("d1d49a515250dbceb9f6e3fcc1c7d5306918964b21ddb22207e03e57f0600da8");
-        let m: [u8; 32] = decode_hex_array("3dc27ca0a6594b0e56320457c45a0f76bb8a213ea4a76d442186a0aefadbcdb9");
+        let d: [u8; 32] =
+            hex::decode_array(("f688563f7c66a5da2d8bdb5a5f3e07bd8dce6f7efcec7f41298d79863459f7cd").as_bytes()).unwrap();
+        let z: [u8; 32] =
+            hex::decode_array(("d1d49a515250dbceb9f6e3fcc1c7d5306918964b21ddb22207e03e57f0600da8").as_bytes()).unwrap();
+        let m: [u8; 32] =
+            hex::decode_array(("3dc27ca0a6594b0e56320457c45a0f76bb8a213ea4a76d442186a0aefadbcdb9").as_bytes()).unwrap();
 
         let mut coins = [0u8; 64];
         coins[..32].copy_from_slice(&d);
@@ -1568,9 +1580,12 @@ mod tests {
     #[test]
     fn nist_acvp_ml_kem_1024_full_vector() {
         // Verify against NIST FIPS 203 intermediate test vector (ML-KEM-1024.txt)
-        let d: [u8; 32] = decode_hex_array("2a62c39ef4fc499f2d132716f480bb7521a49558ae84ee80d9352e66daf1e3a8");
-        let z: [u8; 32] = decode_hex_array("5f574ef7f013d4336801fed022178c3ed91d0b6d51325315fc1dcabf4770a2ea");
-        let m: [u8; 32] = decode_hex_array("e07d685ed308e609c9c7842026e35732f6ffc6e2fee10f0afd348f2b42a8acb4");
+        let d: [u8; 32] =
+            hex::decode_array(("2a62c39ef4fc499f2d132716f480bb7521a49558ae84ee80d9352e66daf1e3a8").as_bytes()).unwrap();
+        let z: [u8; 32] =
+            hex::decode_array(("5f574ef7f013d4336801fed022178c3ed91d0b6d51325315fc1dcabf4770a2ea").as_bytes()).unwrap();
+        let m: [u8; 32] =
+            hex::decode_array(("e07d685ed308e609c9c7842026e35732f6ffc6e2fee10f0afd348f2b42a8acb4").as_bytes()).unwrap();
 
         let mut coins = [0u8; 64];
         coins[..32].copy_from_slice(&d);

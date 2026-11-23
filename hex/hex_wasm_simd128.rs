@@ -51,11 +51,11 @@ pub fn decode_into(output: &mut [u8], input: &[u8]) -> Result<(), DecodeError> {
     debug_assert!(input.len().is_multiple_of(2));
     debug_assert!(output.len() >= input.len() / 2);
 
-    let ge_0 = i8x16_splat(47);
+    let ge_0 = i8x16_splat(48);
     let le_9 = i8x16_splat(57);
-    let ge_upper = i8x16_splat(64);
+    let ge_upper = i8x16_splat(65);
     let le_upper = i8x16_splat(70);
-    let ge_a = i8x16_splat(96);
+    let ge_a = i8x16_splat(97);
     let le_f = i8x16_splat(102);
     let digit_base = i8x16_splat(48);
     let upper_base = i8x16_splat(55);
@@ -103,6 +103,49 @@ pub fn decode_into(output: &mut [u8], input: &[u8]) -> Result<(), DecodeError> {
     Ok(())
 }
 
+#[cfg(test)]
+mod kernel_tests {
+    use super::*;
+
+    /// Regression: every byte outside `0-9A-Fa-f` must be rejected, including
+    /// the range boundaries `'@'` (0x40), `` '`' `` (0x60) and `/` (0x2f), and
+    /// bytes that match no character class at all (which previously decoded as
+    /// nibble 0 and were accepted).
+    #[test]
+    fn decode_rejects_every_invalid_byte_at_every_lane() {
+        for pos in 0..32 {
+            for val in 0u16..=255 {
+                let byte = val as u8;
+                if matches!(byte, b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F') {
+                    continue;
+                }
+                let mut input = [b'0'; 32];
+                input[pos] = byte;
+                let mut out = [0u8; 16];
+                assert_eq!(
+                    decode_into(&mut out, &input),
+                    Err(DecodeError::InvalidInput),
+                    "pos={pos} val={val:#04x}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn encode_matches_constant_time() {
+        let data: [u8; 80] = core::array::from_fn(|i| (i * 37) as u8);
+        for len in 0..=data.len() {
+            for alphabet in [Alphabet::Lower, Alphabet::Upper] {
+                let mut simd = [0u8; 160];
+                let mut scalar = [0u8; 160];
+                encode_into(&mut simd[..len * 2], &data[..len], alphabet).unwrap();
+                crate::encode_into_constant_time(&mut scalar[..len * 2], &data[..len], alphabet).unwrap();
+                assert_eq!(simd[..len * 2], scalar[..len * 2], "len={len}");
+            }
+        }
+    }
+}
+
 #[inline]
 fn classify_nibble(
     c: v128,
@@ -124,7 +167,14 @@ fn classify_nibble(
     let nu = i8x16_sub(c, upper_base);
     let nl = i8x16_sub(c, lower_base);
 
-    v128_or(v128_or(v128_and(is_digit, nd), v128_and(is_upper, nu)), v128_and(is_lower, nl))
+    let valid = v128_or(v128_or(is_digit, is_upper), is_lower);
+    let nibble = v128_or(v128_or(v128_and(is_digit, nd), v128_and(is_upper, nu)), v128_and(is_lower, nl));
+
+    // Every classification mask is zero for a character outside `0-9A-Fa-f`,
+    // so `nibble` would be zero and the caller's `nibble > 15` check would
+    // accept it. Mark invalid bytes with 0xFF so the check rejects them.
+    let invalid = v128_xor(valid, i8x16_splat(-1));
+    v128_or(nibble, invalid)
 }
 
 #[inline]

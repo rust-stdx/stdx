@@ -18,6 +18,15 @@ use crate::{StreamCipher, aes::RoundKeys};
 /// On x86-64 the implementation uses VAES-512, VAES-256, or AES-NI when the
 /// CPU supports them, in that order; otherwise it uses the constant-time
 /// software path.
+///
+/// # Chunking
+///
+/// Successive [`xor_keystream`](StreamCipher::xor_keystream) calls behave
+/// exactly like one call over the concatenated input: the unused bytes of a
+/// trailing partial block are buffered until the next call. Splitting a message
+/// at arbitrary boundaries (including zero-length calls) is therefore safe.
+/// [`set_counter`](Aes128Ctr::set_counter) discards any buffered bytes and
+/// restarts the stream at the given block.
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Aes128Ctr(pub(crate) AesCtr<11>);
 
@@ -41,7 +50,7 @@ impl Aes128Ctr {
 
 impl StreamCipher for Aes128Ctr {
     #[inline]
-    fn xor_keystream(&mut self, in_out: &mut [u8]) {
+    fn xor_keystream(&mut self, in_out: &mut [u8]) -> Result<(), crate::StreamCipherError> {
         self.0.xor_keystream(in_out)
     }
 }
@@ -60,6 +69,15 @@ impl StreamCipher for Aes128Ctr {
 /// On x86-64 the implementation uses VAES-512, VAES-256, or AES-NI when the
 /// CPU supports them, in that order; otherwise it uses the constant-time
 /// software path.
+///
+/// # Chunking
+///
+/// Successive [`xor_keystream`](StreamCipher::xor_keystream) calls behave
+/// exactly like one call over the concatenated input: the unused bytes of a
+/// trailing partial block are buffered until the next call. Splitting a message
+/// at arbitrary boundaries (including zero-length calls) is therefore safe.
+/// [`set_counter`](Aes256Ctr::set_counter) discards any buffered bytes and
+/// restarts the stream at the given block.
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Aes256Ctr(pub(crate) AesCtr<15>);
 
@@ -83,7 +101,7 @@ impl Aes256Ctr {
 
 impl StreamCipher for Aes256Ctr {
     #[inline]
-    fn xor_keystream(&mut self, in_out: &mut [u8]) {
+    fn xor_keystream(&mut self, in_out: &mut [u8]) -> Result<(), crate::StreamCipherError> {
         self.0.xor_keystream(in_out)
     }
 }
@@ -96,7 +114,14 @@ impl StreamCipher for Aes256Ctr {
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub(crate) struct AesCtr<const N: usize> {
     round_keys: RoundKeys<N>,
+    /// Counter block for the next block that has not been encrypted yet.
     counter: [u8; 16],
+    /// Keystream of the most recently encrypted block whose bytes were not all
+    /// consumed. Only `keystream[keystream_pos..]` is still unused;
+    /// `keystream_pos == 16` means the buffer is empty. This is what makes
+    /// chunked `xor_keystream` calls equivalent to a single call.
+    keystream: [u8; 16],
+    keystream_pos: usize,
     #[cfg(target_arch = "x86_64")]
     #[cfg_attr(feature = "zeroize", zeroize(skip))]
     backend: super::aes_amd64::X86Backend,
@@ -130,6 +155,8 @@ impl<const N: usize> AesCtr<N> {
                 return AesCtr {
                     round_keys: RoundKeys::Armv8(super::aes_arm64::expand_key_armv8(round_keys_software)),
                     counter: [0u8; 16],
+                    keystream: [0u8; 16],
+                    keystream_pos: 16,
                 };
             }
 
@@ -137,6 +164,8 @@ impl<const N: usize> AesCtr<N> {
             return AesCtr {
                 round_keys: RoundKeys::Armv8(super::aes_arm64::expand_key_armv8(round_keys_software)),
                 counter: [0u8; 16],
+                keystream: [0u8; 16],
+                keystream_pos: 16,
             };
         }
 
@@ -148,6 +177,8 @@ impl<const N: usize> AesCtr<N> {
                 return AesCtr {
                     round_keys: RoundKeys::X86_64(super::aes_amd64::expand_key_x86_64(round_keys_software)),
                     counter: [0u8; 16],
+                    keystream: [0u8; 16],
+                    keystream_pos: 16,
                     backend: super::aes_amd64::X86Backend::detect(),
                 };
             }
@@ -161,6 +192,8 @@ impl<const N: usize> AesCtr<N> {
             return AesCtr {
                 round_keys: RoundKeys::X86_64(super::aes_amd64::expand_key_x86_64(round_keys_software)),
                 counter: [0u8; 16],
+                keystream: [0u8; 16],
+                keystream_pos: 16,
                 backend: super::aes_amd64::X86Backend::detect(),
             };
         }
@@ -168,12 +201,88 @@ impl<const N: usize> AesCtr<N> {
         AesCtr {
             round_keys: RoundKeys::Software(round_keys_software),
             counter: [0u8; 16],
+            keystream: [0u8; 16],
+            keystream_pos: 16,
             #[cfg(target_arch = "x86_64")]
             backend: super::aes_amd64::X86Backend::AesNi,
         }
     }
 
-    pub(crate) fn xor_keystream(&mut self, in_out: &mut [u8]) {
+    /// XOR the AES-CTR keystream into `in_out`, continuing the stream from the
+    /// previous call.
+    ///
+    /// Successive calls are equivalent to one call over the concatenation,
+    /// including calls that end in the middle of a 16-byte block: the unused
+    /// keystream bytes are kept in `keystream` until the next call.
+    ///
+    /// Returns [`StreamCipherError::CounterExhausted`] if the 128-bit counter
+    /// would wrap. No bytes are written to `in_out` in that case.
+    pub(crate) fn xor_keystream(&mut self, in_out: &mut [u8]) -> Result<(), crate::StreamCipherError> {
+        let len = in_out.len();
+
+        // Preflight the 128-bit counter before touching the output buffer. The
+        // buffered keystream covers the first `take` bytes; every remaining
+        // 16-byte block advances the counter once.
+        let buffered = 16_usize.saturating_sub(self.keystream_pos);
+        let take = core::cmp::min(buffered, len);
+        let new_blocks = (len - take).div_ceil(16);
+        if new_blocks != 0 {
+            let counter = u128::from_be_bytes(self.counter);
+            // Reserve the final counter value: require room for the increment
+            // after the last block so the counter can never wrap to zero and
+            // reuse an earlier block.
+            if counter.checked_add(new_blocks as u128).is_none() {
+                return Err(crate::StreamCipherError::CounterExhausted);
+            }
+        }
+
+        let mut pos = 0;
+
+        // Finish the block left over from a previous call. The counter has
+        // already been advanced past that block.
+        if self.keystream_pos < 16 {
+            let take = core::cmp::min(16 - self.keystream_pos, len);
+            for k in 0..take {
+                in_out[k] ^= self.keystream[self.keystream_pos + k];
+            }
+            self.keystream_pos += take;
+            pos = take;
+            if pos == len {
+                return Ok(());
+            }
+        }
+
+        // Hand whole blocks to the backend kernel, which advances the counter
+        // exactly once per block.
+        let whole = (len - pos) & !15;
+        if whole != 0 {
+            self.xor_keystream_blocks(&mut in_out[pos..pos + whole]);
+            pos += whole;
+        }
+
+        // Encrypt the trailing partial block and buffer the bytes the caller
+        // did not use, so a later call can continue where this one stopped.
+        let rem = len - pos;
+        if rem != 0 {
+            let mut block = [0u8; 16];
+            self.xor_keystream_blocks(&mut block);
+            for k in 0..rem {
+                in_out[pos + k] ^= block[k];
+            }
+            self.keystream = block;
+            self.keystream_pos = rem;
+        }
+        Ok(())
+    }
+
+    /// XOR the keystream of consecutive whole blocks.
+    ///
+    /// `in_out.len()` must be a multiple of 16: the caller ([`Self::xor_keystream`])
+    /// consumes and buffers any trailing partial block itself so that the
+    /// counter and the keystream offset stay consistent across calls.
+    fn xor_keystream_blocks(&mut self, in_out: &mut [u8]) {
+        debug_assert_eq!(in_out.len() % 16, 0);
+
         match &self.round_keys {
             #[cfg(target_arch = "aarch64")]
             RoundKeys::Armv8(round_keys) => unsafe {
@@ -198,10 +307,15 @@ impl<const N: usize> AesCtr<N> {
 
     /// Set the 16-byte counter block.
     ///
+    /// Any keystream buffered from a previous partial call is discarded: the
+    /// next byte produced is the first byte of the block `counter`.
+    ///
     /// For GCM this is `nonce || 0x00000002` (J₀ + 1).
     #[inline]
     pub fn set_counter(&mut self, counter: &[u8; 16]) {
         self.counter = *counter;
+        self.keystream = [0u8; 16];
+        self.keystream_pos = 16;
     }
 }
 
@@ -271,7 +385,7 @@ mod tests {
         },
     ];
 
-    // NIST SP 800-38A – Appendix F.5.3 CTR-AES256.Encrypt
+    // NIST SP 800-38A – Appendix F.5.5 CTR-AES256.Encrypt
     const NIST_CTR_256_VECTORS: &[CtrVector] = &[
         CtrVector {
             key: "603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4",
@@ -310,7 +424,7 @@ mod tests {
         let mut buf = pt.clone();
         let mut cipher = Aes128Ctr::new(&key);
         cipher.set_counter(&counter);
-        cipher.xor_keystream(&mut buf);
+        cipher.xor_keystream(&mut buf).unwrap();
         assert_eq!(buf, expected_ct, "AES-128-CTR mismatch for key={}", v.key);
 
         let mut buf_soft = pt.clone();
@@ -331,7 +445,7 @@ mod tests {
         let mut buf = pt.clone();
         let mut cipher = Aes256Ctr::new(&key);
         cipher.set_counter(&counter);
-        cipher.xor_keystream(&mut buf);
+        cipher.xor_keystream(&mut buf).unwrap();
         assert_eq!(buf, expected_ct, "AES-256-CTR mismatch for key={}", v.key);
 
         let mut buf_soft = pt.clone();
@@ -361,7 +475,7 @@ mod tests {
         let mut buf = pt.clone();
         let mut cipher = Aes128Ctr::new(&key);
         cipher.set_counter(&counter);
-        cipher.xor_keystream(&mut buf);
+        cipher.xor_keystream(&mut buf).unwrap();
         assert_eq!(buf, expected_ct);
 
         let mut buf_soft = pt.clone();
@@ -390,7 +504,7 @@ mod tests {
         let mut buf = pt.clone();
         let mut cipher = Aes256Ctr::new(&key);
         cipher.set_counter(&counter);
-        cipher.xor_keystream(&mut buf);
+        cipher.xor_keystream(&mut buf).unwrap();
         assert_eq!(buf, expected_ct);
 
         let mut buf_soft = pt.clone();
@@ -433,7 +547,7 @@ mod tests {
         let mut buf: Vec<u8> = vec![];
         let mut cipher = Aes128Ctr::new(&key);
         cipher.set_counter(&counter);
-        cipher.xor_keystream(&mut buf);
+        cipher.xor_keystream(&mut buf).unwrap();
         assert!(buf.is_empty());
     }
 
@@ -448,7 +562,7 @@ mod tests {
         let mut buf = pt.clone();
         let mut cipher = Aes128Ctr::new(&key);
         cipher.set_counter(&counter);
-        cipher.xor_keystream(&mut buf);
+        cipher.xor_keystream(&mut buf).unwrap();
         assert_eq!(buf, expected_ct);
     }
 
@@ -464,7 +578,7 @@ mod tests {
         let mut buf = pt.clone();
         let mut cipher = Aes128Ctr::new(&key);
         cipher.set_counter(&counter);
-        cipher.xor_keystream(&mut buf);
+        cipher.xor_keystream(&mut buf).unwrap();
         assert_eq!(buf, expected_ct);
     }
 
@@ -477,11 +591,11 @@ mod tests {
         let mut buf = pt.clone();
         let mut cipher = Aes128Ctr::new(&key);
         cipher.set_counter(&counter);
-        cipher.xor_keystream(&mut buf);
+        cipher.xor_keystream(&mut buf).unwrap();
         // XOR again with same keystream yields original plaintext
         let mut cipher2 = Aes128Ctr::new(&key);
         cipher2.set_counter(&counter);
-        cipher2.xor_keystream(&mut buf);
+        cipher2.xor_keystream(&mut buf).unwrap();
         assert_eq!(buf, pt);
     }
 
@@ -494,10 +608,10 @@ mod tests {
         let mut buf = pt.clone();
         let mut cipher = Aes256Ctr::new(&key);
         cipher.set_counter(&counter);
-        cipher.xor_keystream(&mut buf);
+        cipher.xor_keystream(&mut buf).unwrap();
         let mut cipher2 = Aes256Ctr::new(&key);
         cipher2.set_counter(&counter);
-        cipher2.xor_keystream(&mut buf);
+        cipher2.xor_keystream(&mut buf).unwrap();
         assert_eq!(buf, pt);
     }
 
@@ -511,13 +625,13 @@ mod tests {
         let mut buf = pt.to_vec();
         let mut cipher = Aes128Ctr::new(&key);
         cipher.set_counter(&counter);
-        cipher.xor_keystream(&mut buf);
+        cipher.xor_keystream(&mut buf).unwrap();
         assert_eq!(buf, expected_keystream.to_vec());
 
         // decrypt (XOR again)
         let mut cipher2 = Aes128Ctr::new(&key);
         cipher2.set_counter(&counter);
-        cipher2.xor_keystream(&mut buf);
+        cipher2.xor_keystream(&mut buf).unwrap();
         assert_eq!(buf, pt.to_vec());
     }
 
@@ -562,7 +676,7 @@ mod tests {
         let mut buf = [0u8; 32];
         let mut cipher = Aes128Ctr::new(&key);
         cipher.set_counter(&counter0);
-        cipher.xor_keystream(&mut buf);
+        cipher.xor_keystream(&mut buf).unwrap();
         assert_eq!(buf, expected, "dispatch must carry the counter into byte 11");
 
         let mut buf_soft = [0u8; 32];

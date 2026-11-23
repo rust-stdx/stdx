@@ -145,10 +145,14 @@ pub trait Aead: Sized + crypto::Aead {
     ///
     /// # Errors
     ///
-    /// Returns [`HpkeError::NotSupported`] when the cipher is the
-    /// [`ExportOnly`] pseudo-AEAD.
+    /// Returns [`HpkeError::MessageLimitReached`] when the cipher's message
+    /// length limit is exceeded, and [`HpkeError::NotSupported`] when the
+    /// cipher is the [`ExportOnly`] pseudo-AEAD.
     fn seal(&self, in_out: &mut [u8], nonce: &[u8], associated_data: &[u8]) -> Result<Hash, HpkeError> {
-        return Ok(crypto::Aead::encrypt_in_place(self, in_out, nonce, associated_data));
+        return crypto::Aead::encrypt_in_place(self, in_out, nonce, associated_data).map_err(|err| match err {
+            crypto::AeadError::MessageTooLong => HpkeError::MessageLimitReached,
+            other => HpkeError::from(other),
+        });
     }
 
     /// Decrypts `in_out` in place using the detached authentication `tag`,
@@ -243,8 +247,13 @@ impl crypto::Aead for ExportOnly {
     const TAG_SIZE: usize = 0;
     const NONCE_SIZE: usize = 0;
 
-    fn encrypt_in_place(&self, _in_out: &mut [u8], _nonce: &[u8], _associated_data: &[u8]) -> Hash {
-        return Hash::from([0u8; Self::TAG_SIZE]);
+    fn encrypt_in_place(
+        &self,
+        _in_out: &mut [u8],
+        _nonce: &[u8],
+        _associated_data: &[u8],
+    ) -> Result<Hash, crypto::AeadError> {
+        return Ok(Hash::from([0u8; Self::TAG_SIZE]));
     }
 
     fn decrypt_in_place(

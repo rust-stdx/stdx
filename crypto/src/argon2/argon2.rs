@@ -30,6 +30,15 @@ const SYNC_POINTS: u32 = 4;
 /// Block size in bytes (1024 bytes = 128 u64 values)
 const BLOCK_SIZE: usize = 1024;
 
+/// Minimum accepted salt length.
+///
+/// RFC 9106 recommends 16 bytes, and the C reference implementation rejects
+/// anything shorter than 8 bytes (`ARGON2_MIN_SALT_LENGTH`). A shorter salt
+/// offers little protection against precomputation, so this implementation
+/// matches the reference lower bound.
+#[cfg(feature = "alloc")]
+const MIN_SALT_LENGTH: usize = 8;
+
 /// Argon2 type constants
 #[allow(dead_code)]
 const ARGON2D: u32 = 0;
@@ -163,8 +172,9 @@ impl core::fmt::Display for Argon2Error {
 /// # Errors
 ///
 /// Returns [`Argon2Error::InvalidParams`] if `out` is shorter than 4 bytes or
-/// longer than `2^32 - 1` bytes, if `params` is invalid, or if `password`,
-/// `salt`, `secret`, or `ad` is longer than `2^32 - 1` bytes.
+/// longer than `2^32 - 1` bytes, if `salt` is shorter than 8 bytes or longer
+/// than `2^32 - 1` bytes, if `password`, `secret`, or `ad` is longer than
+/// `2^32 - 1` bytes, or if `params` is invalid.
 ///
 /// # Example
 ///
@@ -277,10 +287,14 @@ pub fn encode_phc(params: &Params, salt: &[u8], tag: &[u8]) -> String {
 /// Expected format: `$argon2id$v=19$m=<m>,t=<t>,p=<p>$<salt_b64>$<hash_b64>`
 ///
 /// # Errors
+///
 /// Returns [`Argon2Error::InvalidEncoding`] for a malformed string, and
 /// [`Argon2Error::InvalidParams`] if the decoded parameters violate the
 /// RFC 9106 bounds (`t >= 1`, `p` in `1..=2^24 - 1`, `m >= 8*p`) or if the
-/// decoded tag is shorter than 4 bytes. Note that the salt is not validated.
+/// decoded tag is shorter than 4 bytes. Parameters must be encoded as
+/// canonical decimal integers (no sign and no leading zeros). Note that the
+/// salt is not validated here; [`derive_key`] rejects salts shorter than
+/// 8 bytes.
 #[cfg(feature = "alloc")]
 pub fn decode_phc(encoded: &str) -> Result<(Params, Vec<u8>, Vec<u8>), Argon2Error> {
     let parts: Vec<&str> = encoded.split('$').collect();
@@ -333,6 +347,7 @@ pub fn decode_phc(encoded: &str) -> Result<(Params, Vec<u8>, Vec<u8>), Argon2Err
 /// The 64-byte alignment keeps every block cache-line aligned, which lets the
 /// SIMD backends use aligned loads/stores.
 #[derive(Clone)]
+#[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize))]
 #[repr(align(64))]
 struct Block {
     v: [u64; 128],
@@ -412,6 +427,9 @@ fn argon2_core_with_backend(
     check_u32_len(salt.len(), "salt must be <= 2^32 - 1 bytes")?;
     check_u32_len(secret.len(), "secret must be <= 2^32 - 1 bytes")?;
     check_u32_len(ad.len(), "associated data must be <= 2^32 - 1 bytes")?;
+    if salt.len() < MIN_SALT_LENGTH {
+        return Err(Argon2Error::InvalidParams("salt must be at least 8 bytes"));
+    }
 
     let p = params.parallelism;
     let t = params.iterations;
@@ -419,7 +437,7 @@ fn argon2_core_with_backend(
     let tag_length = out.len() as u32;
 
     // Step 1: Compute H_0
-    let h0 = compute_h0(argon_type, password, salt, secret, ad, p, tag_length, m, t);
+    let mut h0 = compute_h0(argon_type, password, salt, secret, ad, p, tag_length, m, t);
 
     // Step 2: Determine actual memory size m' (rounded down to multiple of 4*p)
     let m_prime = 4 * p * (m / (4 * p));
@@ -447,6 +465,12 @@ fn argon2_core_with_backend(
         input[64..68].copy_from_slice(&1u32.to_le_bytes());
         variable_length_hash_into(&input, &mut block_bytes);
         mem.write((i * q + 1) as usize, Block::from_bytes(&block_bytes));
+
+        #[cfg(feature = "zeroize")]
+        {
+            zeroize::Zeroize::zeroize(&mut input);
+            zeroize::Zeroize::zeroize(&mut block_bytes);
+        }
     }
 
     // Steps 5-6: Fill memory
@@ -460,8 +484,15 @@ fn argon2_core_with_backend(
     }
 
     // Step 8: Output tag = H'^T(C)
-    let final_bytes = final_block.to_bytes();
+    let mut final_bytes = final_block.to_bytes();
     variable_length_hash_into(&final_bytes, out);
+
+    #[cfg(feature = "zeroize")]
+    {
+        zeroize::Zeroize::zeroize(&mut h0);
+        zeroize::Zeroize::zeroize(&mut final_block);
+        zeroize::Zeroize::zeroize(&mut final_bytes);
+    }
 
     Ok(())
 }
@@ -641,6 +672,13 @@ fn fill_segment(
         let ref_index = index_alpha(pass, slice, lanes, segment_length, s, q, ref_lane == lane, j1);
         let ref_block_index = (ref_lane * q + ref_index) as usize;
 
+        // The kernel takes two shared references and one raw pointer, so the
+        // three blocks must be pairwise distinct or the write through `cur`
+        // would invalidate a live shared borrow (UB). `index_alpha` excludes
+        // the current block, and `prev` is a different column.
+        debug_assert_ne!(cur_index, prev_index);
+        debug_assert_ne!(cur_index, ref_block_index);
+
         // Argon2 never references the block currently being written, so
         // `cur_index` differs from both `prev_index` and `ref_block_index`.
         // Cross-lane reads target blocks finalized at this synchronization
@@ -664,6 +702,9 @@ fn fill_segment(
             }
         }
     }
+
+    #[cfg(feature = "zeroize")]
+    zeroize::Zeroize::zeroize(&mut addr_words);
 }
 
 /// Fill `out` with one 128-word block of pseudo-random addresses for
@@ -695,6 +736,13 @@ fn generate_address_block(
     let mut addr_block = Block::zero();
     fill::fill_block_ref(&zero_block, &tmp, &mut addr_block, false);
     out.copy_from_slice(&addr_block.v);
+
+    #[cfg(feature = "zeroize")]
+    {
+        zeroize::Zeroize::zeroize(&mut input);
+        zeroize::Zeroize::zeroize(&mut tmp);
+        zeroize::Zeroize::zeroize(&mut addr_block);
+    }
 }
 
 /// Map J1 to a reference block index within the available set W.
@@ -751,7 +799,9 @@ fn index_alpha(
         }
     };
 
-    (start_position + relative_position) % q
+    // Compute the sum in u64: for very large arenas the u32 sum can overflow
+    // even though the final result is a valid index modulo q.
+    ((start_position as u64 + relative_position as u64) % q as u64) as u32
 }
 
 /// Compute H_0 as defined in the RFC.
@@ -767,7 +817,7 @@ fn compute_h0(
     m: u32,
     t: u32,
 ) -> [u8; 64] {
-    let mut blake = Blake2b::new_keyed(&[], 64);
+    let mut blake = Blake2b::new_keyed_unchecked(&[], 64);
 
     blake.update(&p.to_le_bytes());
     blake.update(&tag_length.to_le_bytes());
@@ -801,7 +851,7 @@ fn variable_length_hash_into(input: &[u8], out: &mut [u8]) {
 
     if tag_length <= 64 {
         // Short output: H'^T(A) = H^T(LE32(T)||A)
-        let mut blake = Blake2b::new_keyed(&[], tag_length);
+        let mut blake = Blake2b::new_keyed_unchecked(&[], tag_length);
         blake.update(&(tag_length as u32).to_le_bytes());
         blake.update(input);
         let hash = blake.sum();
@@ -816,7 +866,7 @@ fn variable_length_hash_into(input: &[u8], out: &mut [u8]) {
     // V_1 = H^(64)(LE32(T)||A)
     let mut v = [0u8; 64];
     {
-        let mut blake = Blake2b::new_keyed(&[], 64);
+        let mut blake = Blake2b::new_keyed_unchecked(&[], 64);
         blake.update(&(tag_length as u32).to_le_bytes());
         blake.update(input);
         let hash = blake.sum();
@@ -829,7 +879,7 @@ fn variable_length_hash_into(input: &[u8], out: &mut [u8]) {
     // V_2 through V_r
     let mut offset = 32;
     for _ in 2..=r {
-        let mut blake = Blake2b::new_keyed(&[], 64);
+        let mut blake = Blake2b::new_keyed_unchecked(&[], 64);
         blake.update(&v);
         let hash = blake.sum();
         v.copy_from_slice(&hash.as_ref()[..64]);
@@ -839,10 +889,13 @@ fn variable_length_hash_into(input: &[u8], out: &mut [u8]) {
 
     // V_{r+1} = H^(T-32*r)(V_r)
     let remaining = tag_length - 32 * r;
-    let mut blake = Blake2b::new_keyed(&[], remaining);
+    let mut blake = Blake2b::new_keyed_unchecked(&[], remaining);
     blake.update(&v);
     let hash = blake.sum();
     out[offset..offset + remaining].copy_from_slice(&hash.as_ref()[..remaining]);
+
+    #[cfg(feature = "zeroize")]
+    zeroize::Zeroize::zeroize(&mut v);
 }
 
 // ============================================================
@@ -873,7 +926,29 @@ struct Memory {
 unsafe impl Send for Memory {}
 unsafe impl Sync for Memory {}
 
+/// Clear the arena when it is dropped.
+///
+/// The arena holds the full Argon2 memory state, which is derived from the
+/// password and is just as sensitive as a key. Argon2's reference
+/// implementations wipe it before freeing; with the `zeroize` feature enabled
+/// this crate does the same. The wipe is done through volatile writes, so it
+/// cannot be optimized away.
+#[cfg(feature = "zeroize")]
+impl Drop for Memory {
+    fn drop(&mut self) {
+        self.wipe();
+    }
+}
+
 impl Memory {
+    /// Volatile zeroization of the arena.
+    #[cfg(feature = "zeroize")]
+    fn wipe(&mut self) {
+        use zeroize::Zeroize;
+
+        self.blocks.as_mut_slice().zeroize();
+    }
+
     /// Allocate an uninitialized arena of `len` blocks.
     ///
     /// The contents are left uninitialized on purpose: Argon2 writes every
@@ -961,10 +1036,19 @@ fn base64_decode_no_pad(input: &str) -> Result<Vec<u8>, ()> {
 
 #[cfg(feature = "alloc")]
 fn parse_param(s: &str, prefix: &str) -> Result<u32, Argon2Error> {
-    if !s.starts_with(prefix) {
+    let Some(value) = s.strip_prefix(prefix) else {
         return Err(Argon2Error::InvalidEncoding("invalid parameter prefix"));
+    };
+    // PHC parameters are canonical decimal integers: digits only, no sign and
+    // no leading zeros. Rejecting the non-canonical forms avoids accepting two
+    // different strings for the same hash.
+    if value.is_empty() || !value.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(Argon2Error::InvalidEncoding("invalid parameter value"));
     }
-    s[prefix.len()..]
+    if value.len() > 1 && value.starts_with('0') {
+        return Err(Argon2Error::InvalidEncoding("non-canonical parameter value"));
+    }
+    value
         .parse::<u32>()
         .map_err(|_| Argon2Error::InvalidEncoding("invalid parameter value"))
 }
@@ -975,7 +1059,48 @@ fn parse_param(s: &str, prefix: &str) -> Result<u32, Argon2Error> {
 
 #[cfg(test)]
 mod tests {
+    use rand::{RngExt, SeedableRng, rngs::StdRng};
+
     use super::*;
+
+    #[test]
+    fn index_alpha_wide_sum_does_not_overflow() {
+        let q = u32::MAX;
+        let segment_length = q / 4;
+        for slice in 0..SYNC_POINTS {
+            for index in [0, 1, segment_length - 1] {
+                let idx = index_alpha(1, slice, 1, segment_length, index, q, true, u32::MAX);
+                assert!(idx < q, "index_alpha returned an out-of-range index {idx}");
+            }
+        }
+    }
+
+    #[cfg(feature = "zeroize")]
+    #[test]
+    fn block_zeroize_clears_state() {
+        let mut block = Block::zero();
+        block.v[0] = 0xAA;
+        block.v[127] = 0xBB;
+        zeroize::Zeroize::zeroize(&mut block);
+        assert!(block.v.iter().all(|&v| v == 0));
+    }
+
+    #[cfg(feature = "zeroize")]
+    #[test]
+    fn memory_wipe_clears_arena() {
+        let mut mem = Memory::uninit(4);
+        for i in 0..4 {
+            let mut block = Block::zero();
+            block.v[0] = i as u64 + 1;
+            block.v[127] = 0xAA;
+            mem.write(i, block);
+        }
+        mem.wipe();
+        for i in 0..4 {
+            assert!(mem.get(i).v.iter().all(|&v| v == 0), "block {i} not wiped");
+        }
+        assert!(core::mem::needs_drop::<Memory>());
+    }
 
     fn derive_key_typed(
         argon_type: u32,
@@ -2428,5 +2553,364 @@ mod tests {
         permutation_p(&mut v1);
         permutation_p(&mut v2);
         assert_eq!(v1, v2);
+    }
+
+    // ================================================================
+    // Arena and compression-kernel invariants
+    // ================================================================
+
+    #[cfg(not(miri))]
+    const TEST_CANARY: u64 = 0xA5A5_5A5A_C3C3_3C3C;
+
+    fn test_block(state: &mut StdRng) -> Block {
+        let mut block = Block::zero();
+        state.fill(&mut block.v);
+        block
+    }
+
+    /// A block flanked by canary words, so a kernel that writes outside the
+    /// 1024-byte block is detected.
+    #[cfg(not(miri))]
+    #[repr(C, align(64))]
+    struct GuardedBlock {
+        pre: [u64; 8],
+        blk: Block,
+        post: [u64; 8],
+    }
+
+    #[cfg(not(miri))]
+    impl GuardedBlock {
+        fn new(blk: Block) -> Self {
+            GuardedBlock {
+                pre: [TEST_CANARY; 8],
+                blk,
+                post: [TEST_CANARY; 8],
+            }
+        }
+
+        fn canaries_intact(&self) -> bool {
+            self.pre.iter().all(|&w| w == TEST_CANARY) && self.post.iter().all(|&w| w == TEST_CANARY)
+        }
+    }
+
+    #[test]
+    fn memory_roundtrip_alignment_and_neighbours() {
+        let mut rng = StdRng::seed_from_u64(0x0123_4567_89AB_CDEF);
+        let len = 5;
+        let mem = Memory::uninit(len);
+        assert_eq!(mem.len(), len);
+        assert_eq!(mem.base_ptr() as usize % 64, 0, "arena must be 64-byte aligned");
+
+        let blocks: Vec<Block> = (0..len).map(|_| test_block(&mut rng)).collect();
+        for (i, block) in blocks.iter().enumerate() {
+            mem.write(i, block.clone());
+        }
+        for (i, block) in blocks.iter().enumerate() {
+            assert_eq!(mem.get(i).v, block.v);
+            assert_eq!(mem.first_word(i), block.v[0]);
+        }
+
+        // Writing one block must not disturb its neighbours.
+        let mut replacement = Block::zero();
+        replacement.v[0] = 0xDEAD_BEEF_F00D_1234;
+        mem.write(2, replacement.clone());
+        for (i, block) in blocks.iter().enumerate() {
+            if i == 2 {
+                assert_eq!(mem.get(i).v, replacement.v);
+            } else {
+                assert_eq!(mem.get(i).v, block.v);
+            }
+        }
+
+        // The last block's pointer is in bounds and readable.
+        let last = mem.get_mut(len - 1);
+        // SAFETY: the block was initialized above and is inside the arena.
+        unsafe { assert_eq!((*last).v, blocks[len - 1].v) };
+
+        // Zero-length arenas are never built by Argon2 (`m >= 8p`), but the
+        // constructor must still behave.
+        let empty = Memory::uninit(0);
+        assert_eq!(empty.len(), 0);
+    }
+
+    #[test]
+    fn memory_is_send_sync() {
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<Memory>();
+    }
+
+    /// Every compiled backend must reproduce the scalar kernel bit-for-bit on
+    /// random inputs, for both the fresh-write and XOR passes, without touching
+    /// the canaries or the input blocks.
+    ///
+    /// SIMD intrinsics are not supported by Miri, so this test is skipped there;
+    /// the scalar-only tests below still run under Miri.
+    #[test]
+    #[cfg(not(miri))]
+    fn kernels_match_scalar() {
+        let mut rng = StdRng::seed_from_u64(0xDEAD_BEEF_CAFE_F00D);
+        for _ in 0..32 {
+            let prev = test_block(&mut rng);
+            let reference = test_block(&mut rng);
+            let cur = test_block(&mut rng);
+
+            for with_xor in [false, true] {
+                let prev_before = prev.clone();
+                let reference_before = reference.clone();
+                // `with_xor` XORs the existing destination, so seed the scalar
+                // reference with the same block every backend gets.
+                let mut expected = cur.clone();
+                fill::fill_block_ref(&prev, &reference, &mut expected, with_xor);
+
+                let mut scalar = GuardedBlock::new(cur.clone());
+                // SAFETY: `cur` points at a distinct, initialized guarded block.
+                unsafe {
+                    fill::fill_block(&prev, &reference, &mut scalar.blk as *mut Block, with_xor);
+                }
+                assert_eq!(scalar.blk.v, expected.v);
+                assert!(scalar.canaries_intact());
+
+                #[cfg(target_arch = "aarch64")]
+                {
+                    let mut neon = GuardedBlock::new(cur.clone());
+                    // SAFETY: NEON is baseline on aarch64 and the pointers are
+                    // disjoint, aligned blocks.
+                    unsafe {
+                        fill_neon::fill_block(&prev, &reference, &mut neon.blk as *mut Block, with_xor);
+                    }
+                    assert_eq!(neon.blk.v, expected.v, "NEON differs (with_xor={})", with_xor);
+                    assert!(neon.canaries_intact());
+
+                    #[cfg(feature = "std")]
+                    if std::arch::is_aarch64_feature_detected!("sha3") {
+                        let mut neon_sha3 = GuardedBlock::new(cur.clone());
+                        // SAFETY: the caller checked the `sha3` CPU feature.
+                        unsafe {
+                            fill_neon::fill_block_sha3(&prev, &reference, &mut neon_sha3.blk as *mut Block, with_xor);
+                        }
+                        assert_eq!(neon_sha3.blk.v, expected.v, "NEON+sha3 differs (with_xor={})", with_xor);
+                        assert!(neon_sha3.canaries_intact());
+                    }
+                }
+
+                #[cfg(all(target_arch = "x86_64", feature = "std"))]
+                if std::arch::is_x86_feature_detected!("avx2") {
+                    let mut avx2 = GuardedBlock::new(cur.clone());
+                    // SAFETY: the caller checked the `avx2` CPU feature and the
+                    // pointers are disjoint, aligned blocks.
+                    unsafe {
+                        fill_avx2::fill_block(&prev, &reference, &mut avx2.blk as *mut Block, with_xor);
+                    }
+                    assert_eq!(avx2.blk.v, expected.v, "AVX2 differs (with_xor={})", with_xor);
+                    assert!(avx2.canaries_intact());
+                }
+
+                // The kernel only reads its inputs.
+                assert_eq!(prev.v, prev_before.v);
+                assert_eq!(reference.v, reference_before.v);
+            }
+        }
+    }
+
+    /// Parameter sets small enough for fast sweeps but wide enough to cover the
+    /// `p == 1`/`p > 1`, minimum-memory and non-multiple-of-`4p` cases.
+    #[cfg(not(miri))]
+    const PARAM_CASES: &[(u32, u32, u32)] = &[
+        (1, 8, 1),
+        (1, 9, 2),
+        (1, 12, 1),
+        (1, 16, 2),
+        (2, 16, 1),
+        (2, 17, 2),
+        (2, 20, 1),
+        (2, 24, 2),
+        (3, 24, 1),
+        (3, 25, 2),
+        (4, 32, 1),
+        (4, 32, 3),
+    ];
+
+    /// Sweep small parameters for all three Argon2 types and check that every
+    /// available backend produces the scalar result.
+    #[test]
+    #[cfg(not(miri))]
+    fn backend_sweep_matches_scalar() {
+        let salt = b"testsalt123456";
+        let secret = [0x5Au8; 5];
+        let ad = [0xC3u8; 7];
+        let backends = available_backends();
+        assert!(!backends.is_empty());
+
+        for &(p, m, t) in PARAM_CASES {
+            let params = Params {
+                iterations: t,
+                memory: m,
+                parallelism: p,
+            };
+            for &argon_type in &[ARGON2D, ARGON2I, ARGON2ID] {
+                let mut expected = vec![0u8; 24];
+                argon2_core_with_backend(
+                    argon_type,
+                    b"test-password",
+                    salt,
+                    &secret,
+                    &ad,
+                    &params,
+                    &mut expected,
+                    Backend::Scalar,
+                )
+                .unwrap();
+
+                for &backend in &backends {
+                    if backend == Backend::Scalar {
+                        continue;
+                    }
+                    let mut got = vec![0u8; 24];
+                    argon2_core_with_backend(
+                        argon_type,
+                        b"test-password",
+                        salt,
+                        &secret,
+                        &ad,
+                        &params,
+                        &mut got,
+                        backend,
+                    )
+                    .unwrap();
+                    assert_eq!(
+                        got, expected,
+                        "backend {:?} differs (type={}, p={}, m={}, t={})",
+                        backend, argon_type, p, m, t
+                    );
+                }
+            }
+        }
+    }
+
+    /// Run the full scalar path (hence the arena) on tiny parameters. This test
+    /// is intentionally cheap so it can run under Miri, which then checks the
+    /// uninitialized arena, raw-pointer writes and shared borrows precisely.
+    #[test]
+    fn scalar_full_path_tiny() {
+        let types: &[u32] = if cfg!(miri) {
+            &[ARGON2ID]
+        } else {
+            &[ARGON2D, ARGON2I, ARGON2ID]
+        };
+        let cases: &[(u32, u32, u32)] = if cfg!(miri) {
+            &[(1, 8, 1)]
+        } else {
+            &[(1, 8, 1), (1, 9, 2), (2, 16, 1), (2, 17, 2)]
+        };
+
+        for &argon_type in types {
+            for &(p, m, t) in cases {
+                let params = Params {
+                    iterations: t,
+                    memory: m,
+                    parallelism: p,
+                };
+                let mut out = vec![0u8; 16];
+                argon2_core_with_backend(argon_type, b"pw", b"saltsalt", b"", b"", &params, &mut out, Backend::Scalar)
+                    .unwrap();
+                assert_eq!(out.len(), 16);
+                assert_ne!(out, vec![0u8; 16]);
+            }
+        }
+    }
+
+    /// Fill a small arena and read every block afterwards. Under Miri this
+    /// proves no block is read before it has been written.
+    #[test]
+    fn fill_initializes_every_block() {
+        let (p, m, t) = if cfg!(miri) { (1, 8, 1) } else { (2, 16, 2) };
+        let m_prime = 4 * p * (m / (4 * p));
+        let q = m_prime / p;
+        let mut rng = StdRng::seed_from_u64(0x1234_5678_9ABC_DEF0);
+
+        let mem = Memory::uninit(m_prime as usize);
+        for lane in 0..p {
+            let b0 = test_block(&mut rng);
+            let b1 = test_block(&mut rng);
+            mem.write((lane * q) as usize, b0);
+            mem.write((lane * q + 1) as usize, b1);
+        }
+
+        for pass in 0..t {
+            for slice in 0..SYNC_POINTS {
+                for lane in 0..p {
+                    fill_segment(Backend::Scalar, &mem, ARGON2ID, pass, lane, slice, p, q, t, m_prime);
+                }
+            }
+        }
+
+        // Reading every block must not touch uninitialized memory.
+        let mut acc = 0u64;
+        for i in 0..mem.len() {
+            for &word in mem.get(i).v.iter() {
+                acc ^= word;
+            }
+        }
+        core::hint::black_box(acc);
+    }
+
+    /// A barrier-synchronized, multi-threaded fill (the shape used by
+    /// `fill_memory` for large segments) must match the sequential fill.
+    ///
+    /// Under Miri this also exercises the data-race detector on the arena's
+    /// `unsafe impl Sync`.
+    #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
+    #[test]
+    fn parallel_fill_matches_sequential() {
+        use std::sync::Barrier;
+
+        let (p, m, t) = (2u32, 16u32, 2u32);
+        let m_prime = 4 * p * (m / (4 * p));
+        let q = m_prime / p;
+        assert_eq!(q % SYNC_POINTS, 0);
+
+        let build = || {
+            let mut rng = StdRng::seed_from_u64(0x0F1E_2D3C_4B5A_6978);
+            let mem = Memory::uninit(m_prime as usize);
+            for lane in 0..p {
+                let b0 = test_block(&mut rng);
+                let b1 = test_block(&mut rng);
+                mem.write((lane * q) as usize, b0);
+                mem.write((lane * q + 1) as usize, b1);
+            }
+            mem
+        };
+
+        let sequential = build();
+        for pass in 0..t {
+            for slice in 0..SYNC_POINTS {
+                for lane in 0..p {
+                    fill_segment(Backend::Scalar, &sequential, ARGON2ID, pass, lane, slice, p, q, t, m_prime);
+                }
+            }
+        }
+
+        let parallel = build();
+        {
+            let barrier = Barrier::new(p as usize);
+            std::thread::scope(|scope| {
+                let barrier = &barrier;
+                let parallel = &parallel;
+                for lane in 0..p {
+                    scope.spawn(move || {
+                        for pass in 0..t {
+                            for slice in 0..SYNC_POINTS {
+                                fill_segment(Backend::Scalar, parallel, ARGON2ID, pass, lane, slice, p, q, t, m_prime);
+                                barrier.wait();
+                            }
+                        }
+                    });
+                }
+            });
+        }
+
+        for i in 0..m_prime as usize {
+            assert_eq!(parallel.get(i).v, sequential.get(i).v, "block {} differs", i);
+        }
     }
 }

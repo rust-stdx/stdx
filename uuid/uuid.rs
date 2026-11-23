@@ -699,6 +699,8 @@ fn v7_get_state() -> (u64, u32) {
 
 #[cfg(test)]
 mod tests {
+    use rand::{Rng, SeedableRng, rngs::StdRng};
+
     use super::*;
 
     #[test]
@@ -934,15 +936,6 @@ mod tests {
     }
 
     /// Deterministic pseudo-random generator for property-style tests.
-    fn xorshift64(state: &mut u64) -> u64 {
-        let mut x = *state;
-        x ^= x << 13;
-        x ^= x >> 7;
-        x ^= x << 17;
-        *state = x;
-        x
-    }
-
     // -- to_heapless_string -------------------------------------------------
 
     #[test]
@@ -1086,12 +1079,12 @@ mod tests {
 
     #[test]
     fn parse_random_garbage_never_panics() {
-        let mut state = 0xdead_beef_cafe_babeu64;
+        let mut state = StdRng::seed_from_u64(0xdead_beef_cafe_babe);
         for _ in 0..100_000 {
-            let len = (xorshift64(&mut state) % 65) as usize;
+            let len = (state.next_u64() % 65) as usize;
             let mut buf = [0u8; 64];
             for b in buf.iter_mut().take(len) {
-                *b = xorshift64(&mut state) as u8;
+                *b = state.next_u64() as u8;
             }
             // Must not panic; result is intentionally ignored.
             let _ = Uuid::parse_bytes(&buf[..len]);
@@ -1100,9 +1093,9 @@ mod tests {
 
     #[test]
     fn roundtrip_pseudo_random() {
-        let mut state = 0x1234_5678_9abc_def0u64;
+        let mut state = StdRng::seed_from_u64(0x1234_5678_9abc_def0);
         for _ in 0..100_000 {
-            let v = ((xorshift64(&mut state) as u128) << 64) | xorshift64(&mut state) as u128;
+            let v = ((state.next_u64() as u128) << 64) | state.next_u64() as u128;
             let uuid = Uuid::from_u128(v);
             assert_eq!(uuid.as_u128(), v);
             assert_eq!(Uuid::parse(&uuid.to_string()).unwrap(), uuid);

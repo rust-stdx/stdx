@@ -91,7 +91,8 @@ fn bench_hashes(c: &mut Criterion) {
                 |b, data| {
                     b.iter(|| {
                         let mut out = [0u8; 32];
-                        ParallelHash256::hash(black_box(data.as_slice()), black_box(block_size), b"", &mut out);
+                        ParallelHash256::hash(black_box(data.as_slice()), black_box(block_size), b"", &mut out)
+                            .unwrap();
                         black_box(out);
                     });
                 },

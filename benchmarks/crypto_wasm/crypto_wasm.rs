@@ -223,28 +223,28 @@ fn bench_stream_ciphers(results: &mut Vec<(&str, usize, &str, f64)>) {
         let mbs = benchmark("AES-256-CTR", size, || {
             let mut cipher = Aes256Ctr::new(&KEY);
             let mut buf = vec![0xA5u8; size];
-            cipher.xor_keystream(black_box(&mut buf));
+            cipher.xor_keystream(black_box(&mut buf)).unwrap();
         });
         results.push(("stream", size, "AES-256-CTR", mbs));
 
         let mbs = benchmark("ChaCha8", size, || {
             let mut cipher = ChaCha8Djb::new(&KEY, &NONCE_8);
             let mut buf = vec![0xA5u8; size];
-            cipher.xor_keystream(black_box(&mut buf));
+            cipher.xor_keystream(black_box(&mut buf)).unwrap();
         });
         results.push(("stream", size, "ChaCha8", mbs));
 
         let mbs = benchmark("ChaCha12", size, || {
             let mut cipher = ChaCha12Djb::new(&KEY, &NONCE_8);
             let mut buf = vec![0xA5u8; size];
-            cipher.xor_keystream(black_box(&mut buf));
+            cipher.xor_keystream(black_box(&mut buf)).unwrap();
         });
         results.push(("stream", size, "ChaCha12", mbs));
 
         let mbs = benchmark("ChaCha20", size, || {
             let mut cipher = ChaCha20Djb::new(&KEY, &NONCE_8);
             let mut buf = vec![0xA5u8; size];
-            cipher.xor_keystream(black_box(&mut buf));
+            cipher.xor_keystream(black_box(&mut buf)).unwrap();
         });
         results.push(("stream", size, "ChaCha20", mbs));
 
@@ -385,12 +385,12 @@ fn bench_aead(results: &mut Vec<(&str, usize, &str, f64)>) {
     for &size in DATA_SIZES {
         let mbs = benchmark("AES-256-GCM-encrypt", size, || {
             let mut buf = vec![0xA5u8; size];
-            let _tag = aes.encrypt_in_place(&mut buf, &NONCE_12[..], &[]);
+            let _tag = aes.encrypt_in_place(&mut buf, &NONCE_12[..], &[]).unwrap();
         });
         results.push(("aead", size, "AES-256-GCM-encrypt", mbs));
 
         let mut data = vec![0xA5u8; size];
-        let tag = aes.encrypt_in_place(&mut data, &NONCE_12[..], &[]);
+        let tag = aes.encrypt_in_place(&mut data, &NONCE_12[..], &[]).unwrap();
         let mbs = benchmark("AES-256-GCM-decrypt", size, || {
             let mut buf = data.clone();
             let _ = aes.decrypt_in_place(&mut buf, &NONCE_12[..], &[], tag.as_ref());
@@ -399,12 +399,14 @@ fn bench_aead(results: &mut Vec<(&str, usize, &str, f64)>) {
 
         let mbs = benchmark("ChaCha20-Poly1305-encrypt", size, || {
             let mut buf = vec![0xA5u8; size];
-            let _tag = chacha20poly1305.encrypt_in_place(&mut buf, &NONCE_12[..], &[]);
+            let _tag = chacha20poly1305.encrypt_in_place(&mut buf, &NONCE_12[..], &[]).unwrap();
         });
         results.push(("aead", size, "ChaCha20-Poly1305-encrypt", mbs));
 
         let mut data = vec![0xA5u8; size];
-        let tag = chacha20poly1305.encrypt_in_place(&mut data, &NONCE_12[..], &[]);
+        let tag = chacha20poly1305
+            .encrypt_in_place(&mut data, &NONCE_12[..], &[])
+            .unwrap();
         let mbs = benchmark("ChaCha20-Poly1305-decrypt", size, || {
             let mut buf = data.clone();
             let _ = chacha20poly1305.decrypt_in_place(&mut buf, &NONCE_12[..], &[], tag.as_ref());
@@ -413,12 +415,12 @@ fn bench_aead(results: &mut Vec<(&str, usize, &str, f64)>) {
 
         let mbs = benchmark("Ascon-AEAD128-encrypt", size, || {
             let mut buf = vec![0xA5u8; size];
-            let _tag = ascon_aead.encrypt_in_place(&mut buf, &NONCE_16[..], &[]);
+            let _tag = ascon_aead.encrypt_in_place(&mut buf, &NONCE_16[..], &[]).unwrap();
         });
         results.push(("aead", size, "Ascon-AEAD128-encrypt", mbs));
 
         let mut data = vec![0xA5u8; size];
-        let tag = ascon_aead.encrypt_in_place(&mut data, &NONCE_16[..], &[]);
+        let tag = ascon_aead.encrypt_in_place(&mut data, &NONCE_16[..], &[]).unwrap();
         let mbs = benchmark("Ascon-AEAD128-decrypt", size, || {
             let mut buf = data.clone();
             let _ = ascon_aead.decrypt_in_place(&mut buf, &NONCE_16[..], &[], tag.as_ref());
@@ -427,12 +429,12 @@ fn bench_aead(results: &mut Vec<(&str, usize, &str, f64)>) {
 
         let mbs = benchmark("AEGIS-256-encrypt", size, || {
             let mut buf = vec![0xA5u8; size];
-            let _tag = aegis256.encrypt_in_place(&mut buf, &NONCE_32[..], &[]);
+            let _tag = aegis256.encrypt_in_place(&mut buf, &NONCE_32[..], &[]).unwrap();
         });
         results.push(("aead", size, "AEGIS-256-encrypt", mbs));
 
         let mut data = vec![0xA5u8; size];
-        let tag = aegis256.encrypt_in_place(&mut data, &NONCE_32[..], &[]);
+        let tag = aegis256.encrypt_in_place(&mut data, &NONCE_32[..], &[]).unwrap();
         let mbs = benchmark("AEGIS-256-decrypt", size, || {
             let mut buf = data.clone();
             let _ = aegis256.decrypt_in_place(&mut buf, &NONCE_32[..], &[], tag.as_ref());
@@ -441,12 +443,12 @@ fn bench_aead(results: &mut Vec<(&str, usize, &str, f64)>) {
 
         let mbs = benchmark("AEGIS-256X2-encrypt", size, || {
             let mut buf = vec![0xA5u8; size];
-            let _tag = aegis256x2.encrypt_in_place(&mut buf, &NONCE_32[..], &[]);
+            let _tag = aegis256x2.encrypt_in_place(&mut buf, &NONCE_32[..], &[]).unwrap();
         });
         results.push(("aead", size, "AEGIS-256X2-encrypt", mbs));
 
         let mut data = vec![0xA5u8; size];
-        let tag = aegis256x2.encrypt_in_place(&mut data, &NONCE_32[..], &[]);
+        let tag = aegis256x2.encrypt_in_place(&mut data, &NONCE_32[..], &[]).unwrap();
         let mbs = benchmark("AEGIS-256X2-decrypt", size, || {
             let mut buf = data.clone();
             let _ = aegis256x2.decrypt_in_place(&mut buf, &NONCE_32[..], &[], tag.as_ref());
@@ -455,12 +457,12 @@ fn bench_aead(results: &mut Vec<(&str, usize, &str, f64)>) {
 
         let mbs = benchmark("AEGIS-256X4-encrypt", size, || {
             let mut buf = vec![0xA5u8; size];
-            let _tag = aegis256x4.encrypt_in_place(&mut buf, &NONCE_32[..], &[]);
+            let _tag = aegis256x4.encrypt_in_place(&mut buf, &NONCE_32[..], &[]).unwrap();
         });
         results.push(("aead", size, "AEGIS-256X4-encrypt", mbs));
 
         let mut data = vec![0xA5u8; size];
-        let tag = aegis256x4.encrypt_in_place(&mut data, &NONCE_32[..], &[]);
+        let tag = aegis256x4.encrypt_in_place(&mut data, &NONCE_32[..], &[]).unwrap();
         let mbs = benchmark("AEGIS-256X4-decrypt", size, || {
             let mut buf = data.clone();
             let _ = aegis256x4.decrypt_in_place(&mut buf, &NONCE_32[..], &[], tag.as_ref());

@@ -144,3 +144,41 @@ pub unsafe fn decode_into(output: &mut [u8], input: &[u8]) -> Result<(), DecodeE
 
     Ok(())
 }
+
+#[cfg(test)]
+mod kernel_tests {
+    use super::*;
+
+    #[test]
+    fn decode_validates_every_lane() {
+        for pos in 0..32 {
+            for val in 0u16..=255 {
+                let byte = val as u8;
+                if matches!(byte, b'0'..=b'9' | b'a'..=b'f' | b'A'..=b'F') {
+                    continue;
+                }
+                let mut input = [b'0'; 32];
+                input[pos] = byte;
+                let mut out = [0u8; 16];
+                // SAFETY: this module only compiles with AVX2 enabled.
+                let got = unsafe { decode_into(&mut out, &input) };
+                assert_eq!(got, Err(DecodeError::InvalidInput), "pos={pos} val={val:#04x}");
+            }
+        }
+    }
+
+    #[test]
+    fn encode_matches_constant_time() {
+        let data: [u8; 96] = core::array::from_fn(|i| (i * 37) as u8);
+        for len in 0..=data.len() {
+            for alphabet in [Alphabet::Lower, Alphabet::Upper] {
+                let mut simd = [0u8; 192];
+                let mut scalar = [0u8; 192];
+                // SAFETY: this module only compiles with AVX2 enabled.
+                unsafe { encode_into(&mut simd[..len * 2], &data[..len], alphabet) }.unwrap();
+                crate::encode_into_constant_time(&mut scalar[..len * 2], &data[..len], alphabet).unwrap();
+                assert_eq!(simd[..len * 2], scalar[..len * 2], "len={len}");
+            }
+        }
+    }
+}

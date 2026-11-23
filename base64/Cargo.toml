@@ -27,5 +27,7 @@ serde = { workspace = true, optional = true }
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
 
+rand = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 serde_test = { workspace = true }

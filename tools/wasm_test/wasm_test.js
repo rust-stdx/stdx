@@ -57,6 +57,7 @@ function parseArgs(argv) {
     packages: new Set(),
     exclude: new Set(),
     check: false,
+    allFeatures: false,
     list: false,
     help: false,
   };
@@ -94,6 +95,8 @@ function parseArgs(argv) {
       addExcludes(arg.slice('--exclude='.length));
     } else if (arg === '--check') {
       options.check = true;
+    } else if (arg === '--all-features') {
+      options.allFeatures = true;
     } else if (arg === '--list') {
       options.list = true;
     } else if (arg === '--help' || arg === '-h') {
@@ -113,6 +116,7 @@ function help() {
       `                     \`cargo check --lib\`, then report the result. Uses\n` +
       `                     default features. Does not run tests and does not\n` +
       `                     need a wasm test runner.\n` +
+      `  --all-features     Pass --all-features to every cargo invocation.\n` +
       `  -p, --package <crate>\n` +
       `                     Only select the given crate (repeatable, comma-separated\n` +
       `                     values allowed). Like \`cargo test -p\`.\n` +
@@ -246,10 +250,11 @@ function checkCrates(members, selected, options) {
   }
   process.stdout.write(`Checking ${candidates.length} crate(s) with cargo check --lib...\n\n`);
 
+  const featureArgs = options.allFeatures ? ['--all-features'] : [];
   const passed = [];
   const failed = [];
   for (const member of candidates) {
-    const result = tryCapture('cargo', ['check', '--lib', '--target', options.target, '-p', member.name]);
+    const result = tryCapture('cargo', ['check', '--lib', '--target', options.target, '-p', member.name, ...featureArgs]);
     if (result.success) {
       passed.push(member);
       process.stdout.write(`  ok    ${member.name}\n`);
@@ -306,6 +311,7 @@ function main() {
   }
 
   const selected = (member) => options.packages.size === 0 || options.packages.has(member.name);
+  const featureArgs = options.allFeatures ? ['--all-features'] : [];
 
   if (options.check) {
     checkCrates(members, selected, options);
@@ -348,7 +354,7 @@ function main() {
   const skippedBuild = [];
   for (const member of candidates) {
     process.stdout.write(`====> probe ${member.name}\n`);
-    const code = run('cargo', ['test', '--no-run', '--target', options.target, '-p', member.name]);
+    const code = run('cargo', ['test', '--no-run', '--target', options.target, '-p', member.name, ...featureArgs]);
     if (code === 0) {
       buildable.push(member);
     } else {
@@ -360,7 +366,7 @@ function main() {
   const failed = [];
   for (const member of buildable) {
     process.stdout.write(`====> test ${member.name}\n`);
-    const code = run('cargo', ['test', '--target', options.target, '-p', member.name]);
+    const code = run('cargo', ['test', '--target', options.target, '-p', member.name, ...featureArgs]);
     if (code !== 0) failed.push(member);
     process.stdout.write('\n');
   }

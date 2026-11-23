@@ -821,7 +821,7 @@ impl MlDsa87Ed25519MessageRepresentative {
     /// [`verify_prehashed`](MlDsa87Ed25519PublicKey::verify_prehashed) or
     /// [`sign_prehashed`](MlDsa87Ed25519SecretKey::sign_prehashed).
     pub fn hasher() -> ParallelHash256 {
-        ParallelHash256::new(4096, Self::LABEL)
+        ParallelHash256::new(4096, Self::LABEL).expect("the block size is a nonzero constant")
     }
 
     /// Computes `M'` from `message`, hashing it with the scheme's
@@ -1164,7 +1164,8 @@ impl TryFrom<&[u8]> for MlDsa87Ed25519SecretKey {
 /// Computes `PH(M) = ParallelHash256(M, B = 4096, L = 512 bits, S = Label)`.
 fn compute_prehash_87(message: &[u8]) -> [u8; 64] {
     let mut prehash = [0u8; 64];
-    ParallelHash256::hash(message, 4096, MlDsa87Ed25519MessageRepresentative::LABEL, &mut prehash);
+    ParallelHash256::hash(message, 4096, MlDsa87Ed25519MessageRepresentative::LABEL, &mut prehash)
+        .expect("the block size is a nonzero constant");
     prehash
 }
 

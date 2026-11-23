@@ -13,6 +13,8 @@
 //! to roughly a factor of eight during initialization.
 
 use constant_time_eq::constant_time_eq;
+#[cfg(test)]
+use rand::{RngExt, SeedableRng, rngs::StdRng};
 
 /// Minimum message length for the split-state bulk loop. Measured on the
 /// aarch64 backend: wins from 1 KiB upwards, neutral below it.
@@ -104,6 +106,9 @@ pub(crate) trait BlockOps: Copy {
     /// XOR all 128-bit lanes together.
     #[inline(always)]
     fn fold(self) -> [u8; 16] {
+        const {
+            assert!(Self::D <= 4, "AEGIS BlockOps degree must be at most 4");
+        }
         let mut raw = [0u8; 64];
         // SAFETY: `raw` has room for at least four lanes, and D <= 4.
         unsafe { self.store(raw.as_mut_ptr()) };
@@ -143,6 +148,22 @@ pub(crate) struct Core<B: BlockOps> {
 impl<B: BlockOps> Core<B> {
     /// `rate` is the number of message bytes absorbed or produced per update.
     pub(crate) const RATE: usize = 16 * B::D;
+
+    /// Overwrites the full state with zeros.
+    ///
+    /// The writes are volatile so the compiler cannot eliminate the wipe of a
+    /// state that is about to go out of scope.
+    #[cfg(feature = "zeroize")]
+    #[inline(always)]
+    pub(crate) fn wipe(&mut self) {
+        let bytes = self as *mut Self as *mut u8;
+        for i in 0..core::mem::size_of::<Self>() {
+            // SAFETY: `i` stays within the `Self` allocation, and the exclusive
+            // borrow guarantees no aliases.
+            unsafe { core::ptr::write_volatile(bytes.add(i), 0) };
+        }
+        core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
+    }
 
     /// `Init(key, nonce)` (RFC 10032 §4.4 and §5.5.2).
     ///
@@ -341,7 +362,7 @@ impl<B: BlockOps> Core<B> {
     #[inline(always)]
     fn encrypt_msg_split(&mut self, msg: &mut [u8]) {
         let rate = Self::RATE;
-        debug_assert!(msg.len().is_multiple_of(rate));
+        assert!(msg.len().is_multiple_of(rate));
         let (mut x0, mut x1, mut x2, mut x3, mut x4, mut x5) =
             (self.v[0], self.v[1], self.v[2], self.v[3], self.v[4], self.v[5]);
         let zero = B::zero();
@@ -385,7 +406,7 @@ impl<B: BlockOps> Core<B> {
     #[inline(always)]
     fn decrypt_msg_split(&mut self, msg: &mut [u8]) {
         let rate = Self::RATE;
-        debug_assert!(msg.len().is_multiple_of(rate));
+        assert!(msg.len().is_multiple_of(rate));
         let (mut x0, mut x1, mut x2, mut x3, mut x4, mut x5) =
             (self.v[0], self.v[1], self.v[2], self.v[3], self.v[4], self.v[5]);
         let zero = B::zero();
@@ -429,7 +450,7 @@ impl<B: BlockOps> Core<B> {
     #[inline(always)]
     fn absorb_split(&mut self, ad: &[u8]) {
         let rate = Self::RATE;
-        debug_assert!(ad.len().is_multiple_of(rate));
+        assert!(ad.len().is_multiple_of(rate));
         let (mut x0, mut x1, mut x2, mut x3, mut x4, mut x5) =
             (self.v[0], self.v[1], self.v[2], self.v[3], self.v[4], self.v[5]);
         let zero = B::zero();
@@ -463,7 +484,7 @@ impl<B: BlockOps> Core<B> {
     #[inline(always)]
     fn stream_xor_split(&mut self, in_out: &mut [u8]) {
         let rate = Self::RATE;
-        debug_assert!(in_out.len().is_multiple_of(rate));
+        assert!(in_out.len().is_multiple_of(rate));
         let (mut x0, mut x1, mut x2, mut x3, mut x4, mut x5) =
             (self.v[0], self.v[1], self.v[2], self.v[3], self.v[4], self.v[5]);
         let zero = B::zero();
@@ -507,7 +528,7 @@ impl<B: BlockOps> Core<B> {
     #[inline(always)]
     fn stream_fill_split(&mut self, out: &mut [u8]) {
         let rate = Self::RATE;
-        debug_assert!(out.len().is_multiple_of(rate));
+        assert!(out.len().is_multiple_of(rate));
         let (mut x0, mut x1, mut x2, mut x3, mut x4, mut x5) =
             (self.v[0], self.v[1], self.v[2], self.v[3], self.v[4], self.v[5]);
         let zero = B::zero();
@@ -547,6 +568,7 @@ impl<B: BlockOps> Core<B> {
     /// Write the authentication tag into `tag` (16 or 32 bytes).
     #[inline(always)]
     pub(crate) fn finalize(&mut self, ad_len: usize, msg_len: usize, tag: &mut [u8]) {
+        assert!(tag.len() == 16 || tag.len() == 32, "AEGIS tag must be 16 or 32 bytes");
         let t = self.v[3].xor(B::broadcast(&length_block((ad_len as u64) * 8, (msg_len as u64) * 8)));
         for _ in 0..7 {
             self.update(t);
@@ -557,6 +579,7 @@ impl<B: BlockOps> Core<B> {
     /// `FinalizeMac` (RFC 10032 §8.3.2 and §8.4.2).
     #[inline(always)]
     pub(crate) fn finalize_mac(&mut self, data_len: u64, tag: &mut [u8]) {
+        assert!(tag.len() == 16 || tag.len() == 32, "AEGIS tag must be 16 or 32 bytes");
         let tag_len_bits = (tag.len() as u64) * 8;
         let t = self.v[3].xor(B::broadcast(&length_block(data_len * 8, tag_len_bits)));
         for _ in 0..7 {
@@ -671,7 +694,7 @@ impl<B: BlockOps> Core<B> {
     /// absorbing a zero block (RFC 10032 §7).
     #[inline(always)]
     pub(crate) fn next_keystream(&mut self, out: &mut [u8]) {
-        debug_assert!(out.len() <= Self::RATE);
+        assert!(out.len() <= Self::RATE);
         let z = self.keystream_block();
         let mut raw = [0u8; 64];
         // SAFETY: `raw` is at least `RATE` bytes.
@@ -747,7 +770,7 @@ pub(crate) fn next_keystream_state<B: BlockOps>(bytes: &mut [u8], out: &mut [u8]
 #[inline(always)]
 pub(crate) fn stream_xor_state<B: BlockOps>(bytes: &mut [u8], in_out: &mut [u8]) {
     let rate = Core::<B>::RATE;
-    debug_assert!(in_out.len().is_multiple_of(rate));
+    assert!(in_out.len().is_multiple_of(rate));
     let mut core = Core::<B>::from_bytes(bytes);
     let mut offset = 0;
     if B::SPLIT_BULK && in_out.len() >= BULK_THRESHOLD {
@@ -771,7 +794,7 @@ pub(crate) fn stream_xor_state<B: BlockOps>(bytes: &mut [u8], in_out: &mut [u8])
 #[inline(always)]
 pub(crate) fn stream_fill_state<B: BlockOps>(bytes: &mut [u8], out: &mut [u8]) {
     let rate = Core::<B>::RATE;
-    debug_assert!(out.len().is_multiple_of(rate));
+    assert!(out.len().is_multiple_of(rate));
     let mut core = Core::<B>::from_bytes(bytes);
     let mut offset = 0;
     if B::SPLIT_BULK && out.len() >= BULK_THRESHOLD {
@@ -790,6 +813,9 @@ pub(crate) fn stream_fill_state<B: BlockOps>(bytes: &mut [u8], out: &mut [u8]) {
 
 #[inline(always)]
 fn block_bytes<B: BlockOps>(block: B) -> [u8; 64] {
+    const {
+        assert!(B::D <= 4, "AEGIS BlockOps degree must be at most 4");
+    }
     let mut raw = [0u8; 64];
     // SAFETY: `raw` is at least `RATE` bytes.
     unsafe { block.store(raw.as_mut_ptr()) };
@@ -812,6 +838,8 @@ pub(crate) fn encrypt_with_core<B: BlockOps>(mut core: Core<B>, ad: &[u8], msg: 
     core.absorb(ad);
     core.encrypt_msg(msg);
     core.finalize(ad.len(), msg.len(), tag);
+    #[cfg(feature = "zeroize")]
+    core.wipe();
 }
 
 /// One-shot AEAD decryption for a backend block type.
@@ -832,7 +860,360 @@ pub(crate) fn decrypt_with_core<B: BlockOps>(mut core: Core<B>, ad: &[u8], msg: 
     core.finalize(ad.len(), msg.len(), &mut expected[..tag.len()]);
     let ok = constant_time_eq(tag, &expected[..tag.len()]);
     if !ok {
+        #[cfg(feature = "zeroize")]
+        zeroize::Zeroize::zeroize(msg);
+        #[cfg(not(feature = "zeroize"))]
         msg.fill(0);
     }
+    #[cfg(feature = "zeroize")]
+    {
+        zeroize::Zeroize::zeroize(&mut expected);
+        core.wipe();
+    }
     ok
+}
+
+/// Tests for the backend-independent core.
+///
+/// The split-state bulk loop (`SPLIT_BULK`) is enabled by the aarch64
+/// single-lane kernel only, so the generic code would otherwise be exercised
+/// solely by that kernel. [`SoftSplit`] reuses the portable constant-time
+/// block implementation while enabling the split loop, which lets the generic
+/// arithmetic be compared against the ordinary scalar path on any target.
+#[cfg(all(test, feature = "alloc"))]
+mod core_tests {
+    use alloc::{vec, vec::Vec};
+
+    use super::*;
+    use crate::aegis::aegis_soft::Soft;
+
+    #[derive(Clone, Copy)]
+    struct SoftSplit<const D: usize>(Soft<D>);
+
+    impl<const D: usize> BlockOps for SoftSplit<D> {
+        const D: usize = D;
+        const SPLIT_BULK: bool = true;
+
+        fn zero() -> Self {
+            Self(Soft::<D>::zero())
+        }
+
+        fn xor(self, rhs: Self) -> Self {
+            Self(self.0.xor(rhs.0))
+        }
+
+        fn and(self, rhs: Self) -> Self {
+            Self(self.0.and(rhs.0))
+        }
+
+        fn round(self, rk: Self) -> Self {
+            Self(self.0.round(rk.0))
+        }
+
+        fn xor3(self, b: Self, c: Self) -> Self {
+            Self(self.0.xor3(b.0, c.0))
+        }
+
+        fn round_xor(self, rk: Self, m: Self) -> Self {
+            Self(self.0.round_xor(rk.0, m.0))
+        }
+
+        fn round_nc(self) -> Self {
+            Self(self.0.round_nc())
+        }
+
+        fn round_nc_with(self, key: Self) -> Self {
+            Self(self.0.round_nc_with(key.0))
+        }
+
+        fn fold(self) -> [u8; 16] {
+            self.0.fold()
+        }
+
+        fn broadcast(block: &[u8; 16]) -> Self {
+            Self(Soft::<D>::broadcast(block))
+        }
+
+        fn ctx_all() -> Self {
+            Self(Soft::<D>::ctx_all())
+        }
+
+        unsafe fn load(ptr: *const u8) -> Self {
+            // SAFETY: forwarded verbatim; the caller's contract is unchanged.
+            Self(unsafe { Soft::<D>::load(ptr) })
+        }
+
+        unsafe fn store(self, ptr: *mut u8) {
+            // SAFETY: forwarded verbatim; the caller's contract is unchanged.
+            unsafe { self.0.store(ptr) }
+        }
+    }
+
+    fn pattern(len: usize, seed: u8) -> Vec<u8> {
+        let mut rng = StdRng::seed_from_u64(u64::from(seed));
+        let mut out = vec![0u8; len];
+        rng.fill(&mut out);
+        out
+    }
+
+    const KEY: [u8; 32] = [0x42; 32];
+    const NONCE: [u8; 32] = [0x24; 32];
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[test]
+    fn internal_length_contracts_are_enforced() {
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        let mut core = Core::<Soft<1>>::new(&KEY, &NONCE);
+        let mut oversized = vec![0u8; Core::<Soft<1>>::RATE + 1];
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| core.next_keystream(&mut oversized))).is_err(),
+            "next_keystream accepted more than RATE bytes"
+        );
+
+        let mut bad_tag = [0u8; 24];
+        assert!(
+            catch_unwind(AssertUnwindSafe(|| core.finalize(0, 0, &mut bad_tag))).is_err(),
+            "finalize accepted a 24-byte tag"
+        );
+    }
+
+    #[cfg(feature = "zeroize")]
+    #[test]
+    fn core_wipe_clears_serialized_state() {
+        let mut core = Core::<Soft<1>>::new(&KEY, &NONCE);
+        core.wipe();
+        let mut bytes = [0xA5u8; 96];
+        core.to_bytes(&mut bytes);
+        assert!(bytes.iter().all(|&b| b == 0), "Core::wipe left non-zero state");
+    }
+
+    /// `Soft<D>::round` must apply exactly one independent AES round per lane.
+    /// For odd `D` the implementation routes the last lane through the
+    /// two-block bitsliced kernel with a dummy partner; this checks that the
+    /// dummy lane neither perturbs the real lane nor leaks into the others.
+    #[test]
+    fn soft_round_is_lane_independent_for_odd_d() {
+        fn check<const D: usize>() {
+            let input = pattern(D * 16, 0x31);
+            let rk = pattern(D * 16, 0x77);
+            let v = unsafe { Soft::<D>::load(input.as_ptr()) };
+            let k = unsafe { Soft::<D>::load(rk.as_ptr()) };
+            let mut got = vec![0xA5u8; D * 16];
+            unsafe { v.round(k).store(got.as_mut_ptr()) };
+
+            for lane in 0..D {
+                let a = unsafe { Soft::<1>::load(input[lane * 16..].as_ptr()) };
+                let b = unsafe { Soft::<1>::load(rk[lane * 16..].as_ptr()) };
+                let mut want = [0u8; 16];
+                unsafe { a.round(b).store(want.as_mut_ptr()) };
+                assert_eq!(&got[lane * 16..(lane + 1) * 16], &want, "D={D} lane={lane}");
+            }
+        }
+        check::<1>();
+        check::<2>();
+        check::<3>();
+        check::<4>();
+    }
+
+    /// `fold` xors all `D` lanes and must not read past lane `D - 1`; `store`
+    /// must write exactly `D * 16` bytes.
+    #[test]
+    fn soft_load_store_and_fold_touch_exact_lanes() {
+        fn check<const D: usize>() {
+            let payload = pattern(D * 16, 0x11);
+            for &off in &[0usize, 1, 7, 15] {
+                let mut src = vec![0xC3u8; off + D * 16 + 16];
+                src[off..off + D * 16].copy_from_slice(&payload);
+                let before = src.clone();
+                let v = unsafe { Soft::<D>::load(src.as_ptr().add(off)) };
+                assert_eq!(src, before, "load wrote to its source");
+
+                let mut dst = vec![0xE7u8; off + D * 16 + 16];
+                unsafe { v.store(dst.as_mut_ptr().add(off)) };
+                assert!(dst[..off].iter().all(|&b| b == 0xE7));
+                assert!(dst[off + D * 16..].iter().all(|&b| b == 0xE7));
+                assert_eq!(&dst[off..off + D * 16], &payload[..]);
+
+                let mut expected = [0u8; 16];
+                for lane in 0..D {
+                    for k in 0..16 {
+                        expected[k] ^= payload[lane * 16 + k];
+                    }
+                }
+                assert_eq!(v.fold(), expected, "D={D}");
+            }
+            assert_eq!(Soft::<D>::zero().fold(), [0u8; 16]);
+        }
+        check::<1>();
+        check::<2>();
+        check::<3>();
+        check::<4>();
+    }
+
+    #[test]
+    fn soft_ctx_all_layout() {
+        fn check<const D: usize>() {
+            let mut raw = vec![0xA5u8; D * 16];
+            unsafe { Soft::<D>::ctx_all().store(raw.as_mut_ptr()) };
+            for lane in 0..D {
+                assert_eq!(raw[lane * 16], lane as u8);
+                assert_eq!(raw[lane * 16 + 1], (D - 1) as u8);
+                assert!(raw[lane * 16 + 2..(lane + 1) * 16].iter().all(|&b| b == 0));
+            }
+        }
+        check::<1>();
+        check::<2>();
+        check::<3>();
+        check::<4>();
+    }
+
+    /// The split bulk loop must be bit-identical to the ordinary core for
+    /// lengths below, at, and above `BULK_THRESHOLD` (1024 bytes).
+    #[test]
+    fn split_bulk_matches_scalar_core() {
+        fn check<const D: usize>() {
+            let mut lens = Vec::new();
+            lens.extend(0..=66usize);
+            lens.extend([
+                127, 128, 129, 255, 256, 257, 1023, 1024, 1025, 1026, 1055, 1056, 1087, 1088, 2048, 2049, 4096,
+            ]);
+            for &len in &lens {
+                let plain = pattern(len, 0x51);
+                for &ad_len in &[0usize, 1, 16, 17, 63, 64, 65, 1023, 1024, 1025, 2048] {
+                    let ad = pattern(ad_len, 0x33);
+
+                    let mut want = plain.clone();
+                    let mut want_tag = [0u8; 32];
+                    encrypt::<Soft<D>>(&KEY, &NONCE, &ad, &mut want, &mut want_tag);
+
+                    let mut got = plain.clone();
+                    let mut got_tag = [0u8; 32];
+                    encrypt::<SoftSplit<D>>(&KEY, &NONCE, &ad, &mut got, &mut got_tag);
+                    assert_eq!(got, want, "encrypt D={D} len={len} ad={ad_len}");
+                    assert_eq!(got_tag, want_tag, "encrypt tag D={D} len={len} ad={ad_len}");
+
+                    let mut dec = got.clone();
+                    assert!(
+                        decrypt::<SoftSplit<D>>(&KEY, &NONCE, &ad, &mut dec, &got_tag),
+                        "decrypt rejected D={D} len={len} ad={ad_len}"
+                    );
+                    assert_eq!(dec, plain, "decrypt D={D} len={len} ad={ad_len}");
+
+                    let mut dec = got.clone();
+                    let mut bad = got_tag;
+                    bad[0] ^= 1;
+                    assert!(!decrypt::<SoftSplit<D>>(&KEY, &NONCE, &ad, &mut dec, &bad));
+                    assert!(dec.iter().all(|&b| b == 0), "failed decrypt not zeroed D={D}");
+
+                    // Stream xor/fill with whole blocks.
+                    let rate = 16 * D;
+                    let blocks = len / rate;
+                    if blocks != 0 {
+                        let stream_len = blocks * rate;
+                        let mut a = vec![0u8; 96 * D];
+                        let mut b = vec![0u8; 96 * D];
+                        init_state::<Soft<D>>(&KEY, &NONCE, &mut a);
+                        init_state::<SoftSplit<D>>(&KEY, &NONCE, &mut b);
+                        let mut xa = pattern(stream_len, 0x71);
+                        let mut xb = xa.clone();
+                        stream_xor_state::<Soft<D>>(&mut a, &mut xa);
+                        stream_xor_state::<SoftSplit<D>>(&mut b, &mut xb);
+                        assert_eq!(xa, xb, "stream xor D={D} len={stream_len}");
+                        assert_eq!(a, b, "stream xor state D={D} len={stream_len}");
+
+                        let mut ya = vec![0xA5u8; stream_len];
+                        let mut yb = vec![0xA5u8; stream_len];
+                        stream_fill_state::<Soft<D>>(&mut a, &mut ya);
+                        stream_fill_state::<SoftSplit<D>>(&mut b, &mut yb);
+                        assert_eq!(ya, yb, "stream fill D={D} len={stream_len}");
+                        assert_eq!(a, b, "stream fill state D={D} len={stream_len}");
+                    }
+                }
+            }
+        }
+        check::<1>();
+        check::<2>();
+        check::<4>();
+    }
+
+    /// `next_keystream` must emit a prefix of the next full keystream block and
+    /// advance the state exactly once, regardless of the requested length.
+    #[test]
+    fn next_keystream_prefix_matches_full_block() {
+        fn check<const D: usize>() {
+            let rate = Core::<Soft<D>>::RATE;
+            for n in 0..=rate {
+                let mut a = vec![0u8; 96 * D];
+                let mut b = vec![0u8; 96 * D];
+                init_state::<Soft<D>>(&KEY, &NONCE, &mut a);
+                init_state::<Soft<D>>(&KEY, &NONCE, &mut b);
+
+                let mut small = vec![0xA5u8; n];
+                let mut full = vec![0u8; rate];
+                next_keystream_state::<Soft<D>>(&mut a, &mut small);
+                next_keystream_state::<Soft<D>>(&mut b, &mut full);
+                assert_eq!(small, full[..n], "D={D} n={n}");
+                assert_eq!(a, b, "state advance D={D} n={n}");
+                if n != 0 {
+                    assert!(small.iter().any(|&x| x != 0xA5), "D={D} n={n} produced no bytes");
+                }
+            }
+        }
+        check::<1>();
+        check::<2>();
+        check::<4>();
+    }
+
+    /// Serialized states are exactly `6 * RATE` bytes and survive a round trip.
+    #[test]
+    fn to_bytes_from_bytes_roundtrip_and_length_check() {
+        fn check<const D: usize>() {
+            let core = Core::<Soft<D>>::new(&KEY, &NONCE);
+            let len = 6 * Core::<Soft<D>>::RATE;
+            let mut buf = vec![0xA5u8; len + 2];
+            core.to_bytes(&mut buf[1..1 + len]);
+            assert_eq!(buf[0], 0xA5);
+            assert_eq!(buf[len + 1], 0xA5);
+
+            let restored = Core::<Soft<D>>::from_bytes(&buf[1..1 + len]);
+            let mut again = vec![0u8; len];
+            restored.to_bytes(&mut again);
+            assert_eq!(&buf[1..1 + len], &again[..]);
+        }
+        check::<1>();
+        check::<2>();
+        check::<4>();
+    }
+
+    /// A wrong serialized-state length is rejected by the assertion before any
+    /// byte is written.
+    #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
+    #[test]
+    fn to_bytes_rejects_short_buffer_before_writing() {
+        fn check<const D: usize>() {
+            let core = Core::<Soft<D>>::new(&KEY, &NONCE);
+            let mut short = vec![0xA5u8; 6 * Core::<Soft<D>>::RATE - 1];
+            let prev = std::panic::take_hook();
+            std::panic::set_hook(Box::new(|_| {}));
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| core.to_bytes(&mut short)));
+            std::panic::set_hook(prev);
+            assert!(result.is_err(), "to_bytes accepted a short buffer");
+            assert!(short.iter().all(|&b| b == 0xA5), "to_bytes wrote before validating");
+        }
+        check::<1>();
+        check::<2>();
+        check::<4>();
+    }
+
+    /// `length_block` encodes two 64-bit lengths little-endian and must not
+    /// overflow at the RFC 10032 limit (2^61 - 1 bytes = 2^64 - 8 bits).
+    #[test]
+    fn length_block_at_rfc_limit() {
+        let max_bits = ((1u64 << 61) - 1) * 8;
+        let block = length_block(max_bits, max_bits);
+        assert_eq!(&block[..8], &[0xf8, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
+        assert_eq!(&block[8..], &[0xf8, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
+        assert_eq!(length_block(0, 1), [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0]);
+    }
 }

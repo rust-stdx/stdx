@@ -8,13 +8,24 @@ use core::arch::x86_64::*;
 
 use crate::{Alphabet, DecodeError, EncodeError, decode_into_constant_time, encode_into_constant_time};
 
-// Shuffle: rearrange 12 bytes per 128-bit lane into 4×32-bit triplet lanes.
-// Input: [b11,b10,b9,b8,b7,b6,b5,b4,b3,b2,b1,b0,  ?,?,?,?]
-// Output per 32-bit lane: [b2,b1,b0,?], [b5,b4,b3,?], [b8,b7,b6,?], [b11,b10,b9,?]
+// Shuffle: rearrange the 12 valid bytes of each 128-bit lane into 4×32-bit triplet
+// lanes for the `madd`-based packing below.
+//
+// For every input triplet `(a, b, c)` (in memory order) the lane layout must be
+// `[b, a, c, b]` (as bytes 0..3 of the lane), which the packing constants turn into
+// the four base64 sextets:
+//
+//   lane >> 2                       -> a >> 2
+//   byte 1 of mullo/mulhi result    -> ((a & 3) << 4) | (b >> 4)
+//   byte 2 of mulhi                 -> ((b & 0xf) << 2) | (c >> 6)
+//   byte 3 of mullo                 -> c & 0x3f
+//
+// Both 128-bit lanes start at a multiple-of-3 input offset (0 and 12), so the same
+// mask is used for each lane.
 #[rustfmt::skip]
 const ENCODE_SHUFFLE: [i8; 32] = [
-    2, 1, 0, -1,  5, 4, 3, -1,  8, 7, 6, -1,  11, 10, 9, -1,
-    2, 1, 0, -1,  5, 4, 3, -1,  8, 7, 6, -1,  11, 10, 9, -1,
+    1, 0, 2, 1,  4, 3, 5, 4,  7, 6, 8, 7,  10, 9, 11, 10,
+    1, 0, 2, 1,  4, 3, 5, 4,  7, 6, 8, 7,  10, 9, 11, 10,
 ];
 
 // Compact: after madd packing, extract 3 bytes per 32-bit lane into 12 bytes per 128-bit half.
@@ -57,7 +68,10 @@ pub unsafe fn encode_into(output: &mut [u8], data: &[u8], alphabet: Alphabet) ->
     let mut out = output.as_mut_ptr();
     let mut len = data.len();
 
-    while len >= 24 {
+    // The block consumes 24 bytes but loads 16 bytes at `inp` plus 16 bytes at
+    // `inp + 12`, i.e. it reads up to 28 bytes. Requiring `len >= 28` keeps both
+    // loads in bounds; 24..=27 bytes are left to the scalar tail below.
+    while len >= 28 {
         let lo = _mm_loadu_si128(inp.cast());
         let hi = _mm_loadu_si128(inp.add(12).cast());
         let merged = _mm256_insertf128_si256::<1>(_mm256_castsi128_si256(lo), hi);
@@ -163,20 +177,23 @@ pub unsafe fn decode_into(output: &mut [u8], encoded_data: &[u8], alphabet: Alph
         let mut shift = _mm256_blendv_epi8(sh_AZ, sh_az, m_az);
         shift = _mm256_or_si256(shift, sh_09);
 
-        // + → 62
-        let eq_plus = _mm256_cmpeq_epi8(c, v_plus);
-        shift = _mm256_blendv_epi8(shift, sh_p19, eq_plus);
-
-        // / → 63
-        let eq_slash = _mm256_cmpeq_epi8(c, v_slash);
-        shift = _mm256_blendv_epi8(shift, sh_p16, eq_slash);
-
-        // URL-safe
+        // Alphabet-specific characters: `+`/`/` are only valid for the standard
+        // alphabet and `-`/`_` only for the URL alphabets. Accepting the characters of
+        // the other alphabet here would make the SIMD path accept inputs that the
+        // scalar path rejects.
         if url {
             let eq_dash = _mm256_cmpeq_epi8(c, _mm256_set1_epi8(b'-' as i8));
             shift = _mm256_blendv_epi8(shift, sh_p17, eq_dash);
             let eq_under = _mm256_cmpeq_epi8(c, _mm256_set1_epi8(b'_' as i8));
             shift = _mm256_blendv_epi8(shift, sh_n32, eq_under);
+        } else {
+            // + → 62
+            let eq_plus = _mm256_cmpeq_epi8(c, v_plus);
+            shift = _mm256_blendv_epi8(shift, sh_p19, eq_plus);
+
+            // / → 63
+            let eq_slash = _mm256_cmpeq_epi8(c, v_slash);
+            shift = _mm256_blendv_epi8(shift, sh_p16, eq_slash);
         }
 
         // Error detection
@@ -216,7 +233,7 @@ pub unsafe fn decode_into(output: &mut [u8], encoded_data: &[u8], alphabet: Alph
                 _ => 0,
             };
         let out_slice = core::slice::from_raw_parts_mut(out, out_len);
-        decode_into_constant_time(out_slice, data_slice, alphabet)?;
+        decode_into_constant_time(out_slice, data_slice, alphabet.without_padding())?;
     }
 
     Ok(())

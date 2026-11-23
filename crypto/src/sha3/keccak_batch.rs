@@ -128,7 +128,6 @@ impl Backend {
 //////////////////////////////////////////////////////////////////////////////////////////////////
 // Batched Keccak-p[1600]
 //////////////////////////////////////////////////////////////////////////////////////////////////
-
 /// Largest batch width any target compiles in.
 ///
 /// The backing array is sized for this so the struct type does not depend on
@@ -189,6 +188,7 @@ impl<const W: usize, const ROUNDS: usize> KeccakX<W, ROUNDS> {
                 ROUNDS == 12 || ROUNDS == 16 || ROUNDS == 24,
                 "only Keccak-p[1600, 12], [1600, 16] and [1600, 24] are supported"
             );
+            assert!(W <= MAX_BATCH, "KeccakX width exceeds MAX_BATCH");
         }
 
         match backend {
@@ -847,7 +847,7 @@ mod avx512 {
         let u6 = _mm512_shuffle_i64x2::<0x88>(t5, t7);
         let u7 = _mm512_shuffle_i64x2::<0xdd>(t5, t7);
 
-        // The three shuffle stages leave the columns in bit-reversed order
+        // The three shuffle stages leave the columns in the order
         // (0, 4, 2, 6, 1, 5, 3, 7); write them back in natural order.
         dst[0] = _mm512_xor_si512(dst[0], _mm512_shuffle_i64x2::<0x88>(u0, u4));
         dst[1] = _mm512_xor_si512(dst[1], _mm512_shuffle_i64x2::<0x88>(u2, u6));
@@ -1089,7 +1089,8 @@ mod neon {
     ///
     /// # Safety
     /// `dst` must be 16-byte aligned and hold at least 4 words, and every
-    /// `msgs[w]` must have at least `off + 16` bytes.
+    /// `msgs[w]` must be at least 8-byte aligned and have at least `off + 16`
+    /// bytes.
     #[inline]
     pub(super) unsafe fn xor_lanes(dst: &mut [u64], msgs: &[&[u8]; 2], off: usize) {
         // SAFETY: `dst` is aligned and long enough, as documented above.
@@ -1395,7 +1396,6 @@ impl<const W: usize, const ROUNDS: usize> SpongeX<W, ROUNDS> {
 //////////////////////////////////////////////////////////////////////////////////////////////////
 // Runtime-selected leaf width
 //////////////////////////////////////////////////////////////////////////////////////////////////
-
 /// The batched leaf sponge, whose width follows the detected [`Backend`].
 ///
 /// Exactly one variant is constructed at run time; the others exist so the
@@ -1475,35 +1475,25 @@ impl<const ROUNDS: usize> Leaves<ROUNDS> {
 
 #[cfg(test)]
 mod tests {
+    use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
+
     use super::*;
     use crate::sha3::keccak::{ROUND_CONSTANTS, test_util::sponge};
 
-    fn next_u64(state: &mut u64) -> u64 {
-        // xorshift64*, adequate for test data.
-        *state ^= *state >> 12;
-        *state ^= *state << 25;
-        *state ^= *state >> 27;
-        return state.wrapping_mul(0x2545_f491_4f6c_dd1d);
-    }
-
-    fn random_state(rng: &mut u64) -> [u64; 25] {
+    fn random_state(rng: &mut StdRng) -> [u64; 25] {
         let mut out = [0u64; 25];
-        for lane in out.iter_mut() {
-            *lane = next_u64(rng);
-        }
-        return out;
+        rng.fill(&mut out);
+        out
     }
 
-    fn random_states<const W: usize>(rng: &mut u64) -> [[u64; 25]; W] {
+    fn random_states<const W: usize>(rng: &mut StdRng) -> [[u64; 25]; W] {
         core::array::from_fn(|_| random_state(rng))
     }
 
-    fn random_bytes(len: usize, rng: &mut u64) -> std::vec::Vec<u8> {
+    fn random_bytes(len: usize, rng: &mut StdRng) -> std::vec::Vec<u8> {
         let mut out = std::vec![0u8; len];
-        for byte in out.iter_mut() {
-            *byte = next_u64(rng) as u8;
-        }
-        return out;
+        rng.fill(&mut out);
+        out
     }
 
     fn pack<const W: usize, const ROUNDS: usize>(states: &[[u64; 25]; W]) -> KeccakX<W, ROUNDS> {
@@ -1535,7 +1525,7 @@ mod tests {
     }
 
     fn check_scalar<const W: usize, const ROUNDS: usize>(seed: u64) {
-        let mut rng = seed;
+        let mut rng = StdRng::seed_from_u64(seed);
         for _ in 0..64 {
             let states = random_states::<W>(&mut rng);
             let expected = expected_permuted::<W, ROUNDS>(&states);
@@ -1556,7 +1546,7 @@ mod tests {
     }
 
     fn check_dispatched<const W: usize, const ROUNDS: usize>(seed: u64, backend: Backend) {
-        let mut rng = seed;
+        let mut rng = StdRng::seed_from_u64(seed);
         for _ in 0..64 {
             let states = random_states::<W>(&mut rng);
             let expected = expected_permuted::<W, ROUNDS>(&states);
@@ -1584,7 +1574,7 @@ mod tests {
         }
     }
 
-    /// Whether the AVX-512 kernel may be executed on this CPU.
+    /// Whether the AVX-512 kernel may be executed on the current CPU.
     #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
     fn avx512_available() -> bool {
         #[cfg(feature = "std")]
@@ -1600,7 +1590,7 @@ mod tests {
     #[cfg(target_arch = "aarch64")]
     #[test]
     fn neon_permutation_matches_reference() {
-        let mut rng = 0xa409_3822_299f_31d0u64;
+        let mut rng = StdRng::seed_from_u64(0xa409_3822_299f_31d0);
         for _ in 0..64 {
             let states = random_states::<2>(&mut rng);
             let expected = expected_permuted::<2, 12>(&states);
@@ -1637,7 +1627,7 @@ mod tests {
             return;
         }
 
-        let mut rng = 0x082e_fa98_ec4e_6c89u64;
+        let mut rng = StdRng::seed_from_u64(0x082e_fa98_ec4e_6c89);
         for _ in 0..64 {
             let states = random_states::<2>(&mut rng);
             let expected = expected_permuted::<2, 12>(&states);
@@ -1675,7 +1665,7 @@ mod tests {
         }
         println!("AVX2 kernel test running");
 
-        let mut rng = 0x8e4a_1c37_5d09_b2f6u64;
+        let mut rng = StdRng::seed_from_u64(0x8e4a_1c37_5d09_b2f6);
         for _ in 0..64 {
             let states = random_states::<4>(&mut rng);
             let expected = expected_permuted::<4, 12>(&states);
@@ -1713,7 +1703,7 @@ mod tests {
         }
         println!("AVX-512 kernel test running");
 
-        let mut rng = 0x5d2c_9f81_7a63_e40bu64;
+        let mut rng = StdRng::seed_from_u64(0x5d2c_9f81_7a63_e40b);
         for _ in 0..64 {
             let states = random_states::<8>(&mut rng);
             let expected = expected_permuted::<8, 12>(&states);
@@ -1753,14 +1743,14 @@ mod tests {
             return;
         }
 
-        let mut rng = 0x9e37_79b9_7f4a_7c15u64;
+        let mut rng = StdRng::seed_from_u64(0x9e37_79b9_7f4a_7c15);
         let msgs: [std::vec::Vec<u8>; 8] = core::array::from_fn(|_| random_bytes(192, &mut rng));
         let refs: [&[u8]; 8] = core::array::from_fn(|w| &msgs[w][..]);
 
         for &off in &[0usize, 8, 64] {
             let mut x = KeccakX::<8, 12>::zero();
             for value in &mut x.lanes[..64] {
-                *value = next_u64(&mut rng);
+                *value = rng.next_u64();
             }
             let before = x.lanes;
 
@@ -1792,14 +1782,14 @@ mod tests {
             return;
         }
 
-        let mut rng = 0x7f4a_7c15_9e37_79b9u64;
+        let mut rng = StdRng::seed_from_u64(0x7f4a_7c15_9e37_79b9);
         let msgs: [std::vec::Vec<u8>; 4] = core::array::from_fn(|_| random_bytes(192, &mut rng));
         let refs: [&[u8]; 4] = core::array::from_fn(|w| &msgs[w][..]);
 
         for &off in &[0usize, 8, 32] {
             let mut x = KeccakX::<4, 12>::zero();
             for value in &mut x.lanes[..32] {
-                *value = next_u64(&mut rng);
+                *value = rng.next_u64();
             }
             let before = x.lanes;
 
@@ -1827,14 +1817,14 @@ mod tests {
     #[cfg(target_arch = "aarch64")]
     #[test]
     fn neon_xor_lanes_matches_scalar_transpose() {
-        let mut rng = 0x243f_6a88_85a3_08d3u64;
+        let mut rng = StdRng::seed_from_u64(0x243f_6a88_85a3_08d3);
         let msgs: [std::vec::Vec<u8>; 2] = core::array::from_fn(|_| random_bytes(64, &mut rng));
         let refs: [&[u8]; 2] = core::array::from_fn(|w| &msgs[w][..]);
 
         for &off in &[0usize, 8] {
             let mut x = KeccakX::<2, 12>::zero();
             for value in &mut x.lanes[..4] {
-                *value = next_u64(&mut rng);
+                *value = rng.next_u64();
             }
             let before = x.lanes;
 
@@ -1894,7 +1884,7 @@ mod tests {
     #[test]
     fn sponge_x_wasm_simd128_absorb_alignment_offsets_match_reference() {
         const LEN: usize = 400;
-        let mut rng = 0x3c6e_f372_fe94_f82bu64;
+        let mut rng = StdRng::seed_from_u64(0x3c6e_f372_fe94_f82b);
         let msgs: [std::vec::Vec<u8>; 2] = core::array::from_fn(|_| random_bytes(LEN, &mut rng));
 
         macro_rules! check {
@@ -1954,7 +1944,7 @@ mod tests {
     }
 
     fn check_batched_squeeze<const LEN: usize>(rate: usize, pad: u8, seed: u64) {
-        let mut rng = seed;
+        let mut rng = StdRng::seed_from_u64(seed);
         let msgs: [std::vec::Vec<u8>; 2] = core::array::from_fn(|_| random_bytes(34, &mut rng));
         let refs: [&[u8]; 2] = core::array::from_fn(|w| &msgs[w][..]);
 
@@ -1999,7 +1989,7 @@ mod tests {
 
     #[test]
     fn batched_squeeze_continues_across_calls() {
-        let mut rng = 0x91e1_0c3d_7f5a_2b48u64;
+        let mut rng = StdRng::seed_from_u64(0x91e1_0c3d_7f5a_2b48);
         let msgs: [std::vec::Vec<u8>; 2] = core::array::from_fn(|_| random_bytes(34, &mut rng));
         let refs: [&[u8]; 2] = core::array::from_fn(|w| &msgs[w][..]);
         let expected: [std::vec::Vec<u8>; 2] = core::array::from_fn(|w| {
@@ -2025,7 +2015,7 @@ mod tests {
 
     fn check_incremental_absorb<const W: usize, const ROUNDS: usize>(rate: usize, pad: u8, backend: Backend) {
         const LEN: usize = 1000;
-        let mut rng = 0x3c6e_f372_fe94_f82bu64;
+        let mut rng = StdRng::seed_from_u64(0x3c6e_f372_fe94_f82b);
         let msgs: [std::vec::Vec<u8>; W] = core::array::from_fn(|_| random_bytes(LEN, &mut rng));
 
         let mut expected = [[0u8; 64]; W];
@@ -2100,7 +2090,7 @@ mod tests {
 
     #[test]
     fn batched_sponge_matches_one_way_hash() {
-        let mut rng = 0x4528_21e6_38d0_1377u64;
+        let mut rng = StdRng::seed_from_u64(0x4528_21e6_38d0_1377);
 
         for len in [0usize, 1, 7, 8, 135, 136, 137, 168, 169, 272, 1024, 4097, 8192] {
             let base: [std::vec::Vec<u8>; 4] = core::array::from_fn(|_| random_bytes(len, &mut rng));
@@ -2160,5 +2150,606 @@ mod tests {
             0x8000000080008008,
         ];
         assert_eq!(&ROUND_CONSTANTS[24 - 12..], &rfc);
+    }
+}
+
+/// Coverage for the batch permutation and shared sponge.
+///
+/// These tests are private to the crate because they must drive `KeccakX`,
+/// `SpongeX` and the per-target `xor_lanes` kernels directly. They sweep every
+/// batch width the target can instantiate, every backend name, every rate the
+/// batched sponge accepts, and put canaries in the lanes and bytes the kernels
+/// must not touch.
+#[cfg(test)]
+mod kernel_tests {
+    use rand::{Rng, SeedableRng, rngs::StdRng};
+
+    use super::*;
+    use crate::sha3::keccak::{p1600_soft, test_util::sponge};
+
+    const DELIM: u8 = 0x1f;
+
+    fn random_state(rng: &mut StdRng) -> [u64; 25] {
+        let mut out = [0u64; 25];
+        for lane in out.iter_mut() {
+            *lane = rng.next_u64();
+        }
+        return out;
+    }
+
+    fn pattern(len: usize, salt: u8) -> std::vec::Vec<u8> {
+        return (0..len).map(|i| (i as u8).wrapping_mul(7).wrapping_add(salt)).collect();
+    }
+
+    #[cfg(target_arch = "aarch64")]
+    fn sha3_available() -> bool {
+        #[cfg(feature = "std")]
+        {
+            return std::arch::is_aarch64_feature_detected!("sha3");
+        }
+        #[cfg(all(not(feature = "std"), target_feature = "sha3"))]
+        {
+            return true;
+        }
+        #[cfg(all(not(feature = "std"), not(target_feature = "sha3")))]
+        {
+            return false;
+        }
+    }
+
+    #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
+    fn avx2_available() -> bool {
+        #[cfg(feature = "std")]
+        {
+            return std::arch::is_x86_feature_detected!("avx2");
+        }
+        #[cfg(all(not(feature = "std"), target_feature = "avx2"))]
+        {
+            return true;
+        }
+        #[cfg(all(not(feature = "std"), not(target_feature = "avx2")))]
+        {
+            return false;
+        }
+    }
+
+    #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+    fn avx512_available() -> bool {
+        #[cfg(feature = "std")]
+        {
+            return std::arch::is_x86_feature_detected!("avx512f");
+        }
+        #[cfg(all(not(feature = "std"), target_feature = "avx512f"))]
+        {
+            return true;
+        }
+        #[cfg(all(not(feature = "std"), not(target_feature = "avx512f")))]
+        {
+            return false;
+        }
+    }
+
+    /// Every backend this target can execute, including the detected one.
+    ///
+    /// This is what makes a "passing" run meaningful: the report can state
+    /// which kernels were actually executed.
+    fn available_backends() -> std::vec::Vec<(Backend, &'static str)> {
+        let detected = Backend::detect();
+        let mut out = std::vec![(Backend::Scalar, "scalar"), (detected, detected.name())];
+
+        #[cfg(target_arch = "aarch64")]
+        {
+            out.push((Backend::Neon, "neon"));
+        }
+        #[cfg(all(target_arch = "aarch64", any(feature = "std", target_feature = "sha3")))]
+        if sha3_available() {
+            out.push((Backend::Sha3, "armv8.4-sha3"));
+        }
+
+        #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
+        if avx2_available() {
+            out.push((Backend::Avx2, "avx2"));
+        }
+
+        #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+        if avx512_available() {
+            out.push((Backend::Avx512, "avx512"));
+        }
+
+        #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+        out.push((Backend::WasmSimd128, "wasm-simd128"));
+
+        return out;
+    }
+
+    /// The packed layout is part of the unsafe contract: `lanes[W * i + w]` is
+    /// lane `i` of state `w`, the array is 64-byte aligned, and it holds
+    /// `25 * MAX_BATCH` words.
+    #[test]
+    fn packed_layout_invariants() {
+        assert_eq!(MAX_LANES, 25 * MAX_BATCH);
+        const {
+            assert!(MAX_BATCH >= 2);
+        }
+        assert_eq!(core::mem::align_of::<KeccakX<2, 24>>(), 64);
+        assert_eq!(core::mem::offset_of!(KeccakX<2, 24>, lanes) % 64, 0);
+
+        // Every lane of state `w` is `W` words apart; the scalar kernel relies
+        // on this, and so does the field-to-vector cast in the SIMD kernels.
+        let mut x = KeccakX::<4, 24>::zero();
+        for w in 0..4 {
+            for i in 0..25 {
+                x.lanes[4 * i + w] = (1000 * w + i) as u64;
+            }
+        }
+        for w in 0..4 {
+            for i in 0..25 {
+                assert_eq!(x.lanes[4 * i + w], (1000 * w + i) as u64);
+            }
+        }
+    }
+
+    /// `KeccakX::permute` must reproduce `W` independent `p1600_soft`
+    /// permutations for every width, every supported round count, and every
+    /// backend. Lanes outside `25 * W` are canaries and must stay untouched.
+    fn check_permute<const W: usize, const ROUNDS: usize>(seed: u64) {
+        let mut rng = StdRng::seed_from_u64(seed);
+        let backends = available_backends();
+
+        for case in 0..16 {
+            let states: [[u64; 25]; W] = core::array::from_fn(|_| random_state(&mut rng));
+            let mut expected = states;
+            for state in expected.iter_mut() {
+                p1600_soft::<ROUNDS>(state);
+            }
+
+            for &(backend, name) in &backends {
+                let mut x = KeccakX::<W, ROUNDS>::zero();
+                for (i, lane) in x.lanes.iter_mut().enumerate() {
+                    if i >= 25 * W {
+                        *lane = 0xC0FF_EE00_0000_0000 | i as u64;
+                    }
+                }
+                for w in 0..W {
+                    for i in 0..25 {
+                        x.lanes[W * i + w] = states[w][i];
+                    }
+                }
+                let before = x.lanes;
+
+                x.permute(backend);
+
+                for w in 0..W {
+                    for i in 0..25 {
+                        assert_eq!(
+                            x.lanes[W * i + w],
+                            expected[w][i],
+                            "W={W} ROUNDS={ROUNDS} backend={name} case={case} state={w} lane={i}"
+                        );
+                    }
+                }
+                for i in 25 * W..MAX_LANES {
+                    assert_eq!(
+                        x.lanes[i], before[i],
+                        "W={W} ROUNDS={ROUNDS} backend={name} case={case} wrote past the active lanes"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn permute_every_width_and_round_count_matches_soft() {
+        macro_rules! check_widths {
+            ($rounds:literal) => {{
+                check_permute::<1, $rounds>(0x1111 + $rounds);
+                check_permute::<2, $rounds>(0x2222 + $rounds);
+                check_permute::<3, $rounds>(0x3333 + $rounds);
+                check_permute::<4, $rounds>(0x4444 + $rounds);
+                #[cfg(target_arch = "x86_64")]
+                {
+                    check_permute::<5, $rounds>(0x5555 + $rounds);
+                    check_permute::<6, $rounds>(0x6666 + $rounds);
+                    check_permute::<7, $rounds>(0x7777 + $rounds);
+                    check_permute::<8, $rounds>(0x8888 + $rounds);
+                }
+            }};
+        }
+
+        check_widths!(12);
+        check_widths!(16);
+        check_widths!(24);
+    }
+
+    /// Absorb/squeeze `W` messages through the batched sponge and compare each
+    /// state with the independent byte-at-a-time reference.
+    fn check_sponge_x<const W: usize, const ROUNDS: usize, const LEN: usize>(
+        rate: usize,
+        len: usize,
+        backends: &[(Backend, &'static str)],
+    ) {
+        let msgs: [std::vec::Vec<u8>; W] =
+            core::array::from_fn(|w| pattern(len, (w as u8).wrapping_mul(31) ^ rate as u8));
+        let refs: [&[u8]; W] = core::array::from_fn(|w| &msgs[w][..]);
+
+        let mut expected = [[0u8; LEN]; W];
+        for (w, cv) in expected.iter_mut().enumerate() {
+            sponge::<ROUNDS>(&msgs[w], rate, DELIM, cv);
+        }
+
+        for &(backend, name) in backends {
+            let mut sponge = SpongeX::<W, ROUNDS>::new(rate, DELIM, backend);
+            sponge.absorb_batch(&refs);
+            let mut out = [[0u8; LEN]; W];
+            sponge.squeeze_batch::<LEN>(&mut out);
+            for w in 0..W {
+                assert_eq!(
+                    out[w][..],
+                    expected[w][..],
+                    "W={W} ROUNDS={ROUNDS} LEN={LEN} rate={rate} len={len} backend={name} state={w}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn sponge_x_rate_and_length_sweep_matches_reference() {
+        let backends = available_backends();
+        let lengths_for = |rate: usize| {
+            std::vec![
+                0usize,
+                1,
+                7,
+                8,
+                9,
+                15,
+                16,
+                17,
+                23,
+                24,
+                25,
+                31,
+                32,
+                33,
+                63,
+                64,
+                65,
+                rate - 1,
+                rate,
+                rate + 1,
+                2 * rate - 1,
+                2 * rate,
+                2 * rate + 1,
+            ]
+        };
+
+        for rate in (8..200).step_by(8) {
+            for &len in &lengths_for(rate) {
+                check_sponge_x::<2, 24, 64>(rate, len, &backends);
+                #[cfg(target_arch = "x86_64")]
+                {
+                    check_sponge_x::<3, 24, 64>(rate, len, &backends);
+                    check_sponge_x::<4, 24, 64>(rate, len, &backends);
+                    check_sponge_x::<5, 24, 64>(rate, len, &backends);
+                    check_sponge_x::<8, 24, 64>(rate, len, &backends);
+                }
+                #[cfg(not(target_arch = "x86_64"))]
+                check_sponge_x::<4, 24, 64>(rate, len, &backends);
+            }
+        }
+    }
+
+    /// Short and long squeeze lengths exercise the fast full-rate path, the
+    /// general path, and the transition between rate-sized blocks.
+    #[test]
+    fn sponge_x_squeeze_lengths_match_reference() {
+        let backends = available_backends();
+        macro_rules! sweep {
+            ($($len:literal),* $(,)?) => {
+                $({
+                    for rate in [8usize, 16, 64, 136, 168, 192] {
+                        check_sponge_x::<2, 24, $len>(rate, rate + 3, &backends);
+                        #[cfg(target_arch = "x86_64")]
+                        check_sponge_x::<8, 24, $len>(rate, rate + 3, &backends);
+                        #[cfg(not(target_arch = "x86_64"))]
+                        check_sponge_x::<4, 24, $len>(rate, rate + 3, &backends);
+                    }
+                })*
+            };
+        }
+        sweep!(1, 7, 8, 9, 127, 137);
+    }
+
+    /// `squeeze_cvs` (the tree-hash finalization) must equal the first `LEN`
+    /// bytes of the reference XOF, for every chaining-value length.
+    #[test]
+    fn sponge_x_squeeze_cvs_matches_reference() {
+        let backends = available_backends();
+        macro_rules! sweep {
+            ($($cv:literal),* $(,)?) => {
+                $({
+                    for rate in [8usize, 32, 64, 136, 192] {
+                        if rate >= $cv {
+                            check_sponge_x_cvs::<2, $cv>(rate, &backends);
+                            #[cfg(target_arch = "x86_64")]
+                            {
+                                check_sponge_x_cvs::<3, $cv>(rate, &backends);
+                                check_sponge_x_cvs::<8, $cv>(rate, &backends);
+                            }
+                            #[cfg(not(target_arch = "x86_64"))]
+                            check_sponge_x_cvs::<4, $cv>(rate, &backends);
+                        }
+                    }
+                })*
+            };
+        }
+        sweep!(8, 16, 32, 64);
+    }
+
+    fn check_sponge_x_cvs<const W: usize, const CV_LEN: usize>(rate: usize, backends: &[(Backend, &'static str)]) {
+        let msgs: [std::vec::Vec<u8>; W] = core::array::from_fn(|w| pattern(rate + 5, (w as u8) ^ 0x77));
+        let refs: [&[u8]; W] = core::array::from_fn(|w| &msgs[w][..]);
+
+        let mut expected = [[0u8; CV_LEN]; W];
+        for (w, cv) in expected.iter_mut().enumerate() {
+            sponge::<24>(&msgs[w], rate, DELIM, cv);
+        }
+
+        for &(backend, name) in backends {
+            let mut sponge = SpongeX::<W, 24>::new(rate, DELIM, backend);
+            sponge.absorb_batch(&refs);
+            let mut out = [[0u8; CV_LEN]; W];
+            sponge.squeeze_cvs::<CV_LEN>(&mut out);
+            for w in 0..W {
+                assert_eq!(
+                    out[w][..],
+                    expected[w][..],
+                    "W={W} CV_LEN={CV_LEN} rate={rate} backend={name} state={w}"
+                );
+            }
+        }
+    }
+
+    /// Feeding the same bytes in awkward chunks must equal the one-shot result.
+    /// This drives the byte head, the wide vector body, the scalar whole-lane
+    /// body and the byte tail at every alignment of `pos`.
+    #[test]
+    fn sponge_x_chunked_absorb_matches_one_shot() {
+        let backends = available_backends();
+        let chunks = [1usize, 2, 3, 5, 7, 8, 9, 13, 15, 16, 17, 31, 63, 64, 65, 127, 128, 129];
+
+        for rate in [8usize, 16, 24, 64, 72, 136, 168, 192] {
+            let len = 2 * rate + 5;
+            let expected_2 = {
+                let msgs: [std::vec::Vec<u8>; 2] = core::array::from_fn(|w| pattern(len, w as u8 ^ rate as u8));
+                let mut out = [[0u8; 64]; 2];
+                for w in 0..2 {
+                    sponge::<24>(&msgs[w], rate, DELIM, &mut out[w]);
+                }
+                out
+            };
+
+            for &chunk in &chunks {
+                let msgs: [std::vec::Vec<u8>; 2] = core::array::from_fn(|w| pattern(len, w as u8 ^ rate as u8));
+                for &(backend, name) in &backends {
+                    let mut sponge = SpongeX::<2, 24>::new(rate, DELIM, backend);
+                    for offset in (0..len).step_by(chunk) {
+                        let end = core::cmp::min(offset + chunk, len);
+                        let parts: [&[u8]; 2] = core::array::from_fn(|w| &msgs[w][offset..end]);
+                        sponge.absorb_batch(&parts);
+                    }
+                    let mut out = [[0u8; 64]; 2];
+                    sponge.squeeze_batch::<64>(&mut out);
+                    for w in 0..2 {
+                        assert_eq!(
+                            out[w][..],
+                            expected_2[w][..],
+                            "rate={rate} len={len} chunk={chunk} backend={name} state={w}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /// `reset` must make the sponge behave exactly like a fresh one.
+    #[test]
+    fn sponge_x_reset_is_equivalent_to_fresh() {
+        let backends = available_backends();
+        let rate = 136usize;
+        let messages = [pattern(300, 1), pattern(300, 2), pattern(300, 3), pattern(300, 4)];
+
+        for &(backend, name) in &backends {
+            let refs: [&[u8]; 2] = [&messages[0], &messages[1]];
+            let mut batch = SpongeX::<2, 24>::new(rate, DELIM, backend);
+            batch.absorb_batch(&refs);
+            let mut first = [[0u8; 64]; 2];
+            batch.squeeze_cvs::<64>(&mut first);
+            batch.reset();
+
+            let refs: [&[u8]; 2] = [&messages[2], &messages[3]];
+            batch.absorb_batch(&refs);
+            let mut second = [[0u8; 64]; 2];
+            batch.squeeze_cvs::<64>(&mut second);
+
+            for w in 0..2 {
+                let mut expected = [0u8; 64];
+                sponge::<24>(&messages[w + 2], rate, DELIM, &mut expected);
+                assert_eq!(second[w], expected, "backend={name} state={w}");
+            }
+        }
+    }
+
+    /// Directly calls the target's `xor_lanes` kernel with the destination at a
+    /// non-zero offset and canaries on both sides, for every lane offset the
+    /// absorb loop can produce. Production only ever calls the kernel at
+    /// word-aligned offsets, so those are the offsets swept here.
+    #[cfg(target_arch = "aarch64")]
+    #[test]
+    fn neon_xor_lanes_offsets_and_canaries() {
+        let mut rng = StdRng::seed_from_u64(0x243f_6a88_85a3_08d3);
+        let msgs: [std::vec::Vec<u8>; 2] = core::array::from_fn(|_| {
+            let mut msg = std::vec![0u8; 256];
+            for byte in msg.iter_mut() {
+                *byte = rng.next_u64() as u8;
+            }
+            msg
+        });
+        let refs: [&[u8]; 2] = [&msgs[0][..], &msgs[1][..]];
+
+        for &start_lane in &[0usize, 1, 5, 11, 23] {
+            let start = 2 * start_lane;
+            for &off in &[0usize, 8, 16, 24, 56, 64, 128, 224] {
+                let mut x = KeccakX::<2, 24>::zero();
+                for (i, lane) in x.lanes.iter_mut().enumerate() {
+                    *lane = 0xA5A5_0000_0000_0000 ^ i as u64;
+                }
+                let before = x.lanes;
+
+                // SAFETY: NEON is baseline; `start` is even, so the slice is
+                // 16-byte aligned, holds at least four words, and both
+                // messages have `off + 16 <= 256` bytes.
+                unsafe { super::neon::xor_lanes(&mut x.lanes[start..], &refs, off) };
+
+                for lane in 0..2 {
+                    for w in 0..2 {
+                        let bytes = &msgs[w][off + lane * 8..off + lane * 8 + 8];
+                        let word = u64::from_le_bytes(bytes.try_into().unwrap());
+                        assert_eq!(
+                            x.lanes[start + 2 * lane + w],
+                            before[start + 2 * lane + w] ^ word,
+                            "start_lane={start_lane} off={off} lane={lane} state={w}"
+                        );
+                    }
+                }
+                for i in 0..x.lanes.len() {
+                    if i < start || i >= start + 4 {
+                        assert_eq!(x.lanes[i], before[i], "start_lane={start_lane} off={off} wrote at {i}");
+                    }
+                }
+            }
+        }
+    }
+
+    /// The AVX2 and AVX-512 transposes must XOR exactly one lane of every
+    /// message and leave the rest of the packed state alone, including when
+    /// the destination starts mid-state.
+    #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx2")))]
+    #[test]
+    fn avx2_xor_lanes_offsets_and_canaries() {
+        if !avx2_available() {
+            return;
+        }
+
+        let mut rng = StdRng::seed_from_u64(0x7f4a_7c15_9e37_79b9);
+        let msgs: [std::vec::Vec<u8>; 4] = core::array::from_fn(|_| {
+            let mut msg = std::vec![0u8; 256];
+            for byte in msg.iter_mut() {
+                *byte = rng.next_u64() as u8;
+            }
+            msg
+        });
+        let refs: [&[u8]; 4] = core::array::from_fn(|w| &msgs[w][..]);
+
+        for &start_lane in &[0usize, 1, 5, 11, 23] {
+            let start = 4 * start_lane;
+            for &off in &[0usize, 8, 16, 32, 64, 128, 224] {
+                let mut x = KeccakX::<4, 24>::zero();
+                for (i, lane) in x.lanes.iter_mut().enumerate() {
+                    *lane = 0xA5A5_0000_0000_0000 ^ i as u64;
+                }
+                let before = x.lanes;
+
+                // SAFETY: AVX2 was detected; `start` is a multiple of four,
+                // so the slice is 32-byte aligned and holds at least 16 words.
+                unsafe { super::avx2::xor_lanes(&mut x.lanes[start..], &refs, off) };
+
+                for lane in 0..4 {
+                    for w in 0..4 {
+                        let bytes = &msgs[w][off + lane * 8..off + lane * 8 + 8];
+                        let word = u64::from_le_bytes(bytes.try_into().unwrap());
+                        assert_eq!(
+                            x.lanes[start + 4 * lane + w],
+                            before[start + 4 * lane + w] ^ word,
+                            "start_lane={start_lane} off={off} lane={lane} state={w}"
+                        );
+                    }
+                }
+                for i in 0..x.lanes.len() {
+                    if i < start || i >= start + 16 {
+                        assert_eq!(x.lanes[i], before[i], "start_lane={start_lane} off={off} wrote at {i}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[cfg(all(target_arch = "x86_64", any(feature = "std", target_feature = "avx512f")))]
+    #[test]
+    fn avx512_xor_lanes_offsets_and_canaries() {
+        if !avx512_available() {
+            return;
+        }
+
+        let mut rng = StdRng::seed_from_u64(0x9e37_79b9_7f4a_7c15);
+        let msgs: [std::vec::Vec<u8>; 8] = core::array::from_fn(|_| {
+            let mut msg = std::vec![0u8; 256];
+            for byte in msg.iter_mut() {
+                *byte = rng.next_u64() as u8;
+            }
+            msg
+        });
+        let refs: [&[u8]; 8] = core::array::from_fn(|w| &msgs[w][..]);
+
+        for &start_lane in &[0usize, 1, 5, 11, 16] {
+            let start = 8 * start_lane;
+            for &off in &[0usize, 8, 16, 32, 64, 128, 192] {
+                let mut x = KeccakX::<8, 24>::zero();
+                for (i, lane) in x.lanes.iter_mut().enumerate() {
+                    *lane = 0xA5A5_0000_0000_0000 ^ i as u64;
+                }
+                let before = x.lanes;
+
+                // SAFETY: AVX-512F was detected; `start` is a multiple of
+                // eight, so the slice is 64-byte aligned and holds 64 words.
+                unsafe { super::avx512::xor_lanes(&mut x.lanes[start..], &refs, off) };
+
+                for lane in 0..8 {
+                    for w in 0..8 {
+                        let bytes = &msgs[w][off + lane * 8..off + lane * 8 + 8];
+                        let word = u64::from_le_bytes(bytes.try_into().unwrap());
+                        assert_eq!(
+                            x.lanes[start + 8 * lane + w],
+                            before[start + 8 * lane + w] ^ word,
+                            "start_lane={start_lane} off={off} lane={lane} state={w}"
+                        );
+                    }
+                }
+                for i in 0..x.lanes.len() {
+                    if i < start || i >= start + 64 {
+                        assert_eq!(x.lanes[i], before[i], "start_lane={start_lane} off={off} wrote at {i}");
+                    }
+                }
+            }
+        }
+    }
+
+    /// The batched sponge must accept every round count its permutation
+    /// supports; TurboSHAKE uses 12, TurboHash 16, SHAKE 24.
+    #[test]
+    fn sponge_x_round_counts_match_reference() {
+        let backends = available_backends();
+        macro_rules! sweep {
+            ($($rounds:literal),* $(,)?) => {
+                $({
+                    check_sponge_x::<2, $rounds, 64>(136, 300, &backends);
+                    #[cfg(target_arch = "x86_64")]
+                    check_sponge_x::<8, $rounds, 64>(136, 300, &backends);
+                    #[cfg(not(target_arch = "x86_64"))]
+                    check_sponge_x::<4, $rounds, 64>(136, 300, &backends);
+                })*
+            };
+        }
+        sweep!(12, 16, 24);
     }
 }

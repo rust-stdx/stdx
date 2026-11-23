@@ -7,6 +7,16 @@
 //! 512-bit AVX-512 registers (four blocks per register). The VAES kernels
 //! broadcast one 128-bit round key at a time instead of storing a second,
 //! larger key schedule.
+//!
+//! # Safety
+//!
+//! Every `unsafe fn` below is `#[target_feature]`-gated. Callers must establish
+//! the required features (via [`X86Backend::detect`] and
+//! `is_x86_feature_detected!` for `std`, or the `target_feature` `cfg`s for
+//! `no_std`) before calling, and must pass a round-key array with exactly the
+//! const-generic count: 11 for AES-128 and 15 for AES-256. The `M` const
+//! parameter of the VAES kernels must be 2 or 4. The safe `expand_key_x86_64`
+//! only uses baseline SSE2 loads, so it is callable on any x86-64 CPU.
 use core::arch::x86_64::*;
 
 /// Which x86-64 SIMD backend a cipher object was created with.

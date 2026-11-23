@@ -175,7 +175,7 @@ impl<'a> Kt256<'a> {
     pub fn new(customization: &'a [u8]) -> Self {
         return Kt256 {
             customization,
-            first: TurboShake256::new(SINGLE_PAD),
+            first: TurboShake256::new_unchecked(SINGLE_PAD),
             first_len: 0,
             tree: false,
             queue: None,
@@ -306,7 +306,9 @@ impl<'a> Kt256<'a> {
         // Buffer the partial tail inside the queue sponge.
         if !data.is_empty() {
             debug_assert_eq!(self.queue_len, 0);
-            let queue = self.queue.get_or_insert_with(|| TurboShake256::new(INTERMEDIATE_PAD));
+            let queue = self
+                .queue
+                .get_or_insert_with(|| TurboShake256::new_unchecked(INTERMEDIATE_PAD));
             queue.absorb(data);
             self.queue_len = data.len();
         }
@@ -353,7 +355,7 @@ impl<'a> Kt256<'a> {
 
     fn hash_one(&mut self, chunk: &[u8]) {
         let mut cv = [0u8; KT256_CV_LEN];
-        let mut leaf = TurboShake256::new(INTERMEDIATE_PAD);
+        let mut leaf = TurboShake256::new_unchecked(INTERMEDIATE_PAD);
         leaf.absorb(chunk);
         leaf.squeeze(&mut cv);
 
@@ -1249,12 +1251,12 @@ mod tests {
     fn domain_separator_switch_matches_fresh_sponge() {
         let data = ptn(KT256_CHUNK_SIZE);
 
-        let mut switched = TurboShake256::new(SINGLE_PAD);
+        let mut switched = TurboShake256::new(SINGLE_PAD).unwrap();
         switched.absorb(&data);
         switched.set_domain_separator(FINAL_PAD);
         switched.absorb(&HOP);
 
-        let mut fresh = TurboShake256::new(FINAL_PAD);
+        let mut fresh = TurboShake256::new(FINAL_PAD).unwrap();
         fresh.absorb(&data);
         fresh.absorb(&HOP);
 

@@ -40,6 +40,10 @@ jobs:
       - run: cargo test --target ${{ matrix.target }} --workspace
       - run: cargo test --target ${{ matrix.target }} --workspace --no-default-features
       - run: cargo test --target ${{ matrix.target }} --workspace --all-features
+      - run: make test_all_features
+      - run: make test_simd_native
+      - if: matrix.target == 'x86_64-unknown-linux-gnu'
+        run: make check_all
 
 
   test_macos:
@@ -94,3 +98,4 @@ jobs:
       - run: rustup target add wasm32-wasip1 wasm32-unknown-unknown
       - run: node tools/wasm_test/wasm_test.js --target=wasm32-unknown-unknown --check
       - run: node tools/wasm_test/wasm_test.js
+      - run: make test_wasm_simd

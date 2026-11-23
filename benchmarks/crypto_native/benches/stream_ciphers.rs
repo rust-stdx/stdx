@@ -37,7 +37,7 @@ fn bench_stream_ciphers(c: &mut Criterion) {
             b.iter_batched(
                 || (Aes256Ctr::new(&KEY), vec![0xA5u8; size]),
                 |(mut cipher, mut data)| {
-                    cipher.xor_keystream(black_box(&mut data));
+                    cipher.xor_keystream(black_box(&mut data)).unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );
@@ -65,7 +65,7 @@ fn bench_stream_ciphers(c: &mut Criterion) {
             b.iter_batched(
                 || (ChaCha8Djb::new(&KEY, &NONCE_8), vec![0xA5u8; size]),
                 |(mut cipher, mut data)| {
-                    cipher.xor_keystream(black_box(&mut data));
+                    cipher.xor_keystream(black_box(&mut data)).unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );
@@ -93,7 +93,7 @@ fn bench_stream_ciphers(c: &mut Criterion) {
             b.iter_batched(
                 || (ChaCha12Djb::new(&KEY, &NONCE_8), vec![0xA5u8; size]),
                 |(mut cipher, mut data)| {
-                    cipher.xor_keystream(black_box(&mut data));
+                    cipher.xor_keystream(black_box(&mut data)).unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );
@@ -121,7 +121,7 @@ fn bench_stream_ciphers(c: &mut Criterion) {
             b.iter_batched(
                 || (ChaCha20Djb::new(&KEY, &NONCE_8), vec![0xA5u8; size]),
                 |(mut cipher, mut data)| {
-                    cipher.xor_keystream(black_box(&mut data));
+                    cipher.xor_keystream(black_box(&mut data)).unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );

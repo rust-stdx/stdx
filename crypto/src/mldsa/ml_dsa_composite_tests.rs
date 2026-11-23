@@ -648,7 +648,7 @@ mod ml_dsa87_ed25519_parallelhash256 {
 
     fn reference_prehash(message: &[u8]) -> [u8; PREHASH_SIZE] {
         let mut out = [0u8; PREHASH_SIZE];
-        ParallelHash256::hash(message, BLOCK_SIZE, MlDsa87Ed25519MessageRepresentative::LABEL, &mut out);
+        ParallelHash256::hash(message, BLOCK_SIZE, MlDsa87Ed25519MessageRepresentative::LABEL, &mut out).unwrap();
         out
     }
 
@@ -880,12 +880,13 @@ mod ml_dsa87_ed25519_parallelhash256 {
         // The block size and customization string are part of the domain
         // separation, so digests computed with different parameters must fail.
         let mut other_block_size = [0u8; PREHASH_SIZE];
-        ParallelHash256::hash(message, 8192, MlDsa87Ed25519MessageRepresentative::LABEL, &mut other_block_size);
+        ParallelHash256::hash(message, 8192, MlDsa87Ed25519MessageRepresentative::LABEL, &mut other_block_size)
+            .unwrap();
         let signature = key.sign_prehashed_derand(&other_block_size, ctx, &rnd).unwrap();
         assert!(public_key.verify(message, &signature, ctx).is_err());
 
         let mut empty_customization = [0u8; PREHASH_SIZE];
-        ParallelHash256::hash(message, BLOCK_SIZE, b"", &mut empty_customization);
+        ParallelHash256::hash(message, BLOCK_SIZE, b"", &mut empty_customization).unwrap();
         let signature = key.sign_prehashed_derand(&empty_customization, ctx, &rnd).unwrap();
         assert!(public_key.verify(message, &signature, ctx).is_err());
     }

@@ -358,6 +358,8 @@ pub(crate) unsafe fn ghash_16blocks_vpclmul512(
 
 #[cfg(test)]
 mod tests {
+    use rand::{RngExt, SeedableRng, rngs::StdRng};
+
     use super::*;
 
     fn have_vpclmul() -> bool {
@@ -505,5 +507,200 @@ mod tests {
             _mm_storeu_si128(got_b.as_mut_ptr().cast(), got);
         }
         assert_eq!(got_b, want_b);
+    }
+
+    // ── Scalar cross-checks ─────────────────────────────────────────────────
+
+    fn have_pclmul() -> bool {
+        std::arch::is_x86_feature_detected!("pclmulqdq") && std::arch::is_x86_feature_detected!("ssse3")
+    }
+
+    fn load(bytes: &[u8; 16]) -> __m128i {
+        unsafe { _mm_loadu_si128(bytes.as_ptr().cast()) }
+    }
+
+    fn store(value: __m128i) -> [u8; 16] {
+        let mut out = [0u8; 16];
+        unsafe { _mm_storeu_si128(out.as_mut_ptr().cast(), value) };
+        out
+    }
+
+    fn pattern_blocks(count: usize, seed: u64) -> Vec<[u8; 16]> {
+        let mut rng = StdRng::seed_from_u64(seed);
+        let mut out = Vec::with_capacity(count);
+        for _ in 0..count {
+            out.push(rng.random::<[u8; 16]>());
+        }
+        out
+    }
+
+    fn ghash_natural(h: &[u8; 16], state: &[u8; 16], data: &[u8]) -> [u8; 16] {
+        use crate::aes::ghash::gf128_mul;
+
+        let mut state = *state;
+        for chunk in data.chunks(16) {
+            let mut block = [0u8; 16];
+            block[..chunk.len()].copy_from_slice(chunk);
+            for i in 0..16 {
+                state[i] ^= block[i];
+            }
+            state = gf128_mul(&state, h);
+        }
+        state
+    }
+
+    /// `clmul_gcm` must equal the scalar GF(2^128) multiply in the
+    /// bit-reversed-per-byte domain used by the kernel.
+    #[test]
+    fn clmul_gcm_matches_scalar() {
+        if !have_pclmul() {
+            eprintln!("skipping clmul_gcm_matches_scalar: PCLMULQDQ/SSSE3 not available");
+            return;
+        }
+        use crate::aes::ghash::{bitreverse_bytes, gf128_mul};
+
+        let inputs = pattern_blocks(32, 0x0123_4567_89ab_cdef);
+        for a in &inputs {
+            for b in inputs.iter().take(8) {
+                let want = bitreverse_bytes(&gf128_mul(a, b));
+                let got = store(unsafe { clmul_gcm(load(&bitreverse_bytes(a)), load(&bitreverse_bytes(b))) });
+                assert_eq!(got, want);
+            }
+        }
+
+        let zero = [0u8; 16];
+        let one = {
+            let mut b = [0u8; 16];
+            b[0] = 0x80;
+            b
+        };
+        for x in [zero, one, [0x80u8; 16], [0xffu8; 16]] {
+            assert_eq!(
+                store(unsafe { clmul_gcm(load(&bitreverse_bytes(&x)), load(&bitreverse_bytes(&zero))) }),
+                zero
+            );
+            assert_eq!(
+                store(unsafe { clmul_gcm(load(&bitreverse_bytes(&x)), load(&bitreverse_bytes(&one))) }),
+                bitreverse_bytes(&x)
+            );
+        }
+    }
+
+    /// `ghash_update` (AAD/tail path) over every length 0..=129.
+    #[test]
+    fn ghash_update_matches_scalar_all_lengths() {
+        if !have_pclmul() {
+            eprintln!("skipping ghash_update_matches_scalar_all_lengths: PCLMULQDQ/SSSE3 not available");
+            return;
+        }
+        use crate::aes::ghash::bitreverse_bytes;
+
+        let (powers, h) = crate::aes::ghash::precompute_ghash_powers::<15>(&[0x5au8; 32]);
+        let data: Vec<u8> = (0..130u16)
+            .map(|i| (i as u8).wrapping_mul(29).wrapping_add(3))
+            .collect();
+        let initial = pattern_blocks(1, 0x3141_5926_5358_9793)[0];
+        let state = load(&bitreverse_bytes(&initial));
+
+        for len in 0..=129usize {
+            let got = store(unsafe { ghash_update(state, load(&powers[0]), &data[..len]) });
+            let want = bitreverse_bytes(&ghash_natural(&h, &initial, &data[..len]));
+            assert_eq!(got, want, "len={len}");
+        }
+    }
+
+    /// The aggregated 4- and 8-block helpers must match sequential scalar GHASH
+    /// for arbitrary states, including all-zero blocks and the H⁸ boundary.
+    #[test]
+    fn ghash_4_8_blocks_match_sequential() {
+        if !have_pclmul() {
+            eprintln!("skipping ghash_4_8_blocks_match_sequential: PCLMULQDQ/SSSE3 not available");
+            return;
+        }
+        use crate::aes::ghash::bitreverse_bytes;
+
+        let (powers, h) = crate::aes::ghash::precompute_ghash_powers::<15>(&[0x91u8; 32]);
+        let mut hp = [unsafe { _mm_setzero_si128() }; 16];
+        for (slot, power) in hp.iter_mut().zip(powers.iter()) {
+            *slot = load(power);
+        }
+
+        let blocks = pattern_blocks(8, 0x1111_2222_3333_4444);
+        for state in [[0u8; 16], [0xffu8; 16], pattern_blocks(1, 0x5555_aaaa_3333_cccc)[0]] {
+            let s = load(&bitreverse_bytes(&state));
+
+            let got4 = store(unsafe {
+                ghash_4blocks(s, load(&blocks[0]), load(&blocks[1]), load(&blocks[2]), load(&blocks[3]), &hp)
+            });
+            let mut concat = Vec::new();
+            for b in &blocks[..4] {
+                concat.extend_from_slice(b);
+            }
+            assert_eq!(got4, bitreverse_bytes(&ghash_natural(&h, &state, &concat)));
+
+            let got8 = store(unsafe {
+                ghash_8blocks(
+                    s,
+                    load(&blocks[0]),
+                    load(&blocks[1]),
+                    load(&blocks[2]),
+                    load(&blocks[3]),
+                    load(&blocks[4]),
+                    load(&blocks[5]),
+                    load(&blocks[6]),
+                    load(&blocks[7]),
+                    &hp,
+                )
+            });
+            let mut concat = Vec::new();
+            for b in &blocks {
+                concat.extend_from_slice(b);
+            }
+            assert_eq!(got8, bitreverse_bytes(&ghash_natural(&h, &state, &concat)));
+        }
+    }
+
+    /// The 512-bit aggregator reads H¹⁶ (`h_powers[15]`), the last slot of the
+    /// table. Verify that slot is H¹⁶ and that a 16-block update matches
+    /// sequential scalar GHASH when VPCLMULQDQ/AVX-512 are present.
+    #[test]
+    fn ghash_16blocks_highest_power_is_h16() {
+        if !have_vpclmul512() {
+            eprintln!("skipping ghash_16blocks_highest_power_is_h16: AVX-512/VPCLMUL not available");
+            return;
+        }
+        use crate::aes::ghash::{bitreverse_bytes, gf128_mul};
+
+        let (powers, h) = crate::aes::ghash::precompute_ghash_powers::<15>(&[0x91u8; 32]);
+        let mut h16 = h;
+        for _ in 0..15 {
+            h16 = gf128_mul(&h16, &h);
+        }
+        assert_eq!(powers[15], bitreverse_bytes(&h16));
+
+        let mut hp = [unsafe { _mm_setzero_si128() }; 16];
+        for (slot, power) in hp.iter_mut().zip(powers.iter()) {
+            *slot = load(power);
+        }
+        let blocks = pattern_blocks(16, 0xaaaa_5555_1234_9876);
+        let state = [0x3cu8; 16];
+        let vectors: Vec<__m512i> = (0..4)
+            .map(|i| unsafe { _mm512_loadu_si512(blocks[i * 4..].as_ptr().cast()) })
+            .collect();
+        let got = store(unsafe {
+            ghash_16blocks_vpclmul512(
+                load(&bitreverse_bytes(&state)),
+                vectors[0],
+                vectors[1],
+                vectors[2],
+                vectors[3],
+                &hp,
+            )
+        });
+        let mut concat = Vec::new();
+        for b in &blocks {
+            concat.extend_from_slice(b);
+        }
+        assert_eq!(got, bitreverse_bytes(&ghash_natural(&h, &state, &concat)));
     }
 }

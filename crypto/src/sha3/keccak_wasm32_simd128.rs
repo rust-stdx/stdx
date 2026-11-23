@@ -306,23 +306,15 @@ pub(super) unsafe fn xor_lanes(dst: &mut [u64], msgs: &[&[u8]; 2], off: usize) {
 
 #[cfg(test)]
 mod tests {
+    use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
+
     use super::{permute, xor_lanes};
     use crate::sha3::keccak::{ROUND_CONSTANTS, p1600_soft};
 
-    fn next_u64(state: &mut u64) -> u64 {
-        // xorshift64*, adequate for deterministic test data.
-        *state ^= *state >> 12;
-        *state ^= *state << 25;
-        *state ^= *state >> 27;
-        return state.wrapping_mul(0x2545_f491_4f6c_dd1d);
-    }
-
-    fn random_pair(rng: &mut u64) -> [u64; 50] {
+    fn random_pair(rng: &mut StdRng) -> [u64; 50] {
         let mut lanes = [0u64; 50];
-        for lane in lanes.iter_mut() {
-            *lane = next_u64(rng);
-        }
-        return lanes;
+        rng.fill(&mut lanes);
+        lanes
     }
 
     /// `permute` requires 16-byte alignment, matching the production
@@ -335,7 +327,7 @@ mod tests {
     /// index 0) and the 12/24 slices used by production.
     #[test]
     fn permutation_matches_soft_all_rounds() {
-        let mut rng = 0x0123_4567_89ab_cdefu64;
+        let mut rng = StdRng::seed_from_u64(0x0123_4567_89ab_cdef);
         macro_rules! check {
             ($($rounds:literal),* $(,)?) => {
                 $({
@@ -392,11 +384,11 @@ mod tests {
     /// Directly checks the 2x2 transpose used by the batched absorb path.
     #[test]
     fn xor_lanes_matches_scalar_transpose() {
-        let mut rng = 0x9e37_79b9_7f4a_7c15u64;
+        let mut rng = StdRng::seed_from_u64(0x9e37_79b9_7f4a_7c15);
         let msgs: [std::vec::Vec<u8>; 2] = core::array::from_fn(|_| {
             let mut msg = std::vec![0u8; 64];
             for byte in msg.iter_mut() {
-                *byte = next_u64(&mut rng) as u8;
+                *byte = rng.next_u64() as u8;
             }
             msg
         });
@@ -405,7 +397,7 @@ mod tests {
         for &off in &[0usize, 1, 3, 7, 8, 16, 24] {
             let mut lanes = [0u64; 8];
             for value in lanes.iter_mut() {
-                *value = next_u64(&mut rng);
+                *value = rng.next_u64();
             }
             let before = lanes;
 
@@ -445,14 +437,14 @@ mod tests {
         const ITERS: usize = 100_000;
         const SAMPLES: usize = 5;
 
-        let mut rng = 0x0123_4567_89ab_cdefu64;
+        let mut rng = StdRng::seed_from_u64(0x0123_4567_89ab_cdef);
 
         macro_rules! bench {
             ($rounds:literal) => {{
                 let mut scalar_a = [0u64; 25];
                 let mut scalar_b = [0u64; 25];
                 for value in scalar_a.iter_mut().chain(scalar_b.iter_mut()) {
-                    *value = next_u64(&mut rng);
+                    *value = rng.next_u64();
                 }
                 let mut initial = [0u64; 50];
                 for i in 0..25 {

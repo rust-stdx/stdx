@@ -81,6 +81,10 @@ const PAD: u8 = b'=';
 /// | `Url`               | `A-Za-z0-9-_`    | `=`     |
 /// | `UrlNoPadding`      | `A-Za-z0-9-_`    | none    |
 ///
+/// The padded variants require canonical padding when decoding: an input with
+/// no trailing `=` must be a whole number of 4-character blocks. Use a
+/// `*NoPadding` variant to decode unpadded input.
+///
 /// # Example
 ///
 /// ```rust
@@ -101,6 +105,20 @@ impl Alphabet {
     #[inline]
     const fn is_padded(&self) -> bool {
         matches!(self, Alphabet::Standard | Alphabet::Url)
+    }
+
+    /// The same alphabet with padding disabled.
+    ///
+    /// SIMD kernels receive the content bytes with any trailing `=` already
+    /// stripped by the public dispatcher. Their scalar tail therefore decodes
+    /// an unpadded fragment and must not apply the padded-alphabet canonicality
+    /// rule to it.
+    #[inline]
+    pub(crate) const fn without_padding(self) -> Alphabet {
+        match self {
+            Alphabet::Standard | Alphabet::StandardNoPadding => Alphabet::StandardNoPadding,
+            Alphabet::Url | Alphabet::UrlNoPadding => Alphabet::UrlNoPadding,
+        }
     }
 }
 
@@ -131,7 +149,9 @@ pub enum DecodeError {
 impl core::fmt::Display for EncodeError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Self::InvalidOutputLength => f.write_str("output buffer size must be exactly equal to decoded_len(input)"),
+            Self::InvalidOutputLength => {
+                f.write_str("output buffer size must be exactly equal to encoded_length(input)")
+            }
             Self::OutputOverflow => f.write_str("output length overflows usize::MAX"),
         }
     }
@@ -155,7 +175,6 @@ impl core::error::Error for DecodeError {}
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Encode
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
 /// Returns the size in bytes of the input data after base64 encoding.
 ///
 /// Returns `None` if the output size overflows `usize`.
@@ -488,7 +507,6 @@ const fn sextet_to_base64_char(v: u8, alphabet: Alphabet) -> u8 {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Decode
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
 /// Decodes a base64 string into bytes.
 ///
 /// # Errors
@@ -546,6 +564,8 @@ pub const fn decode_array<const OUT: usize>(encoded_data: &[u8], alphabet: Alpha
 /// [`Alphabet`], if the input length is not valid, if padding is incorrect,
 /// or if `output.len()` is too small to hold the decoded data.
 ///
+/// On error, the contents of `output` are unspecified.
+///
 /// # Example
 ///
 /// ```rust
@@ -584,9 +604,12 @@ pub fn decode_into(output: &mut [u8], encoded_data: &[u8], alphabet: Alphabet) -
     decode_into_constant_time(output, encoded_data, alphabet)
 }
 
-/// Constant-time base64 decoding. Processes all input data without
-/// secret-dependent branches or memory accesses, making it suitable
+/// Constant-time base64 decoding. The character mapping and data processing
+/// use no secret-dependent branches or memory accesses, making it suitable
 /// for cryptographic applications.
+///
+/// Padding detection inspects the trailing bytes and is not constant-time;
+/// only the decoded-data path is.
 ///
 /// Consumers may prefer the faster [`decode_into`] which dispatches to
 /// a SIMD-accelerated path when available (non constant-time).
@@ -824,6 +847,19 @@ pub(crate) const fn strip_padding_info(data: &[u8], expect_padding: bool) -> Res
     let pad_count = p0 + (p0 & p1) + (p0 & p1 & p2);
     let content_len = in_len - pad_count;
 
+    // A padded alphabet requires canonical padding: an input with no trailing
+    // `=` is only valid when it is exactly a whole number of 4-character
+    // blocks. Rejecting the remaining lengths here keeps the padded and
+    // no-padding alphabets distinct and prevents multiple encodings of the
+    // same bytes.
+    if pad_count == 0 {
+        return match in_len & 3 {
+            0 => Ok((in_len, 0)),
+            1 => Err(DecodeError::InvalidInputLength),
+            _ => Err(DecodeError::InvalidPadding),
+        };
+    }
+
     let mut err_len: u8 = 0;
     let mut err_pad: u8 = 0;
 
@@ -957,7 +993,12 @@ mod tests {
 
     // (encoded_str, alphabet, expected_error, description)
     const DECODE_ERROR_VECTORS: &[(&[u8], Alphabet, DecodeError, &str)] = &[
-        (b"!!", Alphabet::Standard, DecodeError::InvalidInput, "two invalid chars"),
+        (
+            b"!!!!",
+            Alphabet::Standard,
+            DecodeError::InvalidInput,
+            "four invalid chars in a full block",
+        ),
         (
             b"Zg!!",
             Alphabet::Standard,
@@ -1304,7 +1345,7 @@ mod tests {
 
     #[test]
     fn test_const_decode_error() {
-        const ERR_INVALID: Result<[u8; 1], DecodeError> = decode_array::<1>(b"!!", Alphabet::Standard);
+        const ERR_INVALID: Result<[u8; 3], DecodeError> = decode_array::<3>(b"!!!!", Alphabet::Standard);
         assert_eq!(ERR_INVALID, Err(DecodeError::InvalidInput));
 
         const ERR_SIZE: Result<[u8; 0], DecodeError> = decode_array::<0>(b"Zg==", Alphabet::Standard);
@@ -1340,7 +1381,7 @@ mod tests {
         assert_eq!(format!("{}", DecodeError::InvalidPadding), "invalid base64 padding");
         assert_eq!(
             format!("{}", EncodeError::InvalidOutputLength),
-            "output buffer size must be exactly equal to decoded_len(input)"
+            "output buffer size must be exactly equal to encoded_length(input)"
         );
         assert_eq!(format!("{}", EncodeError::OutputOverflow), "output length overflows usize::MAX");
     }

@@ -50,6 +50,6 @@ pub(crate) use ascon_32b::{State, p8, p12};
 #[cfg(not(target_pointer_width = "32"))]
 pub(crate) use ascon_64b::{State, p8, p12};
 pub use ascon_aead128::AsconAead128;
-pub use ascon_cxof128::AsconCxof128;
+pub use ascon_cxof128::{AsconCxof128, AsconCxofError};
 pub use ascon_hash256::AsconHash256;
 pub use ascon_xof128::AsconXof128;

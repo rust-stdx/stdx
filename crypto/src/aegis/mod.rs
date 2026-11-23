@@ -90,8 +90,18 @@ use constant_time_eq::constant_time_eq;
 use crate::{Aead, AeadError, Hash, StreamCipher};
 
 /// Largest supported plaintext / associated-data length (RFC 10032: 2^61 - 1
-/// bytes).
+/// bytes). Its bit length is `2^64 - 8`, which still fits in the 64-bit length
+/// block. Longer inputs are rejected with [`AeadError::MessageTooLong`].
 const MAX_INPUT_LEN: u64 = (1u64 << 61) - 1;
+
+/// Checks the RFC 10032 input limit for the associated data and the message.
+#[inline]
+fn check_input_len(ad_len: u64, msg_len: u64) -> Result<(), AeadError> {
+    if ad_len > MAX_INPUT_LEN || msg_len > MAX_INPUT_LEN {
+        return Err(AeadError::MessageTooLong);
+    }
+    Ok(())
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Backend {
@@ -117,6 +127,9 @@ enum Backend {
 #[inline]
 #[allow(unreachable_code)]
 fn detect<const D: usize>() -> Backend {
+    const {
+        assert!(D == 1 || D == 2 || D == 4, "AEGIS degree must be 1, 2 or 4");
+    }
     #[cfg(target_arch = "aarch64")]
     {
         #[cfg(feature = "std")]
@@ -181,6 +194,9 @@ fn detect<const D: usize>() -> Backend {
 #[cfg(target_arch = "x86_64")]
 #[inline]
 fn x86_select<const D: usize>(aes: bool, vaes: bool, vaes512: bool) -> Backend {
+    const {
+        assert!(D == 1 || D == 2 || D == 4, "AEGIS degree must be 1, 2 or 4");
+    }
     if D == 1 {
         if aes { Backend::X86AesNi } else { Backend::Soft }
     } else if D == 2 {
@@ -533,44 +549,6 @@ macro_rules! define_aead {
                     backend: detect::<$d>(),
                 }
             }
-
-            /// Encrypts `msg` in place and returns a detached tag.
-            ///
-            /// # Panics
-            ///
-            /// Panics if `ad.len()` or `msg.len()` exceeds `2^61 - 1` bytes
-            /// (the RFC 10032 input limit).
-            #[inline]
-            #[must_use]
-            pub fn encrypt_in_place_detached(&self, msg: &mut [u8], nonce: &[u8; 32], ad: &[u8]) -> [u8; TAG] {
-                let mut tag = [0u8; TAG];
-                encrypt_impl::<$d>(self.backend, &self.key, nonce, ad, msg, &mut tag);
-                tag
-            }
-
-            /// Authenticates and decrypts `msg` in place with a detached tag.
-            ///
-            /// On failure `msg` is zeroed and [`AeadError::InvalidCiphertext`]
-            /// is returned.
-            ///
-            /// # Panics
-            ///
-            /// Panics if `ad.len()` or `msg.len()` exceeds `2^61 - 1` bytes
-            /// (the RFC 10032 input limit).
-            #[inline]
-            pub fn decrypt_in_place_detached(
-                &self,
-                msg: &mut [u8],
-                nonce: &[u8; 32],
-                ad: &[u8],
-                tag: &[u8; TAG],
-            ) -> Result<(), AeadError> {
-                if decrypt_impl::<$d>(self.backend, &self.key, nonce, ad, msg, tag) {
-                    Ok(())
-                } else {
-                    Err(AeadError::InvalidCiphertext)
-                }
-            }
         }
 
         impl<const TAG: usize> core::fmt::Debug for $name<TAG> {
@@ -585,11 +563,13 @@ macro_rules! define_aead {
             const NONCE_SIZE: usize = 32;
 
             #[inline]
-            fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash {
-                let nonce: &[u8; 32] = nonce
-                    .try_into()
-                    .unwrap_or_else(|_| panic!("AEGIS nonce must be 32 bytes"));
-                Hash::from(self.encrypt_in_place_detached(in_out, nonce, aad))
+            fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Result<Hash, AeadError> {
+                let nonce: &[u8; 32] = nonce.try_into().map_err(|_| AeadError::InvalidNonce)?;
+                check_input_len(aad.len() as u64, in_out.len() as u64)?;
+
+                let mut tag = [0u8; TAG];
+                encrypt_impl::<$d>(self.backend, &self.key, nonce, aad, in_out, &mut tag);
+                Ok(Hash::from(tag))
             }
 
             #[inline]
@@ -602,7 +582,13 @@ macro_rules! define_aead {
             ) -> Result<(), AeadError> {
                 let nonce: &[u8; 32] = nonce.try_into().map_err(|_| AeadError::InvalidNonce)?;
                 let tag: &[u8; TAG] = tag.try_into().map_err(|_| AeadError::InvalidCiphertext)?;
-                self.decrypt_in_place_detached(in_out, nonce, aad, tag)
+                check_input_len(aad.len() as u64, in_out.len() as u64)?;
+
+                if decrypt_impl::<$d>(self.backend, &self.key, nonce, aad, in_out, tag) {
+                    Ok(())
+                } else {
+                    Err(AeadError::InvalidCiphertext)
+                }
             }
         }
     };
@@ -663,17 +649,21 @@ macro_rules! define_mac {
             /// For best throughput, feed large chunks: each call round-trips
             /// the internal state.
             ///
-            /// # Panics
+            /// # Errors
             ///
-            /// Panics if the total authenticated length would exceed
-            /// `2^61 - 1` bytes (the RFC 10032 input limit).
-            pub fn update(&mut self, data: &[u8]) {
+            /// Returns [`AeadError::MessageTooLong`] if the total authenticated
+            /// length would exceed `2^61 - 1` bytes (the RFC 10032 input limit)
+            /// or overflow the length counter. On error the state and length
+            /// are left unchanged.
+            pub fn update(&mut self, data: &[u8]) -> Result<(), AeadError> {
                 let rate = 16 * $d;
                 let new_len = self
                     .len
                     .checked_add(data.len() as u64)
-                    .expect("AEGIS MAC length overflow");
-                assert!(new_len <= MAX_INPUT_LEN, "AEGIS MAC input is too long");
+                    .ok_or(AeadError::MessageTooLong)?;
+                if new_len > MAX_INPUT_LEN {
+                    return Err(AeadError::MessageTooLong);
+                }
                 self.len = new_len;
 
                 let mut offset = 0;
@@ -684,7 +674,7 @@ macro_rules! define_mac {
                     self.pos += take;
                     offset = take;
                     if self.pos < rate {
-                        return;
+                        return Ok(());
                     }
                     absorb_state_impl::<$d>(self.backend, &mut self.state, &self.buf[..rate]);
                     self.pos = 0;
@@ -701,6 +691,7 @@ macro_rules! define_mac {
                     self.buf[..remaining].copy_from_slice(&data[offset..]);
                     self.pos = remaining;
                 }
+                Ok(())
             }
 
             /// Finalizes the MAC and returns the tag.
@@ -847,8 +838,9 @@ macro_rules! define_stream {
         }
 
         impl StreamCipher for $name {
-            fn xor_keystream(&mut self, in_out: &mut [u8]) {
-                self.xor_keystream_in_place(in_out)
+            fn xor_keystream(&mut self, in_out: &mut [u8]) -> Result<(), crate::StreamCipherError> {
+                self.xor_keystream_in_place(in_out);
+                Ok(())
             }
         }
     };

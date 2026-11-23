@@ -150,13 +150,14 @@ pub unsafe fn decode_into(output: &mut [u8], encoded_data: &[u8], alphabet: Alph
                 _ => 0,
             };
         let out_slice = core::slice::from_raw_parts_mut(out, out_len);
-        decode_into_constant_time(out_slice, data_slice, alphabet)?;
+        decode_into_constant_time(out_slice, data_slice, alphabet.without_padding())?;
     }
 
     Ok(())
 }
 
 #[inline]
+#[target_feature(enable = "neon")]
 unsafe fn lookup_byte_blend(input: uint8x8_t, url: bool) -> (uint8x8_t, uint8x8_t) {
     let z = vdup_n_u8(0);
 
@@ -178,18 +179,133 @@ unsafe fn lookup_byte_blend(input: uint8x8_t, url: bool) -> (uint8x8_t, uint8x8_
     let mut s = vbsl_u8(m_az, sh_az, sh_az_upper);
     s = vorr_u8(s, sh_09);
 
-    let eq_plus = vceq_u8(input, vdup_n_u8(b'+'));
-    s = vbsl_u8(eq_plus, vdup_n_u8(19u8), s);
-    let eq_slash = vceq_u8(input, vdup_n_u8(b'/'));
-    s = vbsl_u8(eq_slash, vdup_n_u8(16u8), s);
-
     if url {
         let eq_dash = vceq_u8(input, vdup_n_u8(b'-'));
         s = vbsl_u8(eq_dash, vdup_n_u8(17u8), s);
         let eq_under = vceq_u8(input, vdup_n_u8(b'_'));
         s = vbsl_u8(eq_under, vdup_n_u8((-32i8) as u8), s);
+    } else {
+        let eq_plus = vceq_u8(input, vdup_n_u8(b'+'));
+        s = vbsl_u8(eq_plus, vdup_n_u8(19u8), s);
+        let eq_slash = vceq_u8(input, vdup_n_u8(b'/'));
+        s = vbsl_u8(eq_slash, vdup_n_u8(16u8), s);
     }
 
     let err = vceq_u8(s, z);
     (s, err)
+}
+
+#[cfg(test)]
+mod kernel_tests {
+    use super::*;
+
+    /// Classifies all 8 lanes of `bytes`, returning the per-lane
+    /// `(delta, error_mask)` bytes produced by [`lookup_byte_blend`].
+    #[target_feature(enable = "neon")]
+    unsafe fn classify(bytes: &[u8; 8], url: bool) -> ([u8; 8], [u8; 8]) {
+        let (delta, err) = lookup_byte_blend(vld1_u8(bytes.as_ptr()), url);
+        let mut deltas = [0u8; 8];
+        let mut errs = [0u8; 8];
+        vst1_u8(deltas.as_mut_ptr(), delta);
+        vst1_u8(errs.as_mut_ptr(), err);
+        (deltas, errs)
+    }
+
+    /// Scalar oracle: returns 0..=63 for valid characters and a value with
+    /// bit 6 set for invalid ones, matching the crate's documented contract.
+    fn scalar(c: u8, url: bool) -> u8 {
+        let alphabet = if url {
+            Alphabet::UrlNoPadding
+        } else {
+            Alphabet::StandardNoPadding
+        };
+        crate::base64_char_to_sextet(c, alphabet)
+    }
+
+    /// Exhaustively checks all 256 byte values for both alphabets: the error
+    /// mask must be 0 for (and only for) valid characters, the delta must map
+    /// the input to the scalar sextet, and invalid bytes must yield the zero
+    /// delta sentinel used by the `s == 0` error test.
+    #[test]
+    fn lookup_byte_blend_exhaustive() {
+        for url in [false, true] {
+            for value in 0u16..=255 {
+                let b = value as u8;
+                let (deltas, errs) = unsafe { classify(&[b; 8], url) };
+                let expected = scalar(b, url);
+                let valid = expected < 64;
+                for lane in 0..8 {
+                    assert_eq!(
+                        errs[lane],
+                        if valid { 0x00 } else { 0xFF },
+                        "error mask: byte=0x{b:02X} url={url} lane={lane}"
+                    );
+                    if valid {
+                        assert_eq!(
+                            b.wrapping_add(deltas[lane]),
+                            expected,
+                            "sextet mapping: byte=0x{b:02X} url={url} lane={lane}"
+                        );
+                    } else {
+                        assert_eq!(
+                            deltas[lane], 0,
+                            "invalid byte must yield the zero delta sentinel: \
+                             byte=0x{b:02X} url={url} lane={lane}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /// Places every byte value in every lane position to make sure one lane
+    /// cannot alias or leak into another.
+    #[test]
+    fn lookup_byte_blend_lanes_independent() {
+        for url in [false, true] {
+            for lane in 0..8 {
+                for value in 0u16..=255 {
+                    let mut bytes = [b'A'; 8];
+                    bytes[lane] = value as u8;
+                    let (deltas, errs) = unsafe { classify(&bytes, url) };
+                    let expected = scalar(value as u8, url);
+                    let valid = expected < 64;
+                    assert_eq!(errs[lane], if valid { 0 } else { 0xFF });
+                    for (other, _) in bytes.iter().enumerate().filter(|(i, _)| *i != lane) {
+                        assert_eq!(errs[other], 0, "unrelated lane flagged as invalid");
+                        assert_eq!(bytes[other].wrapping_add(deltas[other]), 0, "unrelated lane delta changed");
+                    }
+                }
+            }
+        }
+    }
+
+    /// Regression test for the URL-alphabet separator bug: `+` and `/` belong
+    /// to the standard alphabet only, `-` and `_` to the URL alphabet only.
+    #[test]
+    fn lookup_byte_blend_alphabet_separators_exclusive() {
+        // Standard alphabet: '+' -> 62 and '/' -> 63 are valid; '-' and '_'
+        // must be rejected.
+        for (b, expected) in [(b'+', 62u8), (b'/', 63)] {
+            let (deltas, errs) = unsafe { classify(&[b; 8], false) };
+            assert_eq!(errs, [0u8; 8], "standard alphabet must accept 0x{b:02X}");
+            assert_eq!(b.wrapping_add(deltas[0]), expected);
+        }
+        for &b in b"-_" {
+            let (_, errs) = unsafe { classify(&[b; 8], false) };
+            assert_eq!(errs, [0xFFu8; 8], "standard alphabet must reject 0x{b:02X}");
+        }
+
+        // URL alphabet: '-' -> 62 and '_' -> 63 are valid; '+' and '/' must be
+        // rejected.
+        for (b, expected) in [(b'-', 62u8), (b'_', 63)] {
+            let (deltas, errs) = unsafe { classify(&[b; 8], true) };
+            assert_eq!(errs, [0u8; 8], "URL alphabet must accept 0x{b:02X}");
+            assert_eq!(b.wrapping_add(deltas[0]), expected);
+        }
+        for &b in b"+/" {
+            let (_, errs) = unsafe { classify(&[b; 8], true) };
+            assert_eq!(errs, [0xFFu8; 8], "URL alphabet must reject 0x{b:02X}");
+        }
+    }
 }

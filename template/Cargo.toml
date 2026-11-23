@@ -25,3 +25,5 @@ memchr = { workspace = true }
 
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
+
+rand = { workspace = true }

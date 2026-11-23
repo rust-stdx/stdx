@@ -122,6 +122,7 @@ fn list_length_is_bounded_by_the_decoded_byte_budget() {
     );
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn extreme_row_count_with_unlimited_options_returns_an_error() {
     let bytes = envelope(u64::MAX, |e| {
@@ -163,6 +164,7 @@ fn decoded_byte_budget_rejects_an_otherwise_valid_column() {
     assert_eq!(columnar::from_slice_with_options::<One>(&bytes, options).unwrap(), rows);
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn extreme_row_count_all_null_does_not_panic() {
     // `ENC_ALL_NULL` has no payload, so the declared row count is the only
@@ -339,6 +341,7 @@ struct HasShort {
     a: Short,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn short_user_column_returns_an_error_instead_of_panicking() {
     let bytes = envelope(2, |e| {

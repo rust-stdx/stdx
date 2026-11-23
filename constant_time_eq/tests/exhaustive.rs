@@ -2,6 +2,8 @@
 
 use core::{mem::size_of_val, slice::from_raw_parts_mut};
 
+use rand::{RngExt, SeedableRng, rngs::StdRng};
+
 /// Misaligns the slice by one byte, to ensure no SIMD load instructions require alignment.
 fn misalign_slice(buf: &mut [u128]) -> &mut [u8] {
     let ptr = buf.as_mut_ptr() as *mut u8;
@@ -70,16 +72,8 @@ fn exhaustive_test_random<CTEQ>(cteq: &CTEQ)
 where
     CTEQ: Fn(&[u8], &[u8]) -> bool,
 {
-    // Simple xorshift PRNG, from https://www.jstatsoft.org/article/view/v008i14
-    let mut state: u32 = 2463534242;
-    let xorshift32 = || {
-        state ^= state << 13;
-        state ^= state >> 17;
-        state ^= state << 5;
-        state as u8
-    };
-
-    test_all_lengths(|buf| buf.fill_with(xorshift32), cteq);
+    let mut rng = StdRng::seed_from_u64(2463534242);
+    test_all_lengths(|buf| buf.fill_with(|| rng.random::<u8>()), cteq);
 }
 
 #[test]

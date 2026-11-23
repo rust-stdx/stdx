@@ -211,8 +211,8 @@ unsafe fn decode_scalar(output: &mut [u8], encoded_data: &[u8], alphabet: Alphab
     if len > 0 {
         let data_slice = core::slice::from_raw_parts(inp, len);
         let out_len = len * 5 / 8;
-        let out_slice = core::slice::from_raw_parts_mut(out, out_len.max(1));
-        decode_into_constant_time(out_slice, data_slice, alphabet)
+        let out_slice = core::slice::from_raw_parts_mut(out, out_len);
+        decode_into_constant_time(out_slice, data_slice, alphabet.without_padding())
     } else {
         Ok(())
     }
@@ -267,8 +267,8 @@ unsafe fn decode_simd(output: &mut [u8], encoded_data: &[u8], alphabet: Alphabet
     if len > 0 {
         let data_slice = core::slice::from_raw_parts(inp, len);
         let out_len = len * 5 / 8;
-        let out_slice = core::slice::from_raw_parts_mut(out_ptr, out_len.max(1));
-        decode_into_constant_time(out_slice, data_slice, alphabet)
+        let out_slice = core::slice::from_raw_parts_mut(out_ptr, out_len);
+        decode_into_constant_time(out_slice, data_slice, alphabet.without_padding())
     } else {
         Ok(())
     }
@@ -326,4 +326,209 @@ unsafe fn pack_and_store(quintets: uint8x8_t, out: *mut u8) {
     let b4 = (q6.wrapping_shl(5)) | q7;
 
     core::ptr::copy_nonoverlapping([b0, b1, b2, b3, b4].as_ptr(), out, 5);
+}
+
+// =============================================================================
+// Kernel tests
+// =============================================================================
+
+/// Direct kernel tests. These call the kernels below the public dispatch
+/// thresholds so that every loop (20/10/5-byte encode, 8-char decode, tails)
+/// is exercised on its own, including lengths the dispatcher never sends here.
+#[cfg(test)]
+mod kernel_tests {
+    use super::*;
+    use crate::{decode_into_constant_time, encode_into_constant_time};
+
+    const ALL: [Alphabet; 10] = [
+        Alphabet::Rfc4648,
+        Alphabet::Rfc4648NoPadding,
+        Alphabet::Rfc4648Lower,
+        Alphabet::Rfc4648LowerNoPadding,
+        Alphabet::Rfc4648Hex,
+        Alphabet::Rfc4648HexNoPadding,
+        Alphabet::Rfc4648HexLower,
+        Alphabet::Rfc4648HexLowerNoPadding,
+        Alphabet::Crockford,
+        Alphabet::Z32,
+    ];
+
+    const SIMD_ALPHABETS: [Alphabet; 4] = [
+        Alphabet::Rfc4648NoPadding,
+        Alphabet::Rfc4648LowerNoPadding,
+        Alphabet::Rfc4648HexNoPadding,
+        Alphabet::Rfc4648HexLowerNoPadding,
+    ];
+
+    fn pattern(len: usize) -> alloc::vec::Vec<u8> {
+        let mut x: u64 = 0x0123_4567_89AB_CDEF ^ len as u64;
+        (0..len)
+            .map(|_| {
+                x ^= x << 13;
+                x ^= x >> 7;
+                x ^= x << 17;
+                x as u8
+            })
+            .collect()
+    }
+
+    fn valid_char(a: Alphabet) -> u8 {
+        match a {
+            Alphabet::Rfc4648Lower | Alphabet::Rfc4648LowerNoPadding => b'a',
+            Alphabet::Rfc4648Hex | Alphabet::Rfc4648HexNoPadding | Alphabet::Crockford => b'0',
+            Alphabet::Rfc4648HexLower | Alphabet::Rfc4648HexLowerNoPadding => b'0',
+            Alphabet::Rfc4648 | Alphabet::Rfc4648NoPadding => b'A',
+            Alphabet::Z32 => b'y',
+        }
+    }
+
+    /// Content length of a correctly padded encoding.
+    fn content_len(encoded: &[u8]) -> usize {
+        encoded.iter().rposition(|&b| b != b'=').map_or(0, |p| p + 1)
+    }
+
+    #[test]
+    fn kernel_encode_matches_constant_time_for_every_length() {
+        let mut checks = 0usize;
+        for len in 0..=200usize {
+            let data = pattern(len);
+            for a in ALL {
+                let expected = crate::encoded_length(len, a.is_padded()).unwrap();
+                let mut reference = alloc::vec![0u8; expected];
+                encode_into_constant_time(&mut reference, &data, a).unwrap();
+
+                // Exact-size output.
+                let mut out = alloc::vec![0x5Au8; expected];
+                unsafe { encode_into(&mut out, &data, a) }.unwrap();
+                assert_eq!(out, reference, "kernel encode len={len} alphabet={a:?}");
+
+                // Larger output: bytes past `expected` must stay untouched.
+                let mut big = alloc::vec![0x5Au8; expected + 19];
+                unsafe { encode_into(&mut big, &data, a) }.unwrap();
+                assert_eq!(
+                    &big[..expected],
+                    &reference[..],
+                    "kernel encode prefix len={len} alphabet={a:?}"
+                );
+                assert!(
+                    big[expected..].iter().all(|&b| b == 0x5A),
+                    "kernel encode wrote past expected length (len={len} alphabet={a:?})"
+                );
+                checks += 2;
+            }
+        }
+        println!("neon kernel_encode_matches_constant_time_for_every_length: {checks} cases");
+    }
+
+    #[test]
+    fn kernel_decode_matches_constant_time_for_every_valid_length() {
+        let mut checks = 0usize;
+        for len in 0..=200usize {
+            let data = pattern(len);
+            for a in ALL {
+                let mut encoded = alloc::vec![0u8; crate::encoded_length(len, a.is_padded()).unwrap()];
+                encode_into_constant_time(&mut encoded, &data, a).unwrap();
+                let content = &encoded[..content_len(&encoded)];
+
+                let mut out = alloc::vec![0x5Au8; len];
+                let r = unsafe { decode_into(&mut out, content, a) };
+                assert_eq!(r, Ok(()), "kernel decode len={len} alphabet={a:?}");
+                assert_eq!(out, data, "kernel decode bytes len={len} alphabet={a:?}");
+
+                // Larger output: bytes past the decoded length must stay untouched.
+                let mut big = alloc::vec![0x5Au8; len + 23];
+                let r = unsafe { decode_into(&mut big, content, a) };
+                assert_eq!(r, Ok(()));
+                assert_eq!(&big[..len], &data[..]);
+                assert!(
+                    big[len..].iter().all(|&b| b == 0x5A),
+                    "kernel decode wrote past decoded length (len={len} alphabet={a:?})"
+                );
+                checks += 2;
+            }
+        }
+        println!("neon kernel_decode_matches_constant_time_for_every_valid_length: {checks} cases");
+    }
+
+    /// Every lane of `simd_validate_8` must be able to reject: an invalid byte
+    /// at each of the 8 positions of a block must fail. Also every one of the
+    /// 256 byte values at every lane must agree with the scalar decoder.
+    #[test]
+    fn kernel_decode_every_byte_in_every_lane_of_an_8_char_block() {
+        let mut checks = 0usize;
+        for a in SIMD_ALPHABETS {
+            let valid = valid_char(a);
+            for lane in 0..8usize {
+                for byte in 0..=255u8 {
+                    // A padding byte never reaches the kernels: the dispatch in
+                    // base32.rs strips it and validates the padding first. The
+                    // kernels require padding-free content, so skip it here.
+                    if byte == b'=' {
+                        continue;
+                    }
+                    let mut input = [valid; 8];
+                    input[lane] = byte;
+                    let mut out = [0u8; 5];
+                    let r = unsafe { decode_into(&mut out, &input, a) };
+                    let mut ref_out = [0u8; 5];
+                    let r_ref = decode_into_constant_time(&mut ref_out, &input, a.without_padding());
+                    assert_eq!(
+                        r, r_ref,
+                        "kernel decode disagreement lane={lane} byte={byte:#04x} alphabet={a:?}"
+                    );
+                    if r.is_ok() {
+                        assert_eq!(out, ref_out, "kernel decode bytes lane={lane} byte={byte:#04x}");
+                    } else {
+                        assert_eq!(r, Err(DecodeError::InvalidInput));
+                    }
+                    checks += 1;
+                }
+            }
+        }
+        println!("neon kernel_decode_every_byte_in_every_lane_of_an_8_char_block: {checks} cases");
+    }
+
+    /// The tail remainder path (including every invalid remainder) must be safe
+    /// and match the scalar decoder. Output is over-sized so the kernel's
+    /// tail slice is exactly the decoded length and stays inside the allocation.
+    #[test]
+    fn kernel_decode_tail_remainders() {
+        let mut checks = 0usize;
+        for a in ALL {
+            let valid = valid_char(a);
+            for len in 0..32usize {
+                let input = alloc::vec![valid; len];
+                let mut out = [0x5Au8; 64];
+                let r = unsafe { decode_into(&mut out, &input, a) };
+                let mut ref_out = [0x5Au8; 64];
+                let r_ref = decode_into_constant_time(&mut ref_out, &input, a.without_padding());
+                assert_eq!(r, r_ref, "tail len={len} alphabet={a:?}");
+                if r.is_ok() {
+                    assert_eq!(out, ref_out, "tail len={len} alphabet={a:?}");
+                    // Bytes that the scalar path did not write must be untouched.
+                    for i in 0..64 {
+                        if ref_out[i] == 0x5A {
+                            assert_eq!(out[i], 0x5A, "kernel wrote unrequested byte {i} (len={len})");
+                        }
+                    }
+                }
+                checks += 1;
+            }
+        }
+        println!("neon kernel_decode_tail_remainders: {checks} cases");
+    }
+
+    /// Invalid remainders must be rejected without constructing an output
+    /// slice longer than the caller provided, even when the output is empty.
+    #[test]
+    fn decode_invalid_remainder_exact_buffer() {
+        for len in [1usize, 3, 6] {
+            let input = alloc::vec![b'A'; len];
+            let mut out: [u8; 0] = [];
+            // SAFETY: the kernel is compiled with the target feature enabled;
+            // the invalid remainder is rejected before any write.
+            let result = unsafe { decode_into(&mut out, &input, Alphabet::Rfc4648NoPadding) };
+            assert_eq!(result, Err(DecodeError::InvalidLength), "len={len}");
+        }
+    }
 }

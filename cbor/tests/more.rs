@@ -1,6 +1,6 @@
 #![cfg(all(feature = "alloc", feature = "derive"))]
 
-use cbor::{Decode, Encode};
+use cbor::Encode;
 
 #[test]
 fn value_canonicalization() {

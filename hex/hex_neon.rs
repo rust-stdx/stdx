@@ -146,3 +146,47 @@ pub unsafe fn decode_into(output: &mut [u8], input: &[u8]) -> Result<(), DecodeE
 
     Ok(())
 }
+
+#[cfg(test)]
+mod kernel_tests {
+    use super::*;
+
+    /// The `valid` reduction (`m0`/`m1` plus `vgetq_lane_u32(m1, 0)`) must AND
+    /// together all four 32-bit lanes of each loaded vector, i.e. all 16 byte
+    /// lanes. An invalid byte in any lane of either 16-byte half must be
+    /// reported because the reduction is evaluated separately for `c0` and
+    /// `c1`.
+    #[test]
+    fn decode_validates_every_lane_of_both_halves() {
+        for pos in 0..32 {
+            for val in 0u16..=255 {
+                let byte = val as u8;
+                if byte.is_ascii_hexdigit() {
+                    continue;
+                }
+                let mut input = [b'0'; 32];
+                input[pos] = byte;
+                let mut out = [0u8; 16];
+                // SAFETY: NEON is part of the aarch64 baseline; this module is
+                // compiled only with `target_feature = "neon"` enabled.
+                let got = unsafe { decode_into(&mut out, &input) };
+                assert_eq!(got, Err(DecodeError::InvalidInput), "pos={pos} val={val:#04x}");
+            }
+        }
+    }
+
+    #[test]
+    fn encode_matches_constant_time() {
+        let data: [u8; 80] = core::array::from_fn(|i| (i * 37) as u8);
+        for len in 0..=data.len() {
+            for alphabet in [Alphabet::Lower, Alphabet::Upper] {
+                let mut simd = [0u8; 160];
+                let mut scalar = [0u8; 160];
+                // SAFETY: NEON is part of the aarch64 baseline.
+                unsafe { encode_into(&mut simd[..len * 2], &data[..len], alphabet) }.unwrap();
+                crate::encode_into_constant_time(&mut scalar[..len * 2], &data[..len], alphabet).unwrap();
+                assert_eq!(simd[..len * 2], scalar[..len * 2], "len={len}");
+            }
+        }
+    }
+}

@@ -2,7 +2,7 @@
 //!
 //! Feeds hostile random values into every public text sink and checks that the
 //! builder never panics and that the output keeps its structural invariants.
-//! The generator is a seeded LCG so failures are reproducible.
+//! The generator is seeded so failures are reproducible.
 
 use std::panic;
 
@@ -11,43 +11,38 @@ use mail_builder::{
     headers::{address::Address, content_type::ContentType, message_id::MessageId, raw::Raw, text::Text, url::URL},
     mime::{BodyPart, MimePart},
 };
+use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
 
-struct Lcg(u64);
-
-impl Lcg {
-    fn next(&mut self) -> u64 {
-        self.0 = self
-            .0
-            .wrapping_mul(6364136223846793005)
-            .wrapping_add(1442695040888963407);
-        self.0 >> 33
-    }
-
-    fn byte(&mut self) -> u8 {
-        const INTERESTING: &[u8] = b"\r\n\t :=?\"\\;<>@,/.\x00\x0b\x07\x7f\xa9\x0d\x0a";
-        if self.next().is_multiple_of(2) {
-            INTERESTING[self.next() as usize % INTERESTING.len()]
-        } else {
-            (self.next() % 256) as u8
-        }
-    }
-
-    fn string(&mut self, max: usize) -> String {
-        let len = (self.next() as usize) % max;
-        (0..len).map(|_| self.byte() as char).collect()
+fn random_byte(rng: &mut StdRng) -> u8 {
+    const INTERESTING: &[u8] = b"\r\n\t :=?\"\\;<>@,/./\x00\x0b\x07\x7f\xa9\x0d\x0a";
+    if rng.next_u64().is_multiple_of(2) {
+        INTERESTING[rng.next_u64() as usize % INTERESTING.len()]
+    } else {
+        rng.random::<u8>()
     }
 }
 
-fn random_address(rng: &mut Lcg, depth: u32) -> Address<'static> {
+fn random_string(rng: &mut StdRng, max: usize) -> String {
+    let len = (rng.next_u64() as usize) % max;
+    (0..len).map(|_| random_byte(rng) as char).collect()
+}
+
+fn random_address(rng: &mut StdRng, depth: u32) -> Address<'static> {
     if depth == 0 {
-        return Address::new_address(Some(rng.string(20)), rng.string(20));
+        return Address::new_address(Some(random_string(rng, 20)), random_string(rng, 20));
     }
-    match rng.next() % 3 {
-        0 => Address::new_address(Some(rng.string(20)), rng.string(20)),
-        1 => Address::new_list((0..rng.next() % 4).map(|_| random_address(rng, depth - 1)).collect()),
+    match rng.next_u64() % 3 {
+        0 => Address::new_address(Some(random_string(rng, 20)), random_string(rng, 20)),
+        1 => Address::new_list(
+            (0..rng.next_u64() % 4)
+                .map(|_| random_address(rng, depth - 1))
+                .collect(),
+        ),
         _ => Address::new_group(
-            Some(rng.string(10)),
-            (0..rng.next() % 4).map(|_| random_address(rng, depth - 1)).collect(),
+            Some(random_string(rng, 10)),
+            (0..rng.next_u64() % 4)
+                .map(|_| random_address(rng, depth - 1))
+                .collect(),
         ),
     }
 }
@@ -86,22 +81,23 @@ fn check_invariants(eml: &[u8]) {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn hostile_input_never_panics_or_breaks_structure() {
-    let mut rng = Lcg(0x1234_5678_9abc_def0);
+    let mut rng = StdRng::seed_from_u64(0x1234_5678_9abc_def0);
 
     for _ in 0..2_000 {
-        let name = format!("X-{}", rng.string(100));
-        let subject = rng.string(200);
-        let addr_name = rng.string(100);
-        let addr_email = rng.string(80);
-        let mid = rng.string(80);
-        let url = rng.string(80);
-        let body = rng.string(300);
-        let filename = rng.string(80);
-        let content_type = rng.string(40);
-        let raw_content_type = rng.string(120);
-        let attribute = rng.string(60);
+        let name = format!("X-{}", random_string(&mut rng, 100));
+        let subject = random_string(&mut rng, 200);
+        let addr_name = random_string(&mut rng, 100);
+        let addr_email = random_string(&mut rng, 80);
+        let mid = random_string(&mut rng, 80);
+        let url = random_string(&mut rng, 80);
+        let body = random_string(&mut rng, 300);
+        let filename = random_string(&mut rng, 80);
+        let content_type = random_string(&mut rng, 40);
+        let raw_content_type = random_string(&mut rng, 120);
+        let attribute = random_string(&mut rng, 60);
 
         let outcome = panic::catch_unwind(panic::AssertUnwindSafe(|| {
             let mut message = MessageBuilder::new()

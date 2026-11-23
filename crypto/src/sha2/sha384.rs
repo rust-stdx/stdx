@@ -663,3 +663,100 @@ mod tests {
         }
     }
 }
+
+/// SHA-384 shares the SHA-512 compression kernel
+/// (only the IV and the truncation differ), so verify both dispatch paths agree
+/// and that the truncated output length is exact.
+#[cfg(test)]
+mod kernel_tests {
+    use rand::{RngExt, SeedableRng, rngs::StdRng};
+
+    use super::{
+        Sha384,
+        sha512::{compress_block_software, compress_blocks, detect_sha512_ext},
+    };
+    use crate::Hasher;
+
+    #[test]
+    fn output_length_is_48_bytes() {
+        for len in [0usize, 1, 47, 48, 112, 128] {
+            let digest = Sha384::hash(&vec![0x5Au8; len]);
+            assert_eq!(digest.as_ref().len(), 48);
+            assert_eq!(digest.as_ref().len(), Sha384::OUTPUT_SIZE);
+        }
+    }
+
+    #[test]
+    fn forced_software_path_matches_hardware_path() {
+        let hw = detect_sha512_ext();
+        eprintln!("detect_sha512_ext() = {hw}");
+        let mut rng = StdRng::seed_from_u64(0x384_C12);
+        for len in [
+            0usize, 1, 2, 63, 110, 111, 112, 113, 119, 120, 121, 127, 128, 129, 191, 239, 240, 241, 255, 256, 257,
+            1000, 65536,
+        ] {
+            let data = {
+                let mut v = vec![0u8; len];
+                rng.fill(&mut v);
+                v
+            };
+
+            let mut hardware = Sha384::new();
+            let mut software = Sha384::new();
+            software.has_sha_ext = false;
+            assert_eq!(hardware.has_sha_ext, hw);
+
+            hardware.update(&data);
+            software.update(&data);
+            assert_eq!(hardware.total_len, len as u128);
+
+            let mut split = Sha384::new();
+            split.has_sha_ext = false;
+            for piece in data.chunks(7) {
+                split.update(piece);
+            }
+
+            let one_shot = hardware.sum();
+            let forced = software.sum();
+            assert_eq!(one_shot.as_ref(), forced.as_ref(), "len={len}");
+            assert_eq!(one_shot.as_ref(), split.sum().as_ref(), "len={len} split");
+        }
+    }
+
+    /// SHA-384's IV through the SHA-512 kernel: hardware and software must agree
+    /// on the shared compression primitive for the truncated variant too.
+    #[test]
+    fn kernel_agrees_on_sha384_iv() {
+        if !detect_sha512_ext() {
+            eprintln!("SKIPPED: no SHA-512 extension");
+            return;
+        }
+        let iv = Sha384::new().state;
+        let mut rng = StdRng::seed_from_u64(0x0003_8411);
+        for _ in 0..16 {
+            let block = {
+                let mut v = vec![0u8; 128];
+                rng.fill(&mut v);
+                v
+            };
+            let mut software = iv;
+            let mut hardware = iv;
+            compress_blocks(&mut software, &block, false);
+            compress_blocks(&mut hardware, &block, true);
+            assert_eq!(software, hardware);
+        }
+
+        // All-zero and all-ones blocks from the all-zero state.
+        let mut software = [0u64; 8];
+        let mut hardware = [0u64; 8];
+        compress_block_software(&mut software, &[0u8; 128]);
+        compress_blocks(&mut hardware, &[0u8; 128], true);
+        assert_eq!(software, hardware);
+
+        let mut hardware = [0u64; 8];
+        compress_blocks(&mut hardware, &[0xFFu8; 128], true);
+        let mut software = [0u64; 8];
+        compress_block_software(&mut software, &[0xFFu8; 128]);
+        assert_eq!(software, hardware);
+    }
+}

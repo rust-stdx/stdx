@@ -1,16 +1,25 @@
-/// Pure-Rust AES block cipher (128-bit and 256-bit keys).
-///
-/// The software implementation is **constant-time**: it uses no lookup tables
-/// and no secret-dependent branches, so it does not leak key or data bytes
-/// through cache or timing side channels (see [`super::aes_ct`]). Hardware
-/// paths are used when available and are preferred over this fallback:
-/// AES-NI, VAES-256, and VAES-512 on x86-64, and ARMv8 Crypto Extensions on
-/// aarch64.
+//! Pure-Rust AES block cipher (128-bit and 256-bit keys).
+//!
+//! The implementation is **constant-time**: it uses no lookup tables and no
+//! secret-dependent branches, so it does not leak key or data bytes through
+//! cache or timing side channels (see [`super::aes_ct`]).
+//!
+//! [`encrypt_block`] and [`decrypt_block`], and therefore [`Aes128Block`] and
+//! [`Aes256Block`] in the parent module, always run this software path. The
+//! AES-NI / VAES / ARMv8 kernels in `aes_amd64.rs` and `aes_arm64.rs` are used
+//! by AES-CTR and AES-GCM, which select them at run time; there is no hardware
+//! AES block-cipher entry point.
+//!
+//! [`Aes128Block`]: super::Aes128Block
+//! [`Aes256Block`]: super::Aes256Block
 #[cfg(test)]
 use super::ghash::gf128_mul;
 
 // ── AES constants ─────────────────────────────────────────────────────────────
 
+/// Maximum GCM plaintext length: `(2^32 - 2) * 16` bytes, so its bit length
+/// fits in the 64-bit GCM length block. Longer messages are rejected with
+/// [`AeadError::MessageTooLong`](crate::AeadError).
 pub const GCM_MAX_LEN: u64 = (u32::MAX as u64 - 1) * 16;
 
 #[cfg(test)]
@@ -55,7 +64,8 @@ pub(crate) const SBOX_INV: [u8; 256] = [
     0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d,
 ];
 
-/// Round constants for AES key expansion (RCON[1..10]).
+/// Round constants for AES key expansion: `RCON[1..=10]` (AES-128 uses
+/// `RCON[1..=10]`, AES-256 uses `RCON[1..=7]`). `RCON[0]` is unused.
 pub(crate) const RCON: [u8; 11] = [0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36];
 
 // ── AES key schedule ───────────────────────────────────────────────────────────
@@ -217,8 +227,7 @@ mod tests {
 
     // ── AES-256 block cipher (FIPS 197 Appendix B + C) ────────────────────────
 
-    /// NIST FIPS 197 Appendix B – AES-128 vectors (re-confirmed in AES-256 test)
-    /// These come from FIPS 197 Appendix C.3 (AES-256).
+    /// FIPS 197 Appendix C.3 known-answer vector (AES-256).
     #[test]
     fn fips197_aes256_encrypt() {
         // FIPS 197 Appendix C.3

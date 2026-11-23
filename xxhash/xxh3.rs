@@ -1318,6 +1318,8 @@ pub const fn xxh3_128(data: &[u8]) -> u128 {
 
 #[cfg(test)]
 mod tests {
+    use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
+
     use super::*;
     use crate::{Checksum, test_helpers::fill_test_buffer};
 
@@ -1670,43 +1672,27 @@ mod tests {
     // Randomized / structural tests
     // -----------------------------------------------------------------------
 
-    /// A tiny deterministic PRNG, so the randomized tests are reproducible and
-    /// need no dependency.
-    struct Rng(u64);
-
-    impl Rng {
-        fn next(&mut self) -> u64 {
-            self.0 ^= self.0 << 13;
-            self.0 ^= self.0 >> 7;
-            self.0 ^= self.0 << 17;
-            self.0
-        }
-
-        fn below(&mut self, n: u64) -> u64 {
-            self.next() % n
-        }
-    }
-
-    fn random_data(rng: &mut Rng, len: usize) -> alloc::vec::Vec<u8> {
-        (0..len).map(|_| rng.next() as u8).collect()
+    /// Deterministic seeded data, so the randomized tests are reproducible.
+    fn random_data(rng: &mut StdRng, len: usize) -> alloc::vec::Vec<u8> {
+        (0..len).map(|_| rng.next_u64() as u8).collect()
     }
 
     /// Incremental hashing must equal one-shot hashing for arbitrary inputs,
     /// whatever the split across `update()` calls.
     #[test]
     fn test_streaming_matches_one_shot_randomized() {
-        let mut rng = Rng(0x243F6A8885A308D3);
+        let mut rng = StdRng::seed_from_u64(0x243F6A8885A308D3);
         for _ in 0..4000 {
-            let len = rng.below(3000) as usize;
+            let len = rng.random_range(0..3000) as usize;
             let data = random_data(&mut rng, len);
-            let seed = rng.next();
+            let seed = rng.next_u64();
 
             // Build a random chunking of `data`.
             let mut chunks = alloc::vec::Vec::new();
             let mut left = len;
-            let max_chunk = [1_u64, 3, 64, 65, 240, 241, 1024][rng.below(7) as usize];
+            let max_chunk = [1_u64, 3, 64, 65, 240, 241, 1024][rng.random_range(0..7) as usize];
             while left > 0 {
-                let n = ((rng.below(max_chunk) + 1) as usize).min(left);
+                let n = ((rng.random_range(0..max_chunk) + 1) as usize).min(left);
                 chunks.push(n);
                 left -= n;
             }

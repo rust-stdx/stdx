@@ -43,7 +43,7 @@ fn bench_kdfs(c: &mut Criterion) {
 
     group.bench_function("BLAKE2b", |b| {
         b.iter(|| {
-            let mut hasher = Blake2b::new_keyed(black_box(KEY), 32);
+            let mut hasher = Blake2b::new_keyed(black_box(KEY), 32).unwrap();
             hasher.update(black_box(INFO.as_bytes()));
             black_box(hasher.sum());
         });
@@ -62,7 +62,7 @@ fn bench_kdfs(c: &mut Criterion) {
         const CHACHA20_NONCE: &[u8; 8] = &[0u8; 8];
         b.iter(|| {
             let mut cipher = ChaCha20Djb::new(KEY, CHACHA20_NONCE);
-            cipher.xor_keystream(&mut block);
+            cipher.xor_keystream(&mut block).unwrap();
         });
     });
 

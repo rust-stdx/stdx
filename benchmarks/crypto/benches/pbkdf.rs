@@ -52,21 +52,19 @@ fn bench_pbkdf2(c: &mut Criterion) {
 
     group.bench_function("HMAC-SHA256", |b| {
         b.iter(|| {
-            black_box(pbkdf2::derive::<Sha256, 32>(
-                black_box(password),
-                black_box(salt),
-                black_box(PBKDF2_ITERATIONS),
-            ));
+            black_box(
+                pbkdf2::derive::<Sha256, 32>(black_box(password), black_box(salt), black_box(PBKDF2_ITERATIONS))
+                    .unwrap(),
+            );
         });
     });
 
     group.bench_function("HMAC-SHA512", |b| {
         b.iter(|| {
-            black_box(pbkdf2::derive::<Sha512, 32>(
-                black_box(password),
-                black_box(salt),
-                black_box(PBKDF2_ITERATIONS),
-            ));
+            black_box(
+                pbkdf2::derive::<Sha512, 32>(black_box(password), black_box(salt), black_box(PBKDF2_ITERATIONS))
+                    .unwrap(),
+            );
         });
     });
 

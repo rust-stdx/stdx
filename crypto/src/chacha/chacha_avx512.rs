@@ -64,6 +64,8 @@ pub fn chacha_avx512<const ROUNDS: usize, const IS_IETF: bool>(
     ];
 
     // process input by chunks of 16 * 64 bytes
+    // The final chunk may contain fewer than `SIMD_LANES` blocks. Unused
+    // lanes compute wrapped or reserved counter values, but are never stored.
     for input_blocks in input.chunks_mut(BLOCK_SIZE * SIMD_LANES) {
         // inject counter as 32-bit little-endian words for each lane
         let mut counter_lane_low = AlignedU32x16([0u32; SIMD_LANES]);
@@ -78,6 +80,8 @@ pub fn chacha_avx512<const ROUNDS: usize, const IS_IETF: bool>(
             }
         }
 
+        // SAFETY: `AlignedU32x16` guarantees 64-byte alignment, and both arrays
+        // contain exactly `SIMD_LANES` u32 elements.
         unsafe {
             initial_state[12] = _mm512_load_epi32(counter_lane_low.0.as_ptr() as *const i32);
             if !IS_IETF {
@@ -109,6 +113,9 @@ pub fn chacha_avx512<const ROUNDS: usize, const IS_IETF: bool>(
         keystream_leftover
             .copy_from_slice(&keystream[last_keystream_block_offset + 1..last_keystream_block_offset + BLOCK_SIZE]);
     }
+
+    #[cfg(feature = "zeroize")]
+    zeroize::Zeroize::zeroize(&mut keystream);
 }
 
 /// Compute 16 64-byte ChaCha blocks in parallel using AVX-512 vectors.
@@ -122,6 +129,8 @@ fn chacha20_avx512_16blocks<const ROUNDS: usize>(
 ) {
     let keystream_ptr = keystream.as_mut_ptr();
 
+    // SAFETY: AVX-512F is enabled by the function's `#[target_feature]`; all
+    // accesses are to fixed-size local state and the `keystream` array.
     unsafe {
         let mut working_state = initial_state;
 
@@ -182,6 +191,135 @@ fn chacha20_avx512_16blocks<const ROUNDS: usize>(
                 let byte_offset = (block * STATE_WORDS * 4) + (word_index * 4);
                 core::ptr::copy_nonoverlapping(word.as_ptr(), keystream_ptr.add(byte_offset), 4);
             }
+        }
+    }
+}
+
+/// Kernel tests: exercise the private kernel directly, without
+/// going through the dispatch in `chacha::ChaCha::xor_keystream`, and validate
+/// the keystream, the advanced counter and the 63-byte `keystream_leftover`
+/// tail against an independent reference implementation.
+#[cfg(all(test, feature = "std"))]
+mod kernel_tests {
+    use alloc::{vec, vec::Vec};
+
+    use super::{super::simd_test_reference as reference, *};
+
+    fn available() -> bool {
+        is_x86_feature_detected!("avx512f")
+    }
+
+    fn key() -> [u8; 32] {
+        let mut k = [0u8; 32];
+        for (i, b) in k.iter_mut().enumerate() {
+            *b = (i as u8).wrapping_mul(13).wrapping_add(7);
+        }
+        k
+    }
+
+    fn nonce12() -> [u8; 12] {
+        [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc]
+    }
+
+    fn nonce8() -> [u8; 8] {
+        [0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]
+    }
+
+    fn plaintext(len: usize) -> Vec<u8> {
+        let mut v = vec![0u8; len];
+        let mut x = 0x1234_5678_9abc_def0u64 ^ len as u64;
+        for b in &mut v {
+            x ^= x >> 12;
+            x ^= x << 25;
+            x ^= x >> 27;
+            *b = x.wrapping_mul(0x2545_f491_4f6c_dd1d) as u8;
+        }
+        v
+    }
+
+    fn check<const ROUNDS: usize, const IS_IETF: bool>(mut state: [u32; STATE_WORDS], start_counter: u64, len: usize) {
+        let padded = len.div_ceil(BLOCK_SIZE) * BLOCK_SIZE;
+        let full_keystream = reference::ref_stream_from::<ROUNDS>(&state, IS_IETF, padded);
+
+        let mut buf = plaintext(len);
+        let expected: Vec<u8> = buf.iter().zip(&full_keystream).map(|(p, k)| p ^ k).collect();
+
+        let mut leftover = [0x5cu8; BLOCK_SIZE - 1];
+        unsafe { chacha_avx512::<ROUNDS, IS_IETF>(&mut state, &mut buf, &mut leftover) };
+
+        assert_eq!(buf, expected, "keystream mismatch, len={len}, ietf={IS_IETF}");
+
+        let blocks = len.div_ceil(BLOCK_SIZE) as u64;
+        if IS_IETF {
+            assert_eq!(
+                state[12],
+                (start_counter as u32).wrapping_add(blocks as u32),
+                "IETF counter not advanced correctly, len={len}"
+            );
+        } else {
+            let counter = ((state[13] as u64) << 32) | state[12] as u64;
+            assert_eq!(
+                counter,
+                start_counter.wrapping_add(blocks),
+                "DJB counter not advanced correctly, len={len}"
+            );
+        }
+
+        if !len.is_multiple_of(BLOCK_SIZE) {
+            let last_block = padded - BLOCK_SIZE;
+            assert_eq!(
+                &leftover[..],
+                &full_keystream[last_block + 1..last_block + BLOCK_SIZE],
+                "leftover tail mismatch, len={len}, ietf={IS_IETF}"
+            );
+        } else {
+            assert_eq!(leftover, [0x5cu8; BLOCK_SIZE - 1], "leftover written for a block-aligned input");
+        }
+    }
+
+    #[test]
+    fn kernel_matches_reference() {
+        if !available() {
+            eprintln!("skipping: required CPU feature not available at runtime");
+            return;
+        }
+        let key = key();
+        for &len in &[
+            0usize, 1, 63, 64, 65, 127, 128, 129, 130, 191, 192, 193, 255, 256, 257, 320, 511, 512, 513, 600, 777,
+            1023, 1024, 1025,
+        ] {
+            check::<20, true>(reference::ietf_state(&key, &nonce12(), 7), 7, len);
+            check::<20, false>(reference::djb_state(&key, &nonce8(), 3), 3, len);
+        }
+    }
+
+    #[test]
+    fn kernel_high_counters() {
+        if !available() {
+            eprintln!("skipping: required CPU feature not available at runtime");
+            return;
+        }
+        let key = key();
+        let counter = u32::MAX as u64 - 4;
+        check::<20, true>(reference::ietf_state(&key, &nonce12(), counter as u32), counter, 128);
+        let counter = u64::MAX - 4;
+        check::<20, false>(reference::djb_state(&key, &nonce8(), counter), counter, 128);
+        let counter = (1u64 << 32) - 2;
+        check::<20, false>(reference::djb_state(&key, &nonce8(), counter), counter, 512);
+    }
+
+    #[test]
+    fn kernel_round_variants() {
+        if !available() {
+            eprintln!("skipping: required CPU feature not available at runtime");
+            return;
+        }
+        let key = key();
+        for &len in &[128usize, 129, 257, 512] {
+            check::<8, true>(reference::ietf_state(&key, &nonce12(), 1), 1, len);
+            check::<12, true>(reference::ietf_state(&key, &nonce12(), 1), 1, len);
+            check::<8, false>(reference::djb_state(&key, &nonce8(), 1), 1, len);
+            check::<12, false>(reference::djb_state(&key, &nonce8(), 1), 1, len);
         }
     }
 }

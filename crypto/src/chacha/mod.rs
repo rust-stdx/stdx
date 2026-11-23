@@ -42,7 +42,8 @@
 //! let cipher = XChaCha20Poly1305::new(&key);
 //!
 //! let mut buf = plaintext.to_vec();
-//! let tag = cipher.encrypt_in_place(&mut buf, &nonce, aad);
+//! let tag = cipher.encrypt_in_place(&mut buf, &nonce, aad)
+//!     .expect("encryption failed");
 //!
 //! cipher.decrypt_in_place(&mut buf, &nonce, aad, tag.as_ref())
 //!     .expect("decryption failed");
@@ -59,11 +60,11 @@
 //! let mut plaintext = *b"hello world";
 //!
 //! let mut cipher = ChaCha20Djb::new(&key, &nonce);
-//! cipher.xor_keystream(&mut plaintext);
+//! cipher.xor_keystream(&mut plaintext).unwrap();
 //! // plaintext is now encrypted
 //! cipher.set_counter(0);
 //!
-//! cipher.xor_keystream(&mut plaintext);
+//! cipher.xor_keystream(&mut plaintext).unwrap();
 //! // plaintext is back to "hello world" (XOR is its own inverse)
 //! assert_eq!(&plaintext, b"hello world");
 //! ```
@@ -106,3 +107,98 @@ pub use chacha20_poly1305::{ChaCha20Poly1305, XChaCha20Poly1305};
 /// HChaCha20 hash function.
 mod hchacha20;
 pub use hchacha20::hchacha20;
+
+/// Independent, safe reference ChaCha implementation used only by the unit
+/// tests of the private SIMD kernels.
+///
+/// The SIMD kernel modules cannot reach `chacha_generic` (it is private to the
+/// `chacha` module) and `#[cfg(test)]` integration tests cannot reach the
+/// kernels, so this small helper gives the kernel tests a spec-level oracle for
+/// the keystream, the advanced counter and the unconsumed tail of the last
+/// block.
+#[cfg(all(test, feature = "alloc"))]
+pub(crate) mod simd_test_reference {
+    use alloc::vec::Vec;
+
+    use super::CONSTANT;
+
+    #[inline(always)]
+    fn quarter_round(s: &mut [u32; 16], a: usize, b: usize, c: usize, d: usize) {
+        s[a] = s[a].wrapping_add(s[b]);
+        s[d] = (s[d] ^ s[a]).rotate_left(16);
+        s[c] = s[c].wrapping_add(s[d]);
+        s[b] = (s[b] ^ s[c]).rotate_left(12);
+        s[a] = s[a].wrapping_add(s[b]);
+        s[d] = (s[d] ^ s[a]).rotate_left(8);
+        s[c] = s[c].wrapping_add(s[d]);
+        s[b] = (s[b] ^ s[c]).rotate_left(7);
+    }
+
+    /// Computes one 64-byte ChaCha block from the given initial state.
+    pub(crate) fn ref_block<const ROUNDS: usize>(initial: [u32; 16]) -> [u8; 64] {
+        let mut s = initial;
+        for _ in 0..ROUNDS / 2 {
+            quarter_round(&mut s, 0, 4, 8, 12);
+            quarter_round(&mut s, 1, 5, 9, 13);
+            quarter_round(&mut s, 2, 6, 10, 14);
+            quarter_round(&mut s, 3, 7, 11, 15);
+            quarter_round(&mut s, 0, 5, 10, 15);
+            quarter_round(&mut s, 1, 6, 11, 12);
+            quarter_round(&mut s, 2, 7, 8, 13);
+            quarter_round(&mut s, 3, 4, 9, 14);
+        }
+        let mut out = [0u8; 64];
+        for i in 0..16 {
+            out[i * 4..i * 4 + 4].copy_from_slice(&s[i].wrapping_add(initial[i]).to_le_bytes());
+        }
+        out
+    }
+
+    /// Builds an IETF-layout state from a key, a 12-byte nonce and a counter.
+    pub(crate) fn ietf_state(key: &[u8; 32], nonce: &[u8; 12], counter: u32) -> [u32; 16] {
+        let mut s = [0u32; 16];
+        s[..4].copy_from_slice(&CONSTANT);
+        for (i, word) in s[4..12].iter_mut().enumerate() {
+            *word = u32::from_le_bytes(key[i * 4..i * 4 + 4].try_into().unwrap());
+        }
+        s[12] = counter;
+        s[13] = u32::from_le_bytes(nonce[0..4].try_into().unwrap());
+        s[14] = u32::from_le_bytes(nonce[4..8].try_into().unwrap());
+        s[15] = u32::from_le_bytes(nonce[8..12].try_into().unwrap());
+        s
+    }
+
+    /// Builds a DJB-layout state from a key, an 8-byte nonce and a counter.
+    pub(crate) fn djb_state(key: &[u8; 32], nonce: &[u8; 8], counter: u64) -> [u32; 16] {
+        let mut s = [0u32; 16];
+        s[..4].copy_from_slice(&CONSTANT);
+        for (i, word) in s[4..12].iter_mut().enumerate() {
+            *word = u32::from_le_bytes(key[i * 4..i * 4 + 4].try_into().unwrap());
+        }
+        s[12] = counter as u32;
+        s[13] = (counter >> 32) as u32;
+        s[14] = u32::from_le_bytes(nonce[0..4].try_into().unwrap());
+        s[15] = u32::from_le_bytes(nonce[4..8].try_into().unwrap());
+        s
+    }
+
+    /// Returns the keystream starting at the counter stored in `state` for
+    /// `len` bytes.  The counter is advanced block by block exactly like the
+    /// kernels do (32-bit for IETF, 64-bit for DJB).
+    pub(crate) fn ref_stream_from<const ROUNDS: usize>(state: &[u32; 16], is_ietf: bool, len: usize) -> Vec<u8> {
+        let mut out = Vec::with_capacity(len.div_ceil(64) * 64);
+        for j in 0..len.div_ceil(64) {
+            let mut block_state = *state;
+            if is_ietf {
+                block_state[12] = state[12].wrapping_add(j as u32);
+            } else {
+                let counter = (((state[13] as u64) << 32) | state[12] as u64).wrapping_add(j as u64);
+                block_state[12] = counter as u32;
+                block_state[13] = (counter >> 32) as u32;
+            }
+            out.extend_from_slice(&ref_block::<ROUNDS>(block_state));
+        }
+        out.truncate(len);
+        out
+    }
+}

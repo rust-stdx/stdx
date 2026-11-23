@@ -530,14 +530,6 @@ mod tests {
         assert_eq!(key.to_bytes(), [0u8; SECRET_KEY_SIZE]);
     }
 
-    fn decode_hex<const N: usize>(hex_bytes: &str) -> [u8; N] {
-        let bytes = hex::decode(hex_bytes).unwrap();
-        assert_eq!(bytes.len(), N);
-        let mut out = [0u8; N];
-        out.copy_from_slice(&bytes);
-        out
-    }
-
     fn der_read_tlv<'a>(data: &'a [u8], offset: &mut usize) -> Option<(u8, &'a [u8])> {
         if *offset >= data.len() {
             return None;
@@ -679,51 +671,53 @@ mod tests {
         let mut private_key = [0u8; SECRET_KEY_SIZE];
         private_key[65] = 1;
         let derived = derive_public_key_uncompressed(&private_key).unwrap();
-        let expected = decode_hex::<133>(
-            "0400c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66011839296a789a3bc0045c8a5fb42c7d1bd998f54449579b446817afbd17273e662c97ee72995ef42640c550b9013fad0761353c7086a272c24088be94769fd16650",
-        );
+        let expected = hex::decode_array::<133>((
+            "0400c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66011839296a789a3bc0045c8a5fb42c7d1bd998f54449579b446817afbd17273e662c97ee72995ef42640c550b9013fad0761353c7086a272c24088be94769fd16650").as_bytes()).unwrap();
         assert_eq!(derived, expected);
     }
 
     #[test]
     fn derive_public_key_matches_rfc6979_vector() {
-        let private_key = decode_hex::<66>(RFC6979_PRIVATE_KEY);
-        let expected = decode_hex::<133>(
-            "0401894550d0785932e00eaa23b694f213f8c3121f86dc97a04e5a7167db4e5bcd371123d46e45db6b5d5370a7f20fb633155d38ffa16d2bd761dcac474b9a2f5023a400493101c962cd4d2fddf782285e64584139c2f91b47f87ff82354d6630f746a28a0db25741b5b34a828008b22acc23f924faafbd4d33f81ea66956dfeaa2bfdfcf5",
-        );
+        let private_key = hex::decode_array::<66>((RFC6979_PRIVATE_KEY).as_bytes()).unwrap();
+        let expected = hex::decode_array::<133>((
+            "0401894550d0785932e00eaa23b694f213f8c3121f86dc97a04e5a7167db4e5bcd371123d46e45db6b5d5370a7f20fb633155d38ffa16d2bd761dcac474b9a2f5023a400493101c962cd4d2fddf782285e64584139c2f91b47f87ff82354d6630f746a28a0db25741b5b34a828008b22acc23f924faafbd4d33f81ea66956dfeaa2bfdfcf5").as_bytes()).unwrap();
         assert_eq!(derive_public_key_uncompressed(&private_key).unwrap(), expected);
         assert_eq!(
-            PublicKey::from_x_y(&decode_hex::<66>(RFC6979_PUBLIC_X), &decode_hex::<66>(RFC6979_PUBLIC_Y),)
-                .unwrap()
-                .to_bytes(),
+            PublicKey::from_x_y(
+                &hex::decode_array::<66>((RFC6979_PUBLIC_X).as_bytes()).unwrap(),
+                &hex::decode_array::<66>((RFC6979_PUBLIC_Y).as_bytes()).unwrap(),
+            )
+            .unwrap()
+            .to_bytes(),
             expected,
         );
 
         // Compressed form derives from the same point; prefix encodes y parity.
         let compressed = derive_public_key_compressed(&private_key).unwrap();
-        assert_eq!(&compressed[1..], &decode_hex::<66>(RFC6979_PUBLIC_X));
+        assert_eq!(
+            &compressed[1..],
+            &hex::decode_array::<66>((RFC6979_PUBLIC_X).as_bytes()).unwrap()
+        );
     }
 
     #[test]
     fn ecdsa_sign_matches_rfc6979_vectors() {
-        let private_key = decode_hex::<66>(RFC6979_PRIVATE_KEY);
+        let private_key = hex::decode_array::<66>((RFC6979_PRIVATE_KEY).as_bytes()).unwrap();
         let key = SecretKey::from_bytes(&private_key).unwrap();
 
         // RFC 6979 A.2.7, SHA-512 "sample". The vector's s is already the
         // canonical low-s value, so the emitted signature matches it verbatim.
         let sample_signature = key.sign(b"sample").unwrap();
-        let expected_sample = decode_hex::<132>(
+        let expected_sample = hex::decode_array::<132>((
             "00c328fafcbd79dd77850370c46325d987cb525569fb63c5d3bc53950e6d4c5f174e25a1ee9017b5d450606add152b534931d7d4e8455cc91f9b15bf05ec36e377fa\
-             00617cce7cf5064806c467f678d3b4080d6f1cc50af26ca209417308281b68af282623eaa63e5b5c0723d8b8c37ff0777b1a20f8ccb1dccc43997f1ee0e44da4a67a",
-        );
+             00617cce7cf5064806c467f678d3b4080d6f1cc50af26ca209417308281b68af282623eaa63e5b5c0723d8b8c37ff0777b1a20f8ccb1dccc43997f1ee0e44da4a67a").as_bytes()).unwrap();
         assert_eq!(sample_signature, expected_sample);
 
         // The "test" vector's `s` (`01fb…dce3`) is in high-s form, so the
         // canonical low-s signature emitted here is `r || (n - s)`.
         let test_signature = key.sign(b"test").unwrap();
-        let expected_test = decode_hex::<132>(
-            "013e99020abf5cee7525d16b69b229652ab6bdf2affcaef38773b4b7d08725f10cdb93482fdcc54edcee91eca4166b2a7c6265ef0ce2bd7051b7cef945babd47ee6d00042ffec398b558634c67b6ad86e931cfe39915831747f97d879529f067081875e0871c978df9bb9587cc2b53e229002daeeea20ec39fefe7398bf4a1c063538726",
-        );
+        let expected_test = hex::decode_array::<132>((
+            "013e99020abf5cee7525d16b69b229652ab6bdf2affcaef38773b4b7d08725f10cdb93482fdcc54edcee91eca4166b2a7c6265ef0ce2bd7051b7cef945babd47ee6d00042ffec398b558634c67b6ad86e931cfe39915831747f97d879529f067081875e0871c978df9bb9587cc2b53e229002daeeea20ec39fefe7398bf4a1c063538726").as_bytes()).unwrap();
         assert_eq!(test_signature, expected_test);
     }
 
@@ -731,40 +725,43 @@ mod tests {
     fn rfc6979_nonce_generation_matches_known_value() {
         // P-521's order (521 bits) is wider than SHA-512's output (512 bits),
         // so RFC 6979 must concatenate two HMAC blocks before `bits2int`.
-        let private_key = Scalar::from_bytes(&decode_hex::<66>(RFC6979_PRIVATE_KEY)).unwrap();
+        let private_key =
+            Scalar::from_bytes(&hex::decode_array::<66>((RFC6979_PRIVATE_KEY).as_bytes()).unwrap()).unwrap();
         let hash = hash_message(b"sample");
         assert_eq!(
             Rfc6979::new(&private_key, &hash).generate().to_bytes(),
-            decode_hex::<66>(
+            hex::decode_array::<66>((
                 "01dae2ea071f8110dc26882d4d5eae0621a3256fc8847fb9022e2b7d28e6f10198b1574fdd03a9053c08a1854a168aa5a57470ec97dd5ce090124ef52a2f7ecbffd3"
-            )
+            ).as_bytes()).unwrap()
         );
     }
 
     #[test]
     fn rfc6979_test_message_nonce_matches_known_value() {
-        let private_key = Scalar::from_bytes(&decode_hex::<66>(RFC6979_PRIVATE_KEY)).unwrap();
+        let private_key =
+            Scalar::from_bytes(&hex::decode_array::<66>((RFC6979_PRIVATE_KEY).as_bytes()).unwrap()).unwrap();
         let hash = hash_message(b"test");
         assert_eq!(
             Rfc6979::new(&private_key, &hash).generate().to_bytes(),
-            decode_hex::<66>(
+            hex::decode_array::<66>((
                 "016200813020ec986863bedfc1b121f605c1215645018aea1a7b215a564de9eb1b38a67aa1128b80ce391c4fb71187654aaa3431027bfc7f395766ca988c964dc56d"
-            )
+            ).as_bytes()).unwrap()
         );
     }
 
     #[test]
     fn rfc6979_retry_advances_drbg() {
-        let private_key = Scalar::from_bytes(&decode_hex::<66>(RFC6979_PRIVATE_KEY)).unwrap();
+        let private_key =
+            Scalar::from_bytes(&hex::decode_array::<66>((RFC6979_PRIVATE_KEY).as_bytes()).unwrap()).unwrap();
         let hash = hash_message(b"sample");
 
         let mut drbg = Rfc6979::new(&private_key, &hash);
         let k1 = drbg.generate();
         assert_eq!(
             k1.to_bytes(),
-            decode_hex::<66>(
+            hex::decode_array::<66>((
                 "01dae2ea071f8110dc26882d4d5eae0621a3256fc8847fb9022e2b7d28e6f10198b1574fdd03a9053c08a1854a168aa5a57470ec97dd5ce090124ef52a2f7ecbffd3"
-            )
+            ).as_bytes()).unwrap()
         );
 
         // RFC 6979 §3.2 h.3: an r=0/s=0 retry must continue the DRBG, not
@@ -776,7 +773,7 @@ mod tests {
 
     #[test]
     fn ecdsa_forced_retry_uses_fresh_nonce() {
-        let private_key = decode_hex::<66>(RFC6979_PRIVATE_KEY);
+        let private_key = hex::decode_array::<66>((RFC6979_PRIVATE_KEY).as_bytes()).unwrap();
         let key = SecretKey::from_bytes(&private_key).unwrap();
         let scalar = Scalar::from_bytes(&private_key).unwrap();
 
@@ -791,7 +788,7 @@ mod tests {
 
     #[test]
     fn ecdsa_sign_emits_canonical_low_s() {
-        let private_key = decode_hex::<66>(RFC6979_PRIVATE_KEY);
+        let private_key = hex::decode_array::<66>((RFC6979_PRIVATE_KEY).as_bytes()).unwrap();
         let key = SecretKey::from_bytes(&private_key).unwrap();
         for msg in [&b"sample"[..], b"test", b"", b"another message"] {
             let sig = key.sign(msg).unwrap();
@@ -802,7 +799,7 @@ mod tests {
 
     #[test]
     fn ecdsa_verify_strict_rejects_high_s() {
-        let private_key = decode_hex::<66>(RFC6979_PRIVATE_KEY);
+        let private_key = hex::decode_array::<66>((RFC6979_PRIVATE_KEY).as_bytes()).unwrap();
         let key = SecretKey::from_bytes(&private_key).unwrap();
         let public_key = key.public_key();
         let signature = key.sign(b"sample").unwrap();
@@ -830,32 +827,27 @@ mod tests {
         let zero = [0u8; 66];
         assert!(Scalar::from_bytes(&zero).is_none());
 
-        let n_bytes = decode_hex::<66>(
-            "01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e91386409",
-        );
+        let n_bytes = hex::decode_array::<66>((
+            "01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e91386409").as_bytes()).unwrap();
         assert!(Scalar::from_bytes(&n_bytes).is_none());
 
-        let n_minus_1 = decode_hex::<66>(
-            "01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e91386408",
-        );
+        let n_minus_1 = hex::decode_array::<66>((
+            "01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e91386408").as_bytes()).unwrap();
         assert!(Scalar::from_bytes(&n_minus_1).is_some());
 
-        let one = decode_hex::<66>(
-            "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001",
-        );
+        let one = hex::decode_array::<66>((
+            "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001").as_bytes()).unwrap();
         assert!(Scalar::from_bytes(&one).is_some());
     }
 
     #[test]
     fn field_element_from_bytes_rejects_boundary_values() {
-        let p_bytes = decode_hex::<66>(
-            "01ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-        );
+        let p_bytes = hex::decode_array::<66>((
+            "01ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").as_bytes()).unwrap();
         assert!(FieldElement::from_bytes(&p_bytes).is_none());
 
-        let p_minus_1 = decode_hex::<66>(
-            "01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe",
-        );
+        let p_minus_1 = hex::decode_array::<66>((
+            "01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe").as_bytes()).unwrap();
         assert!(FieldElement::from_bytes(&p_minus_1).is_some());
 
         let zero = [0u8; 66];
@@ -871,7 +863,7 @@ mod tests {
         ];
 
         for key_hex in keys {
-            let private_key = decode_hex::<66>(key_hex);
+            let private_key = hex::decode_array::<66>((key_hex).as_bytes()).unwrap();
             let key = SecretKey::from_bytes(&private_key).unwrap();
             let uncompressed = key.public_key();
             let compressed = derive_public_key_compressed(&private_key).unwrap();
@@ -888,9 +880,8 @@ mod tests {
 
     #[test]
     fn scalar_inversion_correctness() {
-        let k = Scalar::from_bytes(&decode_hex::<66>(
-            "01894550d0785932e00eaa23b694f213f8c3121f86dc97a04e5a7167db4e5bcd371123d46e45db6b5d5370a7f20fb633155d38ffa16d2bd761dcac474b9a2f5023a4",
-        ))
+        let k = Scalar::from_bytes(&hex::decode_array::<66>((
+            "01894550d0785932e00eaa23b694f213f8c3121f86dc97a04e5a7167db4e5bcd371123d46e45db6b5d5370a7f20fb633155d38ffa16d2bd761dcac474b9a2f5023a4").as_bytes()).unwrap())
         .unwrap();
         let k_inv = k.invert().unwrap();
         let product = k.mul(k_inv);
@@ -899,9 +890,8 @@ mod tests {
 
     #[test]
     fn field_element_inversion_correctness() {
-        let x = FieldElement::from_bytes(&decode_hex::<66>(
-            "00c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66",
-        ))
+        let x = FieldElement::from_bytes(&hex::decode_array::<66>((
+            "00c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66").as_bytes()).unwrap())
         .unwrap();
         let x_inv = x.invert().unwrap();
         let product = x.mul(x_inv);
@@ -959,9 +949,8 @@ mod tests {
 
     #[test]
     fn scalar_mul_generator_n_gives_identity() {
-        let n_minus_1 = Scalar::from_bytes(&decode_hex::<66>(
-            "01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e91386408",
-        ))
+        let n_minus_1 = Scalar::from_bytes(&hex::decode_array::<66>((
+            "01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e91386408").as_bytes()).unwrap())
         .unwrap();
         let result = scalar_mul_generator(&n_minus_1).to_affine().unwrap();
         assert_eq!(result.x, FieldElement::from_uint(GENERATOR_X));
@@ -971,7 +960,7 @@ mod tests {
 
     #[test]
     fn scalar_mul_by_two_matches_double() {
-        let two = Scalar::from_bytes(&decode_hex::<66>("000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002"))
+        let two = Scalar::from_bytes(&hex::decode_array::<66>(("000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002").as_bytes()).unwrap())
             .unwrap();
         let g_times_2 = scalar_mul_affine(&AffinePoint::GENERATOR, &two).to_affine().unwrap();
         let proj_g = ProjectivePoint::from_affine(&AffinePoint::GENERATOR);
@@ -984,15 +973,14 @@ mod tests {
     fn ecdh_deterministic_vector_against_generator() {
         // ECDH between the RFC 6979 private key and the generator: the shared
         // secret is the x-coordinate of the derived public key.
-        let private_key = decode_hex::<66>(RFC6979_PRIVATE_KEY);
-        let generator = decode_hex::<133>(
-            "0400c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66011839296a789a3bc0045c8a5fb42c7d1bd998f54449579b446817afbd17273e662c97ee72995ef42640c550b9013fad0761353c7086a272c24088be94769fd16650",
-        );
+        let private_key = hex::decode_array::<66>((RFC6979_PRIVATE_KEY).as_bytes()).unwrap();
+        let generator = hex::decode_array::<133>((
+            "0400c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66011839296a789a3bc0045c8a5fb42c7d1bd998f54449579b446817afbd17273e662c97ee72995ef42640c550b9013fad0761353c7086a272c24088be94769fd16650").as_bytes()).unwrap();
 
         let key = SecretKey::from_bytes(&private_key).unwrap();
         let shared = ecdh(&private_key, &generator).unwrap();
         assert_eq!(shared, key.public_key().x_y().0);
-        assert_eq!(shared, decode_hex::<66>(RFC6979_PUBLIC_X));
+        assert_eq!(shared, hex::decode_array::<66>((RFC6979_PUBLIC_X).as_bytes()).unwrap());
     }
 
     #[test]
@@ -1019,15 +1007,13 @@ mod tests {
     fn ecdsa_rejects_non_canonical_r_and_s() {
         let key = SecretKey::generate().unwrap();
         let mut bad_r = key.sign(b"msg").unwrap();
-        bad_r[..66].copy_from_slice(&decode_hex::<66>(
-            "01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e9138640a",
-        ));
+        bad_r[..66].copy_from_slice(&hex::decode_array::<66>((
+            "01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e9138640a").as_bytes()).unwrap());
         assert!(key.public_key().verify(b"msg", &bad_r).is_err());
 
         let mut bad_s = key.sign(b"msg").unwrap();
-        bad_s[66..].copy_from_slice(&decode_hex::<66>(
-            "01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e9138640a",
-        ));
+        bad_s[66..].copy_from_slice(&hex::decode_array::<66>((
+            "01fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e9138640a").as_bytes()).unwrap());
         assert!(key.public_key().verify(b"msg", &bad_s).is_err());
     }
 
@@ -1065,12 +1051,10 @@ mod tests {
     #[test]
     fn from_x_y_matches_generator() {
         let key = PublicKey::from_x_y(
-            &decode_hex::<66>(
-                "00c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66",
-            ),
-            &decode_hex::<66>(
-                "011839296a789a3bc0045c8a5fb42c7d1bd998f54449579b446817afbd17273e662c97ee72995ef42640c550b9013fad0761353c7086a272c24088be94769fd16650",
-            ),
+            &hex::decode_array::<66>((
+                "00c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66").as_bytes()).unwrap(),
+            &hex::decode_array::<66>((
+                "011839296a789a3bc0045c8a5fb42c7d1bd998f54449579b446817afbd17273e662c97ee72995ef42640c550b9013fad0761353c7086a272c24088be94769fd16650").as_bytes()).unwrap(),
         )
         .unwrap();
         let from_sec1 = PublicKey::from_bytes(&key.to_bytes()).unwrap();
@@ -1079,41 +1063,36 @@ mod tests {
 
     #[test]
     fn field_element_add_sub_mul_consistency() {
-        let a = FieldElement::from_bytes(&decode_hex::<66>(
-            "00c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66",
-        ))
+        let a = FieldElement::from_bytes(&hex::decode_array::<66>((
+            "00c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66").as_bytes()).unwrap())
         .unwrap();
-        let b = FieldElement::from_bytes(&decode_hex::<66>(
-            "011839296a789a3bc0045c8a5fb42c7d1bd998f54449579b446817afbd17273e662c97ee72995ef42640c550b9013fad0761353c7086a272c24088be94769fd16650",
-        ))
+        let b = FieldElement::from_bytes(&hex::decode_array::<66>((
+            "011839296a789a3bc0045c8a5fb42c7d1bd998f54449579b446817afbd17273e662c97ee72995ef42640c550b9013fad0761353c7086a272c24088be94769fd16650").as_bytes()).unwrap())
         .unwrap();
 
         assert_eq!(a.add(b).sub(b), a);
         assert_eq!(a.add(b), b.add(a));
         assert_eq!(a.mul(b), b.mul(a));
 
-        let c = FieldElement::from_bytes(&decode_hex::<66>(
-            "0051953eb9618e1c9a1f929a21a0b68540eea2da725b99b315f3b8b489918ef109e156193951ec7e937b1652c0bd3bb1bf073573df883d2c34f1ef451fd46b503f00",
-        ))
+        let c = FieldElement::from_bytes(&hex::decode_array::<66>((
+            "0051953eb9618e1c9a1f929a21a0b68540eea2da725b99b315f3b8b489918ef109e156193951ec7e937b1652c0bd3bb1bf073573df883d2c34f1ef451fd46b503f00").as_bytes()).unwrap())
         .unwrap();
         assert_eq!(a.add(b).mul(c), a.mul(c).add(b.mul(c)));
     }
 
     #[test]
     fn scalar_add_sub_mul_consistency() {
-        let a = Scalar::from_bytes(&decode_hex::<66>(
-            "01894550d0785932e00eaa23b694f213f8c3121f86dc97a04e5a7167db4e5bcd371123d46e45db6b5d5370a7f20fb633155d38ffa16d2bd761dcac474b9a2f5023a4",
-        ))
+        let a = Scalar::from_bytes(&hex::decode_array::<66>((
+            "01894550d0785932e00eaa23b694f213f8c3121f86dc97a04e5a7167db4e5bcd371123d46e45db6b5d5370a7f20fb633155d38ffa16d2bd761dcac474b9a2f5023a4").as_bytes()).unwrap())
         .unwrap();
-        let one = Scalar::from_bytes(&decode_hex::<66>("000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001"))
+        let one = Scalar::from_bytes(&hex::decode_array::<66>(("000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001").as_bytes()).unwrap())
             .unwrap();
 
         assert_eq!(a.add(one).sub(one), a);
         assert_eq!(a.mul(one), a);
 
-        let b = Scalar::from_bytes(&decode_hex::<66>(
-            "00493101c962cd4d2fddf782285e64584139c2f91b47f87ff82354d6630f746a28a0db25741b5b34a828008b22acc23f924faafbd4d33f81ea66956dfeaa2bfdfcf5",
-        ))
+        let b = Scalar::from_bytes(&hex::decode_array::<66>((
+            "00493101c962cd4d2fddf782285e64584139c2f91b47f87ff82354d6630f746a28a0db25741b5b34a828008b22acc23f924faafbd4d33f81ea66956dfeaa2bfdfcf5").as_bytes()).unwrap())
         .unwrap();
         assert_eq!(a.mul(b), b.mul(a));
         assert_eq!(a.add(b), b.add(a));
@@ -1121,9 +1100,8 @@ mod tests {
 
     #[test]
     fn field_element_negate_round_trip() {
-        let x = FieldElement::from_bytes(&decode_hex::<66>(
-            "00c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66",
-        ))
+        let x = FieldElement::from_bytes(&hex::decode_array::<66>((
+            "00c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66").as_bytes()).unwrap())
         .unwrap();
         let neg = x.negate();
         assert_eq!(neg.negate(), x);
@@ -1132,7 +1110,7 @@ mod tests {
 
     #[test]
     fn field_element_pow_correctness() {
-        let x = FieldElement::from_bytes(&decode_hex::<66>("000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002"))
+        let x = FieldElement::from_bytes(&hex::decode_array::<66>(("000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002").as_bytes()).unwrap())
             .unwrap();
         let x3 = x.pow(&U521::from_u64(3));
         let expected = x.mul(x).mul(x);
@@ -1188,7 +1166,7 @@ mod tests {
                 if sig_hex.len() != SIGNATURE_SIZE * 2 {
                     continue;
                 }
-                let sig = decode_hex::<SIGNATURE_SIZE>(sig_hex);
+                let sig = hex::decode_array::<SIGNATURE_SIZE>((sig_hex).as_bytes()).unwrap();
                 let verify_result = pk.verify(&msg, &sig);
 
                 if result == "valid" {

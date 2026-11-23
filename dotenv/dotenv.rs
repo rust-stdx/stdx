@@ -1634,6 +1634,7 @@ mod tests {
 
     // A non-UTF-8 variable in the environment must not make `load` panic.
     #[cfg(unix)]
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn load_survives_non_utf8_env_var() {
         use std::os::unix::ffi::OsStringExt;

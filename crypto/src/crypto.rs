@@ -96,9 +96,15 @@ impl core::error::Error for HashError {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AeadError {
+    /// The key is not valid for this cipher.
     InvalidKey,
+    /// The nonce does not have the length required by this cipher.
     InvalidNonce,
+    /// The ciphertext, tag, or associated data failed authentication.
     InvalidCiphertext,
+    /// The message exceeds the cipher's length limit.
+    MessageTooLong,
+    /// The operation is not supported by this cipher.
     Unsupported,
 }
 
@@ -108,12 +114,35 @@ impl core::fmt::Display for AeadError {
             AeadError::InvalidKey => write!(f, "key is not valid"),
             AeadError::InvalidNonce => write!(f, "nonce is not valid"),
             AeadError::InvalidCiphertext => write!(f, "ciphertext is not valid"),
+            AeadError::MessageTooLong => write!(f, "message is too long"),
             AeadError::Unsupported => write!(f, "operation is not supported"),
         }
     }
 }
 
 impl core::error::Error for AeadError {}
+
+/// Errors returned by [`StreamCipher::xor_keystream`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StreamCipherError {
+    /// The counter space for this `(key, nonce)` pair is exhausted. No bytes
+    /// were XORed into the output buffer.
+    CounterExhausted,
+    /// The cipher was zeroized and cannot be reused. Construct a new cipher
+    /// with a fresh key instead.
+    Zeroized,
+}
+
+impl core::fmt::Display for StreamCipherError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            StreamCipherError::CounterExhausted => f.write_str("stream cipher counter is exhausted"),
+            StreamCipherError::Zeroized => f.write_str("stream cipher was zeroized"),
+        }
+    }
+}
+
+impl core::error::Error for StreamCipherError {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EllipticCurveError {
@@ -226,7 +255,12 @@ impl From<getrandom::Error> for RandomError {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 pub trait StreamCipher {
-    fn xor_keystream(&mut self, in_out: &mut [u8]);
+    /// XORs the next keystream bytes into `in_out`.
+    ///
+    /// Returns [`StreamCipherError::CounterExhausted`] instead of wrapping the
+    /// counter, or [`StreamCipherError::Zeroized`] if the cipher has been
+    /// zeroized. On error, no bytes are written to `in_out`.
+    fn xor_keystream(&mut self, in_out: &mut [u8]) -> Result<(), StreamCipherError>;
 }
 
 pub trait Aead {
@@ -236,15 +270,21 @@ pub trait Aead {
 
     /// Encrypts `in_out` in place and returns the authentication tag.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Implementations panic when `nonce.len() != Self::NONCE_SIZE` (and may
-    /// panic on other violations of their documented contract). Callers whose
-    /// nonce length is not statically known should check it before calling.
-    #[must_use]
-    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Hash;
+    /// Returns [`AeadError::InvalidNonce`] when `nonce.len() != Self::NONCE_SIZE`
+    /// and [`AeadError::MessageTooLong`] when the message exceeds the cipher's
+    /// length limit. On error, `in_out` is left unchanged.
+    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8]) -> Result<Hash, AeadError>;
 
     /// Authenticates and decrypts `in_out` in place.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`AeadError::InvalidNonce`] when `nonce.len() != Self::NONCE_SIZE`,
+    /// [`AeadError::InvalidCiphertext`] when the tag does not authenticate, and
+    /// [`AeadError::MessageTooLong`] when the ciphertext exceeds the cipher's
+    /// length limit.
     ///
     /// # Buffer contents on failure
     ///
@@ -255,15 +295,33 @@ pub trait Aead {
     /// buffer when `Ok(())` is returned.
     fn decrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], aad: &[u8], tag: &[u8]) -> Result<(), AeadError>;
 
+    /// Encrypts `plaintext` and returns `ciphertext || tag`.
+    ///
+    /// # Errors
+    ///
+    /// Propagates errors from [`encrypt_in_place`](Self::encrypt_in_place).
     #[cfg(feature = "alloc")]
-    fn encrypt(&self, plaintext: &[u8], nonce: &[u8], aad: &[u8]) -> Vec<u8> {
-        let mut ciphertext = Vec::with_capacity(plaintext.len() + Self::TAG_SIZE);
+    fn encrypt(&self, plaintext: &[u8], nonce: &[u8], aad: &[u8]) -> Result<Vec<u8>, AeadError> {
+        let capacity = plaintext
+            .len()
+            .checked_add(Self::TAG_SIZE)
+            .ok_or(AeadError::MessageTooLong)?;
+        let mut ciphertext = Vec::with_capacity(capacity);
         ciphertext.extend_from_slice(plaintext);
 
-        let tag = self.encrypt_in_place(&mut ciphertext, nonce, aad);
+        let tag = match self.encrypt_in_place(&mut ciphertext, nonce, aad) {
+            Ok(tag) => tag,
+            Err(err) => {
+                // The caller still owns the input; wipe the duplicate copy
+                // before dropping it.
+                #[cfg(feature = "zeroize")]
+                zeroize::Zeroize::zeroize(ciphertext.as_mut_slice());
+                return Err(err);
+            }
+        };
         ciphertext.extend_from_slice(tag.as_ref());
 
-        return ciphertext;
+        return Ok(ciphertext);
     }
 
     #[cfg(feature = "alloc")]
@@ -276,7 +334,13 @@ pub trait Aead {
         let mut plaintext = Vec::with_capacity(plaintext_length);
         plaintext.extend_from_slice(&ciphertext[..plaintext_length]);
 
-        self.decrypt_in_place(&mut plaintext, nonce, aad, &ciphertext[plaintext_length..])?;
+        if let Err(err) = self.decrypt_in_place(&mut plaintext, nonce, aad, &ciphertext[plaintext_length..]) {
+            // A fused backend may have written unauthenticated plaintext here;
+            // wipe it before dropping the buffer.
+            #[cfg(feature = "zeroize")]
+            zeroize::Zeroize::zeroize(plaintext.as_mut_slice());
+            return Err(err);
+        }
 
         return Ok(plaintext);
     }
@@ -316,6 +380,12 @@ pub trait Hasher: Clone + Zeroize {
 }
 
 pub trait Xof: Send + Sync {
+    /// Absorbs input bytes.
     fn absorb(&mut self, data: &[u8]);
+
+    /// Squeezes output bytes.
+    ///
+    /// The first call finalizes the input phase; an empty `out` still performs
+    /// that finalization. Subsequent calls continue the output stream.
     fn squeeze(&mut self, out: &mut [u8]);
 }

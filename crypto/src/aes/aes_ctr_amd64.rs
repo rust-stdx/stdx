@@ -33,8 +33,11 @@ pub(crate) unsafe fn increment_counter(ctr: __m128i) -> __m128i {
 /// XOR the keystream over `in_out` using AES-NI.
 ///
 /// `N` is the number of round keys: 11 for AES-128, 15 for AES-256.
-/// The counter is read from and written back to `counter` so the caller
-/// can resume from the same state on subsequent calls.
+/// The counter is read from and written back to `counter`; it advances once
+/// per complete 16-byte block. If `in_out` ends in a partial block, that block
+/// is encrypted without advancing the counter, so a caller that wants to
+/// continue mid-block must track the offset itself. `AesCtr` only passes whole
+/// blocks (it buffers the tail), so it does not depend on that behaviour.
 #[target_feature(enable = "aes,ssse3,sse2")]
 pub(crate) unsafe fn xor_keystream_aesni<const N: usize>(
     round_keys: &[__m128i; N],

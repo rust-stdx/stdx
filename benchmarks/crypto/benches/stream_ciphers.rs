@@ -26,7 +26,7 @@ fn bench_stream_ciphers(c: &mut Criterion) {
                     (cipher, vec![0xA5_u8; size])
                 },
                 |(mut cipher, mut data)| {
-                    cipher.xor_keystream(std::hint::black_box(&mut data));
+                    cipher.xor_keystream(std::hint::black_box(&mut data)).unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );
@@ -39,7 +39,7 @@ fn bench_stream_ciphers(c: &mut Criterion) {
                     (cipher, vec![0xA5_u8; size])
                 },
                 |(mut cipher, mut data)| {
-                    cipher.xor_keystream(std::hint::black_box(&mut data));
+                    cipher.xor_keystream(std::hint::black_box(&mut data)).unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );
@@ -52,7 +52,7 @@ fn bench_stream_ciphers(c: &mut Criterion) {
                     (cipher, vec![0xA5_u8; size])
                 },
                 |(mut cipher, mut data)| {
-                    cipher.xor_keystream(std::hint::black_box(&mut data));
+                    cipher.xor_keystream(std::hint::black_box(&mut data)).unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );
@@ -65,7 +65,7 @@ fn bench_stream_ciphers(c: &mut Criterion) {
                     (cipher, vec![0xA5_u8; size])
                 },
                 |(mut cipher, mut data)| {
-                    cipher.xor_keystream(std::hint::black_box(&mut data));
+                    cipher.xor_keystream(std::hint::black_box(&mut data)).unwrap();
                 },
                 criterion::BatchSize::SmallInput,
             );

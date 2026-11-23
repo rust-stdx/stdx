@@ -156,7 +156,10 @@ impl<A: Aead + Send + Sync> MessageEncrypter for Tls13Encrypter<A> {
         // The additional data covers the whole ciphertext, including the tag.
         let aad = make_tls13_aad(total_len);
         let nonce = Nonce::new(&self.iv, seq);
-        let tag = self.aead.encrypt_in_place(payload.as_mut(), &nonce.0, &aad);
+        let tag = self
+            .aead
+            .encrypt_in_place(payload.as_mut(), &nonce.0, &aad)
+            .map_err(|_| Error::EncryptError)?;
         payload.extend_from_slice(tag.as_ref());
 
         Ok(OutboundOpaqueMessage::new(

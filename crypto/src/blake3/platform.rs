@@ -254,6 +254,10 @@ impl Platform {
     ) {
         debug_assert!(out.len() >= inputs.len() * OUT_LEN, "out too short");
         debug_assert!(inputs.iter().all(|i| i.len() % BLOCK_LEN == 0), "inputs must be whole blocks");
+        debug_assert!(
+            inputs.is_empty() || inputs.iter().all(|i| i.len() == inputs[0].len()),
+            "inputs must have equal lengths"
+        );
         match self {
             Platform::Portable => {
                 scalar::hash_many(inputs, key, counter, increment_counter, flags, flags_start, flags_end, out)
@@ -313,6 +317,229 @@ impl Platform {
             Platform::Neon => unsafe { neon::xof_many(cv, block, block_len, counter, flags, out) },
             #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
             Platform::Wasm32Simd => wasm32_simd128::xof_many(cv, block, block_len, counter, flags, out),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every backend compiled into this build. The portable backend is always
+    /// first; the SIMD ones are appended when they can run.
+    #[allow(clippy::vec_init_then_push)]
+    fn available_platforms() -> Vec<Platform> {
+        let mut platforms = vec![Platform::Portable];
+        #[cfg(all(target_arch = "x86_64", feature = "std"))]
+        {
+            if is_x86_feature_detected!("avx512f") {
+                platforms.push(Platform::Avx512);
+            }
+            if is_x86_feature_detected!("avx2") {
+                platforms.push(Platform::Avx2);
+            }
+        }
+        #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx512f"))]
+        platforms.push(Platform::Avx512);
+        #[cfg(all(target_arch = "x86_64", not(feature = "std"), target_feature = "avx2"))]
+        platforms.push(Platform::Avx2);
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        platforms.push(Platform::Neon);
+        #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+        platforms.push(Platform::Wasm32Simd);
+        platforms
+    }
+
+    /// `detect()` must select a backend whose kernel is actually compiled in,
+    /// whose `simd_degree` fits the compile-time maximum, and (with `std`) it
+    /// must agree with the runtime feature checks.
+    #[test]
+    fn detect_selects_a_compiled_backend() {
+        assert!(MAX_SIMD_DEGREE.is_power_of_two(), "MAX_SIMD_DEGREE must be a power of two");
+        const {
+            assert!(MAX_SIMD_DEGREE >= 1);
+        }
+        assert_eq!(MAX_SIMD_DEGREE_OR_2, core::cmp::max(2, MAX_SIMD_DEGREE));
+
+        let detected = Platform::detect();
+        // The degree of every backend is bounded by the compile-time maximum,
+        // which is what sizes the stack buffers in `hasher.rs`.
+        for platform in available_platforms() {
+            let degree = platform.simd_degree();
+            assert!(degree >= 1, "{platform:?}");
+            assert!(degree <= MAX_SIMD_DEGREE, "{platform:?} degree {degree} > {MAX_SIMD_DEGREE}");
+            assert!(degree.is_power_of_two(), "{platform:?}");
+        }
+        assert!(detected.simd_degree() >= 1 && detected.simd_degree() <= MAX_SIMD_DEGREE);
+
+        // The detected backend must be one of the compiled, runnable ones.
+        assert!(
+            available_platforms().contains(&detected),
+            "detect() returned {detected:?}, which is not runnable on this build"
+        );
+
+        #[cfg(all(target_arch = "x86_64", feature = "std"))]
+        {
+            let expected = if is_x86_feature_detected!("avx512f") {
+                Platform::Avx512
+            } else if is_x86_feature_detected!("avx2") {
+                Platform::Avx2
+            } else {
+                Platform::Portable
+            };
+            assert_eq!(detected, expected);
+        }
+        #[cfg(all(target_arch = "x86_64", not(feature = "std")))]
+        {
+            #[cfg(target_feature = "avx512f")]
+            assert_eq!(detected, Platform::Avx512);
+            #[cfg(all(not(target_feature = "avx512f"), target_feature = "avx2"))]
+            assert_eq!(detected, Platform::Avx2);
+            #[cfg(all(not(target_feature = "avx512f"), not(target_feature = "avx2")))]
+            assert_eq!(detected, Platform::Portable);
+        }
+        #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
+        assert_eq!(detected, Platform::Neon);
+        #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+        assert_eq!(detected, Platform::Wasm32Simd);
+        #[cfg(not(any(
+            target_arch = "x86_64",
+            all(target_arch = "aarch64", target_feature = "neon"),
+            all(target_arch = "wasm32", target_feature = "simd128")
+        )))]
+        assert_eq!(detected, Platform::Portable);
+    }
+
+    fn pattern(len: usize, seed: u8) -> Vec<u8> {
+        (0..len)
+            .map(|i| ((i as u8).wrapping_mul(37).wrapping_add(seed)) % 251)
+            .collect()
+    }
+
+    /// `hash_many` requires equal-length inputs; the debug assertion must fire.
+    #[cfg(debug_assertions)]
+    #[test]
+    #[should_panic(expected = "inputs must have equal lengths")]
+    fn hash_many_rejects_unequal_input_lengths() {
+        let key = [0u32; 8];
+        let a = [0u8; BLOCK_LEN];
+        let b = [0u8; 2 * BLOCK_LEN];
+        let inputs: [&[u8]; 2] = [&a, &b];
+        let mut out = [0u8; 2 * OUT_LEN];
+        Platform::Portable.hash_many(&inputs, &key, 0, IncrementCounter::Yes, 0, CHUNK_START, CHUNK_END, &mut out);
+    }
+
+    /// `hash_many` may only write `inputs.len() * OUT_LEN` bytes, must never
+    /// write outside the slice it is given, and must produce the same chaining
+    /// values as the portable backend for every SIMD-group/tail split.
+    #[test]
+    fn hash_many_respects_output_bounds() {
+        let key = {
+            let bytes = pattern(32, 77);
+            let mut words = [0u32; 8];
+            for (word, chunk) in words.iter_mut().zip(bytes.as_chunks::<4>().0) {
+                *word = u32::from_le_bytes(*chunk);
+            }
+            words
+        };
+
+        for platform in available_platforms() {
+            // Whole chunks: counts around every compiled degree.
+            for &n in &[1usize, 2, 3, 4, 5, 7, 8, 9, 15, 16, 17, 23, 24, 31, 32, 33] {
+                let inputs_owned: Vec<Vec<u8>> = (0..n).map(|i| pattern(CHUNK_LEN, (5000 + i) as u8)).collect();
+                let inputs: Vec<&[u8]> = inputs_owned.iter().map(Vec::as_slice).collect();
+
+                let out_len = n * OUT_LEN;
+                let mut guarded = vec![0xAAu8; 3 + out_len + 5];
+                let mut expected = vec![0u8; out_len];
+                Platform::Portable.hash_many(
+                    &inputs,
+                    &key,
+                    7,
+                    IncrementCounter::Yes,
+                    0,
+                    CHUNK_START,
+                    CHUNK_END,
+                    &mut expected,
+                );
+                let (prefix, rest) = guarded.split_at_mut(3);
+                let (out, suffix) = rest.split_at_mut(out_len);
+                platform.hash_many(&inputs, &key, 7, IncrementCounter::Yes, 0, CHUNK_START, CHUNK_END, out);
+                assert_eq!(out, &expected[..], "hash_many output mismatch ({platform:?}, n {n})");
+                assert!(
+                    prefix.iter().all(|&b| b == 0xAA),
+                    "hash_many wrote before its output ({platform:?}, n {n})"
+                );
+                assert!(
+                    suffix.iter().all(|&b| b == 0xAA),
+                    "hash_many wrote past its output ({platform:?}, n {n})"
+                );
+            }
+
+            // Parent blocks: one 64-byte block per input, counter not incremented.
+            for &n in &[2usize, 3, 4, 5, 7, 8, 9, 15, 16, 17, 31, 32, 33] {
+                let inputs_owned: Vec<Vec<u8>> = (0..n).map(|i| pattern(BLOCK_LEN, (9000 + i) as u8)).collect();
+                let inputs: Vec<&[u8]> = inputs_owned.iter().map(Vec::as_slice).collect();
+
+                let out_len = n * OUT_LEN;
+                let mut guarded = vec![0xAAu8; 1 + out_len + 1];
+                let mut expected = vec![0u8; out_len];
+                Platform::Portable.hash_many(&inputs, &key, 0, IncrementCounter::No, PARENT, 0, 0, &mut expected);
+                let (prefix, rest) = guarded.split_at_mut(1);
+                let (out, suffix) = rest.split_at_mut(out_len);
+                platform.hash_many(&inputs, &key, 0, IncrementCounter::No, PARENT, 0, 0, out);
+                assert_eq!(out, &expected[..], "parent hash_many mismatch ({platform:?}, n {n})");
+                assert!(prefix.iter().all(|&b| b == 0xAA));
+                assert!(suffix.iter().all(|&b| b == 0xAA));
+            }
+        }
+    }
+
+    /// `xof_many` produces consecutive output blocks (including across the
+    /// 64-bit output-block counter wrap), writes exactly `out.len()` bytes, and
+    /// treats an empty output as a no-op.
+    #[test]
+    fn xof_many_respects_output_bounds_and_wraps_counter() {
+        let cv = {
+            let bytes = pattern(32, 42);
+            let mut words = [0u32; 8];
+            for (word, chunk) in words.iter_mut().zip(bytes.as_chunks::<4>().0) {
+                *word = u32::from_le_bytes(*chunk);
+            }
+            words
+        };
+        let block_bytes = pattern(BLOCK_LEN, 99);
+        let block: [u8; BLOCK_LEN] = block_bytes.as_slice().try_into().unwrap();
+
+        for platform in available_platforms() {
+            for &blocks in &[1usize, 2, 3, 4, 5, 7, 8, 15, 16, 17, 31, 32, 33] {
+                for &counter in &[0u64, 7, u32::MAX as u64 - 2, u64::MAX - 2, u64::MAX] {
+                    let mut expected = vec![0u8; blocks * BLOCK_LEN];
+                    for (i, out_block) in expected.as_chunks_mut::<BLOCK_LEN>().0.iter_mut().enumerate() {
+                        *out_block =
+                            scalar::compress_xof(&cv, &block, BLOCK_LEN as u8, counter.wrapping_add(i as u64), 0);
+                    }
+
+                    let mut guarded = vec![0xAAu8; 2 + blocks * BLOCK_LEN + 3];
+                    let (prefix, rest) = guarded.split_at_mut(2);
+                    let (out, suffix) = rest.split_at_mut(blocks * BLOCK_LEN);
+                    platform.xof_many(&cv, &block, BLOCK_LEN as u8, counter, 0, out);
+                    assert_eq!(
+                        out,
+                        &expected[..],
+                        "xof_many mismatch ({platform:?}, blocks {blocks}, counter {counter})"
+                    );
+                    assert!(prefix.iter().all(|&b| b == 0xAA), "xof_many wrote before its output");
+                    assert!(suffix.iter().all(|&b| b == 0xAA), "xof_many wrote past its output");
+                }
+            }
+
+            // Empty output: must be a complete no-op.
+            let mut canary = [0xAAu8; 8];
+            platform.xof_many(&cv, &block, BLOCK_LEN as u8, 0, 0, &mut []);
+            assert_eq!(canary, [0xAAu8; 8]);
+            canary[0] = 0x55;
+            assert_eq!(canary[0], 0x55);
         }
     }
 }

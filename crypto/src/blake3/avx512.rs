@@ -672,6 +672,8 @@ pub(crate) unsafe fn compress_xof(
 
 #[cfg(test)]
 mod tests {
+    use rand::{RngExt, SeedableRng, rngs::StdRng};
+
     use super::*;
 
     #[test]
@@ -731,6 +733,332 @@ mod tests {
                     let expected = counter.wrapping_add(mask & lane as u64);
                     assert_eq!(lanes[lane], counter_low(expected), "low lane {lane}");
                     assert_eq!(lanes[DEGREE + lane], counter_high(expected), "high lane {lane}");
+                }
+            }
+        }
+    }
+
+    use crate::blake3::platform::{
+        CHUNK_END, CHUNK_LEN, CHUNK_START, DERIVE_KEY_CONTEXT, DERIVE_KEY_MATERIAL, KEYED_HASH, PARENT, ROOT,
+    };
+
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    // Differential tests against the portable/scalar kernels.
+    //
+    // These run in the backend's own configuration: natively on aarch64 (NEON),
+    // under `wasm32-wasip1` with `-C target-feature=+simd128`, and on `x86_64`
+    // with a CPU that actually exposes AVX2 / AVX-512F (or under qemu). The
+    // guard below skips the test when the kernel cannot legally be executed.
+    ////////////////////////////////////////////////////////////////////////////////////////////////
+    /// Deterministic seeded `StdRng` stream: reproducible.
+    fn pattern(len: usize, seed: u64) -> Vec<u8> {
+        let mut rng = StdRng::seed_from_u64(seed);
+        let mut out = vec![0u8; len];
+        rng.fill(&mut out);
+        out
+    }
+
+    fn words(bytes: &[u8]) -> [u32; 8] {
+        let mut out = [0u32; 8];
+        for (word, chunk) in out.iter_mut().zip(bytes.as_chunks::<4>().0) {
+            *word = u32::from_le_bytes(*chunk);
+        }
+        out
+    }
+
+    fn kernel_available() -> bool {
+        is_x86_feature_detected!("avx512f")
+    }
+
+    /// Buffer whose `[pad..pad + len]` window holds deterministic data and whose
+    /// trailing `trail` bytes are untouched canaries. `trail == 0` puts the
+    /// window at the very end of the allocation, so an over-read of a whole
+    /// SIMD block is a heap-buffer-overflow (visible under ASan).
+    fn input_with_pad(len: usize, pad: usize, trail: usize, seed: u64) -> (Vec<u8>, usize) {
+        let data = pattern(len, seed);
+        let mut buf = vec![0xC3u8; pad + len + trail];
+        buf[pad..pad + len].copy_from_slice(&data);
+        (buf, pad)
+    }
+
+    const FLAGS: [u8; 10] = [
+        0,
+        CHUNK_START,
+        CHUNK_END,
+        PARENT,
+        ROOT,
+        KEYED_HASH,
+        DERIVE_KEY_CONTEXT,
+        DERIVE_KEY_MATERIAL,
+        CHUNK_START | CHUNK_END | ROOT,
+        CHUNK_START | CHUNK_END | ROOT | KEYED_HASH,
+    ];
+
+    const COUNTERS: [u64; 8] = [
+        0,
+        1,
+        (1 << 31) - 1,
+        u32::MAX as u64 - 1,
+        u32::MAX as u64,
+        1 << 32,
+        (1 << 32) + 1,
+        u64::MAX,
+    ];
+
+    /// Boundary-covering input counts: both sides of every SIMD group size.
+    fn input_counts(degree: usize) -> Vec<usize> {
+        let mut ns = vec![
+            1,
+            2,
+            3,
+            5,
+            7,
+            9,
+            15,
+            16,
+            17,
+            24,
+            31,
+            32,
+            33,
+            degree - 1,
+            degree,
+            degree + 1,
+            2 * degree,
+            2 * degree + 1,
+        ];
+        ns.retain(|n| (1..=2 * degree + 1).contains(n));
+        ns.sort_unstable();
+        ns.dedup();
+        ns
+    }
+
+    /// `hash_many` compared against the scalar kernel, with output canaries and
+    /// a variant where `out` is one block longer than needed (the kernel must
+    /// not write past `inputs.len() * OUT_LEN` even when the slice is longer).
+    #[allow(clippy::too_many_arguments)]
+    fn check_hash_many(
+        n: usize,
+        len: usize,
+        counter: u64,
+        increment_counter: IncrementCounter,
+        flags: u8,
+        flags_start: u8,
+        flags_end: u8,
+        seed: u64,
+    ) {
+        const CANARY: u8 = 0x5A;
+        const OUT_PAD: usize = 5;
+
+        let key = words(&pattern(32, seed ^ 0xF00D));
+        let mut bufs = Vec::with_capacity(n);
+        let mut pads = Vec::with_capacity(n);
+        for lane in 0..n {
+            // Loads must work at every alignment and at the end of the allocation.
+            let pad = [0usize, 1, 3, 7, 13, 31, 33, 63][lane % 8];
+            let trail = if lane % 3 == 0 { 0 } else { [1usize, 3, 17][lane % 3] };
+            let (buf, p) = input_with_pad(len, pad, trail, seed ^ (lane as u64) << 8);
+            bufs.push(buf);
+            pads.push(p);
+        }
+        let inputs: Vec<&[u8]> = (0..n).map(|lane| &bufs[lane][pads[lane]..pads[lane] + len]).collect();
+
+        for extra in [0usize, OUT_LEN] {
+            let mut expected = vec![CANARY; OUT_PAD + n * OUT_LEN + extra];
+            let mut actual = expected.clone();
+
+            scalar::hash_many(
+                &inputs,
+                &key,
+                counter,
+                increment_counter,
+                flags,
+                flags_start,
+                flags_end,
+                &mut expected[OUT_PAD..OUT_PAD + n * OUT_LEN],
+            );
+            // SAFETY: the backend was checked to be available by the caller.
+            unsafe {
+                hash_many(
+                    &inputs,
+                    &key,
+                    counter,
+                    increment_counter,
+                    flags,
+                    flags_start,
+                    flags_end,
+                    &mut actual[OUT_PAD..OUT_PAD + n * OUT_LEN + extra],
+                );
+            }
+
+            assert_eq!(
+                &expected[OUT_PAD..OUT_PAD + n * OUT_LEN],
+                &actual[OUT_PAD..OUT_PAD + n * OUT_LEN],
+                "hash_many mismatch (n {n}, len {len}, counter {counter}, \
+                 increment {increment_counter:?}, flags {flags}, start {flags_start}, end {flags_end}, extra {extra})"
+            );
+            assert!(
+                actual[..OUT_PAD].iter().all(|b| *b == CANARY),
+                "hash_many wrote before `out` (n {n}, len {len})"
+            );
+            assert!(
+                actual[OUT_PAD + n * OUT_LEN..].iter().all(|b| *b == CANARY),
+                "hash_many wrote past inputs.len() * OUT_LEN (n {n}, len {len}, extra {extra})"
+            );
+        }
+    }
+
+    #[test]
+    fn hash_many_matches_scalar() {
+        if !kernel_available() {
+            return;
+        }
+
+        let lengths = [BLOCK_LEN, 3 * BLOCK_LEN, CHUNK_LEN, CHUNK_LEN + BLOCK_LEN];
+        let counters = [0u64, u32::MAX as u64 - 1, u32::MAX as u64, 1 << 32];
+        let flag_sets = [(0u8, CHUNK_START, CHUNK_END), (PARENT, 0, 0)];
+
+        for n in input_counts(DEGREE) {
+            for &len in &lengths {
+                for &counter in &counters {
+                    for increment_counter in [IncrementCounter::Yes, IncrementCounter::No] {
+                        for &(flags, flags_start, flags_end) in &flag_sets {
+                            check_hash_many(
+                                n,
+                                len,
+                                counter,
+                                increment_counter,
+                                flags,
+                                flags_start,
+                                flags_end,
+                                0x1234 + n as u64 * 7 + len as u64,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
+        // Counter wrap-around at the top of the u64 range, including a carry
+        // across the 32-bit low word in the middle of a SIMD group.
+        for &len in &[BLOCK_LEN, CHUNK_LEN] {
+            for increment_counter in [IncrementCounter::Yes, IncrementCounter::No] {
+                check_hash_many(DEGREE + 1, len, u64::MAX, increment_counter, 0, CHUNK_START, CHUNK_END, 0x99);
+            }
+        }
+    }
+
+    /// `xof_many` compared against the scalar kernel: every output block count
+    /// on both sides of the SIMD degree, every block length, extreme counters,
+    /// and canaries around (and after) the output blocks.
+    fn check_xof_many(cv: &[u32; 8], block: &[u8; BLOCK_LEN], block_len: u8, blocks: usize, counter: u64, flags: u8) {
+        const CANARY: u8 = 0x3C;
+        const OUT_PAD: usize = 7;
+
+        let mut expected = vec![CANARY; OUT_PAD + blocks * BLOCK_LEN + BLOCK_LEN];
+        let mut actual = expected.clone();
+        scalar::xof_many(
+            cv,
+            block,
+            block_len,
+            counter,
+            flags,
+            &mut expected[OUT_PAD..OUT_PAD + blocks * BLOCK_LEN],
+        );
+        // SAFETY: the backend was checked to be available by the caller.
+        unsafe {
+            xof_many(
+                cv,
+                block,
+                block_len,
+                counter,
+                flags,
+                &mut actual[OUT_PAD..OUT_PAD + blocks * BLOCK_LEN],
+            );
+        }
+
+        assert_eq!(
+            &expected[OUT_PAD..OUT_PAD + blocks * BLOCK_LEN],
+            &actual[OUT_PAD..OUT_PAD + blocks * BLOCK_LEN],
+            "xof_many mismatch (blocks {blocks}, block_len {block_len}, counter {counter}, flags {flags})"
+        );
+        assert!(
+            actual[..OUT_PAD].iter().all(|b| *b == CANARY),
+            "xof_many wrote before `out` (blocks {blocks})"
+        );
+        assert!(
+            actual[OUT_PAD + blocks * BLOCK_LEN..].iter().all(|b| *b == CANARY),
+            "xof_many wrote past blocks * BLOCK_LEN (blocks {blocks})"
+        );
+    }
+
+    #[test]
+    fn xof_many_matches_scalar() {
+        if !kernel_available() {
+            return;
+        }
+
+        let cv = words(&pattern(32, 0x9A9A));
+        let block_bytes = pattern(BLOCK_LEN, 0xBEEF);
+        let block: [u8; BLOCK_LEN] = block_bytes.as_slice().try_into().unwrap();
+        let counters = [0u64, u32::MAX as u64, 1 << 32, u64::MAX];
+        let flag_sets = [ROOT | CHUNK_END, ROOT | CHUNK_END | KEYED_HASH];
+
+        for blocks in 0..=2 * DEGREE + 1 {
+            for &block_len in &[0u8, 1, 32, 63, 64] {
+                for &counter in &counters {
+                    for &flags in &flag_sets {
+                        check_xof_many(&cv, &block, block_len, blocks, counter, flags);
+                    }
+                }
+            }
+        }
+
+        // Exhaustive block-length sweep at the SIMD boundary.
+        for block_len in 0..=BLOCK_LEN as u8 {
+            for &blocks in &[DEGREE, DEGREE + 1] {
+                check_xof_many(&cv, &block, block_len, blocks, 0, ROOT | CHUNK_END);
+            }
+        }
+
+        // An empty output must be a no-op, not a write of a whole SIMD group.
+        let mut empty: [u8; 0] = [];
+        // SAFETY: the backend was checked to be available by the caller.
+        unsafe { xof_many(&cv, &block, BLOCK_LEN as u8, 0, ROOT, &mut empty) };
+    }
+
+    /// Single-block compression compared against the scalar kernel for every
+    /// block length 0..=64, extreme counters and all flag bits.
+    #[test]
+    fn compress_matches_scalar() {
+        if !kernel_available() {
+            return;
+        }
+
+        let block_bytes = pattern(BLOCK_LEN, 0xA11CE);
+        let block: [u8; BLOCK_LEN] = block_bytes.as_slice().try_into().unwrap();
+        let cv = words(&pattern(32, 0xB0B));
+
+        for block_len in 0..=BLOCK_LEN as u8 {
+            for &counter in &COUNTERS {
+                for &flags in &FLAGS {
+                    let mut expected = cv;
+                    let mut actual = cv;
+                    scalar::compress_in_place(&mut expected, &block, block_len, counter, flags);
+                    // SAFETY: the backend was checked to be available by the caller.
+                    unsafe { compress_in_place(&mut actual, &block, block_len, counter, flags) };
+                    assert_eq!(
+                        expected, actual,
+                        "compress_in_place mismatch (block_len {block_len}, counter {counter}, flags {flags})"
+                    );
+
+                    let expected_xof = scalar::compress_xof(&cv, &block, block_len, counter, flags);
+                    // SAFETY: the backend was checked to be available by the caller.
+                    let actual_xof = unsafe { compress_xof(&cv, &block, block_len, counter, flags) };
+                    assert_eq!(
+                        expected_xof, actual_xof,
+                        "compress_xof mismatch (block_len {block_len}, counter {counter}, flags {flags})"
+                    );
                 }
             }
         }

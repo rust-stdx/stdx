@@ -38,6 +38,7 @@ mod mlkem768;
 mod mlkem_composite;
 mod xwing;
 
+pub(crate) use mlkem::wipe;
 pub use mlkem::{MlKemError, SHARED_SECRET_SIZE};
 pub use mlkem_composite::{
     MLKEM_1024_X25519_CIPHERTEXT_SIZE, MLKEM_1024_X25519_ENCAPS_RANDOMNESS_SIZE, MLKEM_1024_X25519_LABEL,

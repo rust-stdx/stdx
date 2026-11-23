@@ -172,13 +172,20 @@ fn store_state_le(lanes: &[u64; 25], bytes: &mut [u8; 200]) {
 }
 
 /// Applies the permutation to a byte-serialized state.
+///
+/// # Safety
+///
+/// `state` must be 8-byte aligned: on little-endian targets it is viewed as
+/// `[u64; 25]` in place. [`KeccakSponge::state`] satisfies this because the
+/// struct is `#[repr(C, align(8))]` and `state` is its first field (checked by
+/// the compile-time assertion above); a bare `[u8; 200]` local is only
+/// 1-byte-aligned and must not be passed here.
 #[inline]
-fn permute_state_bytes<const ROUNDS: usize>(state: &mut [u8; 200], backend: PermuteBackend) {
+unsafe fn permute_state_bytes<const ROUNDS: usize>(state: &mut [u8; 200], backend: PermuteBackend) {
     #[cfg(target_endian = "little")]
     {
-        // SAFETY: `state` is 8-byte aligned (see the `repr(C, align(8))` and
-        // the compile-time assertion above), has the same size as `[u64; 25]`,
-        // and no other reference to it exists for the duration of the call.
+        // SAFETY: the caller guarantees 8-byte alignment, the two arrays have
+        // the same size, and the exclusive borrow excludes aliases.
         let state: &mut [u64; 25] = unsafe { core::mem::transmute(state) };
         p1600_with::<ROUNDS>(state, backend);
     }
@@ -294,7 +301,9 @@ impl<const ROUNDS: usize> KeccakSponge<ROUNDS> {
 
     #[inline]
     fn permute_and_reset_pos(&mut self) {
-        permute_state_bytes::<ROUNDS>(&mut self.state, self.backend);
+        // SAFETY: `self.state` is the first field of a `#[repr(C, align(8))]`
+        // struct (asserted at compile time above), so it is 8-byte aligned.
+        unsafe { permute_state_bytes::<ROUNDS>(&mut self.state, self.backend) };
         self.pos = 0;
     }
 }
@@ -341,6 +350,9 @@ pub(crate) fn p1600_with<const ROUNDS: usize>(state: &mut [u64; 25], backend: Pe
 /// Portable implementation of the Keccak-p permutation of a 1600-bit state.
 #[inline]
 pub(super) fn p1600_soft<const ROUNDS: usize>(state: &mut [u64; 25]) {
+    const {
+        assert!(ROUNDS <= 24, "a round count greater than 24 is not supported");
+    }
     // https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf#page=25
     // "the rounds of KECCAK-p[b, nr] match the last rounds of KECCAK-f[b]"
     let round_consts: &[u64] = &ROUND_CONSTANTS[(24 - ROUNDS)..];
@@ -821,15 +833,21 @@ mod tests {
     fn state_byte_conversion_is_little_endian() {
         let (state_first, state_second) = keccak_f1600_vectors();
 
-        let mut bytes = [0u8; 200];
-        super::store_state_le(&state_first, &mut bytes);
-        let lanes = super::load_state_le(&bytes);
+        // `permute_state_bytes` views the bytes as `[u64; 25]`, so the buffer
+        // must be 8-byte aligned. A bare `[u8; 200]` local is not.
+        #[repr(align(8))]
+        struct Aligned([u8; 200]);
+
+        let mut bytes = Aligned([0u8; 200]);
+        super::store_state_le(&state_first, &mut bytes.0);
+        let lanes = super::load_state_le(&bytes.0);
         assert_eq!(lanes, state_first, "load/store round-trip");
 
-        super::permute_state_bytes::<24>(&mut bytes, super::PermuteBackend::Soft);
+        // SAFETY: `Aligned` guarantees the required 8-byte alignment.
+        unsafe { super::permute_state_bytes::<24>(&mut bytes.0, super::PermuteBackend::Soft) };
         let mut expected = [0u8; 200];
         super::store_state_le(&state_second, &mut expected);
-        assert_eq!(bytes, expected, "serialized Keccak-f[1600] output");
+        assert_eq!(bytes.0, expected, "serialized Keccak-f[1600] output");
     }
 
     fn sponge_reference<const ROUNDS: usize>(data: &[u8], rate: usize, delimiter: u8, out: &mut [u8]) {

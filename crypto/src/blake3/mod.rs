@@ -25,7 +25,10 @@
 //! On `x86_64`, runtime detection requires the `std` feature; without it the
 //! backend is chosen at compile time from `target_feature`. The AVX-512 kernel
 //! uses only the Foundation subset (never VL/BW/DQ), so it is selected by the
-//! `avx512f` feature alone and runs on every CPU that advertises it. See the
+//! `avx512f` feature alone and runs on every CPU that advertises it. (The
+//! compiler may also emit 256-bit AVX2 instructions inside the same functions;
+//! every AVX-512F implementation supports AVX2, which Foundation depends on.)
+//! See the
 //! `avx512` module for why VL/BW/DQ are not required for these kernels and the
 //! one path (single-block compression) where VL would help. On `wasm32` the
 //! `simd128` kernel is compiled only when `-C target-feature=+simd128` is set.
@@ -105,9 +108,11 @@
 //! * The XOF seek position is not secret. An attacker who knows the message
 //!   (and key, if any) can recover the offset of an extended output block, so
 //!   do not treat the position as a secret.
-//! * Inputs are limited to less than 2^64 bytes. All counter arithmetic wraps
-//!   rather than panicking, so a longer input (only reachable with more than
-//!   2^64 bytes of input) yields an unspecified digest instead of a crash.
+//! * Inputs are limited to less than 2^64 bytes. Counter arithmetic wraps
+//!   rather than panicking, so reaching that limit yields an unspecified
+//!   digest. Inputs beyond it are outside the supported contract: the
+//!   chaining-value stack holds 2^54 chunks' worth of subtrees and does not
+//!   promise panic-freedom past that point.
 //! * [`Blake3::derive_key`] is **not** a password hash; use Argon2 or similar
 //!   for passwords.
 

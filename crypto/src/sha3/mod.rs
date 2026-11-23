@@ -34,13 +34,13 @@ mod keccak_wasm32_simd128;
 pub(crate) use kangaroo_twelve::length_encode;
 pub use kangaroo_twelve::{HopMac256, KT256_CHUNK_SIZE, Kt256, Kt256Reader, kt256_backend_name};
 pub use kmac::Kmac256;
-pub use parallel_hash::{ParallelHash256, backend_name as parallel_hash_backend_name};
+pub use parallel_hash::{ParallelHash256, ParallelHashError, backend_name as parallel_hash_backend_name};
 pub use sha3_256::Sha3_256;
 pub use sha3_512::Sha3_512;
 pub use shake128::Shake128;
 pub(crate) use shake256::left_encode;
 pub use shake256::{CShake256, Shake256};
-pub use turboshake::{TURBOSHAKE256_DEFAULT_DOMAIN_SEPARATOR, TurboShake256};
+pub use turboshake::{TURBOSHAKE256_DEFAULT_DOMAIN_SEPARATOR, TurboShake256, TurboShakeError};
 pub use xof::XofReader;
 
 /// Returns the name of the single-state `Keccak-p[1600]` backend in use.

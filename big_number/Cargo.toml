@@ -25,3 +25,6 @@ zeroize = { path = "../zeroize", optional = true, default-features = false, feat
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
 crypto = { path = "../crypto" }
+hex = { path = "../hex" }
+
+rand = { workspace = true }

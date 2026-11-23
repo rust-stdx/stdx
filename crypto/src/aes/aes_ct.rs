@@ -746,3 +746,236 @@ mod tests {
         block
     }
 }
+
+// ── Kernel tests: key schedule and bitsliced core ────────────────────────────
+
+#[cfg(test)]
+mod kernel_tests {
+    use rand::{RngExt, SeedableRng, rngs::StdRng};
+
+    use super::*;
+    use crate::aes::aes::{SBOX, expand_key};
+
+    /// Deterministic seeded `StdRng` generator.
+    /// FIPS 197 §5.2 key expansion, written independently of `expand_key`
+    /// (same table-based S-box the rest of the crate's tests use).
+    fn reference_schedule<const N: usize>(key: &[u8]) -> [[u8; 16]; N] {
+        let nk = key.len() / 4;
+        assert!(nk == 4 || nk == 8);
+        let total_words = 4 * N;
+        let mut w = [[0u8; 4]; 60];
+        for i in 0..nk {
+            w[i] = [key[4 * i], key[4 * i + 1], key[4 * i + 2], key[4 * i + 3]];
+        }
+        let mut rcon = 1u8;
+        for i in nk..total_words {
+            let mut temp = w[i - 1];
+            if i % nk == 0 {
+                temp = [temp[1], temp[2], temp[3], temp[0]];
+                for b in temp.iter_mut() {
+                    *b = SBOX[*b as usize];
+                }
+                temp[0] ^= rcon;
+                rcon = if rcon & 0x80 != 0 {
+                    (rcon << 1) ^ 0x1b
+                } else {
+                    rcon << 1
+                };
+            } else if nk == 8 && i % nk == 4 {
+                for b in temp.iter_mut() {
+                    *b = SBOX[*b as usize];
+                }
+            }
+            for j in 0..4 {
+                w[i][j] = w[i - nk][j] ^ temp[j];
+            }
+        }
+        let mut out = [[0u8; 16]; N];
+        for i in 0..N {
+            for j in 0..4 {
+                out[i][4 * j..4 * j + 4].copy_from_slice(&w[4 * i + j]);
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn expand_key_matches_reference_schedule() {
+        let mut rng = StdRng::seed_from_u64(0x00c0_ffee_0000_0001);
+        for _ in 0..2_000 {
+            let mut key = [0u8; 16];
+            rng.fill(&mut key);
+            let got = expand_key::<11>(&key);
+            let want = reference_schedule::<11>(&key);
+            assert_eq!(got.len(), 11);
+            assert_eq!(got, want, "AES-128 schedule");
+
+            let mut key = [0u8; 32];
+            rng.fill(&mut key);
+            let got = expand_key::<15>(&key);
+            let want = reference_schedule::<15>(&key);
+            assert_eq!(got.len(), 15);
+            assert_eq!(got, want, "AES-256 schedule");
+        }
+
+        // All-zero / all-ones keys and keys where every byte differs.
+        for key in [[0u8; 16], [0xff; 16], core::array::from_fn(|i| i as u8)] {
+            assert_eq!(expand_key::<11>(&key), reference_schedule::<11>(&key));
+        }
+        for key in [[0u8; 32], [0xff; 32], core::array::from_fn(|i| i as u8)] {
+            assert_eq!(expand_key::<15>(&key), reference_schedule::<15>(&key));
+        }
+    }
+
+    /// All-zero AES-128 key: round key 0 is all zero and round key 1 is
+    /// `62636363` repeated four times, which pins down `SubWord`, `RotWord`
+    /// and `RCON[1] = 0x01` in one vector.
+    #[test]
+    fn expand_key_zero_key_rcon_kat() {
+        let rk = expand_key::<11>(&[0u8; 16]);
+        assert_eq!(rk[0], [0u8; 16]);
+        assert_eq!(
+            rk[1],
+            [
+                0x62, 0x63, 0x63, 0x63, 0x62, 0x63, 0x63, 0x63, 0x62, 0x63, 0x63, 0x63, 0x62, 0x63, 0x63, 0x63
+            ]
+        );
+    }
+
+    #[test]
+    #[should_panic(expected = "AES key must be 16 bytes")]
+    fn expand_key_11_rejects_32_byte_key() {
+        let _ = expand_key::<11>(&[0u8; 32]);
+    }
+
+    #[test]
+    #[should_panic(expected = "AES key must be 16 bytes")]
+    fn expand_key_11_rejects_aes192_length_key() {
+        let _ = expand_key::<11>(&[0u8; 24]);
+    }
+
+    #[test]
+    #[should_panic(expected = "AES key must be 32 bytes")]
+    fn expand_key_15_rejects_16_byte_key() {
+        let _ = expand_key::<15>(&[0u8; 16]);
+    }
+
+    #[test]
+    #[should_panic(expected = "AES key must be 32 bytes")]
+    fn expand_key_15_rejects_aes192_length_key() {
+        let _ = expand_key::<15>(&[0u8; 24]);
+    }
+
+    /// `encrypt_pair` must keep the two bitsliced lanes independent. Compares
+    /// lane A/B against the single-block entry point for 10k pairs.
+    fn encrypt_pair_lanes_are_independent<const N: usize>(seed: u64) {
+        let mut rng = StdRng::seed_from_u64(seed);
+        let mut key = [0u8; 32];
+        let mut sched: Option<CtSchedule> = None;
+        for i in 0..10_000 {
+            if i % 50 == 0 {
+                rng.fill(&mut key[..4 * (N - 7)]);
+                sched = Some(keysched(&expand_key::<N>(&key[..4 * (N - 7)])));
+            }
+            let s = sched.as_ref().unwrap();
+            let a = rng.random::<[u8; 16]>();
+            let b = rng.random::<[u8; 16]>();
+            let want_a = encrypt_block_sched(s, &a);
+            let want_b = encrypt_block_sched(s, &b);
+
+            let mut got_a = a;
+            let mut got_b = b;
+            encrypt_pair(s, &mut got_a, &mut got_b);
+            assert_eq!(got_a, want_a, "AES-{N} lane A, pair {i}");
+            assert_eq!(got_b, want_b, "AES-{N} lane B, pair {i}");
+        }
+    }
+
+    #[test]
+    fn encrypt_pair_lanes_are_independent_aes128() {
+        encrypt_pair_lanes_are_independent::<11>(0xabcd_0123_4567_89ef);
+    }
+
+    #[test]
+    fn encrypt_pair_lanes_are_independent_aes256() {
+        encrypt_pair_lanes_are_independent::<15>(0xabcd_0123_4567_89f0);
+    }
+
+    fn decrypt_block_sched_inverts_encrypt_block_sched<const N: usize>(seed: u64) {
+        let mut rng = StdRng::seed_from_u64(seed);
+        let mut key = [0u8; 32];
+        let mut sched: Option<CtSchedule> = None;
+        for i in 0..5_000 {
+            if i % 50 == 0 {
+                rng.fill(&mut key[..4 * (N - 7)]);
+                sched = Some(keysched(&expand_key::<N>(&key[..4 * (N - 7)])));
+            }
+            let s = sched.as_ref().unwrap();
+            let pt = rng.random::<[u8; 16]>();
+            let ct = encrypt_block_sched(s, &pt);
+            assert_eq!(decrypt_block_sched(s, &ct), pt, "AES-{N} round-trip {i}");
+            // Decrypting a second time must not reuse stale state.
+            assert_eq!(decrypt_block_sched(s, &ct), pt);
+        }
+    }
+
+    #[test]
+    fn decrypt_block_sched_inverts_encrypt_block_sched_aes128() {
+        decrypt_block_sched_inverts_encrypt_block_sched::<11>(0x5555_aaaa_1234_9876);
+    }
+
+    #[test]
+    fn decrypt_block_sched_inverts_encrypt_block_sched_aes256() {
+        decrypt_block_sched_inverts_encrypt_block_sched::<15>(0x5555_aaaa_1234_9877);
+    }
+
+    fn ctr_add_be(counter: &mut [u8; 16], blocks: u128) {
+        let base = u128::from_be_bytes(*counter);
+        counter.copy_from_slice(&base.wrapping_add(blocks).to_be_bytes());
+    }
+
+    /// `xor_keystream_soft` against an ECB-based reference, with canaries on
+    /// both sides of the output slice. Also documents counter advancement:
+    /// only complete 16-byte blocks advance it.
+    #[test]
+    fn xor_keystream_soft_matches_reference_with_canaries() {
+        let key = [
+            0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c,
+        ];
+        let rk = expand_key::<11>(&key);
+        let sched = keysched(&rk);
+
+        let counters: [[u8; 16]; 3] = [
+            [0u8; 16],
+            [0xff; 16],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff],
+        ];
+
+        for len in 0..=80usize {
+            for base in counters {
+                // Actual, inside a canary-filled allocation.
+                let mut buf = vec![0x5au8; len + 32];
+                let mut got = base;
+                xor_keystream_soft(&rk, &mut got, &mut buf[16..16 + len]);
+                assert_eq!(&buf[..16], &[0x5au8; 16][..], "prefix canary len={len}");
+                assert_eq!(&buf[16 + len..], &[0x5au8; 16][..], "suffix canary len={len}");
+
+                // XOR into the pattern that was there.
+                let mut expected = vec![0x5au8; len];
+                for (i, b) in expected.iter_mut().enumerate() {
+                    *b ^= {
+                        let mut c = base;
+                        ctr_add_be(&mut c, (i / 16) as u128);
+                        encrypt_block_sched(&sched, &c)[i % 16]
+                    };
+                }
+                assert_eq!(&buf[16..16 + len], &expected[..], "keystream len={len}");
+
+                // Counter advances only for complete blocks.
+                let mut want_ctr = base;
+                ctr_add_be(&mut want_ctr, (len / 16) as u128);
+                assert_eq!(got, want_ctr, "counter after len={len}");
+            }
+        }
+    }
+}

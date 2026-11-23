@@ -247,9 +247,12 @@ pub(crate) fn gf128_mul(x: &[u8; 16], h: &[u8; 16]) -> [u8; 16] {
 // targets; the other variants are much smaller.
 #[allow(clippy::large_enum_variant)]
 pub enum GHashPowers {
-    /// H¹ through H¹⁶ in bit-reversed-per-byte form. The extra powers are used
-    /// by the 512-bit (16-block) GCM path; the 128-bit and 256-bit paths use
-    /// the first eight.
+    /// H¹ through H¹⁶ in bit-reversed-per-byte form.
+    ///
+    /// The 512-bit GCM path fills all 16 entries. The 128-bit and 256-bit
+    /// paths fill the first eight and leave the rest zero; they never index
+    /// past index 7, and dispatch only selects the 512-bit path when all 16
+    /// powers were computed (see `x86_h_powers` and `AesGcm::new_inner`).
     #[cfg(target_arch = "x86_64")]
     X86_64([core::arch::x86_64::__m128i; 16]),
     #[cfg(target_arch = "aarch64")]
@@ -340,5 +343,242 @@ mod tests {
         assert_eq!(gf128_mul(&zero, &ones), zero);
         assert_eq!(gf128_mul(&ones, &zero), zero);
         assert_eq!(gf128_mul(&ones, &ones), gf128_mul_ref(&ones, &ones));
+    }
+}
+
+/// Tests for the scalar GHASH kernel.
+///
+/// The reference here is written in a different orientation than the
+/// production multiplier: GCM blocks are converted to a little-endian
+/// coefficient vector (bit `i` = coefficient of `x^i`), multiplied with a
+/// left-shifting, `0x87`-reducing bit-serial routine, then converted back.
+/// That shares no code or reduction path with `bmul32`/`gf128_mul`, so a
+/// representation or reduction mistake cannot cancel out.
+#[cfg(test)]
+mod kernel_tests {
+    use rand::{RngExt, SeedableRng, rngs::StdRng};
+
+    use super::*;
+
+    /// Convert a GCM block (bit 0 = leftmost = coefficient of x^0) into a
+    /// little-endian polynomial coefficient vector.
+    fn to_poly(block: &[u8; 16]) -> u128 {
+        let mut bytes = *block;
+        for byte in &mut bytes {
+            *byte = byte.reverse_bits();
+        }
+        u128::from_le_bytes(bytes)
+    }
+
+    fn from_poly(value: u128) -> [u8; 16] {
+        let mut bytes = value.to_le_bytes();
+        for byte in &mut bytes {
+            *byte = byte.reverse_bits();
+        }
+        bytes
+    }
+
+    /// Independent GF(2^128) multiplication modulo x^128 + x^7 + x^2 + x + 1.
+    fn gf128_mul_ref_shift(x: &[u8; 16], h: &[u8; 16]) -> [u8; 16] {
+        let xv = to_poly(x);
+        let mut v = to_poly(h);
+        let mut z = 0u128;
+        for i in 0..128 {
+            if (xv >> i) & 1 == 1 {
+                z ^= v;
+            }
+            let carry = v >> 127;
+            v <<= 1;
+            if carry != 0 {
+                v ^= 0x87;
+            }
+        }
+        from_poly(z)
+    }
+
+    #[test]
+    fn gf128_mul_matches_independent_shift_reference() {
+        // Published NIST SP 800-38D Appendix B value, to validate the
+        // reference itself before using it as an oracle.
+        let h: [u8; 16] = [
+            0x66, 0xe9, 0x4b, 0xd4, 0xef, 0x8a, 0x2c, 0x3b, 0x88, 0x4c, 0xfa, 0x59, 0xca, 0x34, 0x2b, 0x2e,
+        ];
+        let x: [u8; 16] = [
+            0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef, 0xfe, 0xed, 0xfa, 0xce, 0xde, 0xad, 0xbe, 0xef,
+        ];
+        let expected: [u8; 16] = [
+            0x88, 0xed, 0xdc, 0xa9, 0x96, 0x8d, 0xec, 0x8b, 0x9c, 0x95, 0x2d, 0x6a, 0xe0, 0x29, 0x0a, 0x82,
+        ];
+        assert_eq!(gf128_mul_ref_shift(&x, &h), expected, "reference miscomputed NIST value");
+        assert_eq!(gf128_mul(&x, &h), expected, "implementation miscomputed NIST value");
+
+        let mut rng = StdRng::seed_from_u64(0x9e37_79b9_7f4a_7c15);
+        for _ in 0..512 {
+            let a = rng.random::<[u8; 16]>();
+            let b = rng.random::<[u8; 16]>();
+            assert_eq!(gf128_mul(&a, &b), gf128_mul_ref_shift(&a, &b), "a={a:02x?} b={b:02x?}");
+            // GF(2^128) multiplication is commutative; the implementation
+            // must agree with itself under operand swapping too.
+            assert_eq!(gf128_mul(&a, &b), gf128_mul(&b, &a));
+        }
+    }
+
+    #[test]
+    fn gf128_mul_reduction_edge_cases() {
+        let zero = [0u8; 16];
+        let one = {
+            let mut b = [0u8; 16];
+            b[0] = 0x80; // x^0 in GCM bit order
+            b
+        };
+        let x127 = {
+            let mut b = [0u8; 16];
+            b[15] = 0x01; // x^127 in GCM bit order
+            b
+        };
+        let r: [u8; 16] = {
+            let mut b = [0u8; 16];
+            b[0] = 0xe1; // reduction polynomial tail x^7+x^2+x+1
+            b
+        };
+        let high = {
+            let mut b = [0xffu8; 16];
+            b[0] = 0x80;
+            b
+        };
+
+        // x^127 * x^127 must trigger the high-bit reduction.
+        assert_eq!(gf128_mul(&x127, &x127), gf128_mul_ref_shift(&x127, &x127));
+        // x^0 is the multiplicative identity in this representation.
+        assert_eq!(gf128_mul(&one, &high), high);
+        // Identity, absorbing zero, and high-bit multiplicands.
+        assert_eq!(gf128_mul(&one, &high), gf128_mul_ref_shift(&one, &high));
+        assert_eq!(gf128_mul(&high, &one), gf128_mul_ref_shift(&high, &one));
+        assert_eq!(gf128_mul(&high, &x127), gf128_mul_ref_shift(&high, &x127));
+        assert_eq!(gf128_mul(&zero, &high), zero);
+        assert_eq!(gf128_mul(&high, &zero), zero);
+        assert_eq!(gf128_mul(&r, &r), gf128_mul_ref_shift(&r, &r));
+
+        // Every single-bit multiplicand against the all-ones element.
+        let all_ones = [0xffu8; 16];
+        for bit in 0..128usize {
+            let mut v = [0u8; 16];
+            v[bit / 8] = 0x80 >> (bit % 8);
+            assert_eq!(
+                gf128_mul(&v, &all_ones),
+                gf128_mul_ref_shift(&v, &all_ones),
+                "single-bit x^{bit} mismatch"
+            );
+            assert_eq!(gf128_mul(&all_ones, &v), gf128_mul_ref_shift(&all_ones, &v));
+        }
+    }
+
+    #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+    #[test]
+    fn precomputed_powers_match_iterated_reference() {
+        fn check_powers<const N: usize>(key: &[u8]) {
+            use crate::aes::aes::{encrypt_block, expand_key};
+            const { assert!(N == 11 || N == 15) };
+
+            let round_keys = expand_key::<N>(key);
+            let h = encrypt_block::<N>(&round_keys, &[0u8; 16]);
+            let (powers8, h8) = precompute_ghash_powers_8::<N>(key);
+            assert_eq!(h8, h);
+
+            let mut cur = h;
+            for (i, power) in powers8.iter().enumerate() {
+                let mut expected = cur;
+                for byte in &mut expected {
+                    *byte = byte.reverse_bits();
+                }
+                assert_eq!(*power, expected, "H^{} bit-reversed mismatch", i + 1);
+                cur = gf128_mul_ref_shift(&cur, &h);
+            }
+
+            #[cfg(target_arch = "x86_64")]
+            {
+                let (powers16, h16) = precompute_ghash_powers::<N>(key);
+                assert_eq!(h16, h);
+                assert_eq!(&powers16[..8], &powers8[..]);
+                let mut cur = h;
+                for (i, power) in powers16.iter().enumerate() {
+                    let mut expected = cur;
+                    for byte in &mut expected {
+                        *byte = byte.reverse_bits();
+                    }
+                    assert_eq!(*power, expected, "H^{} bit-reversed mismatch", i + 1);
+                    cur = gf128_mul_ref_shift(&cur, &h);
+                }
+            }
+        }
+
+        check_powers::<11>(&[0u8; 16]);
+        check_powers::<11>(&[0xa5u8; 16]);
+        check_powers::<15>(&[0x3cu8; 32]);
+        check_powers::<15>(&[0x5au8; 32]);
+    }
+
+    #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+    #[test]
+    fn compute_tag_matches_independent_ghash() {
+        let h: [u8; 16] = [
+            0x66, 0xe9, 0x4b, 0xd4, 0xef, 0x8a, 0x2c, 0x3b, 0x88, 0x4c, 0xfa, 0x59, 0xca, 0x34, 0x2b, 0x2e,
+        ];
+        let ej0 = [0x5au8; 16];
+        let mut rng = StdRng::seed_from_u64(0x1234_5678_9abc_def0);
+
+        for aad_len in [0usize, 1, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 129] {
+            for ct_len in [
+                0usize, 1, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 129, 200, 255, 256, 257,
+            ] {
+                let mut aad = vec![0u8; aad_len];
+                let mut ct = vec![0u8; ct_len];
+                for byte in &mut aad {
+                    *byte = rng.random::<u8>();
+                }
+                for byte in &mut ct {
+                    *byte = rng.random::<u8>();
+                }
+
+                let got = compute_tag(&h, &aad, &ct, &ej0);
+                let got: [u8; 16] = got.as_ref().try_into().unwrap();
+
+                // One independent chain over AAD, then ciphertext, then the
+                // length block, then the E(J0) mask.
+                let mut state = [0u8; 16];
+                let mut consume = |data: &[u8]| {
+                    let (chunks, rem) = data.as_chunks::<16>();
+                    for block in chunks {
+                        for i in 0..16 {
+                            state[i] ^= block[i];
+                        }
+                        state = gf128_mul_ref_shift(&state, &h);
+                    }
+                    if !rem.is_empty() {
+                        let mut padded = [0u8; 16];
+                        padded[..rem.len()].copy_from_slice(rem);
+                        for i in 0..16 {
+                            state[i] ^= padded[i];
+                        }
+                        state = gf128_mul_ref_shift(&state, &h);
+                    }
+                };
+                consume(&aad);
+                consume(&ct);
+
+                let mut len_block = [0u8; 16];
+                len_block[..8].copy_from_slice(&((aad.len() as u64) * 8).to_be_bytes());
+                len_block[8..].copy_from_slice(&((ct.len() as u64) * 8).to_be_bytes());
+                for i in 0..16 {
+                    state[i] ^= len_block[i];
+                }
+                state = gf128_mul_ref_shift(&state, &h);
+                for i in 0..16 {
+                    state[i] ^= ej0[i];
+                }
+
+                assert_eq!(got, state, "aad_len={aad_len} ct_len={ct_len}");
+            }
+        }
     }
 }

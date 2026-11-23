@@ -1,10 +1,13 @@
 #![allow(unsafe_op_in_unsafe_fn)]
+use core::arch::aarch64::*;
+
 /// aarch64 GHASH using ARMv8 Crypto extension PMULL instructions.
 ///
 /// Uses `vmull_p64` intrinsics via inline asm for carry-less multiplication,
 /// and `vrbitq_u8` for per-byte bit reversal (mapping between GCM's big-endian
 /// polynomial representation and the little-endian PMULL domain).
-use core::arch::aarch64::*;
+#[cfg(test)]
+use rand::{RngExt, SeedableRng, rngs::StdRng};
 
 /// Single-block GHASH feed (tail processing).
 #[target_feature(enable = "aes,neon")]
@@ -189,4 +192,275 @@ pub(crate) unsafe fn clmul_gcm_pmull(a: uint8x16_t, b: uint8x16_t) -> uint8x16_t
         veorq_u8(veorq_u8(lo, vreinterpretq_u8_p128(r1_p128)), r2_lo),
         vreinterpretq_u8_p128(r3_p128),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::aes::ghash::{bitreverse_bytes, gf128_mul, precompute_ghash_powers_8};
+
+    fn have_armv8_crypto() -> bool {
+        std::arch::is_aarch64_feature_detected!("aes") && std::arch::is_aarch64_feature_detected!("neon")
+    }
+
+    fn load(bytes: &[u8; 16]) -> uint8x16_t {
+        unsafe { vld1q_u8(bytes.as_ptr()) }
+    }
+
+    fn store(value: uint8x16_t) -> [u8; 16] {
+        let mut out = [0u8; 16];
+        unsafe { vst1q_u8(out.as_mut_ptr(), value) };
+        out
+    }
+
+    /// Deterministic pseudo-random block sequence (seeded RNG).
+    fn blocks(count: usize, seed: u64) -> Vec<[u8; 16]> {
+        let mut rng = StdRng::seed_from_u64(seed);
+        let mut out = Vec::with_capacity(count);
+        for _ in 0..count {
+            out.push(rng.random::<[u8; 16]>());
+        }
+        out
+    }
+
+    /// The natural (big-endian) GHASH state after feeding `data`.
+    fn ghash_natural(h: &[u8; 16], state: &[u8; 16], data: &[u8]) -> [u8; 16] {
+        let mut state = *state;
+        for chunk in data.chunks(16) {
+            let mut block = [0u8; 16];
+            block[..chunk.len()].copy_from_slice(chunk);
+            for i in 0..16 {
+                state[i] ^= block[i];
+            }
+            state = gf128_mul(&state, h);
+        }
+        state
+    }
+
+    fn keys() -> [[u8; 32]; 4] {
+        [[0u8; 32], [0xffu8; 32], [0x5au8; 32], {
+            let mut k = [0u8; 32];
+            for (i, b) in k.iter_mut().enumerate() {
+                *b = (i as u8).wrapping_mul(37).wrapping_add(11);
+            }
+            k
+        }]
+    }
+
+    /// `clmul_gcm_pmull` must equal the scalar GF(2^128) multiply, in the
+    /// bit-reversed-per-byte domain the kernel operates in.
+    #[test]
+    fn clmul_matches_scalar() {
+        if !have_armv8_crypto() {
+            eprintln!("skipping clmul_matches_scalar: ARMv8 crypto extensions not available");
+            return;
+        }
+
+        let inputs = blocks(64, 0x1234_5678_9abc_def0);
+        for a in &inputs {
+            for b in inputs.iter().take(16) {
+                let want = bitreverse_bytes(&gf128_mul(a, b));
+                let got = store(unsafe { clmul_gcm_pmull(load(&bitreverse_bytes(a)), load(&bitreverse_bytes(b))) });
+                assert_eq!(got, want, "a={a:02x?} b={b:02x?}");
+            }
+        }
+    }
+
+    /// Zero, multiplicative identity (`0x80 00 …` in GCM order) and the
+    /// irreducible-polynomial reduction case where the product's high bit is
+    /// set must all behave like the scalar multiplier.
+    #[test]
+    fn clmul_edge_cases() {
+        if !have_armv8_crypto() {
+            eprintln!("skipping clmul_edge_cases: ARMv8 crypto extensions not available");
+            return;
+        }
+
+        let zero = [0u8; 16];
+        let one = {
+            let mut b = [0u8; 16];
+            b[0] = 0x80;
+            b
+        };
+        let high = [0x80u8; 16];
+        let ones = [0xffu8; 16];
+
+        for x in [zero, one, high, ones, blocks(1, 0xdead_beef_cafe_1234)[0]] {
+            for h in [zero, one, high, ones] {
+                let want = bitreverse_bytes(&gf128_mul(&x, &h));
+                let got = store(unsafe { clmul_gcm_pmull(load(&bitreverse_bytes(&x)), load(&bitreverse_bytes(&h))) });
+                assert_eq!(got, want, "x={x:02x?} h={h:02x?}");
+            }
+            // Identity: x·1 = x.
+            let identity =
+                store(unsafe { clmul_gcm_pmull(load(&bitreverse_bytes(&x)), load(&bitreverse_bytes(&one))) });
+            assert_eq!(identity, bitreverse_bytes(&x));
+        }
+    }
+
+    /// `ghash_update` over every length 0..=129, including empty input, exact
+    /// blocks and partial final blocks.
+    #[test]
+    fn ghash_update_matches_scalar_all_lengths() {
+        if !have_armv8_crypto() {
+            eprintln!("skipping ghash_update_matches_scalar_all_lengths: ARMv8 crypto extensions not available");
+            return;
+        }
+
+        let data: Vec<u8> = (0..130u16)
+            .map(|i| (i as u8).wrapping_mul(29).wrapping_add(3))
+            .collect();
+        for key in keys() {
+            let (powers, h) = precompute_ghash_powers_8::<15>(&key);
+            for len in 0..=129usize {
+                let input = &data[..len];
+                let state = load(&bitreverse_bytes(&blocks(1, 0x3141_5926_5358_9793)[0]));
+                let got = store(unsafe { ghash_update(state, load(&powers[0]), input) });
+                // `state` is in the bit-reversed domain: convert to natural before
+                // running the scalar reference, then convert the result back.
+                let state_natural = bitreverse_bytes(&store(state));
+                let want = bitreverse_bytes(&ghash_natural(&h, &state_natural, input));
+                assert_eq!(got, want, "len={len}");
+            }
+        }
+    }
+
+    /// Feeding the same bytes through a slice placed at a non-zero offset must
+    /// give the same result (unaligned loads must not over-read).
+    #[test]
+    fn ghash_update_unaligned_offset() {
+        if !have_armv8_crypto() {
+            eprintln!("skipping ghash_update_unaligned_offset: ARMv8 crypto extensions not available");
+            return;
+        }
+
+        let (powers, h) = precompute_ghash_powers_8::<15>(&[0x42u8; 32]);
+        for len in [0usize, 1, 15, 16, 17, 31, 32, 33, 64, 65] {
+            let mut backing = vec![0xa5u8; len + 3];
+            for (i, byte) in backing[2..2 + len].iter_mut().enumerate() {
+                *byte = (i as u8).wrapping_mul(7).wrapping_add(1);
+            }
+            let data = &backing[2..2 + len];
+
+            let got = store(unsafe { ghash_update(vdupq_n_u8(0), load(&powers[0]), data) });
+            let want = bitreverse_bytes(&ghash_natural(&h, &[0u8; 16], data));
+            assert_eq!(got, want, "len={len}");
+            // Canaries untouched (read-only kernel).
+            assert_eq!(backing[0], 0xa5);
+            assert_eq!(backing[1], 0xa5);
+            assert_eq!(backing[2 + len], 0xa5);
+        }
+    }
+
+    /// The 4-block aggregate must equal four sequential scalar GHASH steps,
+    /// for arbitrary (including all-zero) state and blocks.
+    #[test]
+    fn ghash_4blocks_matches_sequential() {
+        if !have_armv8_crypto() {
+            eprintln!("skipping ghash_4blocks_matches_sequential: ARMv8 crypto extensions not available");
+            return;
+        }
+
+        let (powers, h) = precompute_ghash_powers_8::<15>(&[0x37u8; 32]);
+        let mut hp = [unsafe { vdupq_n_u8(0) }; 8];
+        for (slot, power) in hp.iter_mut().zip(powers.iter()) {
+            *slot = load(power);
+        }
+
+        let states = [[0u8; 16], [0xffu8; 16], blocks(1, 0x0f0f_0f0f_0f0f_0f0f)[0]];
+        let zero = [0u8; 16];
+        let data_blocks = blocks(8, 0xabcd_ef01_2345_6789);
+
+        for state in states {
+            // All-zero blocks: S' = S·H⁴.
+            let got = store(unsafe {
+                ghash_4blocks(
+                    load(&bitreverse_bytes(&state)),
+                    load(&bitreverse_bytes(&zero)),
+                    load(&bitreverse_bytes(&zero)),
+                    load(&bitreverse_bytes(&zero)),
+                    load(&bitreverse_bytes(&zero)),
+                    &hp,
+                )
+            });
+            let mut want_natural = state;
+            for _ in 0..4 {
+                want_natural = gf128_mul(&want_natural, &h);
+            }
+            assert_eq!(got, bitreverse_bytes(&want_natural), "zero-block state={state:?}");
+
+            // Arbitrary blocks. `ghash_4blocks` bit-reverses `b1..b4` itself.
+            let got = store(unsafe {
+                ghash_4blocks(
+                    load(&bitreverse_bytes(&state)),
+                    load(&data_blocks[0]),
+                    load(&data_blocks[1]),
+                    load(&data_blocks[2]),
+                    load(&data_blocks[3]),
+                    &hp,
+                )
+            });
+            let mut concat = Vec::with_capacity(64);
+            for b in &data_blocks[..4] {
+                concat.extend_from_slice(b);
+            }
+            let want = bitreverse_bytes(&ghash_natural(&h, &state, &concat));
+            assert_eq!(got, want, "state={state:?}");
+        }
+    }
+
+    /// The 8-block aggregate indexes `h_powers[7]` (H⁸), the last slot of the
+    /// fixed-size table; verify that pairing and that no larger index is used.
+    #[test]
+    fn ghash_8blocks_matches_sequential() {
+        if !have_armv8_crypto() {
+            eprintln!("skipping ghash_8blocks_matches_sequential: ARMv8 crypto extensions not available");
+            return;
+        }
+
+        let (powers, h) = precompute_ghash_powers_8::<15>(&[0x91u8; 32]);
+        let mut hp = [unsafe { vdupq_n_u8(0) }; 8];
+        for (slot, power) in hp.iter_mut().zip(powers.iter()) {
+            *slot = load(power);
+        }
+
+        let states = [[0u8; 16], [0xffu8; 16], blocks(1, 0x5555_aaaa_3333_cccc)[0]];
+        let data_blocks = blocks(8, 0x1111_2222_3333_4444);
+
+        for state in states {
+            let s = load(&bitreverse_bytes(&state));
+            // `ghash_8blocks` bit-reverses `b1..b8` itself.
+            let b: Vec<uint8x16_t> = data_blocks.iter().map(load).collect();
+            let got = store(unsafe { ghash_8blocks(s, b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], &hp) });
+
+            let mut concat = Vec::with_capacity(128);
+            for block in &data_blocks {
+                concat.extend_from_slice(block);
+            }
+            let want = bitreverse_bytes(&ghash_natural(&h, &state, &concat));
+            assert_eq!(got, want, "state={state:02x?}");
+        }
+
+        // H⁸ is the highest power the kernel may touch; powers[7] must be H⁸.
+        let mut h8_natural = h;
+        for _ in 0..7 {
+            h8_natural = gf128_mul(&h8_natural, &h);
+        }
+        assert_eq!(store(hp[7]), bitreverse_bytes(&h8_natural));
+    }
+
+    /// Precomputed powers must be H¹..H⁸ in bit-reversed-per-byte form.
+    #[test]
+    fn precomputed_powers_match_scalar() {
+        for key in keys() {
+            let (powers, h) = precompute_ghash_powers_8::<15>(&key);
+            let mut power = h;
+            for (i, expected) in powers.iter().enumerate() {
+                if i != 0 {
+                    power = gf128_mul(&power, &h);
+                }
+                assert_eq!(*expected, bitreverse_bytes(&power), "power {i}");
+            }
+        }
+    }
 }

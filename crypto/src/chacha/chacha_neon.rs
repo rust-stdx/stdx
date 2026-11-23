@@ -37,6 +37,8 @@ pub fn chacha_neon<const ROUNDS: usize, const IS_IETF: bool>(
     let w13 = if IS_IETF { state[13] } else { 0 };
 
     // process 4 blocks of 64 bytes (4 * 16) in parallel
+    // SAFETY: NEON is baseline on aarch64, and the intrinsics below only build
+    // vectors from scalar state words.
     let mut state_simd: [uint32x4_t; STATE_WORDS] = unsafe {
         [
             // constant
@@ -73,8 +75,9 @@ pub fn chacha_neon<const ROUNDS: usize, const IS_IETF: bool>(
     while offset < full_len {
         inject_counter(&mut state_simd, counter, IS_IETF);
 
-        // SAFETY: `offset` is always a multiple of the block batch size and stays within `input`
-        chacha_neon_emit::<ROUNDS>(state_simd, unsafe { input.as_mut_ptr().add(offset) });
+        // SAFETY: `offset` is always a multiple of the block batch size and stays within `input`,
+        // which guarantees 4 * BLOCK_SIZE writable bytes at `input + offset`.
+        unsafe { chacha_neon_emit::<ROUNDS>(state_simd, input.as_mut_ptr().add(offset)) };
 
         counter = counter.wrapping_add(SIMD_LANES as u64);
         offset += SIMD_LANES * BLOCK_SIZE;
@@ -112,6 +115,9 @@ pub fn chacha_neon<const ROUNDS: usize, const IS_IETF: bool>(
         keystream_leftover
             .copy_from_slice(&keystream[last_keystream_block_offset + 1..last_keystream_block_offset + BLOCK_SIZE]);
     }
+
+    #[cfg(feature = "zeroize")]
+    zeroize::Zeroize::zeroize(&mut keystream);
 }
 
 /// Injects the counter into words 12 (and 13 for DJB) of the SIMD state.
@@ -131,6 +137,7 @@ fn inject_counter(state_simd: &mut [uint32x4_t; STATE_WORDS], counter: u64, is_i
             counter_lane_high[i] = (counter_lane >> 32) as u32;
         }
     }
+    // SAFETY: both arrays contain exactly `SIMD_LANES` u32 elements.
     unsafe {
         state_simd[12] = vld1q_u32(counter_lane_low.as_ptr());
         if !is_ietf {
@@ -148,8 +155,13 @@ fn inject_counter(state_simd: &mut [uint32x4_t; STATE_WORDS], counter: u64, is_i
 /// the input with a single vector load/xor/store each. Processing one word group at a time
 /// keeps the number of live vectors low enough to avoid spilling keystream vectors to the
 /// stack. No intermediate keystream buffer is involved.
+///
+/// # Safety
+///
+/// `input` must be valid for reads and writes of `SIMD_LANES * BLOCK_SIZE` (256) bytes and
+/// must not alias `state`.
 #[inline(always)]
-fn chacha_neon_emit<const ROUNDS: usize>(state: [uint32x4_t; STATE_WORDS], input: *mut u8) {
+unsafe fn chacha_neon_emit<const ROUNDS: usize>(state: [uint32x4_t; STATE_WORDS], input: *mut u8) {
     let working = chacha_neon_rounds::<ROUNDS>(state);
 
     // word group g: words 4g..4g+4 of every block -> bytes 16g..16g+16 of every block
@@ -159,6 +171,8 @@ fn chacha_neon_emit<const ROUNDS: usize>(state: [uint32x4_t; STATE_WORDS], input
         let k2 = unsafe { vaddq_u32(working[4 * g + 2], state[4 * g + 2]) };
         let k3 = unsafe { vaddq_u32(working[4 * g + 3], state[4 * g + 3]) };
         let (t0, t1, t2, t3) = transpose4(k0, k1, k2, k3);
+        // SAFETY: `input` is valid for `SIMD_LANES * BLOCK_SIZE` bytes, so
+        // each of the four 16-byte stores stays in bounds.
         unsafe {
             xor_store(input.add(g * 16), t0);
             xor_store(input.add(BLOCK_SIZE + g * 16), t1);
@@ -169,6 +183,10 @@ fn chacha_neon_emit<const ROUNDS: usize>(state: [uint32x4_t; STATE_WORDS], input
 }
 
 /// Loads the 16 bytes at `ptr`, XORs them with `v`, and stores the result back.
+///
+/// # Safety
+///
+/// `ptr` must be valid for a 16-byte read and write.
 #[inline(always)]
 unsafe fn xor_store(ptr: *mut u8, v: uint32x4_t) {
     let loaded = unsafe { vld1q_u32(ptr.cast::<u32>()) };
@@ -234,11 +252,14 @@ fn serialize_keystream(keystream_vectors: &[uint32x4_t; STATE_WORDS], keystream:
 
     for word_index in 0..STATE_WORDS {
         let mut lanes = [0u32; SIMD_LANES];
+        // SAFETY: `lanes` has exactly `SIMD_LANES` u32 elements.
         unsafe { vst1q_u32(lanes.as_mut_ptr(), keystream_vectors[word_index]) };
 
         // each lane is a 32-bit little-endian word
         for block in 0..SIMD_LANES {
             let byte_offset = (block * STATE_WORDS * 4) + (word_index * 4);
+            // SAFETY: `byte_offset` is within `SIMD_LANES * BLOCK_SIZE`, and
+            // the source is a 4-byte local array.
             unsafe {
                 core::ptr::copy_nonoverlapping(lanes[block].to_le_bytes().as_ptr(), keystream_ptr.add(byte_offset), 4);
             }
@@ -264,6 +285,8 @@ fn quarter_round(state: &mut [uint32x4_t; STATE_WORDS], a: usize, b: usize, c: u
         };
     }
 
+    // SAFETY: NEON is baseline on aarch64; `a`, `b`, `c`, `d` are in-bounds
+    // state indices supplied by the fixed quarter-round schedule.
     unsafe {
         // a += b; d ^= a; d <<<= 16
         state[a] = vaddq_u32(state[a], state[b]);
@@ -284,5 +307,118 @@ fn quarter_round(state: &mut [uint32x4_t; STATE_WORDS], a: usize, b: usize, c: u
         state[c] = vaddq_u32(state[c], state[d]);
         state[b] = veorq_u32(state[b], state[c]);
         rotate_left!(state[b], 7);
+    }
+}
+
+/// Kernel tests: exercise the private kernel directly, without
+/// going through the dispatch in `chacha::ChaCha::xor_keystream`, and validate
+/// the keystream, the advanced counter and the 63-byte `keystream_leftover`
+/// tail against an independent reference implementation.
+#[cfg(all(test, feature = "alloc"))]
+mod kernel_tests {
+    use alloc::{vec, vec::Vec};
+
+    use super::{super::simd_test_reference as reference, *};
+
+    fn key() -> [u8; 32] {
+        let mut k = [0u8; 32];
+        for (i, b) in k.iter_mut().enumerate() {
+            *b = (i as u8).wrapping_mul(13).wrapping_add(7);
+        }
+        k
+    }
+
+    fn nonce12() -> [u8; 12] {
+        [0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb, 0xcc]
+    }
+
+    fn nonce8() -> [u8; 8] {
+        [0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef]
+    }
+
+    fn plaintext(len: usize) -> Vec<u8> {
+        let mut v = vec![0u8; len];
+        let mut x = 0x1234_5678_9abc_def0u64 ^ len as u64;
+        for b in &mut v {
+            x ^= x >> 12;
+            x ^= x << 25;
+            x ^= x >> 27;
+            *b = x.wrapping_mul(0x2545_f491_4f6c_dd1d) as u8;
+        }
+        v
+    }
+
+    fn check<const ROUNDS: usize, const IS_IETF: bool>(mut state: [u32; STATE_WORDS], start_counter: u64, len: usize) {
+        let padded = len.div_ceil(BLOCK_SIZE) * BLOCK_SIZE;
+        let full_keystream = reference::ref_stream_from::<ROUNDS>(&state, IS_IETF, padded);
+
+        let mut buf = plaintext(len);
+        let expected: Vec<u8> = buf.iter().zip(&full_keystream).map(|(p, k)| p ^ k).collect();
+
+        let mut leftover = [0x5cu8; BLOCK_SIZE - 1];
+        unsafe { chacha_neon::<ROUNDS, IS_IETF>(&mut state, &mut buf, &mut leftover) };
+
+        assert_eq!(buf, expected, "keystream mismatch, len={len}, ietf={IS_IETF}");
+
+        let blocks = len.div_ceil(BLOCK_SIZE) as u64;
+        if IS_IETF {
+            assert_eq!(
+                state[12],
+                (start_counter as u32).wrapping_add(blocks as u32),
+                "IETF counter not advanced correctly, len={len}"
+            );
+        } else {
+            let counter = ((state[13] as u64) << 32) | state[12] as u64;
+            assert_eq!(
+                counter,
+                start_counter.wrapping_add(blocks),
+                "DJB counter not advanced correctly, len={len}"
+            );
+        }
+
+        if !len.is_multiple_of(BLOCK_SIZE) {
+            let last_block = padded - BLOCK_SIZE;
+            assert_eq!(
+                &leftover[..],
+                &full_keystream[last_block + 1..last_block + BLOCK_SIZE],
+                "leftover tail mismatch, len={len}, ietf={IS_IETF}"
+            );
+        } else {
+            assert_eq!(leftover, [0x5cu8; BLOCK_SIZE - 1], "leftover written for a block-aligned input");
+        }
+    }
+
+    #[test]
+    fn kernel_matches_reference() {
+        let key = key();
+        for &len in &[
+            0usize, 1, 63, 64, 65, 127, 128, 129, 130, 191, 192, 193, 255, 256, 257, 320, 511, 512, 513, 600, 777,
+            1023, 1024, 1025,
+        ] {
+            check::<20, true>(reference::ietf_state(&key, &nonce12(), 7), 7, len);
+            check::<20, false>(reference::djb_state(&key, &nonce8(), 3), 3, len);
+        }
+    }
+
+    #[test]
+    fn kernel_high_counters() {
+        let key = key();
+        let counter = u32::MAX as u64 - 4;
+        check::<20, true>(reference::ietf_state(&key, &nonce12(), counter as u32), counter, 128);
+        let counter = u64::MAX - 4;
+        check::<20, false>(reference::djb_state(&key, &nonce8(), counter), counter, 128);
+        let counter = (1u64 << 32) - 2;
+        check::<20, false>(reference::djb_state(&key, &nonce8(), counter), counter, 512);
+    }
+
+    #[test]
+    fn kernel_round_variants() {
+        let key = key();
+        for &len in &[128usize, 129, 257, 512] {
+            check::<8, true>(reference::ietf_state(&key, &nonce12(), 1), 1, len);
+            check::<12, true>(reference::ietf_state(&key, &nonce12(), 1), 1, len);
+            check::<8, false>(reference::djb_state(&key, &nonce8(), 1), 1, len);
+            check::<12, false>(reference::djb_state(&key, &nonce8(), 1), 1, len);
+        }
     }
 }

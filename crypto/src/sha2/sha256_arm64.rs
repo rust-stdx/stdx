@@ -9,23 +9,25 @@ pub(crate) unsafe fn compress(state: &mut [u32; 8], blocks: &[[u8; 64]]) {
     let mut abcd = vld1q_u32(state[0..4].as_ptr());
     let mut efgh = vld1q_u32(state[4..8].as_ptr());
 
+    // NOTE: the loads are derived from the whole-array pointer, not from a
+    // reference to a single element, because each load reads 16 bytes.
     let k: [uint32x4_t; 16] = [
-        vld1q_u32(&SHA256_K[0]),
-        vld1q_u32(&SHA256_K[4]),
-        vld1q_u32(&SHA256_K[8]),
-        vld1q_u32(&SHA256_K[12]),
-        vld1q_u32(&SHA256_K[16]),
-        vld1q_u32(&SHA256_K[20]),
-        vld1q_u32(&SHA256_K[24]),
-        vld1q_u32(&SHA256_K[28]),
-        vld1q_u32(&SHA256_K[32]),
-        vld1q_u32(&SHA256_K[36]),
-        vld1q_u32(&SHA256_K[40]),
-        vld1q_u32(&SHA256_K[44]),
-        vld1q_u32(&SHA256_K[48]),
-        vld1q_u32(&SHA256_K[52]),
-        vld1q_u32(&SHA256_K[56]),
-        vld1q_u32(&SHA256_K[60]),
+        vld1q_u32(SHA256_K.as_ptr().add(0)),
+        vld1q_u32(SHA256_K.as_ptr().add(4)),
+        vld1q_u32(SHA256_K.as_ptr().add(8)),
+        vld1q_u32(SHA256_K.as_ptr().add(12)),
+        vld1q_u32(SHA256_K.as_ptr().add(16)),
+        vld1q_u32(SHA256_K.as_ptr().add(20)),
+        vld1q_u32(SHA256_K.as_ptr().add(24)),
+        vld1q_u32(SHA256_K.as_ptr().add(28)),
+        vld1q_u32(SHA256_K.as_ptr().add(32)),
+        vld1q_u32(SHA256_K.as_ptr().add(36)),
+        vld1q_u32(SHA256_K.as_ptr().add(40)),
+        vld1q_u32(SHA256_K.as_ptr().add(44)),
+        vld1q_u32(SHA256_K.as_ptr().add(48)),
+        vld1q_u32(SHA256_K.as_ptr().add(52)),
+        vld1q_u32(SHA256_K.as_ptr().add(56)),
+        vld1q_u32(SHA256_K.as_ptr().add(60)),
     ];
 
     for block in blocks {

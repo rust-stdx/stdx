@@ -5,7 +5,7 @@
 //! types, unaligned slices and the trait interfaces.
 
 use crypto::{
-    StreamCipher,
+    Aead, StreamCipher,
     aegis::{
         Aegis256, Aegis256Mac, Aegis256Stream, Aegis256X2, Aegis256X2Mac, Aegis256X2Stream, Aegis256X4, Aegis256X4Mac,
         Aegis256X4Stream,
@@ -28,11 +28,13 @@ macro_rules! roundtrip {
         let cipher = $cipher;
         let mut buffer = vec![0xa5u8; $len + 32];
         buffer[$offset..$offset + $len].copy_from_slice(&plaintext);
-        let tag = cipher.encrypt_in_place_detached(&mut buffer[$offset..$offset + $len], &NONCE, &aad);
+        let tag = cipher
+            .encrypt_in_place(&mut buffer[$offset..$offset + $len], &NONCE, &aad)
+            .unwrap();
         assert!(buffer[..$offset].iter().all(|&b| b == 0xa5));
         assert!(buffer[$offset + $len..].iter().all(|&b| b == 0xa5));
         cipher
-            .decrypt_in_place_detached(&mut buffer[$offset..$offset + $len], &NONCE, &aad, &tag)
+            .decrypt_in_place(&mut buffer[$offset..$offset + $len], &NONCE, &aad, &tag)
             .unwrap();
         assert_eq!(&buffer[$offset..$offset + $len], &plaintext[..]);
     }};
@@ -56,25 +58,25 @@ fn aead_roundtrip_unaligned() {
 fn mac_verify_and_stream() {
     let data = pattern(1000, 11, 2);
     let mut mac = Aegis256Mac::<16>::new_with_nonce(&KEY, &NONCE);
-    mac.update(&data[..333]);
-    mac.update(&data[333..]);
+    mac.update(&data[..333]).unwrap();
+    mac.update(&data[333..]).unwrap();
     let tag = mac.clone().finalize();
     assert!(mac.verify(&tag).is_ok());
 
     let mut bad = tag;
     bad[0] ^= 0x80;
     let mut mac = Aegis256Mac::<16>::new_with_nonce(&KEY, &NONCE);
-    mac.update(&data);
+    mac.update(&data).unwrap();
     assert!(mac.verify(&bad).is_err());
 
     macro_rules! stream_roundtrip {
         ($stream:ty) => {{
             let mut encrypted = data.clone();
             let mut stream = <$stream>::new(&KEY, &NONCE);
-            StreamCipher::xor_keystream(&mut stream, &mut encrypted);
+            StreamCipher::xor_keystream(&mut stream, &mut encrypted).unwrap();
             assert_ne!(encrypted, data);
             let mut stream = <$stream>::new(&KEY, &NONCE);
-            StreamCipher::xor_keystream(&mut stream, &mut encrypted);
+            StreamCipher::xor_keystream(&mut stream, &mut encrypted).unwrap();
             assert_eq!(encrypted, data);
         }};
     }

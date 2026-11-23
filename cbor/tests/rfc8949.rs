@@ -97,22 +97,15 @@ const VECTORS: &[(&str, bool, Option<&str>)] = &[
     ("bf6346756ef563416d7421ff", false, None),
 ];
 
-fn hex(s: &str) -> Vec<u8> {
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
-        .collect()
-}
-
 #[test]
 fn appendix_a_vectors_roundtrip() {
     for &(encoded, roundtrip, _) in VECTORS {
-        let bytes = hex(encoded);
+        let bytes = hex::decode(encoded).unwrap();
         assert!(cbor::validate(&bytes).is_ok(), "validate {encoded}");
         let value: cbor::Value = cbor::from_slice(&bytes).unwrap_or_else(|e| panic!("decode {encoded}: {e}"));
         if roundtrip {
             let reencoded = cbor::to_vec(&value);
-            assert_eq!(hex(encoded), reencoded, "roundtrip {encoded}");
+            assert_eq!(hex::decode(encoded).unwrap(), reencoded, "roundtrip {encoded}");
         }
     }
 }
@@ -121,7 +114,7 @@ fn appendix_a_vectors_roundtrip() {
 fn appendix_a_diagnostic_vectors() {
     for &(encoded, _, diagnostic) in VECTORS {
         let Some(expected) = diagnostic else { continue };
-        let bytes = hex(encoded);
+        let bytes = hex::decode(encoded).unwrap();
         // The test-vectors file omits the space after the indefinite marker;
         // RFC 8949 §8 uses `(_ h'...')`.
         let expected = expected.replace("(_h", "(_ h").replace("(_\"", "(_ \"");

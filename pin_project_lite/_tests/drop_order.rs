@@ -113,6 +113,7 @@ fn enum_struct() {
 // https://github.com/rust-lang/rust/issues/47949
 // https://github.com/taiki-e/pin-project/pull/194#discussion_r419098111
 #[allow(clippy::many_single_char_names)]
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn project_replace_panic() {
     pin_project! {

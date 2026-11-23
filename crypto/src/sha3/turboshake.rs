@@ -24,6 +24,25 @@ pub(crate) const TURBOSHAKE256_RATE: usize = 136;
 /// An API that does not expose a domain-separation byte MUST use this value.
 pub const TURBOSHAKE256_DEFAULT_DOMAIN_SEPARATOR: u8 = 0x1f;
 
+/// Errors returned when creating a [`TurboShake256`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TurboShakeError {
+    /// `domain_separator` was outside the RFC 9861 `0x01..=0x7f` range.
+    InvalidDomainSeparator,
+}
+
+impl core::fmt::Display for TurboShakeError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            TurboShakeError::InvalidDomainSeparator => {
+                write!(f, "the TurboSHAKE domain separator byte must be in the 0x01..=0x7f range")
+            }
+        }
+    }
+}
+
+impl core::error::Error for TurboShakeError {}
+
 /// TurboSHAKE256 eXtendable-Output Function (XOF), as defined in RFC 9861.
 ///
 /// Like [`Shake256`](super::Shake256), the output is an arbitrarily long stream
@@ -41,7 +60,7 @@ pub const TURBOSHAKE256_DEFAULT_DOMAIN_SEPARATOR: u8 = 0x1f;
 /// TurboShake256::hash(b"hello world", &mut output);
 ///
 /// // Or with an explicit domain separator for domain separation.
-/// let mut hasher = TurboShake256::new(0x07);
+/// let mut hasher = TurboShake256::new(0x07).unwrap();
 /// hasher.absorb(b"hello world");
 /// hasher.squeeze(&mut output);
 /// ```
@@ -54,7 +73,7 @@ pub const TURBOSHAKE256_DEFAULT_DOMAIN_SEPARATOR: u8 = 0x1f;
 ///     sha3::{TURBOSHAKE256_DEFAULT_DOMAIN_SEPARATOR, TurboShake256},
 /// };
 ///
-/// let mut xof = TurboShake256::new(TURBOSHAKE256_DEFAULT_DOMAIN_SEPARATOR);
+/// let mut xof = TurboShake256::new(TURBOSHAKE256_DEFAULT_DOMAIN_SEPARATOR).unwrap();
 /// xof.absorb(b"hello ");
 /// xof.absorb(b"world");
 /// let mut out = [0u8; 64];
@@ -69,10 +88,11 @@ pub struct TurboShake256 {
 impl TurboShake256 {
     /// Creates a TurboSHAKE256 instance with the given domain-separation byte `D`.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics if `domain_separator` is not in the `0x01..=0x7f` range mandated
-    /// by RFC 9861, section 2.1. `0x00` is rejected because the domain byte
+    /// Returns [`TurboShakeError::InvalidDomainSeparator`] if
+    /// `domain_separator` is not in the `0x01..=0x7f` range mandated by
+    /// RFC 9861, section 2.1. `0x00` is rejected because the domain byte
     /// carries the first bit of the `pad10*1` padding, and values with the most
     /// significant bit set are rejected because they would collide with the
     /// final `0x80` padding bit when the domain byte is the last byte of a
@@ -81,12 +101,24 @@ impl TurboShake256 {
     /// Use [`TURBOSHAKE256_DEFAULT_DOMAIN_SEPARATOR`] when no domain separation
     /// is required.
     #[inline]
-    pub fn new(domain_separator: u8) -> Self {
-        assert!(
+    pub fn new(domain_separator: u8) -> Result<Self, TurboShakeError> {
+        if !(0x01..=0x7f).contains(&domain_separator) {
+            return Err(TurboShakeError::InvalidDomainSeparator);
+        }
+        return Ok(Self::new_unchecked(domain_separator));
+    }
+
+    /// Creates a TurboSHAKE256 instance without validating `domain_separator`.
+    ///
+    /// # Panics
+    ///
+    /// Panics in debug builds if `domain_separator` is outside `0x01..=0x7f`.
+    #[inline]
+    pub(crate) fn new_unchecked(domain_separator: u8) -> Self {
+        debug_assert!(
             (0x01..=0x7f).contains(&domain_separator),
             "the domain separator byte must be in the 0x01..=0x7f range"
         );
-
         return TurboShake256 {
             keccak: KeccakSponge::new(TURBOSHAKE256_RATE, domain_separator),
         };
@@ -114,17 +146,16 @@ impl TurboShake256 {
     /// Hashes `data` with the default domain-separation byte (`0x1f`), filling
     /// `output`.
     ///
-    /// The output length is `output.len()` and may be arbitrary. If the same
-    /// `(data, domain_separator)` pair is hashed with two different output
-    /// lengths, the shorter output is a prefix of the longer one.
+    /// The output length is `output.len()` and may be arbitrary. For a fixed
+    /// input and domain separator, a shorter output is a prefix of a longer
+    /// one.
     ///
-    /// # Panics
-    ///
-    /// Panics if `domain_separator` is not in the `0x01..=0x7f` range; see
-    /// [`Self::new`].
+    /// This always uses [`TURBOSHAKE256_DEFAULT_DOMAIN_SEPARATOR`] and does not
+    /// take a domain separator, so it cannot fail. Use [`Self::new`] when
+    /// domain separation is required.
     #[inline]
     pub fn hash(data: &[u8], output: &mut [u8]) {
-        let mut hasher = TurboShake256::new(TURBOSHAKE256_DEFAULT_DOMAIN_SEPARATOR);
+        let mut hasher = TurboShake256::new_unchecked(TURBOSHAKE256_DEFAULT_DOMAIN_SEPARATOR);
         hasher.absorb(data);
         hasher.squeeze(output);
     }
@@ -135,7 +166,7 @@ impl Default for TurboShake256 {
     /// (`0x1f`).
     #[inline]
     fn default() -> Self {
-        return TurboShake256::new(TURBOSHAKE256_DEFAULT_DOMAIN_SEPARATOR);
+        return TurboShake256::new_unchecked(TURBOSHAKE256_DEFAULT_DOMAIN_SEPARATOR);
     }
 }
 
@@ -177,7 +208,7 @@ impl Hasher for TurboShake256 {
 
 #[cfg(test)]
 mod tests {
-    use super::{TURBOSHAKE256_DEFAULT_DOMAIN_SEPARATOR, TurboShake256};
+    use super::{TURBOSHAKE256_DEFAULT_DOMAIN_SEPARATOR, TurboShake256, TurboShakeError};
     use crate::{
         Hasher, Xof,
         sha3::keccak::{ROUND_CONSTANTS, p1600},
@@ -281,7 +312,7 @@ mod tests {
     fn known_vectors() {
         for (input, domain_separator, expected) in vectors() {
             let mut output = [0u8; 64];
-            let mut hasher = TurboShake256::new(domain_separator);
+            let mut hasher = TurboShake256::new(domain_separator).unwrap();
             hasher.update(&input);
             hasher.squeeze(&mut output);
             assert_eq!(
@@ -447,7 +478,7 @@ mod tests {
         for (len, domain_separator, expected) in differential_vectors() {
             let data = ptn(len);
             let mut output = [0u8; 32];
-            let mut hasher = TurboShake256::new(domain_separator);
+            let mut hasher = TurboShake256::new(domain_separator).unwrap();
             hasher.update(&data);
             hasher.squeeze(&mut output);
             assert_eq!(hex::encode(output), expected, "input length {len}, D {domain_separator:#04x}");
@@ -460,7 +491,7 @@ mod tests {
         let mut previous: Option<[u8; 64]> = None;
         for domain_separator in [0x01u8, 0x02, 0x1f, 0x30, 0x7f] {
             let mut output = [0u8; 64];
-            let mut hasher = TurboShake256::new(domain_separator);
+            let mut hasher = TurboShake256::new(domain_separator).unwrap();
             hasher.update(b"domain separation");
             hasher.squeeze(&mut output);
 
@@ -472,15 +503,16 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn rejects_zero_domain_separator() {
-        let _ = TurboShake256::new(0x00);
+        assert!(matches!(TurboShake256::new(0x00), Err(TurboShakeError::InvalidDomainSeparator)));
     }
 
     #[test]
-    #[should_panic]
     fn rejects_high_bit_domain_separator() {
-        let _ = TurboShake256::new(0x80);
+        assert!(matches!(TurboShake256::new(0x80), Err(TurboShakeError::InvalidDomainSeparator)));
+        assert!(matches!(TurboShake256::new(0xff), Err(TurboShakeError::InvalidDomainSeparator)));
+        assert!(TurboShake256::new(0x01).is_ok());
+        assert!(TurboShake256::new(0x7f).is_ok());
     }
 
     #[test]
@@ -540,7 +572,7 @@ mod tests {
         let mut expected = [0u8; 2 * 136 + 9];
         crate::sha3::keccak::test_util::sponge::<12>(&data, 136, domain, &mut expected);
 
-        let mut hasher = TurboShake256::new(domain);
+        let mut hasher = TurboShake256::new(domain).unwrap();
         hasher.absorb(&data);
         hasher.squeeze(&mut []);
         let mut actual = [0u8; 2 * 136 + 9];

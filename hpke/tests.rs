@@ -763,7 +763,12 @@ impl crypto::Aead for TestAes128Gcm {
     const TAG_SIZE: usize = <crypto::aes::Aes128Gcm as crypto::Aead>::TAG_SIZE;
     const NONCE_SIZE: usize = <crypto::aes::Aes128Gcm as crypto::Aead>::NONCE_SIZE;
 
-    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], associated_data: &[u8]) -> crypto::Hash {
+    fn encrypt_in_place(
+        &self,
+        in_out: &mut [u8],
+        nonce: &[u8],
+        associated_data: &[u8],
+    ) -> Result<crypto::Hash, crypto::AeadError> {
         return crypto::Aead::encrypt_in_place(&self.0, in_out, nonce, associated_data);
     }
 
@@ -798,7 +803,12 @@ impl crypto::Aead for LengthLimitedAead {
     const TAG_SIZE: usize = <Aes256Gcm as crypto::Aead>::TAG_SIZE;
     const NONCE_SIZE: usize = <Aes256Gcm as crypto::Aead>::NONCE_SIZE;
 
-    fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8], associated_data: &[u8]) -> crypto::Hash {
+    fn encrypt_in_place(
+        &self,
+        in_out: &mut [u8],
+        nonce: &[u8],
+        associated_data: &[u8],
+    ) -> Result<crypto::Hash, crypto::AeadError> {
         return crypto::Aead::encrypt_in_place(&self.0, in_out, nonce, associated_data);
     }
 

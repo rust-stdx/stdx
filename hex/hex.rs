@@ -173,6 +173,9 @@ pub fn encode_with_alphabet(data: impl AsRef<[u8]>, alphabet: Alphabet) -> alloc
     let data = data.as_ref();
     let mut output = alloc::vec![0u8; data.len() * 2];
     encode_into(&mut output, data, alphabet).unwrap();
+    // SAFETY: `output` has length `data.len() * 2` and `encode_into` fills
+    // every byte with a hex digit (`0-9`, `a-f` or `A-F`), all of which are
+    // ASCII and therefore valid UTF-8.
     unsafe { alloc::string::String::from_utf8_unchecked(output) }
 }
 
@@ -224,12 +227,20 @@ pub fn encode_into(output: &mut [u8], data: &[u8], alphabet: Alphabet) -> Result
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     if data.len() >= 16 {
         check_encode_output_length(data.len(), output.len())?;
+        // SAFETY: NEON is a compile-time target feature here (this block is
+        // only compiled when it is enabled), and the output length was just
+        // checked to be exactly `data.len() * 2`; the kernel asserts the same
+        // bound and handles the sub-16-byte tail itself.
         return unsafe { hex_neon::encode_into(output, data, alphabet) };
     }
 
     #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx2"))]
     if data.len() >= 32 {
         check_encode_output_length(data.len(), output.len())?;
+        // SAFETY: AVX2 is a compile-time target feature here (this block is
+        // only compiled when it is enabled), and the output length was just
+        // checked to be exactly `data.len() * 2`; the kernel asserts the same
+        // bound and handles the sub-32-byte tail itself.
         return unsafe { hex_avx2::encode_into(output, data, alphabet) };
     }
 
@@ -334,6 +345,12 @@ pub const fn encode_into_constant_time(output: &mut [u8], data: &[u8], alphabet:
 #[inline]
 const fn nibble_to_hex(nibble: u8, alphabet: Alphabet) -> u8 {
     let nibble = nibble & 0x0F;
+    // Sign-bit trick: for `nibble < 10` the subtraction is negative, so the
+    // arithmetic right shift yields `0xFF` (select the `'0'..='9'` branch);
+    // for `nibble >= 10` it yields `0x00` (select the letter branch).
+    // `letter_val`/`upper_val` are computed for every nibble on purpose: they
+    // stay within `0x37..=0x66`, so neither expression can underflow or
+    // overflow.
     let digit_mask = (((nibble as i16) - 10) >> 8) as u8;
 
     let digit_val = b'0' + nibble;
@@ -374,12 +391,16 @@ pub fn encode_into_string(output: &mut alloc::string::String, data: &[u8], alpha
         let mut buf = [0u8; 256];
         let buf = &mut buf[..encoded_length];
         encode_into(buf, data, alphabet).unwrap();
-        // SAFETY: base64 only produces ASCII characters, which are valid UTF-8.
+        // SAFETY: `encode_into` fills `buf` completely with hex digits
+        // (`0-9`, `a-f` or `A-F`), all of which are ASCII and therefore valid
+        // UTF-8.
         output.push_str(unsafe { core::str::from_utf8_unchecked(buf) });
     } else {
         let mut buf = alloc::vec![0u8; encoded_length];
         encode_into(&mut buf, data, alphabet).unwrap();
-        // SAFETY: base64 only produces ASCII characters, which are valid UTF-8.
+        // SAFETY: `encode_into` fills `buf` completely with hex digits
+        // (`0-9`, `a-f` or `A-F`), all of which are ASCII and therefore valid
+        // UTF-8.
         output.push_str(unsafe { core::str::from_utf8_unchecked(&buf) });
     }
 }
@@ -387,7 +408,6 @@ pub fn encode_into_string(output: &mut alloc::string::String, data: &[u8], alpha
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Decode
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
 /// Decodes a hex string into bytes.
 ///
 /// Accepts any combination of uppercase and lowercase hex characters.
@@ -414,7 +434,10 @@ pub fn decode(data: impl AsRef<[u8]>) -> Result<alloc::vec::Vec<u8>, DecodeError
 /// Decodes a hex string into a fixed-size array at compile time.
 ///
 /// The generic parameter `OUT` is the output array length. It must be exactly
-/// `data.len() / 2` bytes long or an error panic is returned.
+/// `data.len() / 2` bytes long, otherwise
+/// [`DecodeError::InvalidOutputLength`] is returned. An odd-length input
+/// returns [`DecodeError::InvalidInputLength`] and an invalid character
+/// returns [`DecodeError::InvalidInput`]. This function never panics.
 ///
 /// # Example
 ///
@@ -446,6 +469,11 @@ pub const fn decode_array<const OUT: usize>(encoded_data: &[u8]) -> Result<[u8; 
 /// Returns [`DecodeError`] if any character is not a valid hex digit or if the input length is odd
 /// or if `output.len() != encoded_data.len() / 2`.
 ///
+/// The contents of `output` are unspecified when an error is returned. The
+/// constant-time path always writes `output` (see
+/// [`decode_into_constant_time`]); the SIMD paths may leave a partially
+/// written prefix behind. Nothing is ever written outside `output`.
+///
 /// # Example
 ///
 /// ```rust
@@ -457,12 +485,20 @@ pub fn decode_into(output: &mut [u8], encoded_data: &[u8]) -> Result<(), DecodeE
     #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
     if encoded_data.len() >= 32 {
         check_decode_input_and_output_length(encoded_data.len(), output.len())?;
+        // SAFETY: NEON is a compile-time target feature here (this block is
+        // only compiled when it is enabled), and the input is known to be
+        // even-length with `output.len() == encoded_data.len() / 2`; the
+        // kernel asserts the same bounds and validates every byte it loads.
         return unsafe { hex_neon::decode_into(output, encoded_data) };
     }
 
     #[cfg(all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx2"))]
     if encoded_data.len() >= 32 {
         check_decode_input_and_output_length(encoded_data.len(), output.len())?;
+        // SAFETY: AVX2 is a compile-time target feature here (this block is
+        // only compiled when it is enabled), and the input is known to be
+        // even-length with `output.len() == encoded_data.len() / 2`; the
+        // kernel asserts the same bounds and validates every byte it loads.
         return unsafe { hex_avx2::decode_into(output, encoded_data) };
     }
 
@@ -604,6 +640,12 @@ pub const fn decode_into_constant_time(output: &mut [u8], encoded_data: &[u8]) -
 
 #[inline]
 const fn nibble_from_hex(c: u8) -> u8 {
+    // Each `is_*` mask below is `0xFF` when `c` is *outside* the corresponding
+    // range: the two subtractions are OR-ed and only their sign bit is kept,
+    // which is set as soon as either bound is violated. A range's value is
+    // therefore selected with `& !is_*`. `invalid` is `0xFF` only when `c`
+    // matches none of the three ranges; the high nibble is then set so the
+    // caller's `err & 0xF0` check reports `DecodeError::InvalidInput`.
     let is_digit = ((((c as i16) - (b'0' as i16)) | ((b'9' as i16) - (c as i16))) >> 8) as u8;
     let is_lower = ((((c as i16) - (b'a' as i16)) | ((b'f' as i16) - (c as i16))) >> 8) as u8;
     let is_upper = ((((c as i16) - (b'A' as i16)) | ((b'F' as i16) - (c as i16))) >> 8) as u8;

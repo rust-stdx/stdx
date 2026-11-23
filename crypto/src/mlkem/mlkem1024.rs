@@ -181,8 +181,7 @@ impl TryFrom<&[u8]> for PublicKey1024 {
 mod tests {
     use super::{
         super::mlkem::{
-            ML_KEM_1024, Q, crypto_kem_dec, crypto_kem_enc_derand, crypto_kem_keypair_derand, decode_hex_array,
-            sha3_256_hex,
+            ML_KEM_1024, Q, crypto_kem_dec, crypto_kem_enc_derand, crypto_kem_keypair_derand, sha3_256_hex,
         },
         *,
     };
@@ -304,9 +303,12 @@ mod tests {
 
     #[test]
     fn ml_kem_1024_cctv_intermediate_vector() {
-        let d: [u8; 32] = decode_hex_array("2a62c39ef4fc499f2d132716f480bb7521a49558ae84ee80d9352e66daf1e3a8");
-        let z: [u8; 32] = decode_hex_array("5f574ef7f013d4336801fed022178c3ed91d0b6d51325315fc1dcabf4770a2ea");
-        let m: [u8; 32] = decode_hex_array("e07d685ed308e609c9c7842026e35732f6ffc6e2fee10f0afd348f2b42a8acb4");
+        let d: [u8; 32] =
+            hex::decode_array(("2a62c39ef4fc499f2d132716f480bb7521a49558ae84ee80d9352e66daf1e3a8").as_bytes()).unwrap();
+        let z: [u8; 32] =
+            hex::decode_array(("5f574ef7f013d4336801fed022178c3ed91d0b6d51325315fc1dcabf4770a2ea").as_bytes()).unwrap();
+        let m: [u8; 32] =
+            hex::decode_array(("e07d685ed308e609c9c7842026e35732f6ffc6e2fee10f0afd348f2b42a8acb4").as_bytes()).unwrap();
 
         let mut coins = [0u8; 64];
         coins[..32].copy_from_slice(&d);
@@ -533,7 +535,7 @@ mod tests {
                     assert_eq!(ek_hex, expected_ek_hex, "wycheproof KEM KAT tcId={} ek mismatch", test["tcId"]);
                 }
 
-                let c = decode_hex_array::<CIPHERTEXT_SIZE_1024>(c_hex);
+                let c = hex::decode_array::<CIPHERTEXT_SIZE_1024>((c_hex).as_bytes()).unwrap();
                 let shared_secret =
                     crypto_kem_dec::<4, SECRET_KEY_SIZE_1024, CIPHERTEXT_SIZE_1024>(&ML_KEM_1024, &dk, &c);
 
@@ -585,12 +587,12 @@ mod tests {
                     continue;
                 }
 
-                let ek = decode_hex_array::<PUBLIC_KEY_SIZE_1024>(ek_hex);
+                let ek = hex::decode_array::<PUBLIC_KEY_SIZE_1024>((ek_hex).as_bytes()).unwrap();
 
                 if result == "valid" {
                     let public_key = PublicKey1024::from_bytes(&ek)
                         .unwrap_or_else(|_| panic!("wycheproof encaps tcId={} valid ek rejected", test["tcId"]));
-                    let m = decode_hex_array::<32>(m_hex);
+                    let m = hex::decode_array::<32>((m_hex).as_bytes()).unwrap();
                     let (k, c) = public_key.encapsulate_derand(&m);
                     let c_hex_out = hex::encode(c);
                     let k_hex_out = hex::encode(k);
@@ -661,8 +663,8 @@ mod tests {
                     continue;
                 }
 
-                let dk = decode_hex_array::<SECRET_KEY_SIZE_1024>(dk_hex);
-                let c = decode_hex_array::<CIPHERTEXT_SIZE_1024>(c_hex);
+                let dk = hex::decode_array::<SECRET_KEY_SIZE_1024>((dk_hex).as_bytes()).unwrap();
+                let c = hex::decode_array::<CIPHERTEXT_SIZE_1024>((c_hex).as_bytes()).unwrap();
 
                 let result = crypto_kem_dec::<4, SECRET_KEY_SIZE_1024, CIPHERTEXT_SIZE_1024>(&ML_KEM_1024, &dk, &c);
 
@@ -750,8 +752,8 @@ mod tests {
             let ct_hex = vector["ct"].as_str().unwrap();
             let expected_ss_hex = vector["ss"].as_str().unwrap();
 
-            let sk = decode_hex_array::<SECRET_KEY_SIZE_1024>(sk_hex);
-            let ct = decode_hex_array::<CIPHERTEXT_SIZE_1024>(ct_hex);
+            let sk = hex::decode_array::<SECRET_KEY_SIZE_1024>((sk_hex).as_bytes()).unwrap();
+            let ct = hex::decode_array::<CIPHERTEXT_SIZE_1024>((ct_hex).as_bytes()).unwrap();
 
             let ss = crypto_kem_dec::<4, SECRET_KEY_SIZE_1024, CIPHERTEXT_SIZE_1024>(&ML_KEM_1024, &sk, &ct).unwrap();
             assert_eq!(
