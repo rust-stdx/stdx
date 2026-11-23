@@ -11,6 +11,8 @@
 //! Everything is compared against an independent reference implementation that
 //! uses table lookups and a plain `match`, never the crate's bit tricks.
 
+#![cfg(feature = "alloc")]
+
 use hex::{Alphabet, DecodeError, EncodeError};
 use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
 

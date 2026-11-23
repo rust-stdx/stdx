@@ -12,6 +12,8 @@
 //! cargo test -p base32 --test audit_core
 //! ```
 
+#![cfg(feature = "alloc")]
+
 use base32::{Alphabet, DecodeError, EncodeError};
 use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
 

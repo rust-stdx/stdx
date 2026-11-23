@@ -25,6 +25,8 @@
 //! cargo test -p base64 --test audit_core
 //! ```
 
+#![cfg(feature = "alloc")]
+
 use base64::{Alphabet, DecodeError, EncodeError};
 use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
 

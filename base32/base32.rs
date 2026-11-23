@@ -142,6 +142,10 @@ impl Alphabet {
     /// stripped by the public dispatcher. Their scalar tail therefore decodes
     /// an unpadded fragment and must not apply the padded-alphabet canonicality
     /// rule to it.
+    #[cfg(any(
+        all(target_arch = "aarch64", target_feature = "neon"),
+        all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx2"),
+    ))]
     #[inline]
     pub(crate) const fn without_padding(self) -> Alphabet {
         match self {

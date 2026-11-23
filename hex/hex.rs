@@ -30,14 +30,17 @@
 //! # Examples
 //!
 //! ```rust
-//! let encoded = hex::encode(b"hello");
-//! assert_eq!(encoded, "68656c6c6f");
+//! let mut encoded = [0u8; 10];
+//! hex::encode_into(&mut encoded, b"hello", hex::Alphabet::Lower).unwrap();
+//! assert_eq!(&encoded, b"68656c6c6f");
 //!
-//! let decoded = hex::decode(b"68656c6c6f").unwrap();
-//! assert_eq!(decoded, b"hello");
+//! let mut decoded = [0u8; 5];
+//! hex::decode_into(&mut decoded, b"68656c6c6f").unwrap();
+//! assert_eq!(&decoded, b"hello");
 //!
-//! let upper = hex::encode_with_alphabet(b"hello", hex::Alphabet::Upper);
-//! assert_eq!(upper, "68656C6C6F");
+//! let mut upper = [0u8; 10];
+//! hex::encode_into(&mut upper, b"hello", hex::Alphabet::Upper).unwrap();
+//! assert_eq!(&upper, b"68656C6C6F");
 //! ```
 
 #[cfg(any(feature = "alloc", test))]
@@ -91,11 +94,13 @@ const ALPHABET_UPPER: [u8; 16] = *b"0123456789ABCDEF";
 /// # Example
 ///
 /// ```rust
-/// let encoded = hex::encode_with_alphabet(b"\xAB", hex::Alphabet::Lower);
-/// assert_eq!(encoded, "ab");
+/// let mut lower = [0u8; 2];
+/// hex::encode_into(&mut lower, b"\xAB", hex::Alphabet::Lower).unwrap();
+/// assert_eq!(&lower, b"ab");
 ///
-/// let encoded = hex::encode_with_alphabet(b"\xAB", hex::Alphabet::Upper);
-/// assert_eq!(encoded, "AB");
+/// let mut upper = [0u8; 2];
+/// hex::encode_into(&mut upper, b"\xAB", hex::Alphabet::Upper).unwrap();
+/// assert_eq!(&upper, b"AB");
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Alphabet {

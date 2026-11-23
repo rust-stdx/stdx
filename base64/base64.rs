@@ -36,16 +36,19 @@
 //! # Examples
 //!
 //! ```rust
-//! use base64::{Alphabet, encode, decode};
+//! use base64::{Alphabet, decode_into, encode_into};
 //!
-//! let encoded = encode(b"hello world", Alphabet::Standard);
-//! assert_eq!(encoded, "aGVsbG8gd29ybGQ=");
+//! let mut encoded = [0u8; 16];
+//! encode_into(&mut encoded, b"hello world", Alphabet::Standard).unwrap();
+//! assert_eq!(&encoded, b"aGVsbG8gd29ybGQ=");
 //!
-//! let decoded = decode(b"aGVsbG8gd29ybGQ=", Alphabet::Standard).unwrap();
-//! assert_eq!(decoded, b"hello world");
+//! let mut decoded = [0u8; 11];
+//! let len = decode_into(&mut decoded, &encoded, Alphabet::Standard).unwrap();
+//! assert_eq!(&decoded[..len], b"hello world");
 //!
-//! let url = encode(b"hello world", Alphabet::Url);
-//! assert_eq!(url, "aGVsbG8gd29ybGQ=");
+//! let mut url = [0u8; 16];
+//! encode_into(&mut url, b"hello world", Alphabet::Url).unwrap();
+//! assert_eq!(&url, b"aGVsbG8gd29ybGQ=");
 //! ```
 
 #[cfg(any(feature = "alloc", test))]
@@ -88,10 +91,11 @@ const PAD: u8 = b'=';
 /// # Example
 ///
 /// ```rust
-/// use base64::Alphabet;
+/// use base64::{Alphabet, encode_into};
 ///
-/// let encoded = base64::encode(b"hello", Alphabet::Url);
-/// assert_eq!(encoded, "aGVsbG8=");
+/// let mut encoded = [0u8; 8];
+/// encode_into(&mut encoded, b"hello", Alphabet::Url).unwrap();
+/// assert_eq!(&encoded, b"aGVsbG8=");
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Alphabet {
@@ -113,6 +117,11 @@ impl Alphabet {
     /// stripped by the public dispatcher. Their scalar tail therefore decodes
     /// an unpadded fragment and must not apply the padded-alphabet canonicality
     /// rule to it.
+    #[cfg(any(
+        all(target_arch = "aarch64", target_feature = "neon"),
+        all(any(target_arch = "x86", target_arch = "x86_64"), target_feature = "avx2"),
+        all(target_arch = "wasm32", target_feature = "simd128"),
+    ))]
     #[inline]
     pub(crate) const fn without_padding(self) -> Alphabet {
         match self {
