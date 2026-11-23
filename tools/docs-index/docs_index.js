@@ -13,12 +13,20 @@ if (!existsSync(cratesJsPath)) {
 }
 
 const cratesJs = readFileSync(cratesJsPath, "utf-8");
-const match = cratesJs.match(/window\.ALL_CRATES\s*=\s*(\[.*?\]);/);
+const match = cratesJs.match(/window\.ALL_CRATES\s*=\s*(\[[\s\S]*?\]);/);
 if (!match) {
   throw new Error("Could not parse crates.js");
 }
 
-const crateNames = JSON.parse(match[1]);
+// Rustdoc <= 1.101 emits `["crate", ...]`; newer nightlies emit objects with
+// the crate name under `c` (and an optional sidebar heading under `h`).
+const crateNames = JSON.parse(match[1])
+  .map((entry) => {
+    if (typeof entry === "string") return entry;
+    if (entry && typeof entry.c === "string") return entry.c;
+    return null;
+  })
+  .filter((name) => name !== null);
 
 const staticFiles = readdirSync(staticDir);
 
