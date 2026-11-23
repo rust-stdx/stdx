@@ -86,6 +86,7 @@ members = [
     "tools/crypt",
     "tools/duplicates",
     "tools/energy_bench",
+    "tools/shamir_secret_sharing",
     "unsafe_libyaml",
     "utf8",
     "uuid",

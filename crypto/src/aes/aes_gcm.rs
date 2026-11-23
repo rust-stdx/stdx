@@ -709,7 +709,9 @@ mod regression_tests {
     #[test]
     fn constructor_intrinsics_have_baseline_features() {
         #[cfg(target_arch = "x86_64")]
-        assert!(cfg!(target_feature = "sse2"), "SSE2 must be baseline on x86_64");
+        const {
+            assert!(cfg!(target_feature = "sse2"), "SSE2 must be baseline on x86_64");
+        }
         #[cfg(target_arch = "aarch64")]
         const {
             assert!(cfg!(target_feature = "neon"), "NEON must be baseline on aarch64");

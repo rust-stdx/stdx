@@ -1,0 +1,22 @@
+[package]
+name = "shamir_secret_sharing"
+version = "0.1.0"
+description = "Shamir secret sharing command-line tool using GF(256) polynomials."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "shamir_secret_sharing"
+path = "shamir_secret_sharing.rs"
+
+[dependencies]
+base64 = { path = "../../base64" }
+crypto = { path = "../../crypto" }
+getopts = { path = "../../getopts" }
+term = { path = "../../term" }
+zeroize = { path = "../../zeroize", default-features = false, features = ["alloc"] }

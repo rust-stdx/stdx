@@ -1833,6 +1833,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "shamir_secret_sharing"
+version = "0.1.0"
+dependencies = [
+ "base64 0.1.0",
+ "crypto",
+ "getopts",
+ "term",
+ "zeroize 1.9.1",
+]
+
+[[package]]
 name = "shlex"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
