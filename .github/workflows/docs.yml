@@ -41,7 +41,7 @@ jobs:
   # the artifact service (actions/deploy-pages#451), and this way a failed
   # deployment can be retried without rebuilding or re-uploading.
   publish:
-    needs: docs
+    needs: build
     if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
