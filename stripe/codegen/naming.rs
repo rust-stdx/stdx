@@ -180,6 +180,11 @@ pub fn chain_of_segments(segments: &[String], action: Option<&str>) -> String {
 ///
 /// Only the first sentence is kept, so the generated source (and the work rustc
 /// does to parse it) stays proportional to the help users actually read.
+///
+/// The result is valid single-line Markdown: truncation never leaves half an
+/// inline link behind, bracket references that are not links are reduced to
+/// their text, and bare URLs become autolinks. That keeps `cargo doc` warning
+/// free, which is why the Stripe specification text can be embedded verbatim.
 pub fn doc_attribute(text: &str) -> String {
     // Keep docs single-line and free of characters that would break the literal.
     let cleaned: String = text
@@ -203,7 +208,103 @@ pub fn doc_attribute(text: &str) -> String {
     } else {
         first_sentence.to_string()
     };
-    truncated.trim().to_string()
+    sanitize_markdown(&truncated).trim().to_string()
+}
+
+/// Returns the index of the first `close` at or after `start`, if any.
+fn find_closing(chars: &[char], start: usize, close: char) -> Option<usize> {
+    chars
+        .get(start..)?
+        .iter()
+        .position(|&ch| ch == close)
+        .map(|offset| start + offset)
+}
+
+/// Reduces documentation text to Markdown that rustdoc documents without
+/// warnings.
+///
+/// Complete inline links (`[label](target)`) are kept; bracket references that
+/// are not complete links (shortcut references such as `[page]`, or a link cut
+/// in half by truncation) are replaced by their label text; bare URLs are
+/// wrapped in `<...>` so they become autolinks.
+fn sanitize_markdown(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len());
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i] != '[' {
+            out.push(chars[i]);
+            i += 1;
+            continue;
+        }
+        let Some(label_end) = find_closing(&chars, i + 1, ']') else {
+            // A `[` with no closing bracket was cut by truncation.
+            i += 1;
+            continue;
+        };
+        let label: String = chars[i + 1..label_end].iter().collect();
+        if chars.get(label_end + 1) == Some(&'(') {
+            if let Some(target_end) = find_closing(&chars, label_end + 2, ')') {
+                out.extend(&chars[i..=target_end]);
+                i = target_end + 1;
+                continue;
+            }
+            // A link target cut by truncation: keep the label, drop the rest.
+            out.push_str(&label);
+            out.push_str("...");
+            break;
+        }
+        out.push_str(&label);
+        i = label_end + 1;
+    }
+    autolink_bare_urls(&out)
+}
+
+/// Wraps URLs that are not already part of a link in `<...>`.
+fn autolink_bare_urls(text: &str) -> String {
+    let chars: Vec<char> = text.chars().collect();
+    let mut out = String::with_capacity(text.len());
+    let mut i = 0;
+    let mut in_link_target = false;
+    while i < chars.len() {
+        let ch = chars[i];
+        if ch == '(' {
+            in_link_target = true;
+            out.push(ch);
+            i += 1;
+            continue;
+        }
+        if ch == ')' {
+            in_link_target = false;
+            out.push(ch);
+            i += 1;
+            continue;
+        }
+        let rest = &chars[i..];
+        let is_url = !in_link_target
+            && !out.ends_with('<')
+            && (rest.starts_with(&['h', 't', 't', 'p', ':', '/', '/'])
+                || rest.starts_with(&['h', 't', 't', 'p', 's', ':', '/', '/']));
+        if is_url {
+            let start = i;
+            while i < chars.len() && !chars[i].is_whitespace() && chars[i] != '>' {
+                i += 1;
+            }
+            // Keep sentence punctuation outside the autolink.
+            let mut end = i;
+            while end > start && matches!(chars[end - 1], '.' | ',' | ';' | ':') {
+                end -= 1;
+            }
+            out.push('<');
+            out.extend(&chars[start..end]);
+            out.push('>');
+            out.extend(&chars[end..i]);
+            continue;
+        }
+        out.push(ch);
+        i += 1;
+    }
+    out
 }
 
 #[cfg(test)]
@@ -251,5 +352,33 @@ mod tests {
             chain_of_segments(&segments("/v1/checkout/sessions/{session}/expire"), Some("expire")),
             "checkout_session"
         );
+    }
+
+    #[test]
+    fn doc_attribute_keeps_markdown_valid() {
+        // Complete links survive untouched.
+        assert_eq!(
+            doc_attribute("See [the docs](https://docs.stripe.com/api). More."),
+            "See [the docs](https://docs.stripe.com/api)."
+        );
+        // Bare URLs become autolinks, with sentence punctuation kept outside.
+        assert_eq!(
+            doc_attribute("See https://docs.stripe.com/api. More."),
+            "See <https://docs.stripe.com/api>."
+        );
+        // Shortcut references lose their brackets so rustdoc does not try to
+        // resolve them as intra-doc links.
+        assert_eq!(doc_attribute("Only [Deprecated] values. More."), "Only Deprecated values.");
+        // A link cut in half by truncation keeps its label but not the broken
+        // target, and the result is never left with half an inline link.
+        let text = format!(
+            "Array of strings containing [categories](https://docs.stripe.com/api#{})",
+            "x".repeat(80)
+        );
+        let doc = doc_attribute(&text);
+        assert!(doc.ends_with("..."), "{doc}");
+        assert!(doc.contains("categories"));
+        assert!(!doc.contains("]("), "{doc}");
+        assert!(!doc.contains("https://"), "{doc}");
     }
 }

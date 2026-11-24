@@ -379,7 +379,7 @@ const fn check_encode_output_length(data_length: usize, output_length: usize) ->
     Ok(())
 }
 
-/// Appends the hex-encoded representation of `data` to a [`String`].
+/// Appends the hex-encoded representation of `data` to a `String`.
 ///
 /// # Example
 ///

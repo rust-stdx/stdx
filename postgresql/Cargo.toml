@@ -37,13 +37,13 @@ xxhash = { path = "../xxhash" }
 zeroize = { path = "../zeroize", default-features = false, features = ["derive", "alloc"] }
 
 bytes = { workspace = true }
-futures-util = { workspace = true }
-rand = { workspace = true }
-rustls = { workspace = true }
-tokio = { workspace = true }
-tokio-rustls = { workspace = true }
-tracing = { workspace = true }
-url = { workspace = true }
+futures-util = { workspace = true, features = ["std"] }
+rand = { workspace = true, features = ["thread_rng"] }
+rustls = { workspace = true, features = ["std"] }
+tokio = { workspace = true, features = ["rt", "macros", "net", "sync", "time", "io-util"] }
+tokio-rustls = { workspace = true, features = ["logging"] }
+tracing = { workspace = true, features = ["std"] }
+url = { workspace = true, features = ["std"] }
 
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
@@ -55,6 +55,6 @@ time = { path = "../time" }
 uuid = { path = "../uuid" }
 
 bytes = { workspace = true }
-rustls = { workspace = true }
-tokio = { workspace = true }
-tokio-rustls = { workspace = true }
+rustls = { workspace = true, features = ["std"] }
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+tokio-rustls = { workspace = true, features = ["logging"] }

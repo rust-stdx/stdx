@@ -87,9 +87,8 @@ pub fn expand<H: Hasher>(okm: &mut [u8], prk: &[u8], info: &[u8]) -> Result<(), 
 
 /// One-shot HKDF: extract-then-expand in a single call.
 ///
-/// `H::OUTPUT_SIZE` must be smaller than or equal to
-/// [`MAX_HASH_OUTPUT_SIZE`](crate::MAX_HASH_OUTPUT_SIZE); this bound is checked
-/// at compile time.
+/// `H::OUTPUT_SIZE` must be smaller than or equal to [`MAX_HASH_OUTPUT_SIZE`];
+/// this bound is checked at compile time.
 ///
 /// # Example
 ///

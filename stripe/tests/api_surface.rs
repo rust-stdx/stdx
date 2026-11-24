@@ -91,23 +91,18 @@ fn type_contract(client: &Client) {
 }
 
 #[test]
-fn types_are_defined_in_their_resource_module() {
-    // `type_name` reports the defining path, so this pins where a type lives.
-    assert_eq!(type_name::<stripe::customers::Customer>(), "stripe::customers::Customer");
-    assert_eq!(
-        type_name::<stripe::customers::GetCustomerParams>(),
-        "stripe::customers::GetCustomerParams"
+fn types_are_re_exported_from_their_resource_module() {
+    // The defining crate is an implementation detail; the public path is the
+    // resource module on the `stripe` facade.
+    assert!(type_name::<stripe::customers::Customer>().ends_with("::customers::Customer"));
+    assert!(type_name::<stripe::customers::GetCustomerParams>().ends_with("::customers::GetCustomerParams"));
+    assert!(
+        type_name::<stripe::checkout::CreateCheckoutSessionParams>()
+            .ends_with("::checkout::CreateCheckoutSessionParams")
     );
-    assert_eq!(
-        type_name::<stripe::checkout::CreateCheckoutSessionParams>(),
-        "stripe::checkout::CreateCheckoutSessionParams"
-    );
-    assert_eq!(
-        type_name::<stripe::payment_intents::PaymentIntent>(),
-        "stripe::payment_intents::PaymentIntent"
-    );
+    assert!(type_name::<stripe::payment_intents::PaymentIntent>().ends_with("::payment_intents::PaymentIntent"));
     // Shared shapes live in `common`, not in a resource module.
-    assert_eq!(type_name::<stripe::common::Address>(), "stripe::common::Address");
+    assert!(type_name::<stripe::common::Address>().ends_with("::common::Address"));
 }
 
 #[test]

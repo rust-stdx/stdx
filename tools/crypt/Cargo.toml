@@ -19,4 +19,4 @@ crypto = { path = "../../crypto" }
 term = { path = "../../term" }
 zeroize = { path = "../../zeroize", default-features = false, features = ["derive", "alloc"] }
 
-rand = { workspace = true }
+rand = { workspace = true, features = ["thread_rng"] }

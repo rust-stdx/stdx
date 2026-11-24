@@ -20,4 +20,4 @@ count_instructions_test = []
 [dev-dependencies]
 count_instructions = { path = "../count_instructions" }
 
-rand = { workspace = true }
+rand = { workspace = true, features = ["std_rng"] }

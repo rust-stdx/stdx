@@ -14,9 +14,9 @@ proc-macro = true
 [dependencies]
 embed_utils = { path = "../embed_utils"}
 
-proc-macro2 = { workspace = true }
-quote = { workspace = true }
-syn = { workspace = true }
+proc-macro2 = { workspace = true, features = ["proc-macro"] }
+quote = { workspace = true, features = ["proc-macro"] }
+syn = { workspace = true, features = ["derive", "parsing", "printing", "proc-macro"] }
 # [dependencies.shellexpand]
 # version = "3"
 # optional = true

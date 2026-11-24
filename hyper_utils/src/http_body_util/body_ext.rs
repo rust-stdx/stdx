@@ -1,10 +1,8 @@
 use crate::http_body_util::{Frame, combinators};
 
-/// An extension trait for [`http_body::Body`] adding various combinators and adapters
+/// An extension trait for [`hyper::body::Body`] adding various combinators and adapters
 pub trait BodyExt: hyper::body::Body {
     /// Returns a future that resolves to the next [`Frame`], if any.
-    ///
-    /// [`Frame`]: combinators::Frame
     fn frame(&mut self) -> Frame<'_, Self>
     where
         Self: Unpin,
@@ -12,7 +10,7 @@ pub trait BodyExt: hyper::body::Body {
         Frame(self)
     }
 
-    /// Turn this body into [`Collected`] body which will collect all the DATA frames
+    /// Turn this body into [`Collected`](crate::http_body_util::Collected) body which will collect all the DATA frames
     /// and trailers.
     fn collect(self) -> combinators::Collect<Self>
     where

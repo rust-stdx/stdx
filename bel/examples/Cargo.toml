@@ -11,7 +11,7 @@ repository.workspace = true
 workspace = true
 
 [features]
-axum = ["dep:axum", "dep:tokio", "dep:thiserror"]
+hyper = ["dep:bytes", "dep:hyper", "dep:hyper_utils", "dep:serde_json", "dep:thiserror", "dep:tokio"]
 json = ["dep:json", "bel/json"]
 time = ["dep:time", "bel/time"]
 anyhow = ["dep:anyerr"]
@@ -21,13 +21,16 @@ ip = ["bel/ip"]
 [dependencies]
 anyerr = { path = "../../anyerr", optional = true }
 bel = { path = "..", default-features = false }
+hyper_utils = { path = "../../hyper_utils", optional = true }
 json = { path = "../../json", optional = true }
 thiserror = { path = "../../thiserror", optional = true }
 time = { path = "../../time", optional = true }
 
-axum = { workspace = true, optional = true }
+bytes = { workspace = true, optional = true }
+hyper = { workspace = true, optional = true, features = ["http1", "server"] }
 serde = { workspace = true, features = ["derive", "std"] }
-tokio = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true, features = ["std"] }
+tokio = { workspace = true, optional = true, features = ["macros", "rt-multi-thread", "net"] }
 
 [[bin]]
 name = "simple"
@@ -52,9 +55,9 @@ name = "serde"
 path = "src/serde.rs"
 
 [[bin]]
-name = "axum"
-path = "src/axum.rs"
-required-features = ["axum"]
+name = "hyper"
+path = "src/hyper.rs"
+required-features = ["hyper"]
 
 [[bin]]
 name = "json"

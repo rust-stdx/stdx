@@ -31,7 +31,7 @@
 //!
 //! Migrate this directory to the FIDO Metadata Service
 //! (<https://fidoalliance.org/metadata/>), which replaces the deprecated
-//! https://github.com/passkeydeveloper/passkey-authenticator-aaguids
+//! <https://github.com/passkeydeveloper/passkey-authenticator-aaguids>
 //!
 #![no_std]
 

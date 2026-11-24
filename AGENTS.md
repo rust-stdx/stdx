@@ -37,6 +37,9 @@ Packages must declare external dependencies through the workspace, using
 `dependency = { workspace = true }`. No package may declare an external
 dependency directly (with its own `version` or `git` source).
 
+Every entry in `[workspace.dependencies]` must set `default-features = false`
+and must not list `features`; each package opts into the exact features it needs.
+
 In every dependency table (`[dependencies]`, `[dev-dependencies]`,
 `[build-dependencies]`, and target-specific dependency tables), list the
 workspace-local path dependencies first, alphabetically, then a blank line,

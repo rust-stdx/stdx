@@ -3,11 +3,11 @@ mod hostname;
 pub use hostname::hostname;
 
 /// Splits the host part and the port part from an hostname
-/// - "127.0.0.1" -> ("127.0.0.1", "")
-/// - "127.0.0.1:80" -> ("127.0.0.1", "80")
-/// - "[::1]" -> ("::1", "")
-/// - "[::1]:8080" -> ("::1", "8080")
-/// - "localhost:8080" -> ("localhost", "8080")
+/// - `"127.0.0.1"` -> ("127.0.0.1", "")
+/// - `"127.0.0.1:80"` -> ("127.0.0.1", "80")
+/// - `"[::1]"` -> ("::1", "")
+/// - `"[::1]:8080"` -> ("::1", "8080")
+/// - `"localhost:8080"` -> ("localhost", "8080")
 pub fn split_host_port(input: &str) -> (&str, &str) {
     if let Some(index) = input.rfind(':') {
         if index == (input.len() - 1) {

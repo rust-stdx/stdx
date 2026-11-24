@@ -15,7 +15,7 @@ use super::buf_list::BufList;
 /// A collected body produced by [`BodyExt::collect`] which collects all the DATA frames
 /// and trailers.
 ///
-/// [`BodyExt::collect`]: crate::BodyExt::collect
+/// [`BodyExt::collect`]: crate::http_body_util::BodyExt::collect
 #[derive(Debug)]
 pub struct Collected<B> {
     bufs: BufList<B>,

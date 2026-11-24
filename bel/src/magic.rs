@@ -127,7 +127,7 @@ pub(crate) trait FromContext<'a, 'context> {
 ///
 /// # Type of `This`
 /// This also accepts a type `T` which determines the specific type
-/// that's extracted. Any type that supports [`FromValue`] can be used.
+/// that's extracted. Any type that supports `FromValue` can be used.
 /// In the previous example, the method `starts_with` is only ever called
 /// on a string, so we can use `This<Rc<String>>` to extract the string
 /// automatically prior to our method actually being called.

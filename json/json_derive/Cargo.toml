@@ -18,6 +18,6 @@ proc-macro = true
 default = []
 
 [dependencies]
-proc-macro2 = { workspace = true }
-quote = { workspace = true }
-syn = { workspace = true, features = ["visit", "clone-impls"] }
+proc-macro2 = { workspace = true, features = ["proc-macro"] }
+quote = { workspace = true, features = ["proc-macro"] }
+syn = { workspace = true, features = ["derive", "parsing", "printing", "proc-macro", "visit", "clone-impls"] }

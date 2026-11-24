@@ -1,8 +1,7 @@
 use std::ffi::OsString;
 
-/// Get the standard host name for the current machine using libc (POSIX `gethostname`).
-/// [gethostname]: http://pubs.opengroup.org/onlinepubs/9699919799/functions/gethostname.html
-/// [sysconf]: http://pubs.opengroup.org/onlinepubs/9699919799/functions/sysconf.html
+/// Get the standard host name for the current machine using libc
+/// ([POSIX `gethostname`](http://pubs.opengroup.org/onlinepubs/9699919799/functions/gethostname.html)).
 pub fn hostname() -> OsString {
     use std::os::unix::ffi::OsStringExt;
 

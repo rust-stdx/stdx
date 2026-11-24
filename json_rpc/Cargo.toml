@@ -17,4 +17,4 @@ path = "src/json_rpc.rs"
 json = { path = "../json", features = ["derive"] }
 
 [dev-dependencies]
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "net", "io-util"] }

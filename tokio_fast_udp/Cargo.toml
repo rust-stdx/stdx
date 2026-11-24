@@ -14,7 +14,10 @@ workspace = true
 path = "./tokio_fast_udp.rs"
 
 [dependencies]
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["net"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "time"] }
 
 [target.'cfg(unix)'.dependencies]
-libc = { workspace = true }
+libc = { workspace = true, features = ["std"] }

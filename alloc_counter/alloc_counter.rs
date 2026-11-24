@@ -1,7 +1,7 @@
 //! Per-thread allocation counting for tests.
 //!
-//! Linking this crate installs a counting [`GlobalAlloc`](std::alloc::GlobalAlloc)
-//! wrapper around [`System`](std::alloc::System). Every test binary that uses it
+//! Linking this crate installs a counting [`GlobalAlloc`]
+//! wrapper around [`System`]. Every test binary that uses it
 //! can then measure how many allocations a piece of code performs:
 //!
 //! ```

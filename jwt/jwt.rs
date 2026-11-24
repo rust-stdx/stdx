@@ -169,49 +169,49 @@ pub static SYSTEM_CLOCK: SystemClock = SystemClock;
 #[derive(Debug, Clone, PartialEq, Eq, json::Encode, json::Decode)]
 pub struct Header {
     /// The only valid value is "JWT"
-    /// https://tools.ietf.org/html/rfc7519#section-5.1
+    /// <https://tools.ietf.org/html/rfc7519#section-5.1>
     pub typ: TokenType,
 
-    /// ttps://tools.ietf.org/html/rfc7515#section-4.1.1
+    /// <https://tools.ietf.org/html/rfc7515#section-4.1.1>
     pub alg: Algorithm,
 
     /// Content type
-    /// https://tools.ietf.org/html/rfc7519#section-5.2
+    /// <https://tools.ietf.org/html/rfc7519#section-5.2>
     #[json(skip_serializing_if = "Option::is_none")]
     pub cty: Option<SmallString<3>>,
 
     /// JSON Key URL
-    /// https://tools.ietf.org/html/rfc7515#section-4.1.2
+    /// <https://tools.ietf.org/html/rfc7515#section-4.1.2>
     #[json(skip_serializing_if = "Option::is_none")]
     pub jku: Option<String>,
 
     /// JSON Web Key
-    /// https://tools.ietf.org/html/rfc7515#section-4.1.3
+    /// <https://tools.ietf.org/html/rfc7515#section-4.1.3>
     // #[json(skip_serializing_if = "Option::is_none")]
     // pub jwk: Option<Jwk>,
 
     /// Key ID
-    /// https://tools.ietf.org/html/rfc7515#section-4.1.4
+    /// <https://tools.ietf.org/html/rfc7515#section-4.1.4>
     #[json(skip_serializing_if = "Option::is_none")]
     pub kid: Option<SmallString<36>>, // 36 = UUID length
 
     /// X.509 URL
-    /// https://tools.ietf.org/html/rfc7515#section-4.1.5
+    /// <https://tools.ietf.org/html/rfc7515#section-4.1.5>
     #[json(skip_serializing_if = "Option::is_none")]
     pub x5u: Option<String>,
 
     /// X.509 certificate chain.
-    /// https://tools.ietf.org/html/rfc7515#section-4.1.6
+    /// <https://tools.ietf.org/html/rfc7515#section-4.1.6>
     #[json(skip_serializing_if = "Option::is_none")]
     pub x5c: Option<Vec<String>>,
 
     /// X.509 SHA1 certificate Thumbprint
-    /// https://tools.ietf.org/html/rfc7515#section-4.1.7
+    /// <https://tools.ietf.org/html/rfc7515#section-4.1.7>
     #[json(skip_serializing_if = "Option::is_none")]
     pub x5t: Option<SmallString<27>>, // 27 = base64_encoded_length(20)
 
     /// X.509 SHA256 certificate Thumbprint
-    /// https://tools.ietf.org/html/rfc7515#section-4.1.8
+    /// <https://tools.ietf.org/html/rfc7515#section-4.1.8>
     #[json(skip_serializing_if = "Option::is_none")]
     #[json(rename = "x5t#S256")]
     pub x5t_s256: Option<SmallString<43>>, // 43 = base64_encoded_length(32)
@@ -233,41 +233,41 @@ impl Default for Header {
     }
 }
 
-/// Registered claim names from https://www.rfc-editor.org/rfc/rfc7519#section-4.1
+/// Registered claim names from <https://www.rfc-editor.org/rfc/rfc7519#section-4.1>
 #[derive(Debug, Clone, PartialEq, Eq, json::Encode, json::Decode, Hash)]
 pub struct RegisteredClaims {
     /// Issuer
-    /// https://www.rfc-editor.org/rfc/rfc7519#section-4.1.1
+    /// <https://www.rfc-editor.org/rfc/rfc7519#section-4.1.1>
     #[json(skip_serializing_if = "Option::is_none")]
     pub iss: Option<SmallString<20>>,
 
     /// Subject
-    /// https://www.rfc-editor.org/rfc/rfc7519#section-4.1.2
+    /// <https://www.rfc-editor.org/rfc/rfc7519#section-4.1.2>
     #[json(skip_serializing_if = "Option::is_none")]
     pub sub: Option<SmallString<36>>, // 36 = UUID length
 
     /// Audience
-    /// https://www.rfc-editor.org/rfc/rfc7519#section-4.1.3
+    /// <https://www.rfc-editor.org/rfc/rfc7519#section-4.1.3>
     #[json(skip_serializing_if = "Option::is_none")]
     pub aud: Option<SmallString<20>>,
 
     /// Expiration Time
-    /// https://www.rfc-editor.org/rfc/rfc7519#section-4.1.4
+    /// <https://www.rfc-editor.org/rfc/rfc7519#section-4.1.4>
     #[json(skip_serializing_if = "Option::is_none")]
     pub exp: Option<u64>,
 
     /// Not Before
-    /// https://www.rfc-editor.org/rfc/rfc7519#section-4.1.5
+    /// <https://www.rfc-editor.org/rfc/rfc7519#section-4.1.5>
     #[json(skip_serializing_if = "Option::is_none")]
     pub nbf: Option<u64>,
 
     /// Issued At
-    /// https://www.rfc-editor.org/rfc/rfc7519#section-4.1.6
+    /// <https://www.rfc-editor.org/rfc/rfc7519#section-4.1.6>
     #[json(skip_serializing_if = "Option::is_none")]
     pub iat: Option<u64>,
 
     /// JWT ID
-    /// https://www.rfc-editor.org/rfc/rfc7519#section-4.1.7
+    /// <https://www.rfc-editor.org/rfc/rfc7519#section-4.1.7>
     #[json(skip_serializing_if = "Option::is_none")]
     pub jti: Option<SmallString<36>>,
 }

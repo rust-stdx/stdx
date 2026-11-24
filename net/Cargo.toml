@@ -14,4 +14,4 @@ workspace = true
 path = "./net.rs"
 
 [dependencies]
-libc = { workspace = true }
+libc = { workspace = true, features = ["std"] }

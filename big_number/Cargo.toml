@@ -27,4 +27,4 @@ alloc_counter = { path = "../alloc_counter" }
 crypto = { path = "../crypto" }
 hex = { path = "../hex" }
 
-rand = { workspace = true }
+rand = { workspace = true, features = ["std_rng"] }

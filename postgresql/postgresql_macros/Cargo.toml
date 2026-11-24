@@ -21,8 +21,8 @@ percent_encoding = { path = "../../percent_encoding" }
 postgresql_protocol = { path = "../postgresql_protocol" }
 
 bytes = { workspace = true }
-proc-macro2 = { workspace = true }
-quote = { workspace = true }
-rustls = { workspace = true }
-syn = { workspace = true }
-url = { workspace = true }
+proc-macro2 = { workspace = true, features = ["proc-macro"] }
+quote = { workspace = true, features = ["proc-macro"] }
+rustls = { workspace = true, features = ["std"] }
+syn = { workspace = true, features = ["derive", "parsing", "printing", "proc-macro"] }
+url = { workspace = true, features = ["std"] }

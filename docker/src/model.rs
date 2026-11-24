@@ -17,7 +17,7 @@ pub struct ListContainersOptions {
     pub size: bool,
 
     /// See Docker's documentation to learn how to use filters
-    /// https://docs.docker.com/reference/cli/docker/container/ls/#filter
+    /// <https://docs.docker.com/reference/cli/docker/container/ls/#filter>
     #[json(encode_with = "serialize_as_json")]
     pub filters: HashMap<String, Vec<String>>,
 }

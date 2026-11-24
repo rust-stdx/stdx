@@ -397,7 +397,7 @@ pub(crate) const fn quarter_round(state: &mut [u32; 16], a: usize, b: usize, c: 
 
 /// XChaCha stream cipher with a 24-byte (192-bit) nonce.
 ///
-/// The first 16 nonce bytes are processed with [`hchacha20`] to derive a
+/// The first 16 nonce bytes are processed with `hchacha20` to derive a
 /// subkey. `IS_IETF` selects the inner ChaCha layout:
 ///
 /// - `true` ([`XChaCha20Ietf`]): the IETF (RFC 8439) layout, with a 32-bit

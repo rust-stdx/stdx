@@ -14,7 +14,7 @@ workspace = true
 path = "./landlock.rs"
 
 [target.'cfg(any(target_os = "linux", target_os = "android"))'.dependencies]
-libc = { workspace = true }
+libc = { workspace = true, features = ["std"] }
 
 [target.'cfg(any(target_os = "linux", target_os = "android"))'.dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }

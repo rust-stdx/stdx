@@ -266,6 +266,8 @@ impl<'a> fmt::Display for BuildMetadata<'a> {
 /// assert_eq!(v.patch, 3);
 /// assert_eq!(v.to_string(), "1.2.3-alpha.1+build.42");
 /// ```
+///
+/// ```
 /// use semver::parse;
 ///
 /// let a = parse("1.0.0+build1").unwrap();

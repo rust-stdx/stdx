@@ -312,12 +312,12 @@ impl<const ROUNDS: usize> KeccakSponge<ROUNDS> {
 ///
 /// With `std`, the best implementation the CPU supports is selected at run
 /// time: AVX-512F or AVX2 on x86-64 (detected once per process and cached; see
-/// [`PermuteBackend::detect`]) and FEAT_SHA3 on aarch64. Without `std`, the
+/// `PermuteBackend::detect`) and FEAT_SHA3 on aarch64. Without `std`, the
 /// compile-time `target_feature`s are used instead. Everywhere else the
 /// portable implementation is used.
 ///
 /// Callers that permute more than one block should detect once with
-/// [`PermuteBackend::detect`] and call [`p1600_with`] instead; [`KeccakSponge`]
+/// `PermuteBackend::detect` and call `p1600_with` instead; [`KeccakSponge`]
 /// already does.
 ///
 /// Instantiating this function with `ROUNDS > 24` fails to compile.

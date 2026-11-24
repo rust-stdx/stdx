@@ -25,6 +25,6 @@ json = { path = "../json", features = ["derive"] }
 thiserror = { path = "../thiserror" }
 
 bytes = { workspace = true }
-hyper = { workspace = true }
-tokio = { workspace = true }
-tracing = { workspace = true }
+hyper = { workspace = true, features = ["client", "http1"] }
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "net", "sync"] }
+tracing = { workspace = true, features = ["std"] }

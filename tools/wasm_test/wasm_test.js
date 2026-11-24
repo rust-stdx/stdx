@@ -182,7 +182,7 @@ function names(members) {
 // Returns the names of the workspace members and the set of workspace members
 // that transitively depend on tokio.
 function analyzeWorkspace() {
-  const metadata = JSON.parse(capture('cargo', ['metadata', '--format-version', '1']));
+  const metadata = JSON.parse(capture('cargo', ['metadata', '--locked', '--format-version', '1']));
 
   const nameById = new Map(metadata.packages.map((pkg) => [pkg.id, pkg.name]));
   const nodeById = new Map(metadata.resolve.nodes.map((node) => [node.id, node]));
@@ -254,7 +254,7 @@ function checkCrates(members, selected, options) {
   const passed = [];
   const failed = [];
   for (const member of candidates) {
-    const result = tryCapture('cargo', ['check', '--lib', '--target', options.target, '-p', member.name, ...featureArgs]);
+    const result = tryCapture('cargo', ['check', '--locked', '--lib', '--target', options.target, '-p', member.name, ...featureArgs]);
     if (result.success) {
       passed.push(member);
       process.stdout.write(`  ok    ${member.name}\n`);
@@ -354,7 +354,7 @@ function main() {
   const skippedBuild = [];
   for (const member of candidates) {
     process.stdout.write(`====> probe ${member.name}\n`);
-    const code = run('cargo', ['test', '--no-run', '--target', options.target, '-p', member.name, ...featureArgs]);
+    const code = run('cargo', ['test', '--locked', '--no-run', '--target', options.target, '-p', member.name, ...featureArgs]);
     if (code === 0) {
       buildable.push(member);
     } else {
@@ -366,7 +366,7 @@ function main() {
   const failed = [];
   for (const member of buildable) {
     process.stdout.write(`====> test ${member.name}\n`);
-    const code = run('cargo', ['test', '--target', options.target, '-p', member.name, ...featureArgs]);
+    const code = run('cargo', ['test', '--locked', '--target', options.target, '-p', member.name, ...featureArgs]);
     if (code !== 0) failed.push(member);
     process.stdout.write('\n');
   }

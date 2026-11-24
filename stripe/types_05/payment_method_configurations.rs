@@ -1,0 +1,193 @@
+#[cfg(feature = "payment_method_configurations")]
+#[derive(Debug, Clone, Default)]
+pub struct CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreference {
+    #[doc = "The account's preference for whether or not to display this payment method."]
+    pub preference: Option<stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference>,
+}
+
+#[cfg(feature = "payment_method_configurations")]
+impl crate::params::FormEncode for CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreference {
+    fn encode_form(&self, form: &mut crate::params::FormBuilder) {
+        form.field_opt("preference", self.preference.as_ref());
+    }
+}
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsAfterpayClearpayDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsAlipayDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsAuBecsDebitDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsBacsDebitDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsBizumDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsBoletoDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsCardDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsCartesBancairesDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsCashappDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsEpsDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsFrMealVoucherConecsDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsGrabpayDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsJcbDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsKakaoPayDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsKlarnaDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsMbWayDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsMobilepayDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsMultibancoDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsNzBankAccountDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsOxxoDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsPaynowDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsPaypayDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsPaytoDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsPixDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsPromptpayDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsSamsungPayDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsSatispayDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsSofortDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsTwintDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsWechatPayDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type CreatePaymentMethodConfigurationParamsZipDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsAffirmDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsAmazonPayDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsApplePayDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsApplePayLaterDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsBillieDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsBlikDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsCartesBancairesDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsCashappDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsCryptoDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsFpxDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsGooglePayDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsGrabpayDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsIdealDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsKrCardDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsLinkDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsMultibancoDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsNaverPayDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsP24DisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsPayByBankDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsPaycoDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsPaypalDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsSamsungPayDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsScalapayDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsSepaDebitDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsSequraDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsSunbitDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsSwishDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsUpiDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;
+
+#[cfg(feature = "payment_method_configurations")]
+pub type UpdatePaymentMethodConfigurationParamsUsBankAccountDisplayPreferencePreference = stripe_types_04::payment_method_configurations::CreatePaymentMethodConfigurationParamsAcssDebitDisplayPreferencePreference;

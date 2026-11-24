@@ -16,4 +16,4 @@ path = "./term.rs"
 [dependencies]
 thiserror = { path = "../thiserror" }
 
-libc = { workspace = true }
+libc = { workspace = true, features = ["std"] }

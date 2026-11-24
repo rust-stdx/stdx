@@ -15,7 +15,7 @@ default = ["regex", "time", "ip"]
 ip = ["dep:ipnetwork"]
 json = ["dep:json", "dep:base64"]
 regex = ["dep:regex"]
-time = ["dep:time"]
+time = ["dep:time", "dep:nom"]
 # arbitrary = ["dep:arbitrary", "time?/arbitrary", "time?/std"]
 # dhat-heap = [ ] # if you are doing heap profiling
 
@@ -28,13 +28,13 @@ thiserror = { path = "../thiserror" }
 time = { path = "../time", optional = true, features = ["serde"] }
 
 antlr4rust = { workspace = true }
-arbitrary = { workspace = true, optional = true }
-nom = { workspace = true }
+arbitrary = { workspace = true, optional = true, features = ["derive"] }
+nom = { workspace = true, optional = true, features = ["std"] }
 paste = { workspace = true }
-regex = { workspace = true, optional = true }
+regex = { workspace = true, optional = true, features = ["std", "perf", "unicode"] }
 serde = { workspace = true, features = ["derive", "std"] }
 
 [dev-dependencies]
 serde_bytes = { path = "../serde_bytes" }
 
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["std"] }

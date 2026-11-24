@@ -1,6 +1,6 @@
 //! Budgets for the generated API surface.
 //!
-//! `stripe/api` is generated, so its size is a build-cost decision as much as a
+//! The generated type and method trees are large, so their size is a build-cost decision as much as a
 //! code-size one: every generated type, `impl` block and doc line is work rustc
 //! does on every `cargo check` and every test build. The budgets below are the
 //! measured values with a small margin, so a change that balloons the surface
@@ -34,9 +34,9 @@ const MAX_GATE_FEATURES: usize = 140_000;
 
 /// The modules the crate documentation promises the `core` umbrella covers.
 ///
-/// `core` is the default feature set, so dropping one of these would silently
-/// remove checkout, subscriptions, metered billing, the customer portal, or
-/// payments from a build that asks for nothing in particular.
+/// `core` is the umbrella the documentation advertises, so dropping one of
+/// these would silently remove checkout, subscriptions, metered billing, the
+/// customer portal, or payments from a build that asks for it.
 const CORE_ESSENTIALS: &[&str] = &[
     "billing",        // meters, meter events: metered usage
     "billing_portal", // the customer portal
@@ -68,12 +68,34 @@ const CORE_ESSENTIALS: &[&str] = &[
 ];
 
 fn generated_files() -> Vec<PathBuf> {
-    let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("api");
-    let mut files: Vec<PathBuf> = fs::read_dir(&directory)
-        .expect("the generated api directory")
-        .map(|entry| entry.expect("directory entry").path())
-        .filter(|path| path.extension().and_then(|extension| extension.to_str()) == Some("rs"))
-        .collect();
+    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut files = Vec::new();
+    let api = manifest.join("api");
+    for entry in fs::read_dir(&api).expect("the generated api directory") {
+        let path = entry.expect("directory entry").path();
+        if path.extension().and_then(|extension| extension.to_str()) == Some("rs")
+            && path.file_name().and_then(|name| name.to_str()) != Some("lib.rs")
+        {
+            files.push(path);
+        }
+    }
+    for shard in fs::read_dir(manifest).expect("the generated crate directory") {
+        let shard = shard.expect("directory entry").path();
+        let Some(name) = shard.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        if !shard.is_dir() || !name.starts_with("types_") {
+            continue;
+        }
+        for entry in fs::read_dir(&shard).expect("the shard directory") {
+            let path = entry.expect("directory entry").path();
+            if path.extension().and_then(|extension| extension.to_str()) == Some("rs")
+                && path.file_name().and_then(|name| name.to_str()) != Some("lib.rs")
+            {
+                files.push(path);
+            }
+        }
+    }
     files.sort();
     assert!(files.len() > 50, "expected the generated modules, found {}", files.len());
     files
@@ -145,31 +167,54 @@ fn every_generated_module_is_referenced_by_the_crate_root() {
     // A module file that no `mod` declaration points at would never be compiled
     // (and never noticed).
     let root = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("stripe.rs")).expect("crate root");
-    for file in generated_files() {
-        let module = file.file_stem().and_then(|stem| stem.to_str()).expect("module name");
+    for module in generated_files()
+        .iter()
+        .filter_map(|file| file.file_stem().and_then(|stem| stem.to_str()))
+    {
         assert!(
-            root.contains(&format!("api/{module}.rs")),
+            root.contains(&format!("pub mod {module}")),
             "`{module}` is generated but not declared in stripe.rs"
         );
     }
 }
 
-#[test]
-fn the_core_umbrella_covers_the_documented_essentials() {
-    // `core` is the default feature set and the crate documentation lists what
-    // it covers; this keeps the two in step.
-    let manifest = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml")).expect("Cargo.toml");
+/// Parses the `core = [...]` feature list out of the manifest.
+///
+/// Splits on commas instead of lines so the list may be laid out on one line or
+/// one entry per line, with or without `#` comments.
+fn core_feature_list(manifest: &str) -> Vec<String> {
     let start = manifest.find("core = [").expect("a `core` feature");
     let end = start + manifest[start..].find(']').expect("the end of the `core` list");
-    let listed: Vec<&str> = manifest[start..end]
+    let block = &manifest[start + "core = [".len()..end];
+    // Drop `#` comments line by line so a comment on its own line cannot hide
+    // the entry that follows it on the next line.
+    let block = block
         .lines()
-        .filter_map(|line| line.split('"').nth(1))
-        .collect();
+        .map(|line| line.split('#').next().unwrap_or(line))
+        .collect::<Vec<_>>()
+        .join("\n");
+    block
+        .split(',')
+        .filter_map(|entry| {
+            let start = entry.find('"')?;
+            let rest = &entry[start + 1..];
+            let end = rest.find('"')?;
+            Some(rest[..end].to_string())
+        })
+        .collect()
+}
+
+#[test]
+fn the_core_umbrella_covers_the_documented_essentials() {
+    // `core` is the feature set the crate documentation promises and lists; this
+    // keeps the two in step.
+    let manifest = fs::read_to_string(Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml")).expect("Cargo.toml");
+    let listed = core_feature_list(&manifest);
 
     for module in CORE_ESSENTIALS {
         assert!(
-            listed.contains(module),
-            "`core` no longer includes `{module}`; the default build would lose it"
+            listed.iter().any(|feature| feature.as_str() == *module),
+            "`core` no longer includes `{module}`; builds that ask for it would lose it"
         );
     }
     assert!(
@@ -178,4 +223,13 @@ fn the_core_umbrella_covers_the_documented_essentials() {
         listed.len(),
         CORE_ESSENTIALS.len()
     );
+}
+
+#[test]
+fn the_core_list_parser_accepts_any_layout() {
+    let one_line = "[features]\ncore = [\"billing\", \"checkout\"]\n";
+    assert_eq!(core_feature_list(one_line), ["billing", "checkout"]);
+
+    let multi_line = "[features]\ncore = [\n    # selling\n    \"billing\",\n    \"checkout\",\n]\n";
+    assert_eq!(core_feature_list(multi_line), ["billing", "checkout"]);
 }

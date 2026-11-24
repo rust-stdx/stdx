@@ -123,11 +123,11 @@ pub enum ExecutionError {
     /// Indicates that an unsupported type was used to index a list
     #[error("Cannot use value {0:?} to index {1:?}")]
     UnsupportedIndex(Value, Value),
-    /// Indicates that a function call occurred without an [`Expression::Ident`]
+    /// Indicates that a function call occurred without an `Expression::Ident`
     /// as the function identifier.
     #[error("Unsupported function call identifier type: {0:?}")]
     UnsupportedFunctionCallIdentifierType(Expression),
-    /// Indicates that a [`Member::Fields`] construction was attempted
+    /// Indicates that a `Member::Fields` construction was attempted
     /// which is not yet supported.
     #[error("Unsupported fields construction: {0:?}")]
     UnsupportedFieldsConstruction(SelectExpr),

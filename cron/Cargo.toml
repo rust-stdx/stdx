@@ -20,7 +20,7 @@ path = "_tests/lib.rs"
 [dependencies]
 time = { path = "../time" }
 
-nom = { workspace = true }
+nom = { workspace = true, features = ["std"] }
 # once_cell = "1.10"
 # [dev-dependencies]
 # chrono-tz = "~0.6"

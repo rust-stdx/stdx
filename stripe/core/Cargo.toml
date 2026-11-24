@@ -1,0 +1,30 @@
+[package]
+name = "stripe_core"
+version = "0.1.0"
+description = "Hand-written core of the stdx Stripe client."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+path = "lib.rs"
+
+[features]
+default = []
+reqwest = ["dep:reqwest", "dep:tokio"]
+
+[dependencies]
+constant_time_eq = { path = "../../constant_time_eq" }
+crypto = { path = "../../crypto" }
+json = { path = "../../json", features = ["derive"] }
+uuid = { path = "../../uuid" }
+zeroize = { path = "../../zeroize" }
+
+bytes = { workspace = true }
+futures-util = { workspace = true, features = ["std"] }
+reqwest = { workspace = true, optional = true, features = ["stream"] }
+tokio = { workspace = true, optional = true, features = ["time"] }

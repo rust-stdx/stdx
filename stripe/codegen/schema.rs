@@ -132,7 +132,7 @@ pub struct Model {
     pub spec_version: String,
     /// For each type (by FQN), the modules whose generated methods can reach
     /// it. Response types are compiled only when one of these features is
-    /// enabled; see [`Builder::compute_gating`].
+    /// enabled; see `Builder::compute_gating`.
     pub gating: BTreeMap<String, BTreeSet<String>>,
 }
 

@@ -20,3 +20,5 @@ path = "main.rs"
 
 [dependencies]
 json = { path = "../../json" }
+
+regex = { workspace = true, features = ["std", "perf", "unicode"] }

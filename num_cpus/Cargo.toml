@@ -11,4 +11,4 @@ repository.workspace = true
 workspace = true
 
 [target.'cfg(any(target_os = "openbsd", target_os = "macos", target_os = "aix"))'.dependencies]
-libc = { workspace = true }
+libc = { workspace = true, features = ["std"] }

@@ -1,8 +1,11 @@
 [package]
 name = "hyper_utils"
 version = "0.1.0"
+description = "Utilities for building hyper clients and servers on top of tokio."
 edition.workspace = true
 rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lints]
 workspace = true
@@ -11,6 +14,9 @@ workspace = true
 pin-project-lite = { path = "../pin_project_lite" }
 
 bytes = { workspace = true }
-futures-util = { workspace = true }
+futures-util = { workspace = true, features = ["std"] }
 hyper = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["rt", "sync", "time"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros"] }

@@ -431,7 +431,7 @@ pub const fn encode_into_constant_time(output: &mut [u8], data: &[u8], alphabet:
     Ok(())
 }
 
-/// Appends the base32-encoded representation of `data` to a [`String`].
+/// Appends the base32-encoded representation of `data` to a `String`.
 ///
 /// # Example
 ///

@@ -118,7 +118,7 @@ impl<K, V> Group<K, V>
 where
     K: Eq + Hash,
 {
-    /// Tells the `Group` to forget about a key. Future calls to [`call_async`]
+    /// Tells the `Group` to forget about a key. Future calls to `call_async`
     /// for this key will execute the function rather than waiting for an
     /// earlier call to complete.
     ///

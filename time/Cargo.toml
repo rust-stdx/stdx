@@ -48,7 +48,7 @@ js-sys = { workspace = true, optional = true }
 # `cbor` feature so the library itself remains alloc-free.
 cbor = { path = "../cbor", default-features = false, features = ["alloc"] }
 
-serde_json = { workspace = true }
+serde_json = { workspace = true, features = ["std"] }
 
 [package.metadata.docs.rs]
 all-features = true

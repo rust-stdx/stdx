@@ -1,0 +1,107 @@
+[package]
+name = "stripe_types_09"
+version = "0.1.0"
+description = "Generated Stripe API types (shard 9)."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+path = "lib.rs"
+
+[features]
+default = []
+account = []
+account_links = []
+account_sessions = []
+accounts = []
+apple_pay = []
+application_fees = []
+apps = []
+balance = []
+balance_settings = []
+balance_transactions = []
+billing = []
+billing_portal = []
+charges = []
+checkout = []
+climate = []
+common = []
+confirmation_tokens = []
+country_specs = []
+coupons = []
+credit_notes = []
+customer_sessions = []
+customers = []
+disputes = []
+entitlements = []
+ephemeral_keys = []
+events = []
+exchange_rates = []
+file_links = []
+files = []
+financial_connections = []
+forwarding = []
+identity = []
+invoice_payments = []
+invoice_rendering_templates = []
+invoiceitems = []
+invoices = []
+issuing = []
+mandates = []
+payment_attempt_records = []
+payment_intents = []
+payment_links = []
+payment_method_configurations = []
+payment_method_domains = []
+payment_methods = []
+payment_records = []
+payouts = []
+plans = []
+prices = []
+product_catalog = []
+products = []
+promotion_codes = []
+quotes = []
+radar = []
+refunds = []
+reporting = []
+reviews = []
+setup_attempts = []
+setup_intents = []
+shipping_rates = []
+sigma = []
+sources = []
+subscription_items = []
+subscription_schedules = []
+subscriptions = []
+tax = []
+tax_codes = []
+tax_ids = []
+tax_rates = []
+terminal = []
+test_helpers = []
+three_d_secure = []
+tokens = []
+topups = []
+transfers = []
+treasury = []
+v2_billing = []
+v2_commerce = []
+v2_core = []
+webhook_endpoints = []
+[dependencies]
+stripe_core = { path = "../core" }
+stripe_types_00 = { path = "../types_00" }
+stripe_types_01 = { path = "../types_01" }
+stripe_types_02 = { path = "../types_02" }
+stripe_types_03 = { path = "../types_03" }
+stripe_types_04 = { path = "../types_04" }
+stripe_types_05 = { path = "../types_05" }
+stripe_types_06 = { path = "../types_06" }
+
+json = { path = "../../json", features = ["derive"] }

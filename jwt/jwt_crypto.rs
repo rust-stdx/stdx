@@ -651,7 +651,7 @@ impl Verifier for MlDsa87PublicKey {
 ///
 /// # Constructors
 ///
-/// * [`RsaPublicKey::from_n_e`] — build from raw modulus and exponent bytes (useful with JWK)
+/// * `RsaPublicKey::from_n_e` — build from raw modulus and exponent bytes (useful with JWK)
 /// * [`RsaPublicKey::from_pkcs1_der`] — parse from PKCS#1 DER `SEQUENCE { INTEGER n, INTEGER e }`
 ///
 /// # Errors

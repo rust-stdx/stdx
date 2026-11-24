@@ -1,0 +1,388 @@
+#[cfg(any(
+    feature = "account",
+    feature = "accounts",
+    feature = "application_fees",
+    feature = "balance_transactions",
+    feature = "billing",
+    feature = "charges",
+    feature = "checkout",
+    feature = "confirmation_tokens",
+    feature = "credit_notes",
+    feature = "customer_sessions",
+    feature = "customers",
+    feature = "disputes",
+    feature = "events",
+    feature = "financial_connections",
+    feature = "identity",
+    feature = "invoice_payments",
+    feature = "invoiceitems",
+    feature = "invoices",
+    feature = "issuing",
+    feature = "mandates",
+    feature = "payment_attempt_records",
+    feature = "payment_intents",
+    feature = "payment_links",
+    feature = "payment_methods",
+    feature = "payment_records",
+    feature = "payouts",
+    feature = "promotion_codes",
+    feature = "quotes",
+    feature = "radar",
+    feature = "refunds",
+    feature = "reviews",
+    feature = "setup_attempts",
+    feature = "setup_intents",
+    feature = "sources",
+    feature = "subscription_items",
+    feature = "subscription_schedules",
+    feature = "subscriptions",
+    feature = "tax",
+    feature = "tax_ids",
+    feature = "terminal",
+    feature = "test_helpers",
+    feature = "three_d_secure",
+    feature = "tokens",
+    feature = "topups",
+    feature = "transfers",
+    feature = "treasury"
+))]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
+pub struct Address {
+    #[doc = "City, district, suburb, town, or village."]
+    #[json(default, skip_serializing_if = "Option::is_none")]
+    pub city: Option<String>,
+    #[doc = "Two-letter country code ([ISO 3166-1 alpha-2](https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2))."]
+    #[json(default, skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+    #[doc = "Address line 1, such as the street, PO Box, or company name."]
+    #[json(default, skip_serializing_if = "Option::is_none")]
+    pub line1: Option<String>,
+    #[doc = "Address line 2, such as the apartment, suite, unit, or building."]
+    #[json(default, skip_serializing_if = "Option::is_none")]
+    pub line2: Option<String>,
+    #[doc = "ZIP or postal code."]
+    #[json(default, skip_serializing_if = "Option::is_none")]
+    pub postal_code: Option<String>,
+    #[doc = "State, county, province, or region ([ISO 3166-2](https://en.wikipedia.org/wiki/ISO_3166-2))."]
+    #[json(default, skip_serializing_if = "Option::is_none")]
+    pub state: Option<String>,
+}
+
+#[cfg(any(
+    feature = "account",
+    feature = "accounts",
+    feature = "application_fees",
+    feature = "balance_transactions",
+    feature = "billing",
+    feature = "charges",
+    feature = "checkout",
+    feature = "confirmation_tokens",
+    feature = "credit_notes",
+    feature = "customer_sessions",
+    feature = "customers",
+    feature = "disputes",
+    feature = "events",
+    feature = "financial_connections",
+    feature = "invoice_payments",
+    feature = "invoiceitems",
+    feature = "invoices",
+    feature = "issuing",
+    feature = "mandates",
+    feature = "payment_attempt_records",
+    feature = "payment_intents",
+    feature = "payment_links",
+    feature = "payment_methods",
+    feature = "payment_records",
+    feature = "payouts",
+    feature = "promotion_codes",
+    feature = "quotes",
+    feature = "radar",
+    feature = "refunds",
+    feature = "reviews",
+    feature = "setup_attempts",
+    feature = "setup_intents",
+    feature = "subscription_items",
+    feature = "subscription_schedules",
+    feature = "subscriptions",
+    feature = "tax_ids",
+    feature = "terminal",
+    feature = "test_helpers",
+    feature = "three_d_secure",
+    feature = "tokens",
+    feature = "topups",
+    feature = "transfers",
+    feature = "treasury"
+))]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
+pub struct CustomLogo {
+    #[doc = "Content type of the Dashboard-only CustomPaymentMethodType logo."]
+    #[json(default, skip_serializing_if = "Option::is_none")]
+    pub content_type: Option<String>,
+    #[doc = "URL of the Dashboard-only CustomPaymentMethodType logo."]
+    #[json(default)]
+    pub url: String,
+}
+
+#[cfg(any(
+    feature = "account",
+    feature = "accounts",
+    feature = "application_fees",
+    feature = "balance_transactions",
+    feature = "billing",
+    feature = "charges",
+    feature = "checkout",
+    feature = "confirmation_tokens",
+    feature = "credit_notes",
+    feature = "customer_sessions",
+    feature = "customers",
+    feature = "disputes",
+    feature = "events",
+    feature = "financial_connections",
+    feature = "invoice_payments",
+    feature = "invoiceitems",
+    feature = "invoices",
+    feature = "issuing",
+    feature = "mandates",
+    feature = "payment_attempt_records",
+    feature = "payment_intents",
+    feature = "payment_links",
+    feature = "payment_methods",
+    feature = "payment_records",
+    feature = "payouts",
+    feature = "promotion_codes",
+    feature = "quotes",
+    feature = "radar",
+    feature = "refunds",
+    feature = "reviews",
+    feature = "setup_attempts",
+    feature = "setup_intents",
+    feature = "subscription_items",
+    feature = "subscription_schedules",
+    feature = "subscriptions",
+    feature = "tax_ids",
+    feature = "terminal",
+    feature = "test_helpers",
+    feature = "three_d_secure",
+    feature = "tokens",
+    feature = "topups",
+    feature = "transfers",
+    feature = "treasury"
+))]
+#[derive(Debug, Clone, PartialEq)]
+pub enum LineItemsTaxAmountTaxabilityReason {
+    CustomerExempt,
+    NotCollecting,
+    NotSubjectToTax,
+    NotSupported,
+    PortionProductExempt,
+    PortionReducedRated,
+    PortionStandardRated,
+    ProductExempt,
+    ProductExemptHoliday,
+    ProportionallyRated,
+    ReducedRated,
+    ReverseCharge,
+    StandardRated,
+    TaxableBasisReduced,
+    ZeroRated,
+    /// A value not known to this version of the crate.
+    Unknown(String),
+}
+
+#[cfg(any(
+    feature = "account",
+    feature = "accounts",
+    feature = "application_fees",
+    feature = "balance_transactions",
+    feature = "billing",
+    feature = "charges",
+    feature = "checkout",
+    feature = "confirmation_tokens",
+    feature = "credit_notes",
+    feature = "customer_sessions",
+    feature = "customers",
+    feature = "disputes",
+    feature = "events",
+    feature = "financial_connections",
+    feature = "invoice_payments",
+    feature = "invoiceitems",
+    feature = "invoices",
+    feature = "issuing",
+    feature = "mandates",
+    feature = "payment_attempt_records",
+    feature = "payment_intents",
+    feature = "payment_links",
+    feature = "payment_methods",
+    feature = "payment_records",
+    feature = "payouts",
+    feature = "promotion_codes",
+    feature = "quotes",
+    feature = "radar",
+    feature = "refunds",
+    feature = "reviews",
+    feature = "setup_attempts",
+    feature = "setup_intents",
+    feature = "subscription_items",
+    feature = "subscription_schedules",
+    feature = "subscriptions",
+    feature = "tax_ids",
+    feature = "terminal",
+    feature = "test_helpers",
+    feature = "three_d_secure",
+    feature = "tokens",
+    feature = "topups",
+    feature = "transfers",
+    feature = "treasury"
+))]
+impl LineItemsTaxAmountTaxabilityReason {
+    /// Returns the value as it appears on the wire.
+    pub fn as_str(&self) -> &str {
+        match self {
+            LineItemsTaxAmountTaxabilityReason::CustomerExempt => "customer_exempt",
+            LineItemsTaxAmountTaxabilityReason::NotCollecting => "not_collecting",
+            LineItemsTaxAmountTaxabilityReason::NotSubjectToTax => "not_subject_to_tax",
+            LineItemsTaxAmountTaxabilityReason::NotSupported => "not_supported",
+            LineItemsTaxAmountTaxabilityReason::PortionProductExempt => "portion_product_exempt",
+            LineItemsTaxAmountTaxabilityReason::PortionReducedRated => "portion_reduced_rated",
+            LineItemsTaxAmountTaxabilityReason::PortionStandardRated => "portion_standard_rated",
+            LineItemsTaxAmountTaxabilityReason::ProductExempt => "product_exempt",
+            LineItemsTaxAmountTaxabilityReason::ProductExemptHoliday => "product_exempt_holiday",
+            LineItemsTaxAmountTaxabilityReason::ProportionallyRated => "proportionally_rated",
+            LineItemsTaxAmountTaxabilityReason::ReducedRated => "reduced_rated",
+            LineItemsTaxAmountTaxabilityReason::ReverseCharge => "reverse_charge",
+            LineItemsTaxAmountTaxabilityReason::StandardRated => "standard_rated",
+            LineItemsTaxAmountTaxabilityReason::TaxableBasisReduced => "taxable_basis_reduced",
+            LineItemsTaxAmountTaxabilityReason::ZeroRated => "zero_rated",
+            LineItemsTaxAmountTaxabilityReason::Unknown(value) => value,
+        }
+    }
+}
+
+#[cfg(any(
+    feature = "account",
+    feature = "accounts",
+    feature = "application_fees",
+    feature = "balance_transactions",
+    feature = "billing",
+    feature = "charges",
+    feature = "checkout",
+    feature = "confirmation_tokens",
+    feature = "credit_notes",
+    feature = "customer_sessions",
+    feature = "customers",
+    feature = "disputes",
+    feature = "events",
+    feature = "financial_connections",
+    feature = "invoice_payments",
+    feature = "invoiceitems",
+    feature = "invoices",
+    feature = "issuing",
+    feature = "mandates",
+    feature = "payment_attempt_records",
+    feature = "payment_intents",
+    feature = "payment_links",
+    feature = "payment_methods",
+    feature = "payment_records",
+    feature = "payouts",
+    feature = "promotion_codes",
+    feature = "quotes",
+    feature = "radar",
+    feature = "refunds",
+    feature = "reviews",
+    feature = "setup_attempts",
+    feature = "setup_intents",
+    feature = "subscription_items",
+    feature = "subscription_schedules",
+    feature = "subscriptions",
+    feature = "tax_ids",
+    feature = "terminal",
+    feature = "test_helpers",
+    feature = "three_d_secure",
+    feature = "tokens",
+    feature = "topups",
+    feature = "transfers",
+    feature = "treasury"
+))]
+impl<'json> json::Decode<'json> for LineItemsTaxAmountTaxabilityReason {
+    fn decode(decoder: &mut json::Decoder<'json>) -> json::Result<Self> {
+        decoder.skip_ws()?;
+        if decoder.peek_byte() == Some(b'n') {
+            decoder.decode_null()?;
+            return Ok(LineItemsTaxAmountTaxabilityReason::Unknown(String::new()));
+        }
+        let value = decoder.decode_string()?;
+        Ok(match value.as_str() {
+            "customer_exempt" => LineItemsTaxAmountTaxabilityReason::CustomerExempt,
+            "not_collecting" => LineItemsTaxAmountTaxabilityReason::NotCollecting,
+            "not_subject_to_tax" => LineItemsTaxAmountTaxabilityReason::NotSubjectToTax,
+            "not_supported" => LineItemsTaxAmountTaxabilityReason::NotSupported,
+            "portion_product_exempt" => LineItemsTaxAmountTaxabilityReason::PortionProductExempt,
+            "portion_reduced_rated" => LineItemsTaxAmountTaxabilityReason::PortionReducedRated,
+            "portion_standard_rated" => LineItemsTaxAmountTaxabilityReason::PortionStandardRated,
+            "product_exempt" => LineItemsTaxAmountTaxabilityReason::ProductExempt,
+            "product_exempt_holiday" => LineItemsTaxAmountTaxabilityReason::ProductExemptHoliday,
+            "proportionally_rated" => LineItemsTaxAmountTaxabilityReason::ProportionallyRated,
+            "reduced_rated" => LineItemsTaxAmountTaxabilityReason::ReducedRated,
+            "reverse_charge" => LineItemsTaxAmountTaxabilityReason::ReverseCharge,
+            "standard_rated" => LineItemsTaxAmountTaxabilityReason::StandardRated,
+            "taxable_basis_reduced" => LineItemsTaxAmountTaxabilityReason::TaxableBasisReduced,
+            "zero_rated" => LineItemsTaxAmountTaxabilityReason::ZeroRated,
+            other => LineItemsTaxAmountTaxabilityReason::Unknown(other.to_string()),
+        })
+    }
+}
+
+#[cfg(any(
+    feature = "account",
+    feature = "accounts",
+    feature = "application_fees",
+    feature = "balance_transactions",
+    feature = "billing",
+    feature = "charges",
+    feature = "checkout",
+    feature = "confirmation_tokens",
+    feature = "credit_notes",
+    feature = "customer_sessions",
+    feature = "customers",
+    feature = "disputes",
+    feature = "events",
+    feature = "financial_connections",
+    feature = "invoice_payments",
+    feature = "invoiceitems",
+    feature = "invoices",
+    feature = "issuing",
+    feature = "mandates",
+    feature = "payment_attempt_records",
+    feature = "payment_intents",
+    feature = "payment_links",
+    feature = "payment_methods",
+    feature = "payment_records",
+    feature = "payouts",
+    feature = "promotion_codes",
+    feature = "quotes",
+    feature = "radar",
+    feature = "refunds",
+    feature = "reviews",
+    feature = "setup_attempts",
+    feature = "setup_intents",
+    feature = "subscription_items",
+    feature = "subscription_schedules",
+    feature = "subscriptions",
+    feature = "tax_ids",
+    feature = "terminal",
+    feature = "test_helpers",
+    feature = "three_d_secure",
+    feature = "tokens",
+    feature = "topups",
+    feature = "transfers",
+    feature = "treasury"
+))]
+#[derive(Debug, Clone, json::Decode)]
+#[json(deny_duplicate_fields)]
+pub struct SmorResourceManagedPayments {
+    #[doc = "Set to `true` to enable [Managed Payments](https://docs.stripe.com/payments/managed-payments), Stripe's merchant of r..."]
+    #[json(default)]
+    pub enabled: bool,
+}

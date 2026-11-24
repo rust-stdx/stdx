@@ -2,16 +2,19 @@
 //! OpenAPI specification.
 //!
 //! [`generate`] is the whole pipeline: build the model from the vendored
-//! specification, emit one file per module, splice the module block into
-//! `stripe.rs`, and check that the crate's cargo features and `SPEC_VERSION`
-//! still line up. The `stripe_codegen` binary is a thin wrapper around it, and
-//! `stripe`'s own tests use [`schema::Builder`] and [`emit::emit`] to check that
-//! the committed generated code matches the specification.
+//! specification, partition the generated types into the fixed set of type
+//! shards, emit the shard and method crates, splice the facade module block
+//! into `stripe.rs`, and check that the crate's cargo features and
+//! `SPEC_VERSION` still line up. The `stripe_codegen` binary is a thin wrapper
+//! around it, and `stripe`'s own tests use [`schema::Builder`] and
+//! [`split::emit`] to check that the committed generated code matches the
+//! specification.
 
 pub mod emit;
 pub mod ir;
 pub mod naming;
 pub mod schema;
+pub mod split;
 
 use std::{collections::BTreeSet, fs, path::Path};
 
@@ -71,7 +74,7 @@ pub fn generate(spec_path: &Path, out_dir: &Path, fetch: bool) -> Result<Report,
     let spec: Value = json::from_slice_owned(&bytes).map_err(|error| format!("parsing {spec_path:?}: {error}"))?;
 
     let model = Builder::new(spec).build()?;
-    let files = emit::emit(&model);
+    let files = crate::split::emit(&model);
 
     let mut written: BTreeSet<String> = BTreeSet::new();
     for file in &files {
@@ -84,7 +87,9 @@ pub fn generate(spec_path: &Path, out_dir: &Path, fetch: bool) -> Result<Report,
             fs::create_dir_all(parent).map_err(|error| format!("creating {parent:?}: {error}"))?;
         }
         fs::write(&path, &file.contents).map_err(|error| format!("writing {path:?}: {error}"))?;
-        format_file(&path);
+        if path.extension().and_then(|extension| extension.to_str()) == Some("rs") {
+            format_file(&path);
+        }
         written.insert(file.path.clone());
     }
 
@@ -133,7 +138,29 @@ fn rewrite_modules_block(out_dir: &Path, block: &str) -> Result<(), String> {
 
 /// Removes generated files whose module no longer exists in the spec.
 fn prune_stale(out_dir: &Path, written: &BTreeSet<String>) -> Result<(), String> {
-    let dir = out_dir.join(emit::GENERATED_DIR);
+    prune_dir(out_dir, "api", written)?;
+    let entries = match fs::read_dir(out_dir) {
+        Ok(entries) => entries,
+        Err(error) => return Err(format!("reading {out_dir:?}: {error}")),
+    };
+    for entry in entries {
+        let entry = entry.map_err(|error| format!("reading {out_dir:?}: {error}"))?;
+        if !entry.path().is_dir() {
+            continue;
+        }
+        let name = entry.file_name();
+        let name = name
+            .to_str()
+            .ok_or_else(|| format!("non-UTF-8 shard directory {name:?}"))?;
+        if name.starts_with("types_") {
+            prune_dir(out_dir, name, written)?;
+        }
+    }
+    Ok(())
+}
+
+fn prune_dir(out_dir: &Path, relative: &str, written: &BTreeSet<String>) -> Result<(), String> {
+    let dir = out_dir.join(relative);
     let entries = match fs::read_dir(&dir) {
         Ok(entries) => entries,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
@@ -146,7 +173,7 @@ fn prune_stale(out_dir: &Path, written: &BTreeSet<String>) -> Result<(), String>
             continue;
         }
         let name = path.file_name().and_then(|name| name.to_str()).unwrap_or("");
-        let relative = format!("{}/{name}", emit::GENERATED_DIR);
+        let relative = format!("{relative}/{name}");
         if !written.contains(&relative) {
             fs::remove_file(&path).map_err(|error| format!("removing {path:?}: {error}"))?;
         }
@@ -189,7 +216,7 @@ fn check_features(out_dir: &Path, modules: &BTreeSet<String>) -> Result<(), Stri
 /// Fails when the crate root does not declare the specification version the
 /// generated code was built from.
 fn check_spec_version(out_dir: &Path, spec_version: &str) -> Result<(), String> {
-    let root = out_dir.join(ROOT_FILE);
+    let root = out_dir.join("core/lib.rs");
     let text = fs::read_to_string(&root).map_err(|error| format!("reading {root:?}: {error}"))?;
     if text.contains(spec_version) {
         return Ok(());

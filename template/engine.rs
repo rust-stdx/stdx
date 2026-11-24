@@ -69,7 +69,7 @@ impl Engine {
 
     /// Set the maximum number of items a `range()` call may produce.
     ///
-    /// Defaults to [`DEFAULT_RANGE_LIMIT`]. Calls that would exceed the limit
+    /// Defaults to `DEFAULT_RANGE_LIMIT`. Calls that would exceed the limit
     /// return a render error instead of allocating an unbounded amount of memory.
     pub fn set_range_limit(&mut self, limit: usize) {
         self.range_limit = limit;

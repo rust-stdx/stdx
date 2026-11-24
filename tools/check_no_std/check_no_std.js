@@ -204,7 +204,7 @@ function configLabel(config) {
 }
 
 function analyzeWorkspace() {
-  const metadata = JSON.parse(capture('cargo', ['metadata', '--format-version', '1']));
+  const metadata = JSON.parse(capture('cargo', ['metadata', '--locked', '--format-version', '1']));
 
   const packageById = new Map(metadata.packages.map((pkg) => [pkg.id, pkg]));
   const nodeById = new Map(metadata.resolve.nodes.map((node) => [node.id, node]));
@@ -273,7 +273,7 @@ function installedTargets() {
 // Checks one crate/configuration/target. Returns whether it compiled and the
 // captured compiler output (used to explain gate failures).
 function checkConfig(target, name, config) {
-  const args = ['check', '--quiet', '--lib', '--no-default-features'];
+  const args = ['check', '--locked', '--quiet', '--lib', '--no-default-features'];
   if (config.length > 0) args.push('--features', config.join(','));
   args.push('--target', target, '-p', name);
   const result = spawnSync('cargo', args, {

@@ -14,4 +14,4 @@ workspace = true
 path = "./count_instructions.rs"
 
 [target.'cfg(target_os = "linux")'.dependencies]
-libc = { workspace = true }
+libc = { workspace = true, features = ["std"] }

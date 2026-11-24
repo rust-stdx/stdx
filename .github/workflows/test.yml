@@ -3,21 +3,25 @@ name: Test
 on:
   push:
   pull_request:
-  schedule:
-    - cron: "0 4 * * 1"
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # CI never benefits from incremental compilation: it is slower than a clean
+  # build and the incremental cache does not survive the runner.
+  CARGO_INCREMENTAL: "0"
+  # Pinned nightly for `cargo fmt` and `make docs`. Bump this deliberately: a
+  # new nightly can reformat code or change rustdoc's HTML.
+  NIGHTLY: nightly-2026-11-22
+
 jobs:
-  test_native:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-26.04-arm
-    runs-on: ${{ matrix.os }}
+  test_x86_64:
+    runs-on: ubuntu-latest
+    env:
+      TARGET: x86_64-unknown-linux-gnu
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -27,29 +31,58 @@ jobs:
       # when stdx is used as a git dependency. Force-fetch the test data needed
       # to compile and run `cargo test --workspace`.
       - run: git submodule update --init --force --depth=1 --checkout -- crypto/testdata/wycheproof maxminddb/test-data
+      # Fail fast when a committed lockfile no longer matches its manifest.
+      - run: cargo metadata --locked --format-version 1 > /dev/null && cargo metadata --locked --manifest-path benchmarks/Cargo.toml --format-version 1 > /dev/null
       - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y lld
       - run: rustup update stable
       - run: rustup target add x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu wasm32-wasip1 riscv32imac-unknown-none-elf thumbv7em-none-eabi aarch64-linux-android aarch64-apple-ios aarch64-apple-darwin
-      - run: rustup component add --toolchain nightly rustfmt
+      - run: rustup toolchain install "$NIGHTLY" --profile minimal --component rustfmt
+      - run: make lint
       - run: make check
+      - run: make check_cpu_features_x86_64
+      # Cross-target checks do not depend on the host architecture; run them
+      # once, here, instead of duplicating them on every runner.
       - run: make check_tier1
       - run: make check_tier2
       # Check that some packages compile for no_std targets.
       - run: make check_no_std
-      - run: make lint
-      - run: cargo test --target ${{ matrix.target }} --workspace
-      - run: cargo test --target ${{ matrix.target }} --workspace --no-default-features
-      - run: cargo test --target ${{ matrix.target }} --workspace --all-features
-      - run: make test_all_features
+      - run: cargo test --locked --target $TARGET --workspace
+      - run: cargo test --locked --target $TARGET --workspace --no-default-features
+      - run: cargo test --locked --target $TARGET --workspace --all-features
       - run: make test_simd_native
-      - if: matrix.target == 'x86_64-unknown-linux-gnu'
-        run: make check_all
+
+
+  test_aarch64:
+    runs-on: ubuntu-26.04-arm
+    env:
+      TARGET: aarch64-unknown-linux-gnu
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+      - run: cat /proc/cpuinfo
+      # .gitmodules sets `update = none` so Cargo doesn't fetch the submodules
+      # when stdx is used as a git dependency. Force-fetch the test data needed
+      # to compile and run `cargo test --workspace`.
+      - run: git submodule update --init --force --depth=1 --checkout -- crypto/testdata/wycheproof maxminddb/test-data
+      # Fail fast when a committed lockfile no longer matches its manifest.
+      - run: cargo metadata --locked --format-version 1 > /dev/null && cargo metadata --locked --manifest-path benchmarks/Cargo.toml --format-version 1 > /dev/null
+      - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y lld
+      - run: rustup update stable
+      - run: rustup toolchain install "$NIGHTLY" --profile minimal --component rustfmt
+      - run: make check
+      - run: make check_cpu_features_aarch64
+      - run: cargo test --locked --target aarch64-unknown-linux-gnu --workspace
+      - run: cargo test --locked --target aarch64-unknown-linux-gnu --workspace --no-default-features
+      - run: cargo test --locked --target aarch64-unknown-linux-gnu --workspace --all-features
+      - run: make test_simd_native
 
 
   test_macos:
-    # `macos-latest` is the Apple silicon (arm64) image. Only the host target is
-    # built: the Linux cross-target checks in `make check` don't apply here.
+    # `macos-latest` is the Apple silicon (arm64) image.
     runs-on: macos-latest
+    env:
+      TARGET: aarch64-apple-darwin
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -58,13 +91,34 @@ jobs:
       # when stdx is used as a git dependency. Force-fetch the test data needed
       # to compile and run `cargo test --workspace`.
       - run: git submodule update --init --force --depth=1 --checkout -- crypto/testdata/wycheproof maxminddb/test-data
+      # Fail fast when a committed lockfile no longer matches its manifest.
+      - run: cargo metadata --locked --format-version 1 > /dev/null && cargo metadata --locked --manifest-path benchmarks/Cargo.toml --format-version 1 > /dev/null
       - run: rustup update stable
-      - run: rustup component add --toolchain nightly rustfmt
+      - run: rustup toolchain install "$NIGHTLY" --profile minimal --component rustfmt
       - run: make check
-      - run: make lint
-      - run: cargo test --workspace
-      - run: cargo test --workspace --no-default-features
-      - run: cargo test --workspace --all-features
+      - run: cargo test --locked --target $TARGET --workspace
+      - run: cargo test --locked --target $TARGET --workspace --no-default-features
+      - run: cargo test --locked --target $TARGET --workspace --all-features
+
+  test_wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+      # .gitmodules sets `update = none` so Cargo doesn't fetch the submodules
+      # when stdx is used as a git dependency. Force-fetch the Wycheproof test
+      # vectors so the crypto tests can compile.
+      - run: git submodule update --init --force --depth=1 --checkout -- crypto/testdata/wycheproof maxminddb/test-data
+      # Fail fast when a committed lockfile no longer matches its manifest.
+      - run: cargo metadata --locked --format-version 1 > /dev/null && cargo metadata --locked --manifest-path benchmarks/Cargo.toml --format-version 1 > /dev/null
+      - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y lld
+      - run: rustup update stable
+      - run: rustup target add wasm32-wasip1 wasm32-unknown-unknown
+      - run: make check_cpu_features_wasm32
+      - run: node tools/wasm_test/wasm_test.js --target=wasm32-unknown-unknown --check
+      - run: node tools/wasm_test/wasm_test.js
+      - run: make test_wasm_simd
 
 
   # fuzz_columnar:
@@ -82,20 +136,3 @@ jobs:
   #       working-directory: columnar/fuzz
   #     - run: cargo +nightly fuzz run roundtrip -- -max_total_time=60
   #       working-directory: columnar/fuzz
-
-  test_wasm:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: recursive
-      # .gitmodules sets `update = none` so Cargo doesn't fetch the submodules
-      # when stdx is used as a git dependency. Force-fetch the Wycheproof test
-      # vectors so the crypto tests can compile.
-      - run: git submodule update --init --force --depth=1 --checkout -- crypto/testdata/wycheproof maxminddb/test-data
-      - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y lld
-      - run: rustup update stable
-      - run: rustup target add wasm32-wasip1 wasm32-unknown-unknown
-      - run: node tools/wasm_test/wasm_test.js --target=wasm32-unknown-unknown --check
-      - run: node tools/wasm_test/wasm_test.js
-      - run: make test_wasm_simd

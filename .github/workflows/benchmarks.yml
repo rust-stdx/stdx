@@ -23,12 +23,14 @@ jobs:
       # when stdx is used as a git dependency. Force-fetch the Wycheproof test
       # vectors so the crypto tests can compile.
       - run: git submodule update --init --force --depth=1 --checkout -- crypto/testdata/wycheproof
+      # Fail fast when a committed lockfile no longer matches its manifest.
+      - run: cargo metadata --locked --format-version 1 > /dev/null && cargo metadata --locked --manifest-path benchmarks/Cargo.toml --format-version 1 > /dev/null
       - run: cat /proc/cpuinfo
       - run: sudo apt-get update && sudo apt upgrade && sudo apt-get install -y lld
       - run: rustup update stable
-      - run: cargo bench
+      - run: cargo bench --locked
         working-directory: benchmarks/crypto
-      - run: cargo bench
+      - run: cargo bench --locked
         working-directory: benchmarks/xxhash
-      - run: cargo bench --bench columnar -- --noplot
+      - run: cargo bench --locked --bench columnar -- --noplot
         working-directory: benchmarks/columnar

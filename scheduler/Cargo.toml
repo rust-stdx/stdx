@@ -21,5 +21,8 @@ tracing = ["dep:tracing"]
 cron = { path = "../cron" }
 time = { path = "../time" }
 
-tokio = { workspace = true }
-tracing = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["rt", "sync", "time"] }
+tracing = { workspace = true, optional = true, features = ["std"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros"] }

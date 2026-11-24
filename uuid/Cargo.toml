@@ -23,7 +23,7 @@ cbor = ["dep:cbor"]
 cbor = { path = "../cbor", optional = true, default-features = false }
 
 heapless = { workspace = true }
-rand = { workspace = true, optional = true }
+rand = { workspace = true, optional = true, features = ["thread_rng"] }
 serde = { workspace = true, optional = true }
 
 [dev-dependencies]
@@ -32,5 +32,5 @@ alloc_counter = { path = "../alloc_counter" }
 # `cbor` feature so the library itself remains alloc-free.
 cbor = { path = "../cbor", default-features = false, features = ["alloc"] }
 
-rand = { workspace = true }
-serde_json = { workspace = true }
+rand = { workspace = true, features = ["std_rng"] }
+serde_json = { workspace = true, features = ["std"] }

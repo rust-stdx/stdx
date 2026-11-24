@@ -68,54 +68,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
-name = "axum"
-version = "0.8.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31b698c5f9a010f6573133b09e0de5408834d0c82f8d7475a89fc1867a71cd90"
-dependencies = [
- "axum-core",
- "bytes",
- "futures-util",
- "http",
- "http-body",
- "http-body-util",
- "hyper",
- "hyper-util",
- "itoa",
- "matchit",
- "memchr",
- "mime",
- "percent-encoding",
- "pin-project-lite 0.2.18",
- "serde_core",
- "serde_json",
- "serde_path_to_error",
- "sync_wrapper",
- "tokio",
- "tower",
- "tower-layer",
- "tower-service",
-]
-
-[[package]]
-name = "axum-core"
-version = "0.5.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08c78f31d7b1291f7ee735c1c6780ccde7785daae9a9206026862dab7d8792d1"
-dependencies = [
- "bytes",
- "futures-core",
- "http",
- "http-body",
- "http-body-util",
- "mime",
- "pin-project-lite 0.2.18",
- "sync_wrapper",
- "tower-layer",
- "tower-service",
-]
-
-[[package]]
 name = "base32"
 version = "0.1.0"
 dependencies = [
@@ -169,10 +121,13 @@ name = "bel_examples"
 version = "0.1.0"
 dependencies = [
  "anyerr",
- "axum",
  "bel",
+ "bytes",
+ "hyper",
+ "hyper_utils",
  "json",
  "serde",
+ "serde_json",
  "thiserror 2.0.21",
  "time",
  "tokio",
@@ -559,16 +514,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "errno"
-version = "0.3.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e35d6e78f4cebb90e51d543db8fe41528851d6deeef6ef21ebd4bfdc1e784776"
-dependencies = [
- "libc",
- "windows-sys 0.61.2",
-]
-
-[[package]]
 name = "find-msvc-tools"
 version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -813,9 +758,9 @@ checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
 
 [[package]]
 name = "hyper"
-version = "1.12.0"
+version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c3e324da4c95177d6291d4c8730197c0d1822f8a9766814a4a44fa5ab797c9c"
+checksum = "229c6ff5584df4c6becbfe00567128bac768c8cd32ebc8a8366bd81ed072e8f3"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -1179,12 +1124,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "matchit"
-version = "0.8.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47e1ffaa40ddd1f3ed91f717a33c8c0ee23fff369e3aa8772b9605cc1d22f4c3"
-
-[[package]]
 name = "maxminddb"
 version = "0.24.0"
 dependencies = [
@@ -1216,12 +1155,6 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 [[package]]
 name = "memmem"
 version = "0.1.1"
-
-[[package]]
-name = "mime"
-version = "0.3.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5848f5a9e8117cf94f2f90faac24a87ff81600ff8628c1e3deaab572e76bfa1"
 
 [[package]]
 name = "mio"
@@ -1803,17 +1736,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_path_to_error"
-version = "0.1.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10a9ff822e371bb5403e391ecd83e182e0e77ba7f6fe0160b795797109d1b457"
-dependencies = [
- "itoa",
- "serde",
- "serde_core",
-]
-
-[[package]]
 name = "serde_test"
 version = "1.0.177"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1848,16 +1770,6 @@ name = "shlex"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
-
-[[package]]
-name = "signal-hook-registry"
-version = "1.4.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4db69cba1110affc0e9f7bcd48bbf87b3f4fc7c61fc9155afd4c469eb3d6c1b"
-dependencies = [
- "errno",
- "libc",
-]
 
 [[package]]
 name = "simd_cesu8"
@@ -1940,17 +1852,53 @@ name = "stripe"
 version = "0.1.0"
 dependencies = [
  "alloc_counter",
- "bytes",
- "constant_time_eq",
  "crypto",
  "crypto_rustls",
- "futures-util",
  "json",
  "reqwest",
+ "stripe_api",
  "stripe_codegen",
+ "stripe_core",
+ "stripe_types_00",
+ "stripe_types_01",
+ "stripe_types_02",
+ "stripe_types_03",
+ "stripe_types_04",
+ "stripe_types_05",
+ "stripe_types_06",
+ "stripe_types_07",
+ "stripe_types_08",
+ "stripe_types_09",
+ "stripe_types_10",
+ "stripe_types_11",
+ "stripe_types_12",
+ "stripe_types_13",
+ "stripe_types_14",
+ "stripe_types_15",
  "tokio",
- "uuid 0.1.0",
- "zeroize 1.9.1",
+]
+
+[[package]]
+name = "stripe_api"
+version = "0.1.0"
+dependencies = [
+ "stripe_core",
+ "stripe_types_00",
+ "stripe_types_01",
+ "stripe_types_02",
+ "stripe_types_03",
+ "stripe_types_04",
+ "stripe_types_05",
+ "stripe_types_06",
+ "stripe_types_07",
+ "stripe_types_08",
+ "stripe_types_09",
+ "stripe_types_10",
+ "stripe_types_11",
+ "stripe_types_12",
+ "stripe_types_13",
+ "stripe_types_14",
+ "stripe_types_15",
 ]
 
 [[package]]
@@ -1958,6 +1906,255 @@ name = "stripe_codegen"
 version = "0.1.0"
 dependencies = [
  "json",
+ "regex",
+]
+
+[[package]]
+name = "stripe_core"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "constant_time_eq",
+ "crypto",
+ "futures-util",
+ "json",
+ "reqwest",
+ "tokio",
+ "uuid 0.1.0",
+ "zeroize 1.9.1",
+]
+
+[[package]]
+name = "stripe_types_00"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "stripe_core",
+]
+
+[[package]]
+name = "stripe_types_01"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "stripe_core",
+]
+
+[[package]]
+name = "stripe_types_02"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "stripe_core",
+]
+
+[[package]]
+name = "stripe_types_03"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "stripe_core",
+]
+
+[[package]]
+name = "stripe_types_04"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "stripe_core",
+]
+
+[[package]]
+name = "stripe_types_05"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "stripe_core",
+ "stripe_types_00",
+ "stripe_types_01",
+ "stripe_types_02",
+ "stripe_types_03",
+ "stripe_types_04",
+]
+
+[[package]]
+name = "stripe_types_06"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "stripe_core",
+ "stripe_types_00",
+ "stripe_types_01",
+ "stripe_types_02",
+ "stripe_types_03",
+ "stripe_types_04",
+]
+
+[[package]]
+name = "stripe_types_07"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "stripe_core",
+ "stripe_types_00",
+ "stripe_types_01",
+ "stripe_types_02",
+ "stripe_types_03",
+ "stripe_types_04",
+ "stripe_types_05",
+ "stripe_types_06",
+]
+
+[[package]]
+name = "stripe_types_08"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "stripe_core",
+ "stripe_types_00",
+ "stripe_types_01",
+ "stripe_types_02",
+ "stripe_types_03",
+ "stripe_types_04",
+ "stripe_types_05",
+ "stripe_types_06",
+]
+
+[[package]]
+name = "stripe_types_09"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "stripe_core",
+ "stripe_types_00",
+ "stripe_types_01",
+ "stripe_types_02",
+ "stripe_types_03",
+ "stripe_types_04",
+ "stripe_types_05",
+ "stripe_types_06",
+]
+
+[[package]]
+name = "stripe_types_10"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "stripe_core",
+ "stripe_types_00",
+ "stripe_types_01",
+ "stripe_types_02",
+ "stripe_types_03",
+ "stripe_types_04",
+ "stripe_types_05",
+ "stripe_types_06",
+ "stripe_types_07",
+ "stripe_types_08",
+ "stripe_types_09",
+]
+
+[[package]]
+name = "stripe_types_11"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "stripe_core",
+ "stripe_types_00",
+ "stripe_types_01",
+ "stripe_types_02",
+ "stripe_types_03",
+ "stripe_types_04",
+ "stripe_types_05",
+ "stripe_types_06",
+ "stripe_types_07",
+ "stripe_types_08",
+ "stripe_types_09",
+]
+
+[[package]]
+name = "stripe_types_12"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "stripe_core",
+ "stripe_types_00",
+ "stripe_types_01",
+ "stripe_types_02",
+ "stripe_types_03",
+ "stripe_types_04",
+ "stripe_types_05",
+ "stripe_types_06",
+ "stripe_types_07",
+ "stripe_types_08",
+ "stripe_types_09",
+ "stripe_types_10",
+ "stripe_types_11",
+]
+
+[[package]]
+name = "stripe_types_13"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "stripe_core",
+ "stripe_types_00",
+ "stripe_types_01",
+ "stripe_types_02",
+ "stripe_types_03",
+ "stripe_types_04",
+ "stripe_types_05",
+ "stripe_types_06",
+ "stripe_types_07",
+ "stripe_types_08",
+ "stripe_types_09",
+ "stripe_types_10",
+ "stripe_types_11",
+ "stripe_types_12",
+]
+
+[[package]]
+name = "stripe_types_14"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "stripe_core",
+ "stripe_types_00",
+ "stripe_types_01",
+ "stripe_types_02",
+ "stripe_types_03",
+ "stripe_types_04",
+ "stripe_types_05",
+ "stripe_types_06",
+ "stripe_types_07",
+ "stripe_types_08",
+ "stripe_types_09",
+ "stripe_types_10",
+ "stripe_types_11",
+ "stripe_types_12",
+ "stripe_types_13",
+]
+
+[[package]]
+name = "stripe_types_15"
+version = "0.1.0"
+dependencies = [
+ "json",
+ "stripe_core",
+ "stripe_types_00",
+ "stripe_types_01",
+ "stripe_types_02",
+ "stripe_types_03",
+ "stripe_types_04",
+ "stripe_types_05",
+ "stripe_types_06",
+ "stripe_types_07",
+ "stripe_types_08",
+ "stripe_types_09",
+ "stripe_types_10",
+ "stripe_types_11",
+ "stripe_types_12",
+ "stripe_types_13",
+ "stripe_types_14",
 ]
 
 [[package]]
@@ -2113,9 +2310,7 @@ dependencies = [
  "bytes",
  "libc",
  "mio",
- "parking_lot",
  "pin-project-lite 0.2.18",
- "signal-hook-registry",
  "socket2",
  "tokio-macros",
  "windows-sys 0.61.2",

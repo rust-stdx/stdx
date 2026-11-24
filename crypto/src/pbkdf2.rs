@@ -1,7 +1,7 @@
 //! PBKDF2 (Password-Based Key Derivation Function 2) as defined in RFC 2898.
 use crate::{Hasher, MAX_HASH_BLOCK_SIZE, hmac::Hmac};
 
-/// Errors returned by [`derive`].
+/// Errors returned by [`derive`](fn@derive).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Pbkdf2Error {
     /// `iterations` must be at least 1.

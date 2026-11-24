@@ -24,4 +24,4 @@ reqwest = { workspace = true, features = ["http2", "rustls-no-provider"] }
 [dev-dependencies]
 crypto_rustls = { path = "../crypto_rustls" }
 
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }

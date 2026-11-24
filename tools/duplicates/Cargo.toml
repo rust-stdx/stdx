@@ -18,5 +18,5 @@ path = "duplicates.rs"
 crypto = { path = "../../crypto" }
 hex = { path = "../../hex" }
 
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "fs", "io-util", "sync"] }
 walkdir = { workspace = true }

@@ -52,7 +52,7 @@ pub use p_curves::{p224, p256, p384, p521};
 /// size are rejected at compile time by those constructions.
 const MAX_HASH_BLOCK_SIZE: usize = 168;
 
-/// Maximum output size supported by [`Hash`].
+/// Maximum output size supported by [`Hash`](struct@Hash).
 pub const MAX_HASH_OUTPUT_SIZE: usize = 64;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -363,7 +363,7 @@ pub trait Hasher: Clone + Zeroize {
     /// The output size of the hash function.
     ///
     /// Must not exceed [`MAX_HASH_OUTPUT_SIZE`] (64), the fixed capacity of
-    /// [`Hash`]; implementors with a larger `OUTPUT_SIZE` will not compile when
+    /// [`Hash`](struct@Hash); implementors with a larger `OUTPUT_SIZE` will not compile when
     /// used with functions that bound-check against this limit.
     const OUTPUT_SIZE: usize;
 

@@ -1,6 +1,6 @@
 //! Tests for the generated types and methods, using Stripe's own fixtures.
 //!
-//! Requires `core` (the default feature set); the v2 tests need `v2_core`.
+//! Requires `core`; the v2 tests need `v2_core`.
 
 #![cfg(feature = "core")]
 

@@ -1,6 +1,6 @@
 //! The committed generated code must match the vendored specification.
 //!
-//! `stripe/api` and the module block in `stripe.rs` are produced by
+//! the generated `types_*` crates, `stripe/api`, and the module block in `stripe.rs` are produced by
 //! `stripe_codegen` from `spec/openapi.spec3.sdk.json`. This test reruns the
 //! generator in memory and compares the result with what is committed, so a
 //! hand-edit (or a specification bump without regenerating) fails `cargo test`
@@ -17,7 +17,7 @@ use std::{
     process::Command,
 };
 
-use stripe_codegen::{ROOT_FILE, emit, schema::Builder};
+use stripe_codegen::{ROOT_FILE, emit, emit::OutputFile, schema::Builder, split};
 
 /// Reduces Rust source to a form where layout cannot matter: whitespace and
 /// trailing commas outside string literals are dropped, line comments are
@@ -58,7 +58,7 @@ fn canonical(source: &str) -> String {
 }
 
 /// The module block the generator splices into `stripe.rs`.
-fn emitted_modules_block(files: &[emit::OutputFile]) -> &str {
+fn emitted_modules_block(files: &[OutputFile]) -> &str {
     files
         .iter()
         .find(|file| file.path == "modules.rs")
@@ -97,23 +97,25 @@ fn committed_generated_code_matches_the_specification() {
     let spec_bytes = fs::read(manifest.join("spec/openapi.spec3.sdk.json")).expect("the vendored specification");
     let spec: json::Value<'static> = json::from_slice_owned(&spec_bytes).expect("the specification is JSON");
     let model = Builder::new(spec).build().expect("the specification builds a model");
-    let files = emit::emit(&model);
+    let files = split::emit(&model);
 
     // Write the emitted tree to a scratch directory and format it the way
     // `make -C stripe codegen` would.
     let scratch = std::env::temp_dir().join(format!("stripe_codegen_freshness_{}", std::process::id()));
     let _ = fs::remove_dir_all(&scratch);
-    let mut written = Vec::new();
+    let mut rust_sources = Vec::new();
     for file in &files {
         if file.path == "modules.rs" {
             continue;
         }
         let path = scratch.join(&file.path);
         fs::create_dir_all(path.parent().expect("parent directory")).expect("creating the scratch directory");
-        fs::write(&path, &file.contents).expect("writing the emitted module");
-        written.push(path);
+        fs::write(&path, &file.contents).expect("writing the emitted file");
+        if file.path.ends_with(".rs") {
+            rust_sources.push(path.clone());
+        }
     }
-    if !rustfmt(&written) {
+    if !rustfmt(&rust_sources) {
         eprintln!("skipping: `rustfmt` is not installed, so the emitted tree cannot be compared");
         return;
     }
@@ -123,10 +125,15 @@ fn committed_generated_code_matches_the_specification() {
         if file.path == "modules.rs" {
             continue;
         }
-        let emitted = fs::read_to_string(scratch.join(&file.path)).expect("reading the emitted module");
+        let emitted = fs::read_to_string(scratch.join(&file.path)).expect("reading the emitted file");
         let committed = fs::read_to_string(manifest.join(&file.path))
             .unwrap_or_else(|error| panic!("reading {}: {error}", file.path));
-        if canonical(&committed) != canonical(&emitted) {
+        let same = if file.path.ends_with(".rs") {
+            canonical(&committed) == canonical(&emitted)
+        } else {
+            committed == emitted
+        };
+        if !same {
             stale.push(file.path.clone());
         }
     }

@@ -31,12 +31,34 @@ struct Item {
 }
 
 fn generated_files() -> Vec<PathBuf> {
-    let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("api");
-    let mut files: Vec<PathBuf> = fs::read_dir(&directory)
-        .expect("the generated api directory")
-        .map(|entry| entry.expect("directory entry").path())
-        .filter(|path| path.extension().and_then(|extension| extension.to_str()) == Some("rs"))
-        .collect();
+    let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let mut files = Vec::new();
+    let api = manifest.join("api");
+    for entry in fs::read_dir(&api).expect("the generated api directory") {
+        let path = entry.expect("directory entry").path();
+        if path.extension().and_then(|extension| extension.to_str()) == Some("rs")
+            && path.file_name().and_then(|name| name.to_str()) != Some("lib.rs")
+        {
+            files.push(path);
+        }
+    }
+    for shard in fs::read_dir(manifest).expect("the generated crate directory") {
+        let shard = shard.expect("directory entry").path();
+        let Some(name) = shard.file_name().and_then(|name| name.to_str()) else {
+            continue;
+        };
+        if !shard.is_dir() || !name.starts_with("types_") {
+            continue;
+        }
+        for entry in fs::read_dir(&shard).expect("the shard directory") {
+            let path = entry.expect("directory entry").path();
+            if path.extension().and_then(|extension| extension.to_str()) == Some("rs")
+                && path.file_name().and_then(|name| name.to_str()) != Some("lib.rs")
+            {
+                files.push(path);
+            }
+        }
+    }
     files.sort();
     files
 }
@@ -163,6 +185,30 @@ fn referenced_types(text: &str) -> BTreeSet<(String, String)> {
     while let Some(start) = rest.find("crate::") {
         let after = &rest[start + "crate::".len()..];
         rest = after;
+        let Some((module, tail)) = after.split_once("::") else {
+            continue;
+        };
+        if !module
+            .chars()
+            .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '_')
+        {
+            continue;
+        }
+        let name: String = tail
+            .chars()
+            .take_while(|ch| ch.is_ascii_alphanumeric() || *ch == '_')
+            .collect();
+        if !name.is_empty() && name.chars().next().is_some_and(char::is_uppercase) {
+            references.insert((module.to_string(), name));
+        }
+    }
+    let mut rest = text;
+    while let Some(start) = rest.find("stripe_types_") {
+        let after = &rest[start + "stripe_types_".len()..];
+        rest = after;
+        let Some((_, after)) = after.split_once("::") else {
+            continue;
+        };
         let Some((module, tail)) = after.split_once("::") else {
             continue;
         };

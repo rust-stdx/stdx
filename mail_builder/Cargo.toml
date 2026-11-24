@@ -16,4 +16,4 @@ doctest = false
 [dependencies]
 base64 = { path = "../base64" }
 
-rand = { workspace = true }
+rand = { workspace = true, features = ["thread_rng"] }

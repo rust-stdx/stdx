@@ -265,8 +265,8 @@ impl<H: HttpClient> Client<H> {
 
     /// Consuming variant of [`Client::set_max_response_bytes`].
     ///
-    /// Useful right after [`Client::new`]:
-    /// `Client::new(&cfg)?.with_max_response_bytes(8 * 1024 * 1024)`.
+    /// Useful right after [`Client::new_reqwest`]:
+    /// `Client::new_reqwest(reqwest::Client::new(), &cfg)?.with_max_response_bytes(8 * 1024 * 1024)`.
     pub fn with_max_response_bytes(mut self, max: usize) -> Self {
         self.max_response_bytes = max;
         self

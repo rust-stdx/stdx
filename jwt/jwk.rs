@@ -18,9 +18,9 @@ pub struct Jwks {
 }
 
 /// a JSON Web Key
-/// https://www.rfc-editor.org/rfc/rfc7517
-/// https://www.rfc-editor.org/rfc/rfc8037
-/// https://www.ietf.org/archive/id/draft-ietf-jose-pqc-02.html
+/// <https://www.rfc-editor.org/rfc/rfc7517>
+/// <https://www.rfc-editor.org/rfc/rfc8037>
+/// <https://www.ietf.org/archive/id/draft-ietf-jose-pqc-02.html>
 /// Note: Jwk are not validated during deserialization
 #[derive(Debug, Clone)]
 pub struct Jwk {
