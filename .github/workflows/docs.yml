@@ -22,7 +22,7 @@ jobs:
   # Build the documentation on every branch. `make docs` builds rustdoc with
   # `-D warnings`, so this also serves as the documentation lint. Only `main`
   # is packaged as a Pages artifact.
-  docs:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -40,9 +40,9 @@ jobs:
   # Deploy from a separate job: uploading and deploying in the same job races
   # the artifact service (actions/deploy-pages#451), and this way a failed
   # deployment can be retried without rebuilding or re-uploading.
-  deploy:
+  publish:
     needs: docs
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       pages: write
