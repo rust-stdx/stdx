@@ -17,7 +17,7 @@ gen-tzdb:
 		rm -rf $$tmp
 
 # Updates the local copy of the IANA source (data-only release).
-fetch-data:
+fetch_data:
 	curl -sSL https://data.iana.org/time-zones/tzdata-latest.tar.gz -o /tmp/tzdata.tar.gz
 	mkdir -p /tmp/stdx-tzdata && tar -xzf /tmp/tzdata.tar.gz -C /tmp/stdx-tzdata
 	$(MAKE) gen-tzdb TZDATA_ZI=/tmp/stdx-tzdata/$(shell tar -tzf /tmp/tzdata.tar.gz | head -1 | cut -d/ -f1)/tzdata.zi
