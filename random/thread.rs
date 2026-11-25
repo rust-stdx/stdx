@@ -270,6 +270,11 @@ mod tests {
         assert_ne!(first, second);
     }
 
+    // wasm32 targets have no thread support, so `std::thread::spawn` panics
+    // with `Unsupported`. The generator's per-thread behavior on such targets
+    // is covered by `thread_rng_produces_different_values` and
+    // `thread_rng_survives_a_reseed_boundary`.
+    #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn thread_rng_works_in_spawned_threads() {
         let first = std::thread::spawn(|| {
