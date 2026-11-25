@@ -13,11 +13,11 @@ use crypto::{
     encoding::{self, der::Reader},
     rsa,
 };
-use rand::{RngExt, SeedableRng, rngs::StdRng};
+use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 const RSA_DER: &str = "3082010a0282010100b1d59f746650c6a4360d26dc2e05581e1bd12cddcfc459a75dd2ef6d38cb6e977c72cad72f5e8ad4795484211e71e9a292d25a3901fca4cd242649f56cce50ad6ba148658d71f3a9c8b39e92a7a49543243df8ca2688292d47ff2a92a6ee0c9151162936791f522afccd6a7508251934b909d62fa805bae0d79f83f3c981b39c15ea79ce7b4ec2ff82240ce2a9fb93ae49d7697d1248f73d4ad23461055f469a3936ab959a0c6a067aa19521650f3649a028e2ebe355909aae7c95d3fc988684478b2bb11b307cb58c6c14727e1b62103d400ac8eed0e0d6d7f7d7cfc1f4ae4cbd9759372f8408c52174abb05f134ca6788fb60ba3f35c57c07cd44011bb113b0203010001";
 
-/// seeded `StdRng`, used to generate deterministic fuzz inputs without a
-/// dependency on `rand`.
+/// seeded `ChaChaRng`, used to generate deterministic fuzz inputs without a
+/// dependency on `random`.
 #[test]
 fn rsa_der_32bit_length_overflow_is_rejected() {
     // INTEGER length 0xFFFFFFFC inside a 7-byte SEQUENCE body. On 32-bit
@@ -153,7 +153,7 @@ fn der_length_field_matrix_is_rejected_cleanly() {
 
 #[test]
 fn parsers_never_panic_on_random_input() {
-    let mut rng = StdRng::seed_from_u64(0x0123_4567_89ab_cdef);
+    let mut rng = ChaChaRng::seed_from_u64(0x0123_4567_89ab_cdef);
     let mut buffer = [0u8; 2048];
     let mut signatures = 0u64;
 
@@ -196,7 +196,7 @@ fn parsers_never_panic_on_random_input() {
 #[test]
 fn mutated_valid_der_never_panics() {
     let valid = hex::decode(RSA_DER).unwrap();
-    let mut rng = StdRng::seed_from_u64(0xdead_beef_cafe_f00d);
+    let mut rng = ChaChaRng::seed_from_u64(0xdead_beef_cafe_f00d);
     let mut mutated = Vec::with_capacity(valid.len() + 8);
 
     for _ in 0..10_000 {
@@ -206,7 +206,7 @@ fn mutated_valid_der_never_panics() {
         match rng.random_range(0..4) {
             0 => {
                 let index = rng.random_range(0..(mutated.len()));
-                mutated[index] ^= 1 << rng.random_range(0..8);
+                mutated[index] ^= 1 << rng.random_range(0u32..8);
             }
             1 => {
                 let index = rng.random_range(0..(mutated.len()));
@@ -238,14 +238,14 @@ fn mutated_valid_ecdsa_der_never_panics() {
         *byte = (index as u8).wrapping_mul(17).wrapping_add(3);
     }
     let valid = encoding::ecdsa::encode_signature_der(&signature[..32], &signature[32..]);
-    let mut rng = StdRng::seed_from_u64(0xfeed_face_dead_beef);
+    let mut rng = ChaChaRng::seed_from_u64(0xfeed_face_dead_beef);
     let mut mutated = valid.clone();
 
     for _ in 0..5_000 {
         mutated.clear();
         mutated.extend_from_slice(&valid);
         let index = rng.random_range(0..(mutated.len()));
-        mutated[index] ^= 1 << rng.random_range(0..8);
+        mutated[index] ^= 1 << rng.random_range(0u32..8);
 
         let _ = encoding::ecdsa::decode_p256_signature_der(&mutated);
         let _ = encoding::ecdsa::decode_p384_signature_der(&mutated);

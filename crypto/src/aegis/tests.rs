@@ -742,7 +742,7 @@ fn rfc10032_invalid_vectors() {
 #[test]
 fn wycheproof_aegis256_vectors() {
     let text = include_str!("../../testdata/wycheproof/testvectors_v1/aegis256_test.json");
-    let document: serde_json::Value = serde_json::from_str(text).unwrap();
+    let document: json::Value<'_> = json::from_str(text).unwrap();
     let mut valid = 0usize;
     let mut invalid = 0usize;
 

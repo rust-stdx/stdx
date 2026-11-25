@@ -30,7 +30,7 @@ pub mod mldsa;
 pub mod mlkem;
 pub mod poly1305;
 #[cfg(feature = "random")]
-pub mod random;
+mod random;
 pub mod sha2;
 pub mod sha3;
 pub mod turbohash;
@@ -261,6 +261,19 @@ pub trait StreamCipher {
     /// counter, or [`StreamCipherError::Zeroized`] if the cipher has been
     /// zeroized. On error, no bytes are written to `in_out`.
     fn xor_keystream(&mut self, in_out: &mut [u8]) -> Result<(), StreamCipherError>;
+
+    /// Overwrites `dst` with the next keystream bytes.
+    ///
+    /// This is the direct keystream counterpart of
+    /// [`StreamCipher::xor_keystream`]. It is useful when the keystream is
+    /// needed as-is, for example by a random number generator.
+    ///
+    /// Returns the same errors as [`StreamCipher::xor_keystream`]. On error,
+    /// the contents of `dst` are unspecified.
+    fn fill_keystream(&mut self, dst: &mut [u8]) -> Result<(), StreamCipherError> {
+        dst.fill(0);
+        self.xor_keystream(dst)
+    }
 }
 
 pub trait Aead {

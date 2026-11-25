@@ -69,13 +69,13 @@ fn aes256_gcm_rust_encrypt_node_decrypt_roundtrip() {
             [0xab; 32],
             [0xcd; 12],
             b"authenticated".to_vec(),
-            (0..256).map(|_| rand::random::<u8>()).collect(),
+            (0..256).map(|_| random::random::<u8>()).collect(),
         ),
         (
             [0xff; 32],
             [0xaa; 12],
             vec![],
-            (0..1024).map(|_| rand::random::<u8>()).collect(),
+            (0..1024).map(|_| random::random::<u8>()).collect(),
         ),
     ];
 
@@ -99,13 +99,13 @@ fn aes256_gcm_node_encrypt_rust_decrypt_roundtrip() {
             [0xab; 32],
             [0xcd; 12],
             b"authenticated".to_vec(),
-            (0..256).map(|_| rand::random::<u8>()).collect(),
+            (0..256).map(|_| random::random::<u8>()).collect(),
         ),
         (
             [0xff; 32],
             [0xaa; 12],
             vec![],
-            (0..1024).map(|_| rand::random::<u8>()).collect(),
+            (0..1024).map(|_| random::random::<u8>()).collect(),
         ),
     ];
 
@@ -128,7 +128,7 @@ fn aes256_gcm_bidirectional_large_payload() {
     let key = [0xde; 32];
     let nonce = [0xad; 12];
     let aad = b"large payload test";
-    let plaintext: Vec<u8> = (0..10000).map(|_| rand::random::<u8>()).collect();
+    let plaintext: Vec<u8> = (0..10000).map(|_| random::random::<u8>()).collect();
 
     let cipher = Aes256Gcm::new(&key);
     let mut buf = plaintext.clone();
@@ -176,7 +176,7 @@ fn aes256_gcm_bidirectional_various_sizes() {
     let aad = b"test";
 
     for size in 1..512 {
-        let plaintext: Vec<u8> = (0..size).map(|_| rand::random::<u8>()).collect();
+        let plaintext: Vec<u8> = (0..size).map(|_| random::random::<u8>()).collect();
 
         let cipher = Aes256Gcm::new(&key);
         let mut buf = plaintext.clone();

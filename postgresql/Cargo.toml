@@ -38,7 +38,7 @@ zeroize = { path = "../zeroize", default-features = false, features = ["derive",
 
 bytes = { workspace = true }
 futures-util = { workspace = true, features = ["std"] }
-rand = { workspace = true, features = ["thread_rng"] }
+random = { path = "../random", features = ["std"] }
 rustls = { workspace = true, features = ["std"] }
 tokio = { workspace = true, features = ["rt", "macros", "net", "sync", "time", "io-util"] }
 tokio-rustls = { workspace = true, features = ["logging"] }

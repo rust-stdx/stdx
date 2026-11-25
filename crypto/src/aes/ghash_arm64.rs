@@ -7,7 +7,7 @@ use core::arch::aarch64::*;
 /// and `vrbitq_u8` for per-byte bit reversal (mapping between GCM's big-endian
 /// polynomial representation and the little-endian PMULL domain).
 #[cfg(test)]
-use rand::{RngExt, SeedableRng, rngs::StdRng};
+use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
 /// Single-block GHASH feed (tail processing).
 #[target_feature(enable = "aes,neon")]
@@ -215,7 +215,7 @@ mod tests {
 
     /// Deterministic pseudo-random block sequence (seeded RNG).
     fn blocks(count: usize, seed: u64) -> Vec<[u8; 16]> {
-        let mut rng = StdRng::seed_from_u64(seed);
+        let mut rng = ChaChaRng::seed_from_u64(seed);
         let mut out = Vec::with_capacity(count);
         for _ in 0..count {
             out.push(rng.random::<[u8; 16]>());

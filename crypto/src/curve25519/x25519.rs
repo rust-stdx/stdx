@@ -969,8 +969,8 @@ mod tests {
 
     #[test]
     fn wycheproof_x25519() {
-        let data: serde_json::Value =
-            serde_json::from_str(include_str!("../../testdata/wycheproof/testvectors_v1/x25519_test.json")).unwrap();
+        let data: json::Value<'_> =
+            json::from_str(include_str!("../../testdata/wycheproof/testvectors_v1/x25519_test.json")).unwrap();
         let mut valid_tested = 0u64;
         let mut acceptable_tested = 0u64;
         for group in data["testGroups"].as_array().unwrap() {
@@ -1018,7 +1018,7 @@ mod tests {
 
     #[test]
     fn wycheproof_ed25519_to_x25519() {
-        let data: serde_json::Value = serde_json::from_str(include_str!(
+        let data: json::Value<'_> = json::from_str(include_str!(
             "../../testdata/wycheproof/testvectors_v1/ed25519_to_x25519_test.json"
         ))
         .unwrap();

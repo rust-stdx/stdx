@@ -59,7 +59,7 @@ pub enum Error {
     InvalidConfig(&'static str),
     Http(Box<dyn core::error::Error + Send + Sync>),
     Time(std::time::SystemTimeError),
-    Xml(quick_xml::DeError),
+    Xml(String),
     Api {
         status: u16,
         body: String,
@@ -104,9 +104,9 @@ impl From<std::time::SystemTimeError> for Error {
     }
 }
 
-impl From<quick_xml::DeError> for Error {
-    fn from(value: quick_xml::DeError) -> Self {
-        Self::Xml(value)
+impl From<crate::xml::ParseError> for Error {
+    fn from(value: crate::xml::ParseError) -> Self {
+        Self::Xml(value.to_string())
     }
 }
 

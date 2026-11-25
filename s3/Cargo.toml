@@ -24,9 +24,8 @@ hex = { path = "../hex" }
 
 bytes = { workspace = true }
 futures-util = { workspace = true, features = ["std"] }
-quick-xml = { workspace = true, features = ["serialize"] }
+quick-xml = { workspace = true }
 reqwest = { workspace = true, features = ["stream"], optional = true }
-serde = { workspace = true, features = ["derive"] }
 url = { workspace = true, features = ["std"] }
 
 [dev-dependencies]

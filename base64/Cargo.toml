@@ -16,18 +16,19 @@ path = "./base64.rs"
 [features]
 default = ["alloc"]
 alloc = []
-serde = ["dep:serde"]
-small_collections = ["dep:small_collections", "serde", "alloc"]
+json = ["dep:json", "alloc"]
+small_collections = ["dep:small_collections", "json", "alloc"]
 
 [dependencies]
+json = { path = "../json", optional = true, default-features = false, features = ["alloc"] }
 small_collections = { path = "../small_collections", optional = true, default-features = false }
-
-serde = { workspace = true, optional = true }
 
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
+json = { path = "../json", features = ["derive"] }
+random = { path = "../random", default-features = false }
 
-rand = { workspace = true, features = ["std_rng"] }
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true, features = ["std"] }
-serde_test = { workspace = true }
+[[test]]
+name = "json"
+path = "tests/json.rs"
+required-features = ["json"]

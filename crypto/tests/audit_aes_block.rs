@@ -8,7 +8,7 @@
 //! function is a plain byte-oriented implementation written from FIPS 197.
 
 use crypto::aes::{Aes128Block, Aes256Block, decrypt_block, encrypt_block};
-use rand::{RngExt, SeedableRng, rngs::StdRng};
+use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
 // ── Independent AES-128/AES-256 reference ─────────────────────────────────────
 
@@ -191,7 +191,7 @@ fn ref_schedule<const N: usize>(key: &[u8]) -> [[u8; 16]; N] {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/// Deterministic seeded `StdRng` generator.
+/// Deterministic seeded `ChaChaRng` generator.
 // ── Reference self-check ──────────────────────────────────────────────────────
 
 #[test]
@@ -365,7 +365,7 @@ fn all_zero_and_all_ones_keys_and_blocks() {
 /// the independent reference.
 #[test]
 fn random_sweep_encrypt_matches_reference() {
-    let mut rng = StdRng::seed_from_u64(0x0d0c_0b0a_0908_0706);
+    let mut rng = ChaChaRng::seed_from_u64(0x0d0c_0b0a_0908_0706);
     let mut key128 = [0u8; 16];
     let mut rk128 = ref_schedule::<11>(&key128);
     let mut cipher128 = Aes128Block::new(&key128);
@@ -401,7 +401,7 @@ fn random_sweep_encrypt_matches_reference() {
 /// plus an encrypt/decrypt round trip.
 #[test]
 fn random_sweep_decrypt_matches_reference() {
-    let mut rng = StdRng::seed_from_u64(0xfeed_face_dead_beef);
+    let mut rng = ChaChaRng::seed_from_u64(0xfeed_face_dead_beef);
     let mut key128 = [0u8; 16];
     let mut key256 = [0u8; 32];
     let mut rk128 = ref_schedule::<11>(&key128);
@@ -434,7 +434,7 @@ fn random_sweep_decrypt_matches_reference() {
 /// must not interfere (no hidden shared state).
 #[test]
 fn inputs_are_not_modified_and_calls_are_independent() {
-    let mut rng = StdRng::seed_from_u64(0x1234_5678_9abc_def0);
+    let mut rng = ChaChaRng::seed_from_u64(0x1234_5678_9abc_def0);
     for _ in 0..1000 {
         let key = hex::decode_array::<16>(("2b7e151628aed2a6abf7158809cf4f3c").as_bytes()).unwrap();
         let rk = ref_schedule::<11>(&key);

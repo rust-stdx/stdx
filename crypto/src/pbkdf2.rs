@@ -117,7 +117,7 @@ mod tests {
     fn pbkdf2_sha256_wycheproof() {
         const MAX_OUTPUT: usize = 128;
 
-        let data: serde_json::Value = serde_json::from_str(include_str!(
+        let data: json::Value<'_> = json::from_str(include_str!(
             "../testdata/wycheproof/testvectors_v1/pbkdf2_hmacsha256_test.json"
         ))
         .unwrap();
@@ -150,7 +150,7 @@ mod tests {
     fn pbkdf2_sha512_wycheproof() {
         const MAX_OUTPUT: usize = 128;
 
-        let data: serde_json::Value = serde_json::from_str(include_str!(
+        let data: json::Value<'_> = json::from_str(include_str!(
             "../testdata/wycheproof/testvectors_v1/pbkdf2_hmacsha512_test.json"
         ))
         .unwrap();

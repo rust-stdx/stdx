@@ -18,15 +18,11 @@ path = "small_collections.rs"
 default = ["std"]
 
 bytes = ["dep:bytes"]
-serde = ["dep:serde", "serde/alloc"]
-std = ["serde?/std"]
+std = []
 
 [dependencies]
 bytes = { workspace = true, optional = true }
 heapless = { workspace = true }
-serde = { workspace = true, optional = true, default-features = false }
 
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
-
-serde_json = { workspace = true, features = ["std"] }

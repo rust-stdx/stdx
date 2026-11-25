@@ -14,7 +14,8 @@
 //! `saslprep` function for the implemented profile.
 
 use base64::{Alphabet, decode as b64_decode, encode as b64_encode};
-use crypto::{Hasher, hmac::Hmac, random, sha2::Sha256};
+use crypto::{Hasher, hmac::Hmac, sha2::Sha256};
+use random::{SystemRng, TryRng};
 use zeroize::Zeroize;
 
 use crate::error::Error;
@@ -145,7 +146,10 @@ impl ScramClient {
     /// Returns [`Error::Auth`] when the password cannot be SASLprep'd (it
     /// contains a prohibited control character).
     pub fn with_max_iterations(password: &str, max_iterations: u32) -> std::result::Result<Self, Error> {
-        let raw = random::bytes::<18>().map_err(|e| Error::Auth(format!("random: {e}")))?;
+        let mut raw = [0u8; 18];
+        SystemRng
+            .try_fill_bytes(&mut raw)
+            .map_err(|e| Error::Auth(format!("random: {e}")))?;
         let client_nonce = b64_encode(raw, Alphabet::StandardNoPadding);
         Self::with_nonce_and_max("", password, client_nonce, max_iterations)
     }

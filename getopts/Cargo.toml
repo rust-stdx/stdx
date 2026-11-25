@@ -11,11 +11,7 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-unicode-width = { workspace = true, features = ["cjk"] }
-# std = { version = "1.0", package = "rustc-std-workspace-std", optional = true }
-# core = { version = "1.0", package = "rustc-std-workspace-core", optional = true }
+unicode_width = { path = "../unicode_width", features = ["cjk"] }
 
 [dev-dependencies]
 tracing = { workspace = true, features = ["std"] }
-# [features]
-# rustc-dep-of-std = ['unicode-width/rustc-dep-of-std', 'std', 'core']

@@ -21,7 +21,7 @@ use crypto::{
     StreamCipher, StreamCipherError,
     aes::{Aes128Block, Aes128Ctr, Aes256Block, Aes256Ctr},
 };
-use rand::{Rng, SeedableRng, rngs::StdRng};
+use random::{Rng, SeedableRng, rngs::ChaChaRng};
 
 const KEY128: [u8; 16] = [
     0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c,
@@ -515,7 +515,7 @@ fn one_byte_chunks_match_one_shot() {
 /// one-shot encryption under both key sizes, across counter-wrap boundaries.
 #[test]
 fn randomized_split_sweep_matches_one_shot() {
-    let mut rng = StdRng::seed_from_u64(0x1234_5678_9abc_def0);
+    let mut rng = ChaChaRng::seed_from_u64(0x1234_5678_9abc_def0);
 
     for counter in counters() {
         for len in 0..=512usize {

@@ -1,0 +1,20 @@
+[package]
+name = "libyaml_unsafe_test_suite"
+version = "0.0.0"
+authors = ["David Tolnay <dtolnay@gmail.com>"]
+edition = "2024"
+publish = false
+
+[lib]
+path = "lib.rs"
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0"
+quote = "1.0"
+
+# [build-dependencies]
+# anyhow = "1.0"
+# flate2 = "1.0"
+# reqwest = { version = "0.12", features = ["blocking"] }
+# tar = "0.4.16"

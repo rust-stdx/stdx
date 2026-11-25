@@ -21,7 +21,7 @@ use crypto::{
         keccak_backend_name, parallel_hash_backend_name,
     },
 };
-use rand::{RngExt, SeedableRng, rngs::StdRng};
+use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
 //////////////////////////////////////////////////////////////////////////////////////////////////
 // Independent FIPS 202 reference
@@ -332,7 +332,7 @@ fn reference_matches_nist_parallel_hash_vectors() {
 /// states.
 #[test]
 fn p1600_dispatched_matches_reference_all_rounds() {
-    let mut rng = StdRng::seed_from_u64(0x0123_4567_89ab_cdef);
+    let mut rng = ChaChaRng::seed_from_u64(0x0123_4567_89ab_cdef);
 
     macro_rules! check {
         ($($rounds:literal),* $(,)?) => {
@@ -372,7 +372,7 @@ fn p1600_dispatched_matches_reference_all_rounds() {
 /// a little-endian byte round-trip.
 #[test]
 fn p1600_matches_reference_for_serialized_byte_states() {
-    let mut rng = StdRng::seed_from_u64(0xdead_beef_1234_5678);
+    let mut rng = ChaChaRng::seed_from_u64(0xdead_beef_1234_5678);
     for _ in 0..32 {
         let mut lanes = rng.random::<[u64; 25]>();
         let mut bytes = [0u8; 200];
@@ -625,7 +625,7 @@ fn sponge_rejects_absorb_after_squeeze() {
 #[test]
 fn sha3_256_matches_reference_for_all_lengths_near_boundaries() {
     let rate = 136usize;
-    let mut rng = StdRng::seed_from_u64(0x1111_2222_3333_4444);
+    let mut rng = ChaChaRng::seed_from_u64(0x1111_2222_3333_4444);
     for len in 0..=(2 * rate + 32) {
         let data = {
             let mut v = vec![0u8; len];
@@ -648,7 +648,7 @@ fn sha3_256_matches_reference_for_all_lengths_near_boundaries() {
 #[test]
 fn sha3_512_matches_reference_for_all_lengths_near_boundaries() {
     let rate = 72usize;
-    let mut rng = StdRng::seed_from_u64(0x5555_6666_7777_8888);
+    let mut rng = ChaChaRng::seed_from_u64(0x5555_6666_7777_8888);
     for len in 0..=(2 * rate + 32) {
         let data = {
             let mut v = vec![0u8; len];
@@ -672,7 +672,7 @@ fn sha3_512_matches_reference_for_all_lengths_near_boundaries() {
 fn shake128_and_shake256_match_reference_including_multi_block_output() {
     let cases: [(usize, usize, u64); 2] = [(168, 2 * 168 + 33, 0xaaaa), (136, 2 * 136 + 33, 0xbbbb)];
     for (rate, out_len, seed) in cases {
-        let mut rng = StdRng::seed_from_u64(seed);
+        let mut rng = ChaChaRng::seed_from_u64(seed);
         for len in 0..=(2 * rate + 32) {
             let data = {
                 let mut v = vec![0u8; len];
@@ -824,7 +824,7 @@ fn parallel_hash_matches_reference_across_block_sizes() {
         (168, b""),
     ];
 
-    let mut rng = StdRng::seed_from_u64(0xfeed_face_cafe_beef);
+    let mut rng = ChaChaRng::seed_from_u64(0xfeed_face_cafe_beef);
     for &(block_size, customization) in settings {
         let lengths = [
             0usize,

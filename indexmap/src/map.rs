@@ -9,10 +9,6 @@ mod slice;
 
 pub mod raw_entry_v1;
 
-#[cfg(feature = "serde")]
-#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
-pub mod serde_seq;
-
 #[cfg(test)]
 mod tests;
 

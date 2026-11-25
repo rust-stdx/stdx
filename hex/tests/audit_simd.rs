@@ -18,7 +18,7 @@
 //! under emulation.
 
 use hex::{Alphabet, DecodeError, EncodeError};
-use rand::{RngExt, SeedableRng, rngs::StdRng};
+use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
 const LOW: &[u8; 16] = b"0123456789abcdef";
 const UPP: &[u8; 16] = b"0123456789ABCDEF";
@@ -81,9 +81,9 @@ fn guarded_out(out_len: usize, f: impl FnOnce(&mut [u8])) -> Vec<u8> {
 
 const BOUNDARIES: &[usize] = &[0, 1, 2, 15, 16, 17, 31, 32, 33, 47, 48, 49, 63, 64, 65];
 
-/// Deterministic pseudo-random byte stream (seeded `StdRng`).
+/// Deterministic pseudo-random byte stream (seeded `ChaChaRng`).
 fn test_data(max: usize) -> Vec<u8> {
-    let mut rng = StdRng::seed_from_u64(0x1234_5678_9abc_def0);
+    let mut rng = ChaChaRng::seed_from_u64(0x1234_5678_9abc_def0);
     (0..max).map(|_| rng.random::<u8>()).collect()
 }
 

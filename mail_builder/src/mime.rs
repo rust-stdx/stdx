@@ -113,9 +113,9 @@ fn write_hex(output: &mut impl Writer, mut value: u64) {
 /// `separator`, which should be a non-empty string. Boundaries never contain
 /// characters that are forbidden in a MIME boundary, nor any whitespace.
 pub fn write_boundary(output: &mut impl Writer, separator: &str) {
-    write_hex(output, rand::random::<u64>());
+    write_hex(output, random::random::<u64>());
     output.write(separator.as_bytes());
-    write_hex(output, rand::random::<u64>());
+    write_hex(output, random::random::<u64>());
 }
 
 /// Returns a random MIME boundary. See [`write_boundary`].

@@ -16,14 +16,15 @@ path = "./hpke.rs"
 [features]
 default = ["alloc", "random", "zeroize"]
 alloc = ["crypto/alloc"]
-random = ["crypto/random"]
+random = ["crypto/random", "dep:random"]
 zeroize = ["dep:zeroize", "crypto/zeroize"]
 
 [dependencies]
 crypto = { path = "../crypto", default-features = false }
+random = { path = "../random", optional = true, default-features = false, features = ["system"] }
 zeroize = { path = "../zeroize", optional = true, default-features = false, features = ["derive"] }
 
 [dev-dependencies]
 hex = { path = "../hex" }
 
-serde_json = { workspace = true, features = ["std"] }
+json = { path = "../json" }

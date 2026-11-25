@@ -5,7 +5,7 @@
 //! and the byte-length assumptions made by callers.
 
 use big_number::{Error, Uint};
-use rand::{Rng, SeedableRng, rngs::StdRng};
+use random::{Rng, SeedableRng, rngs::ChaChaRng};
 
 type U128 = Uint<128, 2>;
 type U256 = Uint<256, 4>;
@@ -13,7 +13,7 @@ type U130 = Uint<130, 3>;
 
 #[test]
 fn round_trips_all_radices() {
-    let mut rng = StdRng::seed_from_u64(0x9E37_79B9_7F4A_7C15);
+    let mut rng = ChaChaRng::seed_from_u64(0x9E37_79B9_7F4A_7C15);
     let values = [
         U128::ZERO,
         U128::ONE,
@@ -139,7 +139,7 @@ fn u128_operands_do_not_panic() {
 
 #[test]
 fn div_rem_u128_matches_definition() {
-    let mut rng = StdRng::seed_from_u64(0xDEAD_BEEF_CAFE_F00D);
+    let mut rng = ChaChaRng::seed_from_u64(0xDEAD_BEEF_CAFE_F00D);
     for _ in 0..2_000 {
         let a = U256::from_limbs([rng.next_u64(), rng.next_u64(), rng.next_u64(), rng.next_u64()]);
         // Exercise both the single-limb fast path and the two-limb path.

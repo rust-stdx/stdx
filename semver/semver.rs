@@ -49,25 +49,6 @@
 //! assert_eq!(parse("1.0.0+build1").unwrap(), parse("1.0.0+build2").unwrap());
 //! ```
 //!
-//! # Serde support
-//!
-//! Enable the `serde` feature to serialize/deserialize [`Version`] as a string:
-//!
-//! ```toml
-//! [dependencies]
-//! semver = { path = "../semver", features = ["serde"] }
-//! ```
-//!
-//! ```
-//! # #[cfg(feature = "serde")] fn _serde_example() {
-//! use serde_json;
-//! use semver::parse;
-//!
-//! let v: semver::Version<'_> = serde_json::from_str("\"1.2.3-alpha+build\"").unwrap();
-//! assert_eq!(v, parse("1.2.3-alpha+build").unwrap());
-//! # }
-//! ```
-//!
 //! # Error handling
 //!
 //! ```
@@ -82,9 +63,10 @@
 
 extern crate alloc;
 
-#[cfg(feature = "serde")]
-mod serde;
-
+#[cfg(feature = "cbor")]
+mod cbor;
+#[cfg(feature = "json")]
+mod json;
 use alloc::vec::Vec;
 use core::{cmp::Ordering, fmt};
 
@@ -952,25 +934,5 @@ mod tests {
             identifiers: vec![Identifier::Alpha("alpha"), Identifier::Numeric(1)],
         };
         assert!(c < d);
-    }
-
-    // ===== Serde tests =====
-
-    #[cfg(feature = "serde")]
-    #[test]
-    fn serde_roundtrip() {
-        use serde_json;
-        let v = parse("1.2.3-alpha+build").unwrap();
-        let json = serde_json::to_string(&v).unwrap();
-        let v2: Version = serde_json::from_str(&json).unwrap();
-        assert_eq!(v, v2);
-    }
-
-    #[cfg(feature = "serde")]
-    #[test]
-    fn serde_deserialize_invalid_errors() {
-        use serde_json;
-        let result: Result<Version, _> = serde_json::from_str("\"01.2.3\"");
-        assert!(result.is_err());
     }
 }

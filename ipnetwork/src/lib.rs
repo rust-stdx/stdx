@@ -15,9 +15,13 @@ use std::{
     str::FromStr,
 };
 
+#[cfg(feature = "cbor")]
+mod cbor;
 mod error;
 mod ipv4;
 mod ipv6;
+#[cfg(feature = "json")]
+mod json;
 mod parse;
 mod size;
 
@@ -34,27 +38,6 @@ pub use crate::{
 pub enum IpNetwork {
     V4(Ipv4Network),
     V6(Ipv6Network),
-}
-
-#[cfg(feature = "serde")]
-impl<'de> serde::Deserialize<'de> for IpNetwork {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let s = <String>::deserialize(deserializer)?;
-        IpNetwork::from_str(&s).map_err(serde::de::Error::custom)
-    }
-}
-
-#[cfg(feature = "serde")]
-impl serde::Serialize for IpNetwork {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.collect_str(self)
-    }
 }
 
 #[cfg(feature = "schemars")]
@@ -421,18 +404,5 @@ pub const fn ip_mask_to_prefix_checked(mask: IpAddr) -> Option<u8> {
     match mask {
         IpAddr::V4(mask) => ipv4_mask_to_prefix_checked(mask),
         IpAddr::V6(mask) => ipv6_mask_to_prefix_checked(mask),
-    }
-}
-
-#[cfg(test)]
-mod test {
-    #[test]
-    #[cfg(feature = "serde")]
-    fn deserialize_from_serde_json_value() {
-        use super::*;
-        let network = IpNetwork::from_str("0.0.0.0/0").unwrap();
-        let val: serde_json::value::Value = serde_json::from_str(&serde_json::to_string(&network).unwrap()).unwrap();
-        let _deser: IpNetwork =
-            serde_json::from_value(val).expect("Fails to deserialize from json_value::value::Value");
     }
 }

@@ -17,9 +17,9 @@
 //!
 //! | Flag    | Description                                             |
 //! |---------|---------------------------------------------------------|
-//! | `alloc` | `String`/`Vec`-returning convenience APIs; enables `Vec<u8>` serde support with `serde` (enabled by default) |
-//! | `serde` | Serde `serialize`/`deserialize` helpers for `[u8; N]` |
-//! | `small_collections` | Serde support for `SmallVec<u8, N>` (implies `serde` and `alloc`) |
+//! | `json` | `#[json(with = "base64")]` helpers for byte buffers |
+//! | `small_collections` | JSON helpers for `SmallVec<u8, N>` (implies `json`) |
+//! | `alloc` | `String`/`Vec`-returning convenience APIs |
 //!
 //! # Performance
 //!
@@ -54,12 +54,10 @@
 #[cfg(any(feature = "alloc", test))]
 extern crate alloc;
 
-#[cfg(feature = "serde")]
-mod serde;
-// Re-export the `#[serde(with = "base64")]` helpers so they are reachable from outside the
-// crate (and therefore not dead code).
-#[cfg(feature = "serde")]
-pub use self::serde::{FromEncoded, FromEncodedError, deserialize, serialize};
+#[cfg(feature = "json")]
+pub mod json;
+#[cfg(feature = "json")]
+pub use self::json::{FromEncoded, deserialize, serialize};
 
 // SIMD kernels are only reachable through the compile-time dispatch in `encode_into` /
 // `decode_into` below, so they are compiled only when the matching target feature is
@@ -1393,199 +1391,5 @@ mod tests {
             "output buffer size must be exactly equal to encoded_length(input)"
         );
         assert_eq!(format!("{}", EncodeError::OutputOverflow), "output length overflows usize::MAX");
-    }
-
-    #[cfg(all(feature = "serde", feature = "alloc"))]
-    #[test]
-    fn test_serde_vec_roundtrip() {
-        use ::serde::{Deserialize, Serialize};
-        use ::serde_test::{Configure, Token, assert_tokens};
-
-        #[derive(Debug, PartialEq, Serialize, Deserialize)]
-        struct Data(#[serde(with = "crate")] Vec<u8>);
-
-        let data = Data(b"hello world".to_vec());
-        let json = ::serde_json::to_string(&data).unwrap();
-        assert_eq!(json, "\"aGVsbG8gd29ybGQ=\"");
-        let deserialized: Data = ::serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized, data);
-
-        let binary = Data(b"hi".to_vec());
-        assert_tokens(
-            &binary.compact(),
-            &[
-                Token::NewtypeStruct {
-                    name: "Data",
-                },
-                Token::Bytes(b"hi"),
-            ],
-        );
-    }
-
-    #[cfg(feature = "small_collections")]
-    #[test]
-    fn test_serde() {
-        use ::serde::{Deserialize, Serialize};
-        use ::small_collections::SmallVec;
-
-        #[derive(Debug, PartialEq, Serialize, Deserialize)]
-        struct Data {
-            #[serde(with = "crate")]
-            vec: Vec<u8>,
-            #[serde(with = "crate")]
-            array: [u8; 4],
-            #[serde(with = "crate")]
-            small: SmallVec<u8, 4>,
-        }
-
-        let data = Data {
-            vec: b"hello world".to_vec(),
-            array: *b"abcd",
-            small: SmallVec::from_slice(b"xyz"),
-        };
-        assert!(data.small.is_inline());
-
-        let json = ::serde_json::to_string(&data).unwrap();
-        assert_eq!(json, r#"{"vec":"aGVsbG8gd29ybGQ=","array":"YWJjZA==","small":"eHl6"}"#);
-
-        let deserialized: Data = ::serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized, data);
-        assert!(deserialized.small.is_inline());
-    }
-
-    #[cfg(feature = "small_collections")]
-    #[test]
-    fn test_serde_small_vec_spills() {
-        use ::serde::{Deserialize, Serialize};
-        use ::small_collections::SmallVec;
-
-        #[derive(Debug, PartialEq, Serialize, Deserialize)]
-        struct Data {
-            #[serde(with = "crate")]
-            bytes: SmallVec<u8, 4>,
-        }
-
-        let data = Data {
-            bytes: SmallVec::from_slice(b"longer than four"),
-        };
-        assert!(!data.bytes.is_inline());
-
-        let json = ::serde_json::to_string(&data).unwrap();
-        let deserialized: Data = ::serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized, data);
-        assert!(!deserialized.bytes.is_inline());
-    }
-
-    #[cfg(feature = "serde")]
-    #[test]
-    fn test_serde_array_length_mismatch() {
-        use ::serde::Deserialize;
-
-        #[derive(Debug, Deserialize)]
-        struct Data {
-            #[serde(with = "crate")]
-            array: [u8; 4],
-        }
-
-        let valid: Data = ::serde_json::from_str(r#"{"array":"YWJjZA=="}"#).unwrap();
-        assert_eq!(valid.array, *b"abcd");
-
-        assert!(::serde_json::from_str::<Data>(r#"{"array":"YWJj"}"#).is_err());
-        assert!(::serde_json::from_str::<Data>(r#"{"array":"YWJjZGVm"}"#).is_err());
-        assert!(::serde_json::from_str::<Data>(r#"{"array":"!!!!"}"#).is_err());
-    }
-
-    #[cfg(feature = "serde")]
-    #[test]
-    fn test_serde_generic_array() {
-        use ::serde::{Deserialize, Serialize};
-
-        #[derive(Debug, PartialEq, Serialize, Deserialize)]
-        struct Data<const N: usize> {
-            #[serde(with = "crate")]
-            array: [u8; N],
-        }
-
-        let data = Data::<3> {
-            array: *b"abc",
-        };
-        let json = ::serde_json::to_string(&data).unwrap();
-        assert_eq!(json, r#"{"array":"YWJj"}"#);
-        assert_eq!(::serde_json::from_str::<Data<3>>(&json).unwrap(), data);
-    }
-
-    #[cfg(feature = "serde")]
-    #[test]
-    fn test_serde_array_binary_roundtrip() {
-        use ::serde::{Deserialize, Serialize};
-        use ::serde_test::{Configure, Token, assert_tokens};
-
-        static LARGE: [u8; 1024] = [0xAB; 1024];
-
-        #[derive(Debug, PartialEq, Serialize, Deserialize)]
-        struct Data<const N: usize>(#[serde(with = "crate")] [u8; N]);
-
-        assert_tokens(
-            &Data(*b"abcd").compact(),
-            &[
-                Token::NewtypeStruct {
-                    name: "Data",
-                },
-                Token::Bytes(b"abcd"),
-            ],
-        );
-        assert_tokens(
-            &Data::<1024>(LARGE).compact(),
-            &[
-                Token::NewtypeStruct {
-                    name: "Data",
-                },
-                Token::Bytes(&LARGE),
-            ],
-        );
-    }
-
-    #[cfg(feature = "small_collections")]
-    #[test]
-    fn test_serde_binary_roundtrip() {
-        use ::serde::{Deserialize, Serialize};
-        use ::serde_test::{Configure, Token, assert_tokens};
-        use ::small_collections::SmallVec;
-
-        #[derive(Debug, PartialEq, Serialize, Deserialize)]
-        struct Data {
-            #[serde(with = "crate")]
-            vec: Vec<u8>,
-            #[serde(with = "crate")]
-            array: [u8; 4],
-            #[serde(with = "crate")]
-            small: SmallVec<u8, 4>,
-        }
-
-        let data = Data {
-            vec: b"hi".to_vec(),
-            array: *b"abcd",
-            small: SmallVec::from_slice(b"xyz"),
-        };
-        assert_eq!(data.vec, b"hi");
-        assert_eq!(data.array, *b"abcd");
-        assert_eq!(&data.small[..], b"xyz");
-
-        assert_tokens(
-            &data.compact(),
-            &[
-                Token::Struct {
-                    name: "Data",
-                    len: 3,
-                },
-                Token::Str("vec"),
-                Token::Bytes(b"hi"),
-                Token::Str("array"),
-                Token::Bytes(b"abcd"),
-                Token::Str("small"),
-                Token::Bytes(b"xyz"),
-                Token::StructEnd,
-            ],
-        );
     }
 }

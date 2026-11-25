@@ -14,10 +14,8 @@ workspace = true
 path = "./semver.rs"
 
 [features]
-serde = ["dep:serde"]
-
+cbor = ["dep:cbor"]
+json = ["dep:json"]
 [dependencies]
-serde = { workspace = true, optional = true, default-features = false, features = ["derive", "alloc"] }
-
-[dev-dependencies]
-serde_json = { workspace = true, features = ["std"] }
+cbor = { path = "../cbor", optional = true, default-features = false, features = ["alloc"] }
+json = { path = "../json", optional = true, default-features = false, features = ["alloc"] }

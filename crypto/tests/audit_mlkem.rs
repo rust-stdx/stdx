@@ -126,8 +126,8 @@ fn mlkem_intermediate_files_are_pre_fips_kyber_vectors() {
 
 #[test]
 fn mlkem_768_wycheproof_kem_all() {
-    let data: serde_json::Value =
-        serde_json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/mlkem_768_test.json")).unwrap();
+    let data: json::Value<'_> =
+        json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/mlkem_768_test.json")).unwrap();
     let mut valid = 0u32;
     let mut skipped = 0u32;
 
@@ -173,8 +173,8 @@ fn mlkem_768_wycheproof_kem_all() {
 
 #[test]
 fn mlkem_1024_wycheproof_kem_all() {
-    let data: serde_json::Value =
-        serde_json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/mlkem_1024_test.json")).unwrap();
+    let data: json::Value<'_> =
+        json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/mlkem_1024_test.json")).unwrap();
     let mut valid = 0u32;
     let mut skipped = 0u32;
 
@@ -216,8 +216,8 @@ fn mlkem_1024_wycheproof_kem_all() {
 
 #[test]
 fn mlkem_768_wycheproof_encaps_all() {
-    let data: serde_json::Value =
-        serde_json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/mlkem_768_encaps_test.json")).unwrap();
+    let data: json::Value<'_> =
+        json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/mlkem_768_encaps_test.json")).unwrap();
     let mut valid = 0u32;
     let mut invalid = 0u32;
 
@@ -279,7 +279,7 @@ fn mlkem_768_wycheproof_encaps_all() {
 
 #[test]
 fn mlkem_1024_wycheproof_encaps_all() {
-    let data: serde_json::Value = serde_json::from_str(include_str!(
+    let data: json::Value<'_> = json::from_str(include_str!(
         "../testdata/wycheproof/testvectors_v1/mlkem_1024_encaps_test.json"
     ))
     .unwrap();
@@ -344,7 +344,7 @@ fn mlkem_1024_wycheproof_encaps_all() {
 
 #[test]
 fn mlkem_768_wycheproof_decaps_validation() {
-    let data: serde_json::Value = serde_json::from_str(include_str!(
+    let data: json::Value<'_> = json::from_str(include_str!(
         "../testdata/wycheproof/testvectors_v1/mlkem_768_semi_expanded_decaps_test.json"
     ))
     .unwrap();
@@ -412,7 +412,7 @@ fn mlkem_768_wycheproof_decaps_validation() {
 
 #[test]
 fn mlkem_1024_wycheproof_decaps_validation() {
-    let data: serde_json::Value = serde_json::from_str(include_str!(
+    let data: json::Value<'_> = json::from_str(include_str!(
         "../testdata/wycheproof/testvectors_v1/mlkem_1024_semi_expanded_decaps_test.json"
     ))
     .unwrap();
@@ -490,7 +490,7 @@ fn mlkem_keygen_seed_vectors() {
             include_str!("../testdata/wycheproof/testvectors_v1/mlkem_1024_keygen_seed_test.json"),
         ),
     ] {
-        let data: serde_json::Value = serde_json::from_str(file).unwrap();
+        let data: json::Value<'_> = json::from_str(file).unwrap();
         let mut tested = 0u32;
         for group in data["testGroups"].as_array().unwrap() {
             if group["parameterSet"].as_str() != Some(parameter_set) {

@@ -138,23 +138,6 @@ impl Duration {
             None => None,
         }
     }
-
-    /// Returns the whole seconds component used for serialization.
-    pub(crate) const fn serialized_secs(self) -> i64 {
-        (self.nanos / NANOS_PER_SECOND) as i64
-    }
-
-    /// Returns the sub-second nanosecond component used for serialization.
-    pub(crate) const fn serialized_nanos(self) -> i32 {
-        (self.nanos % NANOS_PER_SECOND) as i32
-    }
-
-    /// Rebuilds a duration from the serialized `(secs, nanos)` pair.
-    pub(crate) const fn from_secs_nanos(secs: i64, nanos: i32) -> Duration {
-        Duration {
-            nanos: secs as i128 * NANOS_PER_SECOND + nanos as i128,
-        }
-    }
 }
 
 impl core::fmt::Display for Duration {

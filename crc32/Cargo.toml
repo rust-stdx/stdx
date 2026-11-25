@@ -11,7 +11,7 @@ repository.workspace = true
 workspace = true
 
 [dev-dependencies]
-rand = { workspace = true, features = ["sys_rng"] }
+random = { path = "../random", default-features = false, features = ["system"] }
 
 [features]
 default = ["std"]

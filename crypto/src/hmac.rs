@@ -287,8 +287,8 @@ mod hmac_tests {
 
     #[test]
     fn hmac_sha256_wycheproof() {
-        let data: serde_json::Value =
-            serde_json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/hmac_sha256_test.json")).unwrap();
+        let data: json::Value<'_> =
+            json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/hmac_sha256_test.json")).unwrap();
         let mut valid_tested = 0u64;
         let mut invalid_tested = 0u64;
         for group in data["testGroups"].as_array().unwrap() {
@@ -329,8 +329,8 @@ mod hmac_tests {
 
     #[test]
     fn hmac_sha512_wycheproof() {
-        let data: serde_json::Value =
-            serde_json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/hmac_sha512_test.json")).unwrap();
+        let data: json::Value<'_> =
+            json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/hmac_sha512_test.json")).unwrap();
         let mut valid_tested = 0u64;
         let mut invalid_tested = 0u64;
         for group in data["testGroups"].as_array().unwrap() {
@@ -371,8 +371,8 @@ mod hmac_tests {
 
     #[test]
     fn hmac_sha384_wycheproof() {
-        let data: serde_json::Value =
-            serde_json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/hmac_sha384_test.json")).unwrap();
+        let data: json::Value<'_> =
+            json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/hmac_sha384_test.json")).unwrap();
         let mut valid_tested = 0u64;
         let mut invalid_tested = 0u64;
         for group in data["testGroups"].as_array().unwrap() {
@@ -413,9 +413,8 @@ mod hmac_tests {
 
     #[test]
     fn hmac_sha3_256_wycheproof() {
-        let data: serde_json::Value =
-            serde_json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/hmac_sha3_256_test.json"))
-                .unwrap();
+        let data: json::Value<'_> =
+            json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/hmac_sha3_256_test.json")).unwrap();
         let mut valid_tested = 0u64;
         let mut invalid_tested = 0u64;
         for group in data["testGroups"].as_array().unwrap() {
@@ -456,9 +455,8 @@ mod hmac_tests {
 
     #[test]
     fn hmac_sha3_512_wycheproof() {
-        let data: serde_json::Value =
-            serde_json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/hmac_sha3_512_test.json"))
-                .unwrap();
+        let data: json::Value<'_> =
+            json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/hmac_sha3_512_test.json")).unwrap();
         let mut valid_tested = 0u64;
         let mut invalid_tested = 0u64;
         for group in data["testGroups"].as_array().unwrap() {

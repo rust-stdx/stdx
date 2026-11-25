@@ -8,18 +8,19 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-serde = { workspace = true, optional = true, features = ["std", "derive"] }
+cbor = { path = "../cbor", optional = true, default-features = false, features = ["alloc"] }
+json = { path = "../json", optional = true, default-features = false, features = ["alloc"] }
 # schemars = { version = "1.0.4", optional = true }
 
 [dev-dependencies]
-serde_json = { workspace = true, features = ["std"] }
 
 [features]
 # Keep optional dependencies out of the default features.
 # Since most people add a dependency without `default-features = false` they involuntarily
 # pull in unused dependencies.
 default = []
-serde = ["dep:serde"]
+cbor = ["dep:cbor"]
+json = ["dep:json"]
 
 # TODO: `schemars` support is disabled because the upstream `schemars` crate is an external
 # dependency (see the commented-out entry in `[dependencies]`). The `#[cfg(feature =

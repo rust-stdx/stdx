@@ -1129,8 +1129,8 @@ mod tests {
     #[test]
     fn p384_fast_mul_mod_matches_generic() {
         for _ in 0..1000 {
-            let a_bytes: [u8; 48] = rand::random();
-            let b_bytes: [u8; 48] = rand::random();
+            let a_bytes: [u8; 48] = random::random();
+            let b_bytes: [u8; 48] = random::random();
             let a_opt = FieldElement::from_bytes(&a_bytes);
             let b_opt = FieldElement::from_bytes(&b_bytes);
             if a_opt.is_none() || b_opt.is_none() {
@@ -1390,7 +1390,7 @@ mod tests {
     fn ecdsa_sign_then_verify_consistent_for_random_keys() {
         for _ in 0..5 {
             let key = SecretKey::generate().unwrap();
-            let msg = rand::random::<[u8; 32]>();
+            let msg = random::random::<[u8; 32]>();
             let sig = key.sign(&msg).unwrap();
             assert!(key.public_key().verify(&msg, &sig).is_ok());
         }
@@ -1438,7 +1438,7 @@ mod tests {
 
     #[test]
     fn wycheproof_ecdsa_p384_sha384_p1363() {
-        let data: serde_json::Value = serde_json::from_str(include_str!(
+        let data: json::Value<'_> = json::from_str(include_str!(
             "../../testdata/wycheproof/testvectors_v1/ecdsa_secp384r1_sha384_p1363_test.json"
         ))
         .unwrap();
@@ -1486,7 +1486,7 @@ mod tests {
 
     #[test]
     fn wycheproof_ecdsa_p384_sha384_der() {
-        let data: serde_json::Value = serde_json::from_str(include_str!(
+        let data: json::Value<'_> = json::from_str(include_str!(
             "../../testdata/wycheproof/testvectors_v1/ecdsa_secp384r1_sha384_test.json"
         ))
         .unwrap();
@@ -1536,7 +1536,7 @@ mod tests {
 
     #[test]
     fn wycheproof_ecdh_p384_ecpoint() {
-        let data: serde_json::Value = serde_json::from_str(include_str!(
+        let data: json::Value<'_> = json::from_str(include_str!(
             "../../testdata/wycheproof/testvectors_v1/ecdh_secp384r1_ecpoint_test.json"
         ))
         .unwrap();
@@ -1599,7 +1599,7 @@ mod tests {
 
     #[test]
     fn wycheproof_ecdh_p384_asn() {
-        let data: serde_json::Value = serde_json::from_str(include_str!(
+        let data: json::Value<'_> = json::from_str(include_str!(
             "../../testdata/wycheproof/testvectors_v1/ecdh_secp384r1_test.json"
         ))
         .unwrap();

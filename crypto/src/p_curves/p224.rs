@@ -978,7 +978,7 @@ mod tests {
         // Squares always have a root that squares back to the input, and that
         // root is one of the two square roots (±x).
         for _ in 0..500 {
-            let bytes: [u8; 28] = rand::random();
+            let bytes: [u8; 28] = random::random();
             let Some(x) = FieldElement::from_bytes(&bytes) else {
                 continue;
             };
@@ -1025,8 +1025,8 @@ mod tests {
         // Verify the Barrett-based field and scalar multiplications match the
         // generic (bit-serial) Uint::mul_mod.
         for _ in 0..1000 {
-            let a_bytes: [u8; 28] = rand::random();
-            let b_bytes: [u8; 28] = rand::random();
+            let a_bytes: [u8; 28] = random::random();
+            let b_bytes: [u8; 28] = random::random();
             let (Some(a), Some(b)) = (FieldElement::from_bytes(&a_bytes), FieldElement::from_bytes(&b_bytes)) else {
                 continue;
             };
@@ -1237,7 +1237,7 @@ mod tests {
 
     #[test]
     fn wycheproof_ecdsa_p224_sha256_p1363() {
-        let data: serde_json::Value = serde_json::from_str(include_str!(
+        let data: json::Value<'_> = json::from_str(include_str!(
             "../../testdata/wycheproof/testvectors_v1/ecdsa_secp224r1_sha256_p1363_test.json"
         ))
         .unwrap();
@@ -1274,7 +1274,7 @@ mod tests {
 
     #[test]
     fn wycheproof_ecdsa_p224_sha256_der() {
-        let data: serde_json::Value = serde_json::from_str(include_str!(
+        let data: json::Value<'_> = json::from_str(include_str!(
             "../../testdata/wycheproof/testvectors_v1/ecdsa_secp224r1_sha256_test.json"
         ))
         .unwrap();
@@ -1317,7 +1317,7 @@ mod tests {
     }
 
     fn wycheproof_ecdh_case(file: &str, asn: bool) {
-        let data: serde_json::Value = serde_json::from_str(file).unwrap();
+        let data: json::Value<'_> = json::from_str(file).unwrap();
         let mut valid_tested = 0u64;
         let mut invalid_tested = 0u64;
         for group in data["testGroups"].as_array().unwrap() {

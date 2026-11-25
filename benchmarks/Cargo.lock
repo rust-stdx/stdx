@@ -212,7 +212,6 @@ dependencies = [
  "nom",
  "paste",
  "regex",
- "serde",
  "thiserror 2.0.21",
  "time",
 ]
@@ -718,6 +717,7 @@ name = "crypto_rustls"
 version = "0.1.0"
 dependencies = [
  "crypto 0.1.0",
+ "random",
  "rustls",
 ]
 
@@ -1012,9 +1012,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "300e883d756b2e4ec94e02791f39b04b522276138852cfc41d9fb7e904106099"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "r-efi 6.0.0",
  "rand_core 0.10.1",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -1117,6 +1119,7 @@ name = "hpke"
 version = "0.1.0"
 dependencies = [
  "crypto 0.1.0",
+ "random",
  "zeroize 1.9.1",
 ]
 
@@ -1271,9 +1274,6 @@ dependencies = [
 [[package]]
 name = "ipnetwork"
 version = "0.21.1"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "itertools"
@@ -1563,7 +1563,6 @@ dependencies = [
 [[package]]
 name = "paste"
 version = "1.0.15"
-source = "git+https://github.com/dtolnay/paste?rev=6a302522990cbfd9de4e0c61d91854622f7b2999#6a302522990cbfd9de4e0c61d91854622f7b2999"
 
 [[package]]
 name = "percent-encoding"
@@ -1683,7 +1682,7 @@ dependencies = [
  "postgresql_derive",
  "postgresql_macros",
  "postgresql_protocol",
- "rand",
+ "random",
  "rustls",
  "small_collections",
  "thiserror 2.0.21",
@@ -1730,7 +1729,7 @@ dependencies = [
  "bytes",
  "constant_time_eq 0.6.1",
  "crypto 0.1.0",
- "hex 0.1.0",
+ "random",
  "small_collections",
  "thiserror 2.0.21",
  "zeroize 1.9.1",
@@ -1829,6 +1828,14 @@ name = "rand_core"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63b8176103e19a2643978565ca18b50549f6101881c443590420e4dc998a3c69"
+
+[[package]]
+name = "random"
+version = "0.1.0"
+dependencies = [
+ "crypto 0.1.0",
+ "getrandom 0.4.3",
+]
 
 [[package]]
 name = "rayon"
@@ -2184,7 +2191,6 @@ name = "small_collections"
 version = "0.1.0"
 dependencies = [
  "heapless",
- "serde",
 ]
 
 [[package]]
@@ -2352,9 +2358,6 @@ dependencies = [
 [[package]]
 name = "time"
 version = "0.1.0"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "tinystr"
@@ -2529,7 +2532,7 @@ name = "uuid"
 version = "0.1.0"
 dependencies = [
  "heapless",
- "rand",
+ "random",
 ]
 
 [[package]]

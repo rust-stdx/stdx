@@ -16,20 +16,18 @@ bench = false
 
 [dependencies]
 hashbrown = { workspace = true }
-serde_core = { workspace = true, optional = true, default-features = false }
+
+cbor = { path = "../cbor", optional = true, default-features = false, features = ["alloc"] }
+json = { path = "../json", optional = true, default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
-rand = { workspace = true, features = ["std_rng"] }
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true, features = ["std"] }
+random = { path = "../random", default-features = false }
 
 [features]
 default = ["std"]
 std = []
-serde = ["dep:serde_core"]
+cbor = ["dep:cbor"]
+json = ["dep:json"]
 
 # for testing only, of course
 test_debug = []
-
-[package.metadata.docs.rs]
-features = ["serde"]

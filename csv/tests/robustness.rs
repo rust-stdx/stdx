@@ -7,7 +7,7 @@
 use std::{error::Error as _, io::Cursor};
 
 use csv::*;
-use rand::{RngExt, SeedableRng, rngs::StdRng};
+use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
 // ── Read sources used by the tests ────────────────────────────────────
 
@@ -101,9 +101,9 @@ fn parser_never_panics_on_arbitrary_bytes() {
     // including the three bytes of the UTF-8 BOM so a leading mark can form.
     const ALPHABET: &[u8] = b"ab,\"\r\n\x00\xff\xef\xbb\xbf";
 
-    let mut rng = StdRng::seed_from_u64(0x9E37_79B9_7F4A_7C15);
+    let mut rng = ChaChaRng::seed_from_u64(0x9E37_79B9_7F4A_7C15);
     for case in 0..2000 {
-        let len = rng.random_range(0..64);
+        let len = rng.random_range(0usize..64);
         let mut data = Vec::with_capacity(len);
         for _ in 0..len {
             data.push(ALPHABET[rng.random_range(0..(ALPHABET.len()))]);
@@ -714,7 +714,7 @@ fn writer_output_round_trips() {
         'a', 'b', 'Z', ',', '"', '\n', '\r', ' ', '\t', 'é', '日', '\\', '\'', '=', '+', '@',
     ];
 
-    let mut rng = StdRng::seed_from_u64(0x1234_5678_9ABC_DEF0);
+    let mut rng = ChaChaRng::seed_from_u64(0x1234_5678_9ABC_DEF0);
     let mut writer = Writer::new(Vec::new()).set_flexible(true);
     let mut expected: Vec<Vec<String>> = Vec::new();
 
@@ -722,7 +722,7 @@ fn writer_output_round_trips() {
         // At least two fields: a record consisting of a single empty field is
         // written as a blank line, which every CSV reader (including this one)
         // skips, so it cannot round-trip.
-        let fields = 2 + rng.random_range(0..5);
+        let fields = 2 + rng.random_range(0usize..5);
         let mut row = Vec::with_capacity(fields);
         for _ in 0..fields {
             let len = rng.random_range(0..8);

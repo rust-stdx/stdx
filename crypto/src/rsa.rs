@@ -598,7 +598,7 @@ mod tests {
 
     macro_rules! wycheproof_rsa_test {
         ($path:expr, $hasher:ty, $di_prefix:expr) => {{
-            let data: serde_json::Value = serde_json::from_str(include_str!($path)).unwrap();
+            let data: json::Value<'_> = json::from_str(include_str!($path)).unwrap();
             let mut valid_tested = 0u64;
             let mut invalid_tested = 0u64;
 
@@ -650,7 +650,7 @@ mod tests {
 
     macro_rules! wycheproof_rsa_pss_test {
         ($path:expr, $hasher:ty, $hash_len:expr) => {{
-            let data: serde_json::Value = serde_json::from_str(include_str!($path)).unwrap();
+            let data: json::Value<'_> = json::from_str(include_str!($path)).unwrap();
             let mut valid_tested = 0u64;
             let mut invalid_tested = 0u64;
 

@@ -17,7 +17,7 @@ use crypto::{
         Aegis256X4Stream,
     },
 };
-use rand::{RngExt, SeedableRng, rngs::StdRng};
+use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
 const KEY: [u8; 32] = [0x42; 32];
 const NONCE: [u8; 32] = [0x24; 32];
@@ -25,7 +25,7 @@ const NONCE: [u8; 32] = [0x24; 32];
 /// Deterministic seeded random pattern; the seed is forced odd so that no seed
 /// degenerates to an all-zero sequence.
 fn pattern(len: usize, seed: u8) -> Vec<u8> {
-    let mut rng = StdRng::seed_from_u64(u64::from(seed));
+    let mut rng = ChaChaRng::seed_from_u64(u64::from(seed));
     let mut out = vec![0u8; len];
     rng.fill(&mut out);
     out

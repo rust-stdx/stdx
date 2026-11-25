@@ -2263,7 +2263,7 @@ mod avx2 {
 
 #[cfg(test)]
 mod tests {
-    use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
+    use random::{Rng, RngExt, SeedableRng, rngs::ChaChaRng};
 
     use super::*;
 
@@ -2798,7 +2798,7 @@ mod tests {
     ////////////////////////////////////////////////////////////////////////////////////////////////
     // SIMD kernel differential tests and key-material initialization
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    /// Fixed-seed seeded `StdRng` generator. Deterministic so failures reproduce.
+    /// Fixed-seed seeded `ChaChaRng` generator. Deterministic so failures reproduce.
     fn poly_from_fn(mut f: impl FnMut(usize) -> u32) -> Poly {
         let mut p = Poly::default();
         for (i, c) in p.coeffs.iter_mut().enumerate() {
@@ -2858,7 +2858,7 @@ mod tests {
         }
 
         // Fixed-seed random sweep.
-        let mut rng = StdRng::seed_from_u64(0x0D15_EA5E_0BAD_F00D);
+        let mut rng = ChaChaRng::seed_from_u64(0x0D15_EA5E_0BAD_F00D);
         for _ in 0..400 {
             out.push(poly_from_fn(|_| rng.random_range(0..Q)));
         }

@@ -11,14 +11,14 @@
 //! `keystream_leftover` tail) is additionally checked by `#[cfg(test)]` unit
 //! tests living in each kernel module, because the kernels are private.
 //!
-//! Deterministic pseudo-random data is generated with a seeded `StdRng` so
+//! Deterministic pseudo-random data is generated with a seeded `ChaChaRng` so
 //! the tests never depend on OS randomness.
 
 use crypto::{
     StreamCipher, StreamCipherError,
     chacha::{ChaCha, ChaCha8Djb, ChaCha12Djb, ChaCha20Djb, ChaCha20Ietf},
 };
-use rand::{RngExt, SeedableRng, rngs::StdRng};
+use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Independent reference implementation (safe Rust, straight from RFC 8439)
@@ -107,7 +107,7 @@ fn ref_keystream_djb<const ROUNDS: usize>(key: &[u8; 32], nonce: &[u8; 8], count
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-/// Deterministic seeded `StdRng` byte stream.
+/// Deterministic seeded `ChaChaRng` byte stream.
 fn xor_with(a: &[u8], b: &[u8]) -> Vec<u8> {
     assert_eq!(a.len(), b.len());
     a.iter().zip(b).map(|(x, y)| x ^ y).collect()
@@ -397,7 +397,7 @@ fn single_call_length_sweep_both_layouts() {
 
     for len in 0..=1400usize {
         let mut plaintext = vec![0u8; len];
-        StdRng::seed_from_u64(0x1234_5678_9abc_def0 ^ len as u64).fill(&mut plaintext);
+        ChaChaRng::seed_from_u64(0x1234_5678_9abc_def0 ^ len as u64).fill(&mut plaintext);
 
         check_ietf::<20>(&key, &nonce12, 0, &plaintext, "sweep counter=0");
         check_ietf::<20>(&key, &nonce12, 1, &plaintext, "sweep counter=1");
@@ -420,7 +420,7 @@ fn boundary_lengths_127_128_129_and_multiples() {
     ];
     for len in lengths {
         let mut pt = vec![0u8; len];
-        StdRng::seed_from_u64(0xdead_beef_0000_0000 ^ len as u64).fill(&mut pt);
+        ChaChaRng::seed_from_u64(0xdead_beef_0000_0000 ^ len as u64).fill(&mut pt);
         check_ietf::<20>(&key, &nonce12, 7, &pt, "boundary");
         check_djb::<20>(&key, &nonce8, 0x1_0000_0007, &pt, "boundary");
     }
@@ -436,7 +436,7 @@ fn small_then_large_split_crossing_simd_threshold() {
 
     for first in 1..=127usize {
         let mut pt = vec![0u8; first + 512];
-        StdRng::seed_from_u64(0x0bad_f00d_0000_0000 ^ first as u64).fill(&mut pt);
+        ChaChaRng::seed_from_u64(0x0bad_f00d_0000_0000 ^ first as u64).fill(&mut pt);
 
         let mut buf = pt.clone();
         let mut c = fresh_ietf::<20>(&key, &nonce12, 3);
@@ -461,7 +461,7 @@ fn large_then_small_split_crossing_simd_threshold() {
     ] {
         for &second in &[1usize, 2, 31, 62, 63, 64, 65, 126, 127, 128, 129, 300] {
             let mut pt = vec![0u8; first + second];
-            StdRng::seed_from_u64(0xfeed_face_0000_0000 ^ ((first as u64) << 16) ^ second as u64).fill(&mut pt);
+            ChaChaRng::seed_from_u64(0xfeed_face_0000_0000 ^ ((first as u64) << 16) ^ second as u64).fill(&mut pt);
 
             let mut buf = pt.clone();
             let mut c = fresh_ietf::<20>(&key, &nonce12, 11);
@@ -485,7 +485,7 @@ fn leftover_tail_round_trip_exact() {
     for first in 1..=63usize {
         let tail_len = 64 - first;
         let mut pt = vec![0u8; first + tail_len];
-        StdRng::seed_from_u64(0x1111_2222_3333_0000 ^ first as u64).fill(&mut pt);
+        ChaChaRng::seed_from_u64(0x1111_2222_3333_0000 ^ first as u64).fill(&mut pt);
 
         let mut buf = pt.clone();
         let mut c = fresh_ietf::<20>(&key, &nonce12, 5);
@@ -508,7 +508,7 @@ fn random_multisplit_against_reference() {
     let nonce8 = test_nonce8();
 
     for round in 0..400u64 {
-        let mut rng = StdRng::seed_from_u64(0x5eed_0000_0000_0000 ^ round);
+        let mut rng = ChaChaRng::seed_from_u64(0x5eed_0000_0000_0000 ^ round);
         let total = rng.random_range(0..2600) as usize;
         let pieces = 2 + rng.random_range(0..5) as usize;
 
@@ -563,7 +563,7 @@ fn in_place_offsets_and_guard_canaries() {
     ] {
         for &off in &[0usize, 1, 2, 7, 8, 15, 16, 17, 31, 32, 33, 63, 64, 65] {
             let mut pt = vec![0u8; len];
-            StdRng::seed_from_u64(0xcafe_0000_0000_0000 ^ ((len as u64) << 8) ^ off as u64).fill(&mut pt);
+            ChaChaRng::seed_from_u64(0xcafe_0000_0000_0000 ^ ((len as u64) << 8) ^ off as u64).fill(&mut pt);
             let mut buf = vec![CANARY; off];
             buf.extend_from_slice(&pt);
             buf.extend_from_slice(&[CANARY; PAD]);
@@ -623,7 +623,7 @@ fn counter_boundaries_ietf() {
     ];
     for &(counter, len) in allowed {
         let mut pt = vec![0u8; len];
-        StdRng::seed_from_u64(0xaaaa_0000_0000_0000 ^ counter as u64 ^ len as u64).fill(&mut pt);
+        ChaChaRng::seed_from_u64(0xaaaa_0000_0000_0000 ^ counter as u64 ^ len as u64).fill(&mut pt);
         check_ietf::<20>(&key, &nonce12, counter, &pt, "ietf counter boundary");
     }
 
@@ -671,7 +671,7 @@ fn counter_boundaries_djb() {
     ];
     for &(counter, len) in allowed {
         let mut pt = vec![0u8; len];
-        StdRng::seed_from_u64(0xbbbb_0000_0000_0000 ^ counter ^ len as u64).fill(&mut pt);
+        ChaChaRng::seed_from_u64(0xbbbb_0000_0000_0000 ^ counter ^ len as u64).fill(&mut pt);
         check_djb::<20>(&key, &nonce8, counter, &pt, "djb counter boundary");
     }
 
@@ -707,7 +707,7 @@ fn round_variants_dispatch() {
         0usize, 1, 63, 64, 65, 127, 128, 129, 191, 192, 193, 255, 256, 257, 512, 777, 1024, 1025,
     ] {
         let mut pt = vec![0u8; len];
-        StdRng::seed_from_u64(0x9999_0000_0000_0000 ^ len as u64).fill(&mut pt);
+        ChaChaRng::seed_from_u64(0x9999_0000_0000_0000 ^ len as u64).fill(&mut pt);
 
         check_ietf::<8>(&key, &nonce12, 9, &pt, "rounds=8");
         check_ietf::<12>(&key, &nonce12, 9, &pt, "rounds=12");
@@ -742,7 +742,7 @@ fn repeated_partial_calls_do_not_reuse_stale_tail() {
 
     for &size in &sizes {
         let mut pt = vec![0u8; size * 6];
-        StdRng::seed_from_u64(0x7777_0000_0000_0000 ^ size as u64).fill(&mut pt);
+        ChaChaRng::seed_from_u64(0x7777_0000_0000_0000 ^ size as u64).fill(&mut pt);
 
         let mut buf = pt.clone();
         let mut c = fresh_ietf::<20>(&key, &nonce12, 13);

@@ -34,8 +34,7 @@ heapless = { workspace = true, optional = true }
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
 hex = { path = "../hex" }
-
-rand = { workspace = true, features = ["std_rng"] }
+random = { path = "../random", default-features = false }
 
 [package.metadata.docs.rs]
 all-features = true

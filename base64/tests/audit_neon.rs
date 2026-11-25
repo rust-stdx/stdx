@@ -15,7 +15,7 @@
 #![allow(unsafe_op_in_unsafe_fn)]
 
 use base64::Alphabet;
-use rand::{RngExt, SeedableRng, rngs::StdRng};
+use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
 const ALL: [Alphabet; 4] = [
     Alphabet::Standard,
@@ -67,9 +67,9 @@ fn ref_encode(data: &[u8], alphabet: Alphabet) -> Vec<u8> {
     out
 }
 
-/// Deterministic seeded `StdRng` byte stream. Fixed seed per call site.
+/// Deterministic seeded `ChaChaRng` byte stream. Fixed seed per call site.
 fn pattern(len: usize, seed: u64) -> Vec<u8> {
-    let mut rng = StdRng::seed_from_u64(seed);
+    let mut rng = ChaChaRng::seed_from_u64(seed);
     let mut out = vec![0u8; len];
     rng.fill(&mut out);
     out

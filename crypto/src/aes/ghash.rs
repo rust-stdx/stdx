@@ -356,7 +356,7 @@ mod tests {
 /// representation or reduction mistake cannot cancel out.
 #[cfg(test)]
 mod kernel_tests {
-    use rand::{RngExt, SeedableRng, rngs::StdRng};
+    use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
     use super::*;
 
@@ -412,7 +412,7 @@ mod kernel_tests {
         assert_eq!(gf128_mul_ref_shift(&x, &h), expected, "reference miscomputed NIST value");
         assert_eq!(gf128_mul(&x, &h), expected, "implementation miscomputed NIST value");
 
-        let mut rng = StdRng::seed_from_u64(0x9e37_79b9_7f4a_7c15);
+        let mut rng = ChaChaRng::seed_from_u64(0x9e37_79b9_7f4a_7c15);
         for _ in 0..512 {
             let a = rng.random::<[u8; 16]>();
             let b = rng.random::<[u8; 16]>();
@@ -525,7 +525,7 @@ mod kernel_tests {
             0x66, 0xe9, 0x4b, 0xd4, 0xef, 0x8a, 0x2c, 0x3b, 0x88, 0x4c, 0xfa, 0x59, 0xca, 0x34, 0x2b, 0x2e,
         ];
         let ej0 = [0x5au8; 16];
-        let mut rng = StdRng::seed_from_u64(0x1234_5678_9abc_def0);
+        let mut rng = ChaChaRng::seed_from_u64(0x1234_5678_9abc_def0);
 
         for aad_len in [0usize, 1, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 129] {
             for ct_len in [

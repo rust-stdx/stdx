@@ -63,8 +63,9 @@ use std::{
 };
 
 use base64::{Alphabet, decode, encode};
-use crypto::{random, sha3::Shake256};
+use crypto::sha3::Shake256;
 use getopts::{Matches, Options};
+use random::{SystemRng, TryRng};
 use zeroize::Zeroizing;
 
 /// Version byte stored in every share payload.
@@ -185,7 +186,8 @@ fn cmd_split(program: &str, args: &[String]) -> Result<()> {
     let secret = match random_length {
         Some(length) => {
             let mut secret = Zeroizing::new(vec![0u8; length]);
-            random::fill(secret.as_mut_slice())
+            SystemRng
+                .try_fill_bytes(secret.as_mut_slice())
                 .map_err(|error| format!("failed to generate a random secret: {error}"))?;
             secret
         }
@@ -481,7 +483,8 @@ fn split_secret(secret: &[u8], shares: u8, threshold: u8) -> Result<Vec<Share>> 
     for (position, &byte) in secret.iter().enumerate() {
         coefficients[0] = byte;
         if coefficients.len() > 1 {
-            random::fill(&mut coefficients[1..])
+            SystemRng
+                .try_fill_bytes(&mut coefficients[1..])
                 .map_err(|error| format!("failed to generate random coefficients: {error}"))?;
         }
         for share in &mut result {
@@ -554,8 +557,11 @@ fn verify_split(secret: &[u8], shares: &[Share], threshold: u8) -> Result<()> {
 fn random_subset(total: usize, count: usize) -> Result<Vec<usize>> {
     let mut selected = Vec::with_capacity(count);
     while selected.len() < count {
-        let [candidate] = random::bytes::<1>().map_err(|error| format!("failed to generate randomness: {error}"))?;
-        let candidate = candidate as usize;
+        let mut candidate = [0u8; 1];
+        SystemRng
+            .try_fill_bytes(&mut candidate)
+            .map_err(|error| format!("failed to generate randomness: {error}"))?;
+        let candidate = candidate[0] as usize;
         if candidate >= total || selected.contains(&candidate) {
             continue;
         }

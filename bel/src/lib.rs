@@ -40,6 +40,8 @@ pub mod common;
 pub mod context;
 pub mod parser;
 
+#[cfg(feature = "derive")]
+pub use bel_derive::IntoValue;
 pub use common::ast::IdedExpr;
 use common::ast::SelectExpr;
 pub use context::Context;
@@ -54,14 +56,6 @@ mod resolvers;
 
 #[cfg(feature = "time")]
 pub mod duration;
-
-#[cfg(feature = "ip")]
-pub use ser::Ip;
-#[cfg(feature = "time")]
-pub use ser::{Duration, Timestamp};
-
-mod ser;
-pub use ser::{SerializationError, to_value};
 
 #[cfg(feature = "json")]
 mod json;

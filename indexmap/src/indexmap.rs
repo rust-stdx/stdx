@@ -27,17 +27,11 @@
 //!
 //! * `std`: Enables features which require the Rust standard library. For more
 //!   information see the section on [`no_std`].
-//! * `serde`: Adds implementations for [`Serialize`] and [`Deserialize`]
-//!   to [`IndexMap`] and [`IndexSet`]. Alternative implementations for
-//!   (de)serializing [`IndexMap`] as an ordered sequence are available in the
-//!   [`map::serde_seq`] module.
 //!
 //! _Note: only the `std` feature is enabled by default._
 //!
 //! [feature flags]: https://doc.rust-lang.org/cargo/reference/manifest.html#the-features-section
 //! [`no_std`]: #no-standard-library-targets
-//! [`Serialize`]: `::serde_core::Serialize`
-//! [`Deserialize`]: `::serde_core::Deserialize`
 //!
 //! ### Alternate Hashers
 //!
@@ -95,8 +89,10 @@ mod equivalent;
 mod inner;
 #[macro_use]
 mod macros;
-#[cfg(feature = "serde")]
-mod serde;
+#[cfg(feature = "cbor")]
+mod cbor;
+#[cfg(feature = "json")]
+mod json;
 mod util;
 
 pub mod map;

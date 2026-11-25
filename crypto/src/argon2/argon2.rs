@@ -1059,7 +1059,7 @@ fn parse_param(s: &str, prefix: &str) -> Result<u32, Argon2Error> {
 
 #[cfg(test)]
 mod tests {
-    use rand::{RngExt, SeedableRng, rngs::StdRng};
+    use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
     use super::*;
 
@@ -2562,7 +2562,7 @@ mod tests {
     #[cfg(not(miri))]
     const TEST_CANARY: u64 = 0xA5A5_5A5A_C3C3_3C3C;
 
-    fn test_block(state: &mut StdRng) -> Block {
+    fn test_block(state: &mut ChaChaRng) -> Block {
         let mut block = Block::zero();
         state.fill(&mut block.v);
         block
@@ -2595,7 +2595,7 @@ mod tests {
 
     #[test]
     fn memory_roundtrip_alignment_and_neighbours() {
-        let mut rng = StdRng::seed_from_u64(0x0123_4567_89AB_CDEF);
+        let mut rng = ChaChaRng::seed_from_u64(0x0123_4567_89AB_CDEF);
         let len = 5;
         let mem = Memory::uninit(len);
         assert_eq!(mem.len(), len);
@@ -2648,7 +2648,7 @@ mod tests {
     #[test]
     #[cfg(not(miri))]
     fn kernels_match_scalar() {
-        let mut rng = StdRng::seed_from_u64(0xDEAD_BEEF_CAFE_F00D);
+        let mut rng = ChaChaRng::seed_from_u64(0xDEAD_BEEF_CAFE_F00D);
         for _ in 0..32 {
             let prev = test_block(&mut rng);
             let reference = test_block(&mut rng);
@@ -2826,7 +2826,7 @@ mod tests {
         let (p, m, t) = if cfg!(miri) { (1, 8, 1) } else { (2, 16, 2) };
         let m_prime = 4 * p * (m / (4 * p));
         let q = m_prime / p;
-        let mut rng = StdRng::seed_from_u64(0x1234_5678_9ABC_DEF0);
+        let mut rng = ChaChaRng::seed_from_u64(0x1234_5678_9ABC_DEF0);
 
         let mem = Memory::uninit(m_prime as usize);
         for lane in 0..p {
@@ -2870,7 +2870,7 @@ mod tests {
         assert_eq!(q % SYNC_POINTS, 0);
 
         let build = || {
-            let mut rng = StdRng::seed_from_u64(0x0F1E_2D3C_4B5A_6978);
+            let mut rng = ChaChaRng::seed_from_u64(0x0F1E_2D3C_4B5A_6978);
             let mem = Memory::uninit(m_prime as usize);
             for lane in 0..p {
                 let b0 = test_block(&mut rng);

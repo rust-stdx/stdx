@@ -31,6 +31,7 @@
 pub mod buckets;
 pub mod client;
 pub mod objects;
+mod xml;
 
 pub use buckets::{Bucket, GetBucketLocationOutput, ListBucketsOutput, ListObject, ListObjectsOutput};
 #[cfg(feature = "reqwest")]

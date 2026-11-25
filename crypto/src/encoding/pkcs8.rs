@@ -797,7 +797,7 @@ mod tests {
     #[test]
     fn encode_round_trip_random_keys() {
         for _ in 0..10 {
-            let priv_key: [u8; 32] = rand::random();
+            let priv_key: [u8; 32] = random::random();
             let key = match SecretKey::from_bytes(&priv_key) {
                 Ok(k) => k,
                 Err(_) => continue,

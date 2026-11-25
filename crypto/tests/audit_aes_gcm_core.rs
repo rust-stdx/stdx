@@ -16,7 +16,7 @@ use crypto::{
     Aead, AeadError,
     aes::{Aes128Block, Aes128Gcm, Aes256Block, Aes256Gcm},
 };
-use rand::{RngExt, SeedableRng, rngs::StdRng};
+use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
 // ── deterministic pseudo-randomness ──────────────────────────────────────────
 
@@ -266,7 +266,7 @@ fn independent_reference_matches_nist_kat() {
 
 #[test]
 fn gcm_matches_independent_reference_sweep() {
-    let mut rng = StdRng::seed_from_u64(0xc3_0001);
+    let mut rng = ChaChaRng::seed_from_u64(0xc3_0001);
     let aad_lengths = [0usize, 1, 7, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 129];
 
     for (block, key, nonce) in reference_fixtures() {
@@ -324,7 +324,7 @@ fn gcm_matches_independent_reference_sweep() {
 
 #[test]
 fn gcm_matches_reference_at_block_and_simd_boundaries() {
-    let mut rng = StdRng::seed_from_u64(0xc3_0002);
+    let mut rng = ChaChaRng::seed_from_u64(0xc3_0002);
     // 1-byte increments around every 16/32/64/128/192/256/512/1024 boundary.
     let lengths: &[usize] = &[
         0, 1, 15, 16, 17, 31, 32, 33, 47, 48, 49, 63, 64, 65, 95, 96, 97, 127, 128, 129, 130, 191, 192, 193, 255, 256,
@@ -387,7 +387,7 @@ fn gcm_matches_reference_at_block_and_simd_boundaries() {
 
 #[test]
 fn empty_plaintext_and_empty_aad() {
-    let mut rng = StdRng::seed_from_u64(0xc3_0003);
+    let mut rng = ChaChaRng::seed_from_u64(0xc3_0003);
     let no_aad: &[u8] = &[];
 
     for (block, key, nonce) in reference_fixtures() {
@@ -529,7 +529,7 @@ fn aad_bit_length_arithmetic_boundary() {
 
 #[test]
 fn decrypt_failure_buffer_semantics() {
-    let mut rng = StdRng::seed_from_u64(0xc3_0004);
+    let mut rng = ChaChaRng::seed_from_u64(0xc3_0004);
     for len in [0usize, 1, 15, 16, 17, 64, 65, 128, 129, 300] {
         let pt = {
             let mut v = vec![0u8; len];

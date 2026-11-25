@@ -15,7 +15,7 @@
 #![cfg(feature = "alloc")]
 
 use base32::{Alphabet, DecodeError, EncodeError};
-use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
+use random::{Rng, RngExt, SeedableRng, rngs::ChaChaRng};
 
 /// All ten alphabets, including the no-padding variants that the crate's own
 /// unit tests never exercise.
@@ -448,7 +448,7 @@ fn encoded_length_sweep_and_overflow() {
     assert_eq!(base32::encoded_length(usize::MAX, false), None);
 
     // Random full-range values against the u128 reference.
-    let mut rng = StdRng::seed_from_u64(0xE4E4_1111_2222_3333);
+    let mut rng = ChaChaRng::seed_from_u64(0xE4E4_1111_2222_3333);
     for _ in 0..5000 {
         let n = rng.next_u64() as usize;
         for padding in [false, true] {
@@ -525,7 +525,7 @@ fn decoded_length_remainder_classes() {
 #[test]
 #[cfg_attr(miri, ignore = "exhaustive sweep; run miri_smoke under Miri instead")]
 fn encode_all_lengths_all_alphabets() {
-    let mut rng = StdRng::seed_from_u64(0xE4_0123_4567_89AB);
+    let mut rng = ChaChaRng::seed_from_u64(0xE4_0123_4567_89AB);
     for len in 0..=512usize {
         let data = {
             let mut v = vec![0u8; len];
@@ -541,7 +541,7 @@ fn encode_all_lengths_all_alphabets() {
 #[test]
 #[cfg_attr(miri, ignore = "exhaustive sweep; run miri_smoke under Miri instead")]
 fn roundtrip_all_lengths_all_alphabets() {
-    let mut rng = StdRng::seed_from_u64(0xC0FF_EE00_1234_5678);
+    let mut rng = ChaChaRng::seed_from_u64(0xC0FF_EE00_1234_5678);
     for len in 0..=512usize {
         let data = {
             let mut v = vec![0u8; len];
@@ -639,7 +639,7 @@ fn long_padded_alphabets_reject_unpadded_input() {
 #[test]
 #[cfg_attr(miri, ignore = "exhaustive sweep; run miri_smoke under Miri instead")]
 fn large_roundtrip_and_tails() {
-    let mut rng = StdRng::seed_from_u64(0xB16B_00B5_1234_5678);
+    let mut rng = ChaChaRng::seed_from_u64(0xB16B_00B5_1234_5678);
     for &len in &[640usize, 641, 642, 1000, 4096, 8191, 65536, 65537] {
         let data = {
             let mut v = vec![0u8; len];
@@ -973,7 +973,7 @@ fn rfc_alphabets_are_case_sensitive() {
 #[test]
 #[cfg_attr(miri, ignore = "exhaustive sweep; run miri_smoke under Miri instead")]
 fn every_byte_at_every_position() {
-    let mut rng = StdRng::seed_from_u64(0xDEAD_BEEF_1234_5678);
+    let mut rng = ChaChaRng::seed_from_u64(0xDEAD_BEEF_1234_5678);
     // 8 chars = one full quad, 16 chars = two quads plus padding semantics.
     for &data_len in &[5usize, 10] {
         let data = {
@@ -1007,7 +1007,7 @@ fn dispatch_boundary_tail_sweep() {
         // NEON intrinsics are not modelled by Miri.
         return;
     }
-    let mut rng = StdRng::seed_from_u64(0x5EED_0BAD_F00D_1234);
+    let mut rng = ChaChaRng::seed_from_u64(0x5EED_0BAD_F00D_1234);
     for &data_len in &[25usize, 32, 33, 40, 41, 42, 43, 64, 65, 66, 67, 68, 69, 70, 71, 72, 80] {
         let data = {
             let mut v = vec![0u8; data_len];
@@ -1038,7 +1038,7 @@ fn dispatch_boundary_tail_sweep() {
 #[test]
 #[cfg_attr(miri, ignore = "exhaustive sweep; run miri_smoke under Miri instead")]
 fn output_buffers_and_canaries() {
-    let mut rng = StdRng::seed_from_u64(0x1234_ABCD_5678_EF90);
+    let mut rng = ChaChaRng::seed_from_u64(0x1234_ABCD_5678_EF90);
     for a in ALL_ALPHABETS {
         for len in 0..=80usize {
             let data = {
@@ -1167,7 +1167,7 @@ fn decode_array_exact_length() {
 /// intrinsic is ever executed.
 #[test]
 fn miri_smoke() {
-    let mut rng = StdRng::seed_from_u64(0x1122_3344_5566_7788);
+    let mut rng = ChaChaRng::seed_from_u64(0x1122_3344_5566_7788);
     for a in ALL_ALPHABETS {
         for len in 0..=12usize {
             let data = {
@@ -1205,7 +1205,7 @@ fn miri_smoke() {
 #[test]
 #[cfg_attr(miri, ignore = "exhaustive sweep; run miri_smoke under Miri instead")]
 fn random_garbage_decode() {
-    let mut rng = StdRng::seed_from_u64(0xA11C_E5EE_D00D_5EED);
+    let mut rng = ChaChaRng::seed_from_u64(0xA11C_E5EE_D00D_5EED);
     let extras: [u8; 10] = [b'=', b'!', 0x00, 0x7F, 0x80, 0xFF, b'0', b'a', b'A', b'y'];
     for a in ALL_ALPHABETS {
         let table = alphabet_table(a);
@@ -1287,7 +1287,7 @@ fn partial_output_on_decode_error() {
 #[test]
 #[cfg_attr(miri, ignore = "exhaustive sweep; run miri_smoke under Miri instead")]
 fn encode_into_string_both_branches() {
-    let mut rng = StdRng::seed_from_u64(0x0BAD_C0DE_FEED_1234);
+    let mut rng = ChaChaRng::seed_from_u64(0x0BAD_C0DE_FEED_1234);
     // 160 bytes is the largest input whose padded encoding still fits the
     // 256-byte stack buffer; go past it to exercise the heap branch too.
     for len in 0..=300usize {

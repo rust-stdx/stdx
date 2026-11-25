@@ -1,16 +1,16 @@
 //! Model-based randomized tests, replacing the upstream `quickcheck` suite
 //! without any external dependency.
 //!
-//! A tiny seeded `StdRng` drives random operation sequences against an
+//! A tiny seeded `ChaChaRng` drives random operation sequences against an
 //! [`IndexMap`]/[`IndexSet`] and a reference `HashMap`/`HashSet`, asserting
 //! that the observable state stays equivalent after every operation.
 
 use std::collections::{HashMap, HashSet};
 
 use indexmap::{IndexMap, IndexSet, map::Entry};
-use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
+use random::{Rng, RngExt, SeedableRng, rngs::ChaChaRng};
 
-/// Minimal deterministic seeded `StdRng` generator.
+/// Minimal deterministic seeded `ChaChaRng` generator.
 fn assert_map_equivalent(map: &IndexMap<u64, u64>, reference: &HashMap<u64, u64>) {
     assert_eq!(map.len(), reference.len());
     for (k, v) in reference {
@@ -28,12 +28,12 @@ fn assert_map_equivalent(map: &IndexMap<u64, u64>, reference: &HashMap<u64, u64>
 #[test]
 fn map_model_swap_remove() {
     for seed in 0..128u64 {
-        let mut rng = StdRng::seed_from_u64(seed);
+        let mut rng = ChaChaRng::seed_from_u64(seed);
         let mut map: IndexMap<u64, u64> = IndexMap::new();
         let mut reference: HashMap<u64, u64> = HashMap::new();
 
         for _ in 0..500 {
-            let key = rng.random_range(0..64);
+            let key = rng.random_range(0u64..64);
             let value = rng.next_u64();
             match rng.random_range(0..4) {
                 0 => {
@@ -63,12 +63,12 @@ fn map_model_swap_remove() {
 #[test]
 fn map_model_shift_remove_preserves_order() {
     for seed in 0..32u64 {
-        let mut rng = StdRng::seed_from_u64(seed);
+        let mut rng = ChaChaRng::seed_from_u64(seed);
         let mut map: IndexMap<u64, u64> = IndexMap::new();
         let mut order: Vec<u64> = Vec::new();
 
         for _ in 0..500 {
-            let key = rng.random_range(0..32);
+            let key = rng.random_range(0u64..32);
             match rng.random_range(0..3) {
                 0 => {
                     if map.insert(key, key).is_none() {
@@ -95,12 +95,12 @@ fn map_model_shift_remove_preserves_order() {
 #[test]
 fn set_model_swap_remove() {
     for seed in 0..128u64 {
-        let mut rng = StdRng::seed_from_u64(seed);
+        let mut rng = ChaChaRng::seed_from_u64(seed);
         let mut set: IndexSet<u64> = IndexSet::new();
         let mut reference: HashSet<u64> = HashSet::new();
 
         for _ in 0..500 {
-            let value = rng.random_range(0..64);
+            let value = rng.random_range(0u64..64);
             match rng.random_range(0..4) {
                 0 => {
                     set.insert(value);
@@ -133,12 +133,12 @@ fn set_model_swap_remove() {
 #[test]
 fn set_model_shift_remove_preserves_order() {
     for seed in 0..32u64 {
-        let mut rng = StdRng::seed_from_u64(seed);
+        let mut rng = ChaChaRng::seed_from_u64(seed);
         let mut set: IndexSet<u64> = IndexSet::new();
         let mut order: Vec<u64> = Vec::new();
 
         for _ in 0..500 {
-            let value = rng.random_range(0..32);
+            let value = rng.random_range(0u64..32);
             match rng.random_range(0..2) {
                 0 => {
                     if set.insert(value) {

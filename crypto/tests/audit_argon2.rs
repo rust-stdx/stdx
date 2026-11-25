@@ -5,7 +5,7 @@
 //! these tests drive the public `crypto::argon2` surface.
 
 use crypto::argon2::{Argon2Error, Params, decode_phc, derive_key, encode_phc, hash_password, verify_password};
-use rand::{Rng, SeedableRng, rngs::StdRng};
+use random::{Rng, SeedableRng, rngs::ChaChaRng};
 
 // Opaque inputs for the independent reference vectors below. Changing them
 // requires regenerating every expected tag with an independent implementation.
@@ -405,7 +405,7 @@ fn tag_length_sweep_with_canaries() {
 /// is derived twice (must agree bit-for-bit) and checked against canaries.
 #[test]
 fn parameter_sweep_deterministic() {
-    let mut rng = StdRng::seed_from_u64(0xC0FF_EE00_1234_5678);
+    let mut rng = ChaChaRng::seed_from_u64(0xC0FF_EE00_1234_5678);
     for _ in 0..48 {
         let p = 1 + (rng.next_u64() % 4) as u32;
         let m = 8 * p + (rng.next_u64() % (4 * p as u64 + 9)) as u32;

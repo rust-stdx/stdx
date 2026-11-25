@@ -901,8 +901,8 @@ mod tests {
     #[test]
     fn p521_fast_mul_mod_matches_generic() {
         for _ in 0..1000 {
-            let a_bytes: [u8; 66] = rand::random();
-            let b_bytes: [u8; 66] = rand::random();
+            let a_bytes: [u8; 66] = random::random();
+            let b_bytes: [u8; 66] = random::random();
             let a_opt = FieldElement::from_bytes(&a_bytes);
             let b_opt = FieldElement::from_bytes(&b_bytes);
             if a_opt.is_none() || b_opt.is_none() {
@@ -1123,7 +1123,7 @@ mod tests {
     #[test]
     fn sqrt_matches_squares_and_rejects_non_residues() {
         for _ in 0..100 {
-            let bytes: [u8; 66] = rand::random();
+            let bytes: [u8; 66] = random::random();
             let Some(x) = FieldElement::from_bytes(&bytes) else {
                 continue;
             };
@@ -1137,7 +1137,7 @@ mod tests {
     fn ecdsa_sign_then_verify_consistent_for_random_keys() {
         for _ in 0..5 {
             let key = SecretKey::generate().unwrap();
-            let msg = rand::random::<[u8; 32]>();
+            let msg = random::random::<[u8; 32]>();
             let sig = key.sign(&msg).unwrap();
             assert!(key.public_key().verify(&msg, &sig).is_ok());
         }
@@ -1147,7 +1147,7 @@ mod tests {
 
     #[test]
     fn wycheproof_ecdsa_p521_sha512_p1363() {
-        let data: serde_json::Value = serde_json::from_str(include_str!(
+        let data: json::Value<'_> = json::from_str(include_str!(
             "../../testdata/wycheproof/testvectors_v1/ecdsa_secp521r1_sha512_p1363_test.json"
         ))
         .unwrap();
@@ -1192,7 +1192,7 @@ mod tests {
 
     #[test]
     fn wycheproof_ecdsa_p521_sha512_der() {
-        let data: serde_json::Value = serde_json::from_str(include_str!(
+        let data: json::Value<'_> = json::from_str(include_str!(
             "../../testdata/wycheproof/testvectors_v1/ecdsa_secp521r1_sha512_test.json"
         ))
         .unwrap();
@@ -1239,7 +1239,7 @@ mod tests {
 
     #[test]
     fn wycheproof_ecdh_p521_ecpoint() {
-        let data: serde_json::Value = serde_json::from_str(include_str!(
+        let data: json::Value<'_> = json::from_str(include_str!(
             "../../testdata/wycheproof/testvectors_v1/ecdh_secp521r1_ecpoint_test.json"
         ))
         .unwrap();
@@ -1302,7 +1302,7 @@ mod tests {
 
     #[test]
     fn wycheproof_ecdh_p521_asn() {
-        let data: serde_json::Value = serde_json::from_str(include_str!(
+        let data: json::Value<'_> = json::from_str(include_str!(
             "../../testdata/wycheproof/testvectors_v1/ecdh_secp521r1_test.json"
         ))
         .unwrap();

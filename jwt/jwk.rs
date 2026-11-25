@@ -247,8 +247,8 @@ pub enum JwkCrypto {
     /// RSA public key
     #[json(rename = "RSA")]
     Rsa {
-        // Always heap-allocated. We use a `SmallVec` to avoid needing a separate implmentation for
-        // serde's `base64_url_no_padding`.
+        // Always heap-allocated. We use a `SmallVec` so the JSON decode path can
+        // reuse the base64url adapter without a separate implementation.
         #[json(with = "base64_url_no_padding")]
         n: SmallVec<u8, 0>,
         #[json(with = "base64_url_no_padding")]

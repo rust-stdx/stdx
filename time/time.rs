@@ -93,7 +93,7 @@
 //!   (`Date.now`) and, together with `timezone-system`, detects the local zone
 //!   through `Intl`. The `wasm-bindgen` JavaScript glue must be present.
 //!   Implies `std`.
-//! * `serde`: RFC 3339 / RFC 9557 serialization.
+//! * `json`: RFC 3339 / RFC 9557 serialization as a JSON string.
 //! * `cbor`: serialization using IANA tag 1 (epoch-based date/time) with
 //!   whole-second precision. Decoding also accepts tag 0 (RFC 3339 string).
 //!
@@ -117,7 +117,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
-#[cfg(feature = "std")]
+#[cfg(any(feature = "std", feature = "json"))]
 extern crate alloc;
 
 #[cfg(feature = "std")]
@@ -131,10 +131,10 @@ mod clock;
 mod datetime;
 mod error;
 mod format;
+#[cfg(feature = "json")]
+mod json;
 mod parse;
 mod posix;
-#[cfg(feature = "serde")]
-mod serde;
 mod timezone;
 mod truncate;
 mod tzdb;

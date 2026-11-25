@@ -14,7 +14,7 @@
 #![cfg(feature = "alloc")]
 
 use hex::{Alphabet, DecodeError, EncodeError};
-use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
+use random::{Rng, RngExt, SeedableRng, rngs::ChaChaRng};
 
 const LOWER: &[u8; 16] = b"0123456789abcdef";
 const UPPER: &[u8; 16] = b"0123456789ABCDEF";
@@ -60,12 +60,12 @@ fn ref_decode(data: &[u8]) -> Result<Vec<u8>, DecodeError> {
 }
 
 // ---------------------------------------------------------------------------
-// Deterministic seeded `StdRng`, fixed seed.
+// Deterministic seeded `ChaChaRng`, fixed seed.
 // ---------------------------------------------------------------------------
 
 /// A deterministic, non-uniform test pattern for `len` bytes.
 fn pattern(len: usize, salt: u64) -> Vec<u8> {
-    let mut rng = StdRng::seed_from_u64(0x9E37_79B9_7F4A_7C15 ^ salt.rotate_left(17));
+    let mut rng = ChaChaRng::seed_from_u64(0x9E37_79B9_7F4A_7C15 ^ salt.rotate_left(17));
     {
         let mut v = vec![0u8; len];
         rng.fill(&mut v);
@@ -259,7 +259,7 @@ fn odd_lengths_reject_every_byte_at_every_position() {
 fn scalar_and_dispatch_agree_on_random_invalid_strings() {
     // Multi-character invalid inputs, not just single-byte mutations.
     const POOL: &[u8] = b"0123456789abcdefABCDEFgGxX=+-/_ \x00\x7f\x80\xff@`[]{}";
-    let mut rng = StdRng::seed_from_u64(0x1234_5678_9ABC_DEF0);
+    let mut rng = ChaChaRng::seed_from_u64(0x1234_5678_9ABC_DEF0);
     for len in 0..=64usize {
         for _ in 0..40 {
             let input: Vec<u8> = (0..len).map(|_| POOL[rng.next_u64() as usize % POOL.len()]).collect();

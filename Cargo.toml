@@ -8,6 +8,7 @@ members = [
     "base32",
     "base64",
     "bel",
+    "bel/bel_derive",
     # "bel/benchmarks",
     "bel/examples",
     # "bel/fuzz",
@@ -55,6 +56,7 @@ members = [
     "num_cpus",
     "padme",
     "passkey_aaguids",
+    "paste",
     "percent_encoding",
     "pin_project_lite",
     "postgresql",
@@ -62,12 +64,11 @@ members = [
     "postgresql/postgresql_macros",
     "postgresql/postgresql_protocol",
     "postmark",
+    "random",
     "retry",
     "s3",
     "scheduler",
     "semver",
-    "serde_bytes",
-    "serde_yaml",
     "single_instance",
     "singleflight",
     "small_collections",
@@ -105,10 +106,13 @@ members = [
     "tools/duplicates",
     "tools/energy_bench",
     "tools/shamir_secret_sharing",
-    "unsafe_libyaml",
+    "unicode_width",
     "utf8",
     "uuid",
     "xxhash",
+    "yaml",
+    "yaml/libyaml_unsafe",
+    "yaml/yaml_derive",
     "zmij",
     "zeroize",
     "zeroize/zeroize_derive",
@@ -170,7 +174,6 @@ manual_c_str_literals = "allow"
 
 [workspace.dependencies]
 antlr4rust = { version = "=0.3.0-rc2", default-features = false }
-arbitrary = { version = "1", default-features = false }
 bytes = { version = "1", default-features = false }
 futures-util = { version = "0.3", default-features = false }
 getrandom = { version = "0.4", default-features = false }
@@ -181,22 +184,15 @@ js-sys = { version = "0.3", default-features = false }
 libc = { version = "0.2", default-features = false }
 memchr = { version = "2", default-features = false }
 nom = { version = "8", default-features = false }
-paste = { git = "https://github.com/dtolnay/paste", rev = "6a302522990cbfd9de4e0c61d91854622f7b2999", default-features = false }
 proc-macro2 = { version = "1", default-features = false }
 quick-xml = { version = "0.42", default-features = false }
 quote = { version = "1", default-features = false }
-rand = { version = "0.10", default-features = false }
 regex = { version = "1", default-features = false }
 reqwest = { version = "0.13", default-features = false }
 rustls = { version = "0.23", default-features = false }
-serde = { version = "1", default-features = false }
-serde_core = { version = "1", default-features = false }
-serde_json = { version = "1", default-features = false }
-serde_test = { version = "1", default-features = false }
 syn = { version = "3", default-features = false }
 tokio = { version = "1", default-features = false }
 tokio-rustls = { version = "0.26", default-features = false }
 tracing = { version = "0.1", default-features = false }
-unicode-width = { version = "0.1", default-features = false }
 url = { version = "2", default-features = false }
 walkdir = { version = "2", default-features = false }

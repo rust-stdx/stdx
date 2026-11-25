@@ -42,22 +42,22 @@ use hyper_utils::{
     http_body_util::{BodyExt, Full},
     rt::TokioIo,
 };
-use serde::{Deserialize, Serialize};
+use json::{Decode, Encode};
 
 // Policies dictating which text TODOs may contain
 const WORK_TODO_POLICY: &str = r#"!text.contains("TV")"#; // Don't watch TV at work!
 const HOME_TODO_POLICY: &str = r#"!text.contains("Rust")"#; // Don't hack on Rust at home!
 
 // TODOs carry some text and have a kind
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Decode, Encode)]
 struct Todo {
     text: String,
     kind: TodoKind,
 }
 
 // TODOs are either for work or for home
-#[derive(Clone, Deserialize, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Clone, Decode, Encode)]
+#[json(rename_all = "lowercase")]
 enum TodoKind {
     Work,
     Home,
@@ -70,7 +70,7 @@ async fn add_todo(ctx: AppContext, request: Request<Incoming>) -> Response<Full<
         Ok(collected) => collected.to_bytes(),
         Err(_) => return empty_response(StatusCode::BAD_REQUEST),
     };
-    let todo: Todo = match serde_json::from_slice(&body) {
+    let todo: Todo = match json::from_slice::<Todo>(&body) {
         Ok(todo) => todo,
         Err(_) => return empty_response(StatusCode::BAD_REQUEST),
     };
@@ -99,10 +99,7 @@ async fn add_todo(ctx: AppContext, request: Request<Incoming>) -> Response<Full<
 // GET the current list of TODOs
 fn list_todos(ctx: &AppContext) -> Response<Full<Bytes>> {
     let todos = ctx.todos.lock().unwrap();
-    match serde_json::to_vec(&*todos) {
-        Ok(body) => json_response(StatusCode::OK, body),
-        Err(_) => empty_response(StatusCode::INTERNAL_SERVER_ERROR),
-    }
+    json_response(StatusCode::OK, json::to_vec(&*todos))
 }
 
 // The policy engine for our TODOs app

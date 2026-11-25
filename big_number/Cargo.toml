@@ -26,5 +26,4 @@ zeroize = { path = "../zeroize", optional = true, default-features = false, feat
 alloc_counter = { path = "../alloc_counter" }
 crypto = { path = "../crypto" }
 hex = { path = "../hex" }
-
-rand = { workspace = true, features = ["std_rng"] }
+random = { path = "../random", default-features = false }

@@ -96,7 +96,7 @@ fn encrypt(password: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, String> {
 
 /// Encrypt `plaintext` with `password` using explicit Argon2id parameters.
 fn encrypt_with_params(password: &[u8], plaintext: &[u8], params: &crypto::argon2::Params) -> Result<Vec<u8>, String> {
-    let nonce_seed: [u8; NONCE_SEED_LENGTH] = rand::random();
+    let nonce_seed: [u8; NONCE_SEED_LENGTH] = random::random();
 
     let xchacha20_nonce = derive_key::<XCHACHA20_POLY1305_NONCE_LENGTH>(&nonce_seed, KDF_INFO_XCHACHA20_POLY1305_NONCE);
     let aegis256x2_nonce = derive_key::<AEGIS256X2_NONCE_LENGTH>(&nonce_seed, KDF_INFO_AEGIS256X2_NONCE);

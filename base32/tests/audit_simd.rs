@@ -17,7 +17,7 @@ use base32::{
     Alphabet, DecodeError, EncodeError, decode_into, decode_into_constant_time, encode_into, encode_into_constant_time,
     encoded_length,
 };
-use rand::{RngExt, SeedableRng, rngs::StdRng};
+use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
 const ALL_ALPHABETS: [Alphabet; 10] = [
     Alphabet::Rfc4648,
@@ -372,7 +372,7 @@ fn compare_encode(data: &[u8], a: Alphabet) -> Vec<u8> {
 }
 
 fn pattern(len: usize, seed: u64) -> Vec<u8> {
-    let mut rng = StdRng::seed_from_u64(seed);
+    let mut rng = ChaChaRng::seed_from_u64(seed);
     let mut out = vec![0u8; len];
     rng.fill(&mut out);
     out

@@ -21,7 +21,7 @@ use crypto::{
     sha2::Sha256,
     sha3::{ParallelHash256, ParallelHashError, TurboShake256, TurboShakeError},
 };
-use rand::{RngExt, SeedableRng, rngs::StdRng};
+use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
 fn no_panic<T>(f: impl FnOnce() -> T) -> T {
     match catch_unwind(AssertUnwindSafe(f)) {
@@ -134,7 +134,7 @@ fn stream_ciphers_never_panic_on_arbitrary_lengths() {
 
 #[test]
 fn parsers_never_panic_on_random_input() {
-    let mut rng = StdRng::seed_from_u64(0x9e37_79b9_7f4a_7c15);
+    let mut rng = ChaChaRng::seed_from_u64(0x9e37_79b9_7f4a_7c15);
 
     no_panic(|| {
         for len in 0..=256 {

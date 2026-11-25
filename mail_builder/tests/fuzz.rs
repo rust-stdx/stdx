@@ -11,9 +11,9 @@ use mail_builder::{
     headers::{address::Address, content_type::ContentType, message_id::MessageId, raw::Raw, text::Text, url::URL},
     mime::{BodyPart, MimePart},
 };
-use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
+use random::{Rng, RngExt, SeedableRng, rngs::ChaChaRng};
 
-fn random_byte(rng: &mut StdRng) -> u8 {
+fn random_byte(rng: &mut ChaChaRng) -> u8 {
     const INTERESTING: &[u8] = b"\r\n\t :=?\"\\;<>@,/./\x00\x0b\x07\x7f\xa9\x0d\x0a";
     if rng.next_u64().is_multiple_of(2) {
         INTERESTING[rng.next_u64() as usize % INTERESTING.len()]
@@ -22,12 +22,12 @@ fn random_byte(rng: &mut StdRng) -> u8 {
     }
 }
 
-fn random_string(rng: &mut StdRng, max: usize) -> String {
+fn random_string(rng: &mut ChaChaRng, max: usize) -> String {
     let len = (rng.next_u64() as usize) % max;
     (0..len).map(|_| random_byte(rng) as char).collect()
 }
 
-fn random_address(rng: &mut StdRng, depth: u32) -> Address<'static> {
+fn random_address(rng: &mut ChaChaRng, depth: u32) -> Address<'static> {
     if depth == 0 {
         return Address::new_address(Some(random_string(rng, 20)), random_string(rng, 20));
     }
@@ -84,7 +84,7 @@ fn check_invariants(eml: &[u8]) {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn hostile_input_never_panics_or_breaks_structure() {
-    let mut rng = StdRng::seed_from_u64(0x1234_5678_9abc_def0);
+    let mut rng = ChaChaRng::seed_from_u64(0x1234_5678_9abc_def0);
 
     for _ in 0..2_000 {
         let name = format!("X-{}", random_string(&mut rng, 100));

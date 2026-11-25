@@ -3,7 +3,7 @@
 use std::{fs, path::Path};
 
 use cose::{Algorithm, Mac, Mac0, Sign1, SymmetricKey, VerifyOptions};
-use serde_json::Value;
+use json::Value;
 
 fn files(dir: &Path, out: &mut Vec<std::path::PathBuf>) {
     for entry in fs::read_dir(dir).unwrap() {
@@ -33,14 +33,14 @@ fn b64(value: &Value) -> Vec<u8> {
     .expect("valid base64url")
 }
 
-fn hex_bytes(value: Option<&Value>) -> Vec<u8> {
+fn hex_bytes(value: Option<&Value<'_>>) -> Vec<u8> {
     match value {
-        Some(Value::String(value)) => hex::decode(value).unwrap_or_default(),
+        Some(Value::String(value)) => hex::decode(value.as_bytes()).unwrap_or_default(),
         _ => Vec::new(),
     }
 }
 
-fn verify_sign1(key: &Value, token: &[u8], external_aad: &[u8]) -> cose::Result<()> {
+fn verify_sign1(key: &Value<'_>, token: &[u8], external_aad: &[u8]) -> cose::Result<()> {
     let message = Sign1::from_slice(token)?;
     let kty = key["kty"].as_str().ok_or(cose::Error::InvalidKey)?;
     match kty {
@@ -82,7 +82,7 @@ fn verify_sign1(key: &Value, token: &[u8], external_aad: &[u8]) -> cose::Result<
     }
 }
 
-fn verify_mac0(key: &Value, token: &[u8], external_aad: &[u8]) -> cose::Result<()> {
+fn verify_mac0(key: &Value<'_>, token: &[u8], external_aad: &[u8]) -> cose::Result<()> {
     let message = Mac0::from_slice(token)?;
     let algorithm = message.headers()?.algorithm().ok_or(cose::Error::MissingAlgorithm)?;
     let key_bytes = b64(&key["k"]);
@@ -90,7 +90,7 @@ fn verify_mac0(key: &Value, token: &[u8], external_aad: &[u8]) -> cose::Result<(
     message.verify(&key, external_aad, &VerifyOptions::default())
 }
 
-fn verify_mac(key: &Value, token: &[u8], external_aad: &[u8]) -> cose::Result<()> {
+fn verify_mac(key: &Value<'_>, token: &[u8], external_aad: &[u8]) -> cose::Result<()> {
     let message = Mac::from_slice(token)?;
     let algorithm = message.headers()?.algorithm().ok_or(cose::Error::MissingAlgorithm)?;
     let key_bytes = b64(&key["k"]);
@@ -111,7 +111,8 @@ fn conformance_sign1_mac0_mac() {
     let mut failed = Vec::new();
 
     for path in paths {
-        let document: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        let bytes = fs::read(&path).unwrap();
+        let document: Value<'_> = json::from_slice(&bytes).unwrap();
         let fail = document.get("fail").and_then(Value::as_bool).unwrap_or(false);
         let output = document["output"]["cbor"].as_str().expect("output cbor").to_owned();
         let token = hex::decode(output).unwrap();
@@ -169,7 +170,8 @@ fn conformance_rsa_pss_sign_vectors() {
     paths.sort();
 
     for path in paths {
-        let document: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        let bytes = fs::read(&path).unwrap();
+        let document: Value<'_> = json::from_slice(&bytes).unwrap();
         let token = hex::decode(document["output"]["cbor"].as_str().unwrap()).unwrap();
         let message = cose::Sign::from_slice(&token).unwrap();
         let signers = document["input"]["sign"]["signers"].as_array().expect("signers");
@@ -259,7 +261,8 @@ fn conformance_sign_and_ecdsa_eddsa() {
             // supported key/algorithm pairs.
             continue;
         }
-        let document: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        let bytes = fs::read(&path).unwrap();
+        let document: Value<'_> = json::from_slice(&bytes).unwrap();
         if document["input"].get("sign").is_none() {
             continue;
         }

@@ -257,6 +257,11 @@ extern crate std;
 #[cfg(feature = "derive")]
 pub use zeroize_derive::{Zeroize, ZeroizeOnDrop};
 
+#[cfg(feature = "cbor")]
+mod cbor;
+#[cfg(feature = "json")]
+mod json;
+
 #[cfg(target_arch = "aarch64")]
 mod aarch64;
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
@@ -776,34 +781,6 @@ where
 {
     fn drop(&mut self) {
         self.0.zeroize();
-    }
-}
-
-#[cfg(feature = "serde")]
-impl<Z> serde::Serialize for Zeroizing<Z>
-where
-    Z: Zeroize + serde::Serialize + ?Sized,
-{
-    #[inline(always)]
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        self.0.serialize(serializer)
-    }
-}
-
-#[cfg(feature = "serde")]
-impl<'de, Z> serde::Deserialize<'de> for Zeroizing<Z>
-where
-    Z: Zeroize + serde::Deserialize<'de>,
-{
-    #[inline(always)]
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        Ok(Self(Z::deserialize(deserializer)?))
     }
 }
 

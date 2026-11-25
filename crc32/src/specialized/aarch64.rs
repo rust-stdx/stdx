@@ -80,11 +80,11 @@ pub unsafe fn calculate(crc: u32, data: &[u8]) -> u32 {
 
 #[cfg(all(test, feature = "std"))]
 mod test {
-    use rand::{TryRng, rngs::SysRng};
+    use random::{TryRng, rngs::SystemRng};
 
     #[test]
     fn check_against_baseline() {
-        let mut rng = SysRng;
+        let mut rng = SystemRng;
         for _ in 0..100 {
             let mut init_bytes = [0u8; 4];
             rng.try_fill_bytes(&mut init_bytes).unwrap();
@@ -107,11 +107,7 @@ mod test {
                 let mut offset_bytes = [0u8; 1];
                 rng.try_fill_bytes(&mut offset_bytes).unwrap();
                 let offset = (offset_bytes[0] & 0xF) as usize;
-                let slice = if chunk.len() <= offset {
-                    &chunk[..]
-                } else {
-                    &chunk[offset..]
-                };
+                let slice = if chunk.len() <= offset { chunk } else { &chunk[offset..] };
 
                 baseline.update(slice);
                 aarch64.update(slice);

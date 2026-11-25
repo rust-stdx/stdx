@@ -15,6 +15,7 @@ path = "./crypto_rustls.rs"
 
 [dependencies]
 crypto = { path = "../crypto" }
+random = { path = "../random", default-features = false, features = ["system"] }
 
 rustls = { workspace = true, features = ["std"] }
 

@@ -358,7 +358,7 @@ pub(crate) unsafe fn ghash_16blocks_vpclmul512(
 
 #[cfg(test)]
 mod tests {
-    use rand::{RngExt, SeedableRng, rngs::StdRng};
+    use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
     use super::*;
 
@@ -526,7 +526,7 @@ mod tests {
     }
 
     fn pattern_blocks(count: usize, seed: u64) -> Vec<[u8; 16]> {
-        let mut rng = StdRng::seed_from_u64(seed);
+        let mut rng = ChaChaRng::seed_from_u64(seed);
         let mut out = Vec::with_capacity(count);
         for _ in 0..count {
             out.push(rng.random::<[u8; 16]>());

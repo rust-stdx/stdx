@@ -400,12 +400,12 @@ mod tests {
 
 #[cfg(test)]
 mod kernel_tests {
-    use rand::{RngExt, SeedableRng, rngs::StdRng};
+    use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
     use super::*;
     use crate::aes::aes::{decrypt_block, encrypt_block, expand_key};
 
-    /// Deterministic seeded `StdRng` generator.
+    /// Deterministic seeded `ChaChaRng` generator.
     fn hardware_available() -> bool {
         std::arch::is_aarch64_feature_detected!("aes")
     }
@@ -431,7 +431,7 @@ mod kernel_tests {
             eprintln!("skipping arm_expand_key_preserves_software_schedule: no AES extension");
             return;
         }
-        let mut rng = StdRng::seed_from_u64(0x1111_2222_3333_4444);
+        let mut rng = ChaChaRng::seed_from_u64(0x1111_2222_3333_4444);
 
         for _ in 0..256 {
             let mut key = [0u8; 16];
@@ -474,7 +474,7 @@ mod kernel_tests {
         assert_eq!(encrypt_block::<11>(&soft, &pt), ct);
 
         // 10k deterministic vectors against the software fallback.
-        let mut rng = StdRng::seed_from_u64(0xdead_beef_0000_0001);
+        let mut rng = ChaChaRng::seed_from_u64(0xdead_beef_0000_0001);
         let mut key = [0u8; 16];
         let mut soft = expand_key::<11>(&key);
         let mut arm = expand_key_armv8(soft);
@@ -516,7 +516,7 @@ mod kernel_tests {
         assert_eq!(arm_block_at(&rk, &pt, 0), ct);
         assert_eq!(encrypt_block::<15>(&soft, &pt), ct);
 
-        let mut rng = StdRng::seed_from_u64(0xdead_beef_0000_0002);
+        let mut rng = ChaChaRng::seed_from_u64(0xdead_beef_0000_0002);
         let mut key = [0u8; 32];
         let mut soft = expand_key::<15>(&key);
         let mut arm = expand_key_armv8(soft);
@@ -540,7 +540,7 @@ mod kernel_tests {
             eprintln!("skipping arm_interleaved_kernels_match_single_block_kernel: no AES extension");
             return;
         }
-        let mut rng = StdRng::seed_from_u64(0x0bad_c0de_0000_0007);
+        let mut rng = ChaChaRng::seed_from_u64(0x0bad_c0de_0000_0007);
 
         for _ in 0..200 {
             let mut key128 = [0u8; 16];

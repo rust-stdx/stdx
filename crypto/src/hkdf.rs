@@ -286,8 +286,8 @@ mod tests {
         const MAX_OKM: usize = 8160;
         const SIZE_TOO_LARGE: usize = 8161;
 
-        let data: serde_json::Value =
-            serde_json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/hkdf_sha256_test.json")).unwrap();
+        let data: json::Value<'_> =
+            json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/hkdf_sha256_test.json")).unwrap();
         let mut valid_tested = 0u64;
         let mut invalid_tested = 0u64;
         for group in data["testGroups"].as_array().unwrap() {
@@ -338,8 +338,8 @@ mod tests {
         const MAX_OKM: usize = 16320;
         const SIZE_TOO_LARGE: usize = 16321;
 
-        let data: serde_json::Value =
-            serde_json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/hkdf_sha512_test.json")).unwrap();
+        let data: json::Value<'_> =
+            json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/hkdf_sha512_test.json")).unwrap();
         let mut valid_tested = 0u64;
         let mut invalid_tested = 0u64;
         for group in data["testGroups"].as_array().unwrap() {
@@ -390,8 +390,8 @@ mod tests {
         const MAX_OKM: usize = 12240;
         const SIZE_TOO_LARGE: usize = 12241;
 
-        let data: serde_json::Value =
-            serde_json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/hkdf_sha384_test.json")).unwrap();
+        let data: json::Value<'_> =
+            json::from_str(include_str!("../testdata/wycheproof/testvectors_v1/hkdf_sha384_test.json")).unwrap();
         let mut valid_tested = 0u64;
         let mut invalid_tested = 0u64;
         for group in data["testGroups"].as_array().unwrap() {

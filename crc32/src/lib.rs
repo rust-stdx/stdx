@@ -209,13 +209,13 @@ impl hash::Hasher for Hasher {
 
 #[cfg(all(test, feature = "std"))]
 mod test {
-    use rand::{TryRng, rngs::SysRng};
+    use random::{TryRng, rngs::SystemRng};
 
     use super::Hasher;
 
     #[test]
     fn combine() {
-        let mut rand_generator = SysRng;
+        let mut rand_generator = SystemRng;
 
         let mut bytes_1 = vec![100];
         rand_generator.try_fill_bytes(&mut bytes_1).unwrap();
@@ -237,7 +237,7 @@ mod test {
 
     #[test]
     fn combine_from_len() {
-        let mut rand_generator = SysRng;
+        let mut rand_generator = SystemRng;
 
         let mut bytes_1 = vec![200];
         rand_generator.try_fill_bytes(&mut bytes_1).unwrap();

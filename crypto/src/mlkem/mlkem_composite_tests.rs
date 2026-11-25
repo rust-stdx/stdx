@@ -6,7 +6,7 @@
 //! universal-combiner digest were computed independently from that draft and
 //! from Python's SHAKE256/SHA3-256 implementations.
 
-use serde::Deserialize;
+use json::Decode;
 
 use super::*;
 
@@ -55,7 +55,7 @@ fn constants_match_the_specification() {
     assert_eq!(MLKEM_1024_X25519_LABEL.len(), 16);
 }
 
-#[derive(Deserialize)]
+#[derive(Decode)]
 struct Vector {
     seed: String,
     randomness: String,
@@ -68,7 +68,7 @@ struct Vector {
 
 #[test]
 fn draft_derived_known_answer_vectors() {
-    let vectors: Vec<Vector> = serde_json::from_str(include_str!("../../testdata/mlkem/mlkem1024_x25519_vectors.json"))
+    let vectors: Vec<Vector> = json::from_str(include_str!("../../testdata/mlkem/mlkem1024_x25519_vectors.json"))
         .expect("test vectors are valid JSON");
     assert_eq!(vectors.len(), 3, "the vector file must contain three vectors");
 

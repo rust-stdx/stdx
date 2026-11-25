@@ -2,7 +2,7 @@
 
 use core::{mem::size_of_val, slice::from_raw_parts_mut};
 
-use rand::{RngExt, SeedableRng, rngs::StdRng};
+use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
 /// Misaligns the slice by one byte, to ensure no SIMD load instructions require alignment.
 fn misalign_slice(buf: &mut [u128]) -> &mut [u8] {
@@ -72,7 +72,7 @@ fn exhaustive_test_random<CTEQ>(cteq: &CTEQ)
 where
     CTEQ: Fn(&[u8], &[u8]) -> bool,
 {
-    let mut rng = StdRng::seed_from_u64(2463534242);
+    let mut rng = ChaChaRng::seed_from_u64(2463534242);
     test_all_lengths(|buf| buf.fill_with(|| rng.random::<u8>()), cteq);
 }
 

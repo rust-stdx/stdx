@@ -54,13 +54,13 @@ impl From<&'static str> for Error {
 pub struct AccountCredentials {
     pub(crate) id: String,
     /// Stored in DER, serialized as base64
-    #[json(with = "pkcs8_serde")]
+    #[json(with = "pkcs8_base64")]
     pub(crate) key_pkcs8: Vec<u8>,
     pub(crate) directory: Option<String>,
     pub(crate) urls: Option<DirectoryUrls>,
 }
 
-mod pkcs8_serde {
+mod pkcs8_base64 {
     use json::{Decoder, Encoder, Error, Result, Write};
 
     pub(crate) fn serialize<W: Write>(

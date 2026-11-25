@@ -1,0 +1,32 @@
+[package]
+name = "random"
+version = "0.1.0"
+description = "A small random number generator built on the stdx `crypto` crate: ChaCha12 with an OS-reseeded thread-local generator."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = ["std"]
+# Enables the thread-local generator and the `random` / `random_range` helpers.
+std = ["system", "crypto/std", "getrandom?/std"]
+# Enables `SystemRng`, backed by the operating system's entropy source.
+system = ["dep:getrandom"]
+
+[lib]
+path = "./random.rs"
+
+[dependencies]
+crypto = { path = "../crypto", default-features = false }
+
+# The wasm32-unknown-unknown target needs getrandom's JavaScript backend. It is
+# selected by target rather than by a feature so users do not have to opt in.
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { workspace = true, optional = true, features = ["wasm_js"] }
+
+[target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
+getrandom = { workspace = true, optional = true }

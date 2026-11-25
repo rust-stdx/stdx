@@ -352,7 +352,7 @@ impl ParallelHash256 {
 //////////////////////////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use rand::{RngExt, SeedableRng, rngs::StdRng};
+    use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
     use super::*;
     use crate::sha3::keccak::{PI, RHO};
@@ -371,7 +371,7 @@ mod tests {
         0x46, 0x47, 0x48, 0x49, 0x4a, 0x4b, 0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58, 0x59, 0x5a, 0x5b,
     ];
 
-    fn random_bytes(len: usize, rng: &mut StdRng) -> std::vec::Vec<u8> {
+    fn random_bytes(len: usize, rng: &mut ChaChaRng) -> std::vec::Vec<u8> {
         let mut out = std::vec![0u8; len];
         rng.fill(&mut out);
         out
@@ -593,7 +593,7 @@ mod tests {
     /// batch (so it takes the sequential path).
     #[test]
     fn batched_path_matches_sequential_reference() {
-        let mut rng = StdRng::seed_from_u64(0x6f4a_11e2_9d38_b705);
+        let mut rng = ChaChaRng::seed_from_u64(0x6f4a_11e2_9d38_b705);
         let batch = batch_width();
         for &block_size in &[1usize, 8, 63, 136, 137, 1024] {
             for &len in &[

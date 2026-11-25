@@ -14,7 +14,7 @@
 
 use constant_time_eq::constant_time_eq;
 #[cfg(test)]
-use rand::{RngExt, SeedableRng, rngs::StdRng};
+use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
 /// Minimum message length for the split-state bulk loop. Measured on the
 /// aarch64 backend: wins from 1 KiB upwards, neutral below it.
@@ -950,7 +950,7 @@ mod core_tests {
     }
 
     fn pattern(len: usize, seed: u8) -> Vec<u8> {
-        let mut rng = StdRng::seed_from_u64(u64::from(seed));
+        let mut rng = ChaChaRng::seed_from_u64(u64::from(seed));
         let mut out = vec![0u8; len];
         rng.fill(&mut out);
         out

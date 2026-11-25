@@ -35,7 +35,7 @@ use crypto::{
     chacha::{ChaCha8Djb, ChaCha20Djb, ChaCha20Ietf, ChaCha20Poly1305, XChaCha20Djb, XChaCha20Ietf, XChaCha20Poly1305},
     poly1305::Poly1305,
 };
-use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
+use random::{Rng, RngExt, SeedableRng, rngs::ChaChaRng};
 
 // ---------------------------------------------------------------------------
 // Independent ChaCha reference
@@ -659,7 +659,7 @@ fn hchacha20_vectors() {
     );
 
     // Differential over deterministic inputs.
-    let mut rng = StdRng::seed_from_u64(0xdead_beef_cafe_babe);
+    let mut rng = ChaChaRng::seed_from_u64(0xdead_beef_cafe_babe);
     for _ in 0..512 {
         let mut k = [0u8; 32];
         let mut in16 = [0u8; 16];
@@ -912,7 +912,7 @@ fn chunked_equals_one_shot_every_split_pattern() {
 #[test]
 fn chunked_equals_one_shot_random_splits() {
     let key = key32_random();
-    let mut rng = StdRng::seed_from_u64(0x0bad_c0de_1234_5678);
+    let mut rng = ChaChaRng::seed_from_u64(0x0bad_c0de_1234_5678);
 
     for _ in 0..400 {
         let len = rng.random_range(0..1025);
@@ -929,7 +929,7 @@ fn chunked_equals_one_shot_random_splits() {
                 2 => 64,
                 3 => 65,
                 4 => 7,
-                _ => 1 + rng.random_range(0..140),
+                _ => 1 + rng.random_range(0usize..140),
             })
             .collect();
 
@@ -1293,7 +1293,7 @@ fn poly1305_key_clamping_ignores_clamped_bits() {
 
 #[test]
 fn poly1305_chunked_update_matches_one_shot() {
-    let mut rng = StdRng::seed_from_u64(0xfeed_face_0000_1111);
+    let mut rng = ChaChaRng::seed_from_u64(0xfeed_face_0000_1111);
     for iter in 0..500 {
         let mut key = key32();
         for b in &mut key {
@@ -1312,7 +1312,7 @@ fn poly1305_chunked_update_matches_one_shot() {
                 1 => 15,
                 2 => 16,
                 3 => 17,
-                _ => 1 + rng.random_range(0..70),
+                _ => 1 + rng.random_range(0usize..70),
             };
             let end = (offset + take).min(len);
             mac.update(&msg[offset..end]);

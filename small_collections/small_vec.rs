@@ -1131,64 +1131,6 @@ impl<T, const M: usize, const N: usize> TryFrom<SmallVec<T, N>> for [T; M] {
     }
 }
 
-#[cfg(feature = "serde")]
-impl<T, const N: usize> serde::Serialize for SmallVec<T, N>
-where
-    T: serde::Serialize,
-{
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::SerializeSeq;
-
-        let mut seq = serializer.serialize_seq(Some(self.len()))?;
-        for item in self.iter() {
-            seq.serialize_element(item)?;
-        }
-        seq.end()
-    }
-}
-
-#[cfg(feature = "serde")]
-impl<'de, T, const N: usize> serde::Deserialize<'de> for SmallVec<T, N>
-where
-    T: serde::Deserialize<'de>,
-{
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        use core::marker::PhantomData;
-
-        use serde::de::{SeqAccess, Visitor};
-
-        struct SmallVecVisitor<T, const N: usize> {
-            marker: PhantomData<T>,
-        }
-
-        impl<'de, T, const N: usize> Visitor<'de> for SmallVecVisitor<T, N>
-        where
-            T: serde::Deserialize<'de>,
-        {
-            type Value = SmallVec<T, N>;
-
-            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("a sequence")
-            }
-
-            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
-                let mut this = SmallVec::new();
-                if let Some(size) = seq.size_hint() {
-                    this.reserve(size);
-                }
-                while let Some(value) = seq.next_element()? {
-                    this.push(value);
-                }
-                Ok(this)
-            }
-        }
-
-        deserializer.deserialize_seq(SmallVecVisitor {
-            marker: PhantomData,
-        })
-    }
-}
-
 #[cfg(feature = "std")]
 impl<const N: usize> std::io::Write for SmallVec<u8, N> {
     #[inline]
@@ -1713,23 +1655,6 @@ mod tests {
         [1, 2, 3].hash(&mut h2);
 
         assert_eq!(h1.finish(), h2.finish());
-    }
-
-    #[test]
-    #[cfg(feature = "serde")]
-    fn serde_is_flat_sequence() {
-        let v: SmallVec<i32, 4> = SmallVec::from([1, 2, 3]);
-        let json = serde_json::to_string(&v).unwrap();
-        assert_eq!(json, "[1,2,3]");
-
-        let back: SmallVec<i32, 4> = serde_json::from_str(&json).unwrap();
-        assert!(back.is_inline());
-        assert_eq!(back, v);
-
-        let long = "[1,2,3,4,5,6]";
-        let back: SmallVec<i32, 2> = serde_json::from_str(long).unwrap();
-        assert!(!back.is_inline());
-        assert_eq!(&*back, &[1, 2, 3, 4, 5, 6]);
     }
 
     #[test]

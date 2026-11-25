@@ -5,7 +5,7 @@
 //! reference code) and checks the optimized implementation against it over
 //! many input shapes, including every SIMD kernel that was compiled in.
 
-use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
+use random::{Rng, RngExt, SeedableRng, rngs::ChaChaRng};
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 
@@ -638,10 +638,10 @@ mod reference {
     }
 }
 
-/// Deterministic pseudorandom bytes, so tests do not depend on `rand` and are
+/// Deterministic pseudorandom bytes, so tests do not depend on `random` and are
 /// reproducible across platforms.
 fn pseudo_random(len: usize, seed: u64) -> Vec<u8> {
-    let mut rng = StdRng::seed_from_u64(seed);
+    let mut rng = ChaChaRng::seed_from_u64(seed);
     let mut out = vec![0u8; len];
     rng.fill(&mut out);
     out
@@ -869,7 +869,7 @@ fn differential_all_split_points() {
 /// Deterministic pseudorandom update patterns, checking both plain and keyed hashing.
 #[test]
 fn differential_fuzz_incremental() {
-    let mut rng = StdRng::seed_from_u64(0x1234_5678_9abc_def0);
+    let mut rng = ChaChaRng::seed_from_u64(0x1234_5678_9abc_def0);
 
     let key: [u8; 32] = pseudo_random(32, 42).try_into().unwrap();
     let max_len = 20_000usize;
@@ -906,7 +906,7 @@ fn differential_fuzz_incremental() {
 /// Pseudorandom piecemeal squeezing and seeking against the reference XOF.
 #[test]
 fn differential_fuzz_xof() {
-    let mut rng = StdRng::seed_from_u64(0x0dd0_1234_5678_9abc);
+    let mut rng = ChaChaRng::seed_from_u64(0x0dd0_1234_5678_9abc);
 
     let data = pseudo_random(4096, 0xC0FFEE);
     for trial in 0..200 {

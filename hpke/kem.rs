@@ -1,12 +1,20 @@
 //! Key encapsulation mechanisms (KEMs) for HPKE (`draft-ietf-hpke-hpke-05` Section 4 and Section 7.1).
 
 use crypto::{Hash, curve25519::x25519, p256, p521};
+#[cfg(feature = "random")]
+use random::TryRng;
 
 use super::{
     HpkeError,
     kdf::{HkdfSha256, HkdfSha512, Kdf, Shake256 as Shake256Kdf},
     wipe,
 };
+
+/// Fills `buf` from the operating system's entropy source.
+#[cfg(feature = "random")]
+fn fill_random(buf: &mut [u8]) -> Result<(), crypto::RandomError> {
+    random::SystemRng.try_fill_bytes(buf).map_err(crypto::RandomError::from)
+}
 
 /// Key encapsulation mechanism (KEM) usable within an HPKE ciphersuite.
 ///
@@ -113,7 +121,7 @@ pub trait Kem: Sized {
         };
 
         let mut input_keying_material = [0u8; MAX_SECRET_KEY_SIZE];
-        crypto::random::fill(&mut input_keying_material[..Self::SECRET_KEY_SIZE])?;
+        fill_random(&mut input_keying_material[..Self::SECRET_KEY_SIZE])?;
         return Self::derive_keypair(&input_keying_material[..Self::SECRET_KEY_SIZE]);
     }
 
@@ -358,7 +366,7 @@ impl Kem for MLKEM768X25519 {
     #[cfg(feature = "random")]
     fn encap(recipient_public_key: &Self::PublicKey) -> Result<(Hash, Self::EncappedKey), HpkeError> {
         let mut randomness = [0u8; Self::RANDOMNESS_SIZE];
-        crypto::random::fill(&mut randomness)?;
+        fill_random(&mut randomness)?;
         let result = Self::encap_deterministic(recipient_public_key, &randomness);
         wipe(&mut randomness);
         return result;
@@ -471,7 +479,7 @@ impl Kem for MLKEM1024X25519 {
     #[cfg(feature = "random")]
     fn generate_keypair() -> Result<(Self::SecretKey, Self::PublicKey), HpkeError> {
         let mut seed = [0u8; crypto::mlkem::MLKEM_1024_X25519_SEED_SIZE];
-        crypto::random::fill(&mut seed)?;
+        fill_random(&mut seed)?;
         let keypair = crypto::mlkem::MlKem1024X25519SecretKey::generate_derand(&seed);
         wipe(&mut seed);
         return Ok(keypair);
@@ -523,7 +531,7 @@ impl Kem for MLKEM1024X25519 {
     #[cfg(feature = "random")]
     fn encap(recipient_public_key: &Self::PublicKey) -> Result<(Hash, Self::EncappedKey), HpkeError> {
         let mut randomness = [0u8; Self::RANDOMNESS_SIZE];
-        crypto::random::fill(&mut randomness)?;
+        fill_random(&mut randomness)?;
         let result = Self::encap_deterministic(recipient_public_key, &randomness);
         wipe(&mut randomness);
         return result;

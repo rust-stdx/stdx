@@ -1033,27 +1033,27 @@ mod tests {
 
     #[test]
     fn wycheproof_ed25519_vectors() {
-        #[derive(serde::Deserialize)]
+        #[derive(json::Decode)]
         struct TestJson {
-            #[serde(rename = "testGroups")]
+            #[json(rename = "testGroups")]
             test_groups: Vec<TestGroup>,
         }
 
-        #[derive(serde::Deserialize)]
+        #[derive(json::Decode)]
         struct TestGroup {
-            #[serde(rename = "publicKey")]
+            #[json(rename = "publicKey")]
             public_key: PublicKeyJson,
             tests: Vec<TestCase>,
         }
 
-        #[derive(serde::Deserialize)]
+        #[derive(json::Decode)]
         struct PublicKeyJson {
             pk: String,
         }
 
-        #[derive(serde::Deserialize)]
+        #[derive(json::Decode)]
         struct TestCase {
-            #[serde(rename = "tcId")]
+            #[json(rename = "tcId")]
             tc_id: u32,
             // #[allow(dead_code)]
             // comment: String,
@@ -1063,7 +1063,7 @@ mod tests {
         }
 
         let data = include_str!("../../testdata/wycheproof/testvectors_v1/ed25519_test.json");
-        let parsed: TestJson = serde_json::from_str(data).unwrap();
+        let parsed: TestJson = json::from_str(data).unwrap();
 
         let mut valid_tested = 0usize;
         let mut invalid_tested = 0usize;
@@ -1153,10 +1153,10 @@ mod tests {
     fn fixed_window_matches_scalar_mul() {
         for _ in 0..100 {
             let s = Scalar(U256::from_limbs([
-                rand::random::<u64>(),
-                rand::random::<u64>(),
-                rand::random::<u64>(),
-                rand::random::<u64>(),
+                random::random::<u64>(),
+                random::random::<u64>(),
+                random::random::<u64>(),
+                random::random::<u64>(),
             ]));
             let s = Scalar(s.0.add_mod(&U256::ZERO, &MODULUS_L));
             let old_result = scalar_mul(&BASEPOINT, &s);
@@ -1169,16 +1169,16 @@ mod tests {
     fn mul_mod_barrett_agrees_with_mul_mod() {
         for _ in 0..100 {
             let a = U256::from_limbs([
-                rand::random::<u64>(),
-                rand::random::<u64>(),
-                rand::random::<u64>(),
-                rand::random::<u64>(),
+                random::random::<u64>(),
+                random::random::<u64>(),
+                random::random::<u64>(),
+                random::random::<u64>(),
             ]);
             let b = U256::from_limbs([
-                rand::random::<u64>(),
-                rand::random::<u64>(),
-                rand::random::<u64>(),
-                rand::random::<u64>(),
+                random::random::<u64>(),
+                random::random::<u64>(),
+                random::random::<u64>(),
+                random::random::<u64>(),
             ]);
             let slow = a.mul_mod(&b, &MODULUS_L);
             let fast = a.mul_mod_barrett(&b, &MODULUS_L, &BAR_MU);

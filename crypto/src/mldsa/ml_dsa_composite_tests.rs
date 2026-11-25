@@ -10,7 +10,7 @@
 //! it is signed over.
 
 use base64::{Alphabet, decode};
-use serde::Deserialize;
+use json::Decode;
 
 use super::*;
 use crate::{Hasher, sha2::Sha512};
@@ -21,21 +21,21 @@ const VECTORS: &str = include_str!("../../testdata/mldsa/composite_mldsa65_ed255
 // Test vectors
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Deserialize)]
+#[derive(Decode)]
 struct Vectors {
     m: String,
     ctx: String,
     tests: Vec<TestCase>,
 }
 
-#[derive(Deserialize)]
+#[derive(Decode)]
 struct TestCase {
-    #[serde(rename = "tcId")]
+    #[json(rename = "tcId")]
     tc_id: String,
     pk: String,
     sk: String,
     s: String,
-    #[serde(rename = "sWithContext")]
+    #[json(rename = "sWithContext")]
     s_with_context: String,
 }
 
@@ -60,7 +60,7 @@ fn to_array<const N: usize>(bytes: Vec<u8>) -> [u8; N] {
 }
 
 fn load_kat() -> Kat {
-    let vectors: Vectors = serde_json::from_str(VECTORS).expect("test vectors are valid JSON");
+    let vectors: Vectors = json::from_str(VECTORS).expect("test vectors are valid JSON");
 
     assert_eq!(
         vectors.tests.len(),

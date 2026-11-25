@@ -751,12 +751,12 @@ mod tests {
 
 #[cfg(test)]
 mod kernel_tests {
-    use rand::{RngExt, SeedableRng, rngs::StdRng};
+    use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
     use super::*;
     use crate::aes::aes::{SBOX, expand_key};
 
-    /// Deterministic seeded `StdRng` generator.
+    /// Deterministic seeded `ChaChaRng` generator.
     /// FIPS 197 §5.2 key expansion, written independently of `expand_key`
     /// (same table-based S-box the rest of the crate's tests use).
     fn reference_schedule<const N: usize>(key: &[u8]) -> [[u8; 16]; N] {
@@ -801,7 +801,7 @@ mod kernel_tests {
 
     #[test]
     fn expand_key_matches_reference_schedule() {
-        let mut rng = StdRng::seed_from_u64(0x00c0_ffee_0000_0001);
+        let mut rng = ChaChaRng::seed_from_u64(0x00c0_ffee_0000_0001);
         for _ in 0..2_000 {
             let mut key = [0u8; 16];
             rng.fill(&mut key);
@@ -869,7 +869,7 @@ mod kernel_tests {
     /// `encrypt_pair` must keep the two bitsliced lanes independent. Compares
     /// lane A/B against the single-block entry point for 10k pairs.
     fn encrypt_pair_lanes_are_independent<const N: usize>(seed: u64) {
-        let mut rng = StdRng::seed_from_u64(seed);
+        let mut rng = ChaChaRng::seed_from_u64(seed);
         let mut key = [0u8; 32];
         let mut sched: Option<CtSchedule> = None;
         for i in 0..10_000 {
@@ -902,7 +902,7 @@ mod kernel_tests {
     }
 
     fn decrypt_block_sched_inverts_encrypt_block_sched<const N: usize>(seed: u64) {
-        let mut rng = StdRng::seed_from_u64(seed);
+        let mut rng = ChaChaRng::seed_from_u64(seed);
         let mut key = [0u8; 32];
         let mut sched: Option<CtSchedule> = None;
         for i in 0..5_000 {

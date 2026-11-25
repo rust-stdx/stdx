@@ -18,5 +18,6 @@ path = "shamir_secret_sharing.rs"
 base64 = { path = "../../base64" }
 crypto = { path = "../../crypto" }
 getopts = { path = "../../getopts" }
+random = { path = "../../random", default-features = false, features = ["system"] }
 term = { path = "../../term" }
 zeroize = { path = "../../zeroize", default-features = false, features = ["alloc"] }

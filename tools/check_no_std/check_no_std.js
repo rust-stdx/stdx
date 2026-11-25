@@ -30,7 +30,7 @@
 //
 // Each configuration is checked with
 // `cargo check --lib --no-default-features [--features ...] --target <triple>`.
-// `--lib` is used on purpose: binaries such as `unsafe_libyaml`'s test-suite
+// `--lib` is used on purpose: binaries such as `libyaml_unsafe`'s test-suite
 // runners are allowed to use `std` and must not fail the check.
 //
 // A crate is no_std-capable on a target when at least one configuration

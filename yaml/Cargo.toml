@@ -1,0 +1,40 @@
+[package]
+name = "yaml"
+version = "0.1.0"
+description = "A YAML parser and generator with native Encode/Decode derive macros and no external dependencies."
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+path = "./yaml.rs"
+
+[features]
+default = ["std"]
+# Enables the standard library and the `std::io` helpers.
+std = []
+# Accepted as a no-op; the crate always uses `alloc`.
+alloc = []
+# Enables `#[derive(yaml::Encode, yaml::Decode)]`.
+derive = ["dep:yaml_derive"]
+
+[dependencies]
+libyaml_unsafe = { path = "libyaml_unsafe" }
+yaml_derive = { path = "./yaml_derive", optional = true }
+
+[package.metadata.docs.rs]
+all-features = true
+
+[[test]]
+name = "basic"
+path = "tests/basic.rs"
+required-features = ["derive"]
+
+[[test]]
+name = "compat"
+path = "tests/compat.rs"
+required-features = ["derive"]

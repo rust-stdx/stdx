@@ -1,11 +1,11 @@
 #![cfg(feature = "alloc")]
 
 use cbor::Value;
-use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
+use random::{Rng, RngExt, SeedableRng, rngs::ChaChaRng};
 
 #[test]
 fn random_bytes_never_panic() {
-    let mut rng = StdRng::seed_from_u64(0xDEAD_BEEF_CAFE_F00D);
+    let mut rng = ChaChaRng::seed_from_u64(0xDEAD_BEEF_CAFE_F00D);
     for _ in 0..20_000 {
         let len = (rng.next_u64() as usize) % 64;
         let mut bytes = vec![0u8; len];
@@ -28,7 +28,7 @@ fn mutated_valid_items_never_panic() {
         &[0xc1, 0x1a, 0x65, 0x53, 0xf1, 0x00],
         &[0x83, 0xf9, 0x3e, 0x00, 0x61, b'x', 0xf6],
     ];
-    let mut rng = StdRng::seed_from_u64(0x1234_5678_9abc_def0);
+    let mut rng = ChaChaRng::seed_from_u64(0x1234_5678_9abc_def0);
     for seed in seeds {
         for _ in 0..10_000 {
             let mut bytes = seed.to_vec();
@@ -48,7 +48,7 @@ fn mutated_valid_items_never_panic() {
 
 #[test]
 fn value_roundtrip_is_stable() {
-    let mut rng = StdRng::seed_from_u64(0x0BAD_C0DE_1234_5678);
+    let mut rng = ChaChaRng::seed_from_u64(0x0BAD_C0DE_1234_5678);
     for _ in 0..1_000 {
         let len = (rng.next_u64() as usize) % 32;
         let mut bytes = vec![0u8; len];

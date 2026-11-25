@@ -19,7 +19,6 @@ default = ["std", "zeroize"]
 
 alloc = ["dep:small_collections", "memchr/alloc", "base64/alloc", "big_number/alloc", "zeroize?/alloc"]
 random = ["dep:getrandom"]
-random_wasm = ["random", "getrandom/wasm_js"]
 std = ["alloc", "small_collections?/std", "memchr/std", "random", "big_number/std", "constant_time_eq/std"]
 zeroize = ["dep:zeroize", "big_number/zeroize"]
 
@@ -30,13 +29,16 @@ constant_time_eq = { path = "../constant_time_eq", default-features = false }
 small_collections = { path = "../small_collections", optional = true, default-features = false }
 zeroize = { path = "../zeroize", optional = true, default-features = false, features = ["derive"] }
 
-getrandom = { workspace = true, optional = true }
 memchr = { workspace = true }
+
+[target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
+getrandom = { workspace = true, optional = true, features = ["wasm_js"] }
+
+[target.'cfg(not(all(target_arch = "wasm32", target_os = "unknown")))'.dependencies]
+getrandom = { workspace = true, optional = true }
 
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
 hex = { path = "../hex" }
-
-rand = { workspace = true, features = ["thread_rng"] }
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true, features = ["std"] }
+json = { path = "../json", features = ["derive"] }
+random = { path = "../random", features = ["std"] }

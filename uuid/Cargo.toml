@@ -15,22 +15,20 @@ path = "./uuid.rs"
 
 [features]
 default = ["std"]
-std = ["dep:rand"]
-serde = ["dep:serde"]
+std = ["dep:random"]
 cbor = ["dep:cbor"]
+json = ["dep:json"]
 
 [dependencies]
 cbor = { path = "../cbor", optional = true, default-features = false }
+json = { path = "../json", optional = true, default-features = false, features = ["alloc"] }
+random = { path = "../random", optional = true, features = ["std"] }
 
 heapless = { workspace = true }
-rand = { workspace = true, optional = true, features = ["thread_rng"] }
-serde = { workspace = true, optional = true }
 
 [dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }
 # Tests use `cbor::to_vec`, which requires alloc. Keep this out of the
 # `cbor` feature so the library itself remains alloc-free.
 cbor = { path = "../cbor", default-features = false, features = ["alloc"] }
-
-rand = { workspace = true, features = ["std_rng"] }
-serde_json = { workspace = true, features = ["std"] }
+random = { path = "../random", default-features = false }

@@ -306,12 +306,12 @@ pub(super) unsafe fn xor_lanes(dst: &mut [u64], msgs: &[&[u8]; 2], off: usize) {
 
 #[cfg(test)]
 mod tests {
-    use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
+    use random::{Rng, RngExt, SeedableRng, rngs::ChaChaRng};
 
     use super::{permute, xor_lanes};
     use crate::sha3::keccak::{ROUND_CONSTANTS, p1600_soft};
 
-    fn random_pair(rng: &mut StdRng) -> [u64; 50] {
+    fn random_pair(rng: &mut ChaChaRng) -> [u64; 50] {
         let mut lanes = [0u64; 50];
         rng.fill(&mut lanes);
         lanes
@@ -327,7 +327,7 @@ mod tests {
     /// index 0) and the 12/24 slices used by production.
     #[test]
     fn permutation_matches_soft_all_rounds() {
-        let mut rng = StdRng::seed_from_u64(0x0123_4567_89ab_cdef);
+        let mut rng = ChaChaRng::seed_from_u64(0x0123_4567_89ab_cdef);
         macro_rules! check {
             ($($rounds:literal),* $(,)?) => {
                 $({
@@ -384,7 +384,7 @@ mod tests {
     /// Directly checks the 2x2 transpose used by the batched absorb path.
     #[test]
     fn xor_lanes_matches_scalar_transpose() {
-        let mut rng = StdRng::seed_from_u64(0x9e37_79b9_7f4a_7c15);
+        let mut rng = ChaChaRng::seed_from_u64(0x9e37_79b9_7f4a_7c15);
         let msgs: [std::vec::Vec<u8>; 2] = core::array::from_fn(|_| {
             let mut msg = std::vec![0u8; 64];
             for byte in msg.iter_mut() {
@@ -437,7 +437,7 @@ mod tests {
         const ITERS: usize = 100_000;
         const SAMPLES: usize = 5;
 
-        let mut rng = StdRng::seed_from_u64(0x0123_4567_89ab_cdef);
+        let mut rng = ChaChaRng::seed_from_u64(0x0123_4567_89ab_cdef);
 
         macro_rules! bench {
             ($rounds:literal) => {{

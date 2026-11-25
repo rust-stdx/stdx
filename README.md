@@ -85,7 +85,7 @@ Join our partner program to invest in the future of Rust and get unfair advantag
 
 Contributions are welcome, especially bug reports, improvement ideas and new package suggestions.
 
-Except for minor typos, no pull request will be accepted without a preliminary discussion. Please open an issue first.
+No pull request will be accepted without a preliminary discussion. Please open an issue first.
 
 Commits need to be signed and squashed.
 
@@ -131,15 +131,15 @@ Any contribution submitted for inclusion in this project shall be licensed as ab
 | `form_urlencoded` | https://github.com/servo/rust-url | 54346fa288e16b25b71c45149d7067c752b450e0 | MIT |
 | `indexmap` | https://github.com/indexmap-rs/indexmap | 41a870887c4c77adf665886e63df08f406bfe37a | MIT |
 | `ipnetwork` | https://github.com/achanda/ipnetwork | f01575cbf2fc596c0a1761c122aa92525cbb7974 | MIT |
+| `libyaml_unsafe` | https://crates.io/crates/unsafe-libyaml | 417668ce6565ece14bbd9b4a73137d9241ea1365 | MIT |
 | `maxminddb` | https://github.com/oschwald/maxminddb-rust | b5a6ccc2f1c8e990b54bbac648f524cdf043522a | ISC |
 | `media_type` | https://github.com/seanmonstar/mime + https://github.com/abonander/mime_guess | 1ae11679916b18fcced93c11104b7aed53bd35a2 | MIT |
 | `memmem` | https://github.com/jneem/memmem | d6e6a0b1fb391539cf8511e7a2de76016d86a870 | MIT |
 | `num_cpus` | https://github.com/seanmonstar/num_cpus | 7c03fc930cc47a9b94e8ca66ca44ef1a454c8f51 | MIT |
+| `paste` | https://github.com/dtolnay/paste | 6a302522990cbfd9de4e0c61d91854622f7b2999 | MIT |
 | `percent_encoding` | https://github.com/servo/rust-url | 54346fa288e16b25b71c45149d7067c752b450e0 | MIT |
-| `serde_bytes` | https://github.com/serde-rs/bytes | f68517945676915a9f6384ed70b67b7e8dae658b | MIT |
-| `serde_yaml` | https://github.com/dtolnay/serde-yaml | 2009506d33767dfc88e979d6bc0d53d09f941c94 | MIT |
 | `tld` | https://github.com/rushmorem/publicsuffix | 47958d65a3eab3a01e4a9cf46ccf40c11a7e8052 | MIT |
 | `thiserror` | https://github.com/dtolnay/thiserror | b1827ee06f81a7d7f954e676771e19a97f9f8e3b | MIT |
-| `unsafe_libyaml` | https://crates.io/crates/unsafe-libyaml | 417668ce6565ece14bbd9b4a73137d9241ea1365 | MIT |
+| `unicode_width` | https://github.com/unicode-rs/unicode-width | f8c8b20d0ef0102dc4c136bcd5a1b39d2aef8a69 | MIT |
 | `zeroize` | https://github.com/RustCrypto/utils | 34a6ebcb9b920ec7ae5809e470fce94fe7c0cb55 | MIT |
 | `zmij` | https://github.com/dtolnay/zmij | 35355256734db2c69a19aba4cae98c7fd8e14adf | MIT |

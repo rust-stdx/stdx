@@ -1052,7 +1052,7 @@ mod tests {
 
     #[test]
     fn wycheproof_ecdsa_p256_sha256_p1363() {
-        let data: serde_json::Value = serde_json::from_str(include_str!(
+        let data: json::Value<'_> = json::from_str(include_str!(
             "../../testdata/wycheproof/testvectors_v1/ecdsa_secp256r1_sha256_p1363_test.json"
         ))
         .unwrap();
@@ -1372,8 +1372,8 @@ mod tests {
         // Verify that the P-256 fast mul matches the generic bit-serial mul_mod
         // for many random inputs
         for _ in 0..1000 {
-            let a_bytes: [u8; 32] = rand::random();
-            let b_bytes: [u8; 32] = rand::random();
+            let a_bytes: [u8; 32] = random::random();
+            let b_bytes: [u8; 32] = random::random();
             let a_opt = FieldElement::from_bytes(&a_bytes);
             let b_opt = FieldElement::from_bytes(&b_bytes);
             if a_opt.is_none() || b_opt.is_none() {
@@ -1961,7 +1961,7 @@ mod tests {
     fn ecdsa_sign_then_verify_consistent_for_random_keys() {
         for _ in 0..5 {
             let key = SecretKey::generate().unwrap();
-            let msg = rand::random::<[u8; 32]>();
+            let msg = random::random::<[u8; 32]>();
             let sig = key.sign(&msg).unwrap();
             assert!(key.public_key().verify(&msg, &sig).is_ok());
         }
@@ -2016,7 +2016,7 @@ mod tests {
 
     #[test]
     fn wycheproof_ecdh_p256_ecpoint() {
-        let data: serde_json::Value = serde_json::from_str(include_str!(
+        let data: json::Value<'_> = json::from_str(include_str!(
             "../../testdata/wycheproof/testvectors_v1/ecdh_secp256r1_ecpoint_test.json"
         ))
         .unwrap();
@@ -2148,7 +2148,7 @@ mod tests {
 
     #[test]
     fn wycheproof_ecdsa_p256_sha256_der() {
-        let data: serde_json::Value = serde_json::from_str(include_str!(
+        let data: json::Value<'_> = json::from_str(include_str!(
             "../../testdata/wycheproof/testvectors_v1/ecdsa_secp256r1_sha256_test.json"
         ))
         .unwrap();
@@ -2195,7 +2195,7 @@ mod tests {
 
     #[test]
     fn wycheproof_ecdh_p256_asn() {
-        let data: serde_json::Value = serde_json::from_str(include_str!(
+        let data: json::Value<'_> = json::from_str(include_str!(
             "../../testdata/wycheproof/testvectors_v1/ecdh_secp256r1_test.json"
         ))
         .unwrap();

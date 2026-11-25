@@ -18,12 +18,14 @@ default = ["alloc"]
 alloc = []
 std = ["alloc"]
 derive = ["dep:zeroize_derive"]
-serde = ["dep:serde"]
+cbor = ["dep:cbor"]
+json = ["dep:json"]
 
 [dependencies]
 zeroize_derive = { path = "zeroize_derive", optional = true }
 
-serde = { workspace = true, optional = true }
+cbor = { path = "../cbor", optional = true, default-features = false, features = ["alloc"] }
+json = { path = "../json", optional = true, default-features = false, features = ["alloc"] }
 
 [package.metadata.docs.rs]
 all-features = true

@@ -65,7 +65,7 @@ mod hmac;
 mod hybrid_key_exchange;
 mod key_exchange;
 mod quic;
-mod random;
+mod rng_provider;
 mod sign;
 mod verify;
 
@@ -84,7 +84,7 @@ pub fn default_provider() -> CryptoProvider {
         cipher_suites: ciphersuites::ALL_CIPHER_SUITES.to_vec(),
         kx_groups: key_exchange::KX_GROUPS.to_vec(),
         signature_verification_algorithms: verify::ALGORITHMS,
-        secure_random: &random::RngProvider,
+        secure_random: &rng_provider::RngProvider,
         key_provider: &sign::Provider,
     }
 }

@@ -9,7 +9,7 @@
 use base64::{
     Alphabet, decode_into, decode_into_constant_time, encode_into, encode_into_constant_time, encoded_length,
 };
-use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
+use random::{Rng, RngExt, SeedableRng, rngs::ChaChaRng};
 
 const ALPHABETS: [Alphabet; 4] = [
     Alphabet::Standard,
@@ -30,9 +30,9 @@ fn is_padded(alphabet: Alphabet) -> bool {
     matches!(alphabet, Alphabet::Standard | Alphabet::Url)
 }
 
-/// Deterministic seeded `StdRng` so failures are reproducible.
+/// Deterministic seeded `ChaChaRng` so failures are reproducible.
 fn fill_random(buf: &mut [u8], seed: u64) {
-    let mut rng = StdRng::seed_from_u64(seed);
+    let mut rng = ChaChaRng::seed_from_u64(seed);
     rng.fill(buf);
 }
 
@@ -71,7 +71,7 @@ fn encode_dispatch_respects_output_canaries_and_matches_scalar() {
                 "encode wrote after output len={len} alphabet={alphabet:?}"
             );
         }
-        seed = StdRng::seed_from_u64(seed).next_u64();
+        seed = ChaChaRng::seed_from_u64(seed).next_u64();
     }
 }
 
@@ -111,7 +111,7 @@ fn decode_dispatch_respects_output_canaries_and_matches_scalar() {
             assert_eq!(scalar_n, n);
             assert_eq!(&scalar_out[..], &buf[CANARY..CANARY + len]);
         }
-        seed = StdRng::seed_from_u64(seed).next_u64();
+        seed = ChaChaRng::seed_from_u64(seed).next_u64();
     }
 }
 
@@ -209,7 +209,7 @@ fn decode_random_inputs_match_scalar() {
                 ),
             }
         }
-        seed = StdRng::seed_from_u64(seed).next_u64();
+        seed = ChaChaRng::seed_from_u64(seed).next_u64();
     }
 }
 
@@ -293,7 +293,7 @@ fn output_length_boundaries_are_checked() {
                 assert!(short_decoded.iter().all(|&b| b == 0xCC), "short decode buffer was written");
             }
         }
-        seed = StdRng::seed_from_u64(seed).next_u64();
+        seed = ChaChaRng::seed_from_u64(seed).next_u64();
     }
 }
 

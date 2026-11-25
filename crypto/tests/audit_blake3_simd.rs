@@ -15,7 +15,7 @@
 //! `wasm32_simd128.rs`.
 
 use crypto::{Hasher, Xof, blake3::Blake3};
-use rand::{RngExt, SeedableRng, rngs::StdRng};
+use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
 /// Official BLAKE3 test vector for the empty input: a 131-byte XOF output, so
 /// the final partial word is covered as well. Used to anchor [`reference`].
@@ -35,9 +35,9 @@ fn test_input(len: usize) -> Vec<u8> {
     (0..len).map(|i| (i % 251) as u8).collect()
 }
 
-/// Deterministic seeded `StdRng` bytes (deterministic and reproducible).
+/// Deterministic seeded `ChaChaRng` bytes (deterministic and reproducible).
 fn pattern(len: usize, seed: u64) -> Vec<u8> {
-    let mut rng = StdRng::seed_from_u64(seed);
+    let mut rng = ChaChaRng::seed_from_u64(seed);
     let mut out = vec![0u8; len];
     rng.fill(&mut out);
     out

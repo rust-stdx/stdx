@@ -1318,7 +1318,7 @@ pub const fn xxh3_128(data: &[u8]) -> u128 {
 
 #[cfg(test)]
 mod tests {
-    use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
+    use random::{Rng, RngExt, SeedableRng, rngs::ChaChaRng};
 
     use super::*;
     use crate::{Checksum, test_helpers::fill_test_buffer};
@@ -1673,7 +1673,7 @@ mod tests {
     // -----------------------------------------------------------------------
 
     /// Deterministic seeded data, so the randomized tests are reproducible.
-    fn random_data(rng: &mut StdRng, len: usize) -> alloc::vec::Vec<u8> {
+    fn random_data(rng: &mut ChaChaRng, len: usize) -> alloc::vec::Vec<u8> {
         (0..len).map(|_| rng.next_u64() as u8).collect()
     }
 
@@ -1681,7 +1681,7 @@ mod tests {
     /// whatever the split across `update()` calls.
     #[test]
     fn test_streaming_matches_one_shot_randomized() {
-        let mut rng = StdRng::seed_from_u64(0x243F6A8885A308D3);
+        let mut rng = ChaChaRng::seed_from_u64(0x243F6A8885A308D3);
         for _ in 0..4000 {
             let len = rng.random_range(0..3000) as usize;
             let data = random_data(&mut rng, len);

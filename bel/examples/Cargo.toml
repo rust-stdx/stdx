@@ -11,7 +11,7 @@ repository.workspace = true
 workspace = true
 
 [features]
-hyper = ["dep:bytes", "dep:hyper", "dep:hyper_utils", "dep:serde_json", "dep:thiserror", "dep:tokio"]
+hyper = ["dep:bytes", "dep:hyper", "dep:hyper_utils", "dep:json", "dep:thiserror", "dep:tokio"]
 json = ["dep:json", "bel/json"]
 time = ["dep:time", "bel/time"]
 anyhow = ["dep:anyerr"]
@@ -28,8 +28,6 @@ time = { path = "../../time", optional = true }
 
 bytes = { workspace = true, optional = true }
 hyper = { workspace = true, optional = true, features = ["http1", "server"] }
-serde = { workspace = true, features = ["derive", "std"] }
-serde_json = { workspace = true, optional = true, features = ["std"] }
 tokio = { workspace = true, optional = true, features = ["macros", "rt-multi-thread", "net"] }
 
 [[bin]]
@@ -49,10 +47,6 @@ required-features = ["time"]
 [[bin]]
 name = "threads"
 path = "src/threads.rs"
-
-[[bin]]
-name = "serde"
-path = "src/serde.rs"
 
 [[bin]]
 name = "hyper"

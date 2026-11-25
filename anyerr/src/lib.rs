@@ -13,26 +13,26 @@
 //!   the [`std::error::Error`] trait.
 //!
 //!   ```
-//!   # pub trait Deserialize {}
+//!   # pub trait Decode {}
 //!   #
-//!   # mod serde_json {
-//!   #     use super::Deserialize;
+//!   # mod json {
+//!   #     use super::Decode;
 //!   #     use std::io;
 //!   #
-//!   #     pub fn from_str<T: Deserialize>(json: &str) -> io::Result<T> {
+//!   #     pub fn from_str<T: Decode>(json: &str) -> io::Result<T> {
 //!   #         unimplemented!()
 //!   #     }
 //!   # }
 //!   #
 //!   # struct ClusterMap;
 //!   #
-//!   # impl Deserialize for ClusterMap {}
+//!   # impl Decode for ClusterMap {}
 //!   #
 //!   use anyerr::Result;
 //!
 //!   fn get_cluster_info() -> Result<ClusterMap> {
 //!       let config = std::fs::read_to_string("cluster.json")?;
-//!       let map: ClusterMap = serde_json::from_str(&config)?;
+//!       let map: ClusterMap = json::from_str(&config)?;
 //!       Ok(map)
 //!   }
 //!   #
@@ -410,13 +410,13 @@ pub struct Chain<'a> {
 /// # Example
 ///
 /// ```
-/// # pub trait Deserialize {}
+/// # pub trait Decode {}
 /// #
-/// # mod serde_json {
-/// #     use super::Deserialize;
+/// # mod json {
+/// #     use super::Decode;
 /// #     use std::io;
 /// #
-/// #     pub fn from_str<T: Deserialize>(json: &str) -> io::Result<T> {
+/// #     pub fn from_str<T: Decode>(json: &str) -> io::Result<T> {
 /// #         unimplemented!()
 /// #     }
 /// # }
@@ -424,14 +424,14 @@ pub struct Chain<'a> {
 /// # #[derive(Debug)]
 /// # struct ClusterMap;
 /// #
-/// # impl Deserialize for ClusterMap {}
+/// # impl Decode for ClusterMap {}
 /// #
 /// use anyerr::Result;
 ///
 /// fn main() -> Result<()> {
 ///     # return Ok(());
 ///     let config = std::fs::read_to_string("cluster.json")?;
-///     let map: ClusterMap = serde_json::from_str(&config)?;
+///     let map: ClusterMap = json::from_str(&config)?;
 ///     println!("cluster info: {:#?}", map);
 ///     Ok(())
 /// }

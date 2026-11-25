@@ -21,7 +21,7 @@
 //! Run with `cargo test -p crypto --test audit_blake3_core`.
 
 use crypto::{Hasher, Xof, blake3::Blake3};
-use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
+use random::{Rng, RngExt, SeedableRng, rngs::ChaChaRng};
 
 ////////////////////////////////////////////////////////////////////////////////
 // Independent reference implementation (written from the BLAKE3 specification)
@@ -444,9 +444,9 @@ fn test_input(len: usize) -> Vec<u8> {
     (0..len).map(|i| (i % 251) as u8).collect()
 }
 
-/// Deterministic pseudorandom bytes (seeded `StdRng`), so failures reproduce.
+/// Deterministic pseudorandom bytes (seeded `ChaChaRng`), so failures reproduce.
 fn pseudo_random(len: usize, seed: u64) -> Vec<u8> {
-    let mut rng = StdRng::seed_from_u64(seed);
+    let mut rng = ChaChaRng::seed_from_u64(seed);
     let mut out = vec![0u8; len];
     rng.fill(&mut out);
     out
@@ -591,7 +591,7 @@ fn every_three_way_split_of_300_bytes() {
 /// updates interleaved, in all three modes.
 #[test]
 fn randomized_splits_larger_inputs() {
-    let mut rng = StdRng::seed_from_u64(0x9E37_79B9_7F4A_7C15);
+    let mut rng = ChaChaRng::seed_from_u64(0x9E37_79B9_7F4A_7C15);
 
     let key: [u8; 32] = pseudo_random(32, 0x1234_5678).try_into().unwrap();
     let context = "blake3 randomized splits test context";

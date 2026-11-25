@@ -1475,22 +1475,22 @@ impl<const ROUNDS: usize> Leaves<ROUNDS> {
 
 #[cfg(test)]
 mod tests {
-    use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
+    use random::{Rng, RngExt, SeedableRng, rngs::ChaChaRng};
 
     use super::*;
     use crate::sha3::keccak::{ROUND_CONSTANTS, test_util::sponge};
 
-    fn random_state(rng: &mut StdRng) -> [u64; 25] {
+    fn random_state(rng: &mut ChaChaRng) -> [u64; 25] {
         let mut out = [0u64; 25];
         rng.fill(&mut out);
         out
     }
 
-    fn random_states<const W: usize>(rng: &mut StdRng) -> [[u64; 25]; W] {
+    fn random_states<const W: usize>(rng: &mut ChaChaRng) -> [[u64; 25]; W] {
         core::array::from_fn(|_| random_state(rng))
     }
 
-    fn random_bytes(len: usize, rng: &mut StdRng) -> std::vec::Vec<u8> {
+    fn random_bytes(len: usize, rng: &mut ChaChaRng) -> std::vec::Vec<u8> {
         let mut out = std::vec![0u8; len];
         rng.fill(&mut out);
         out
@@ -1525,7 +1525,7 @@ mod tests {
     }
 
     fn check_scalar<const W: usize, const ROUNDS: usize>(seed: u64) {
-        let mut rng = StdRng::seed_from_u64(seed);
+        let mut rng = ChaChaRng::seed_from_u64(seed);
         for _ in 0..64 {
             let states = random_states::<W>(&mut rng);
             let expected = expected_permuted::<W, ROUNDS>(&states);
@@ -1546,7 +1546,7 @@ mod tests {
     }
 
     fn check_dispatched<const W: usize, const ROUNDS: usize>(seed: u64, backend: Backend) {
-        let mut rng = StdRng::seed_from_u64(seed);
+        let mut rng = ChaChaRng::seed_from_u64(seed);
         for _ in 0..64 {
             let states = random_states::<W>(&mut rng);
             let expected = expected_permuted::<W, ROUNDS>(&states);
@@ -1590,7 +1590,7 @@ mod tests {
     #[cfg(target_arch = "aarch64")]
     #[test]
     fn neon_permutation_matches_reference() {
-        let mut rng = StdRng::seed_from_u64(0xa409_3822_299f_31d0);
+        let mut rng = ChaChaRng::seed_from_u64(0xa409_3822_299f_31d0);
         for _ in 0..64 {
             let states = random_states::<2>(&mut rng);
             let expected = expected_permuted::<2, 12>(&states);
@@ -1627,7 +1627,7 @@ mod tests {
             return;
         }
 
-        let mut rng = StdRng::seed_from_u64(0x082e_fa98_ec4e_6c89);
+        let mut rng = ChaChaRng::seed_from_u64(0x082e_fa98_ec4e_6c89);
         for _ in 0..64 {
             let states = random_states::<2>(&mut rng);
             let expected = expected_permuted::<2, 12>(&states);
@@ -1665,7 +1665,7 @@ mod tests {
         }
         println!("AVX2 kernel test running");
 
-        let mut rng = StdRng::seed_from_u64(0x8e4a_1c37_5d09_b2f6);
+        let mut rng = ChaChaRng::seed_from_u64(0x8e4a_1c37_5d09_b2f6);
         for _ in 0..64 {
             let states = random_states::<4>(&mut rng);
             let expected = expected_permuted::<4, 12>(&states);
@@ -1703,7 +1703,7 @@ mod tests {
         }
         println!("AVX-512 kernel test running");
 
-        let mut rng = StdRng::seed_from_u64(0x5d2c_9f81_7a63_e40b);
+        let mut rng = ChaChaRng::seed_from_u64(0x5d2c_9f81_7a63_e40b);
         for _ in 0..64 {
             let states = random_states::<8>(&mut rng);
             let expected = expected_permuted::<8, 12>(&states);
@@ -1743,7 +1743,7 @@ mod tests {
             return;
         }
 
-        let mut rng = StdRng::seed_from_u64(0x9e37_79b9_7f4a_7c15);
+        let mut rng = ChaChaRng::seed_from_u64(0x9e37_79b9_7f4a_7c15);
         let msgs: [std::vec::Vec<u8>; 8] = core::array::from_fn(|_| random_bytes(192, &mut rng));
         let refs: [&[u8]; 8] = core::array::from_fn(|w| &msgs[w][..]);
 
@@ -1782,7 +1782,7 @@ mod tests {
             return;
         }
 
-        let mut rng = StdRng::seed_from_u64(0x7f4a_7c15_9e37_79b9);
+        let mut rng = ChaChaRng::seed_from_u64(0x7f4a_7c15_9e37_79b9);
         let msgs: [std::vec::Vec<u8>; 4] = core::array::from_fn(|_| random_bytes(192, &mut rng));
         let refs: [&[u8]; 4] = core::array::from_fn(|w| &msgs[w][..]);
 
@@ -1817,7 +1817,7 @@ mod tests {
     #[cfg(target_arch = "aarch64")]
     #[test]
     fn neon_xor_lanes_matches_scalar_transpose() {
-        let mut rng = StdRng::seed_from_u64(0x243f_6a88_85a3_08d3);
+        let mut rng = ChaChaRng::seed_from_u64(0x243f_6a88_85a3_08d3);
         let msgs: [std::vec::Vec<u8>; 2] = core::array::from_fn(|_| random_bytes(64, &mut rng));
         let refs: [&[u8]; 2] = core::array::from_fn(|w| &msgs[w][..]);
 
@@ -1884,7 +1884,7 @@ mod tests {
     #[test]
     fn sponge_x_wasm_simd128_absorb_alignment_offsets_match_reference() {
         const LEN: usize = 400;
-        let mut rng = StdRng::seed_from_u64(0x3c6e_f372_fe94_f82b);
+        let mut rng = ChaChaRng::seed_from_u64(0x3c6e_f372_fe94_f82b);
         let msgs: [std::vec::Vec<u8>; 2] = core::array::from_fn(|_| random_bytes(LEN, &mut rng));
 
         macro_rules! check {
@@ -1944,7 +1944,7 @@ mod tests {
     }
 
     fn check_batched_squeeze<const LEN: usize>(rate: usize, pad: u8, seed: u64) {
-        let mut rng = StdRng::seed_from_u64(seed);
+        let mut rng = ChaChaRng::seed_from_u64(seed);
         let msgs: [std::vec::Vec<u8>; 2] = core::array::from_fn(|_| random_bytes(34, &mut rng));
         let refs: [&[u8]; 2] = core::array::from_fn(|w| &msgs[w][..]);
 
@@ -1989,7 +1989,7 @@ mod tests {
 
     #[test]
     fn batched_squeeze_continues_across_calls() {
-        let mut rng = StdRng::seed_from_u64(0x91e1_0c3d_7f5a_2b48);
+        let mut rng = ChaChaRng::seed_from_u64(0x91e1_0c3d_7f5a_2b48);
         let msgs: [std::vec::Vec<u8>; 2] = core::array::from_fn(|_| random_bytes(34, &mut rng));
         let refs: [&[u8]; 2] = core::array::from_fn(|w| &msgs[w][..]);
         let expected: [std::vec::Vec<u8>; 2] = core::array::from_fn(|w| {
@@ -2015,7 +2015,7 @@ mod tests {
 
     fn check_incremental_absorb<const W: usize, const ROUNDS: usize>(rate: usize, pad: u8, backend: Backend) {
         const LEN: usize = 1000;
-        let mut rng = StdRng::seed_from_u64(0x3c6e_f372_fe94_f82b);
+        let mut rng = ChaChaRng::seed_from_u64(0x3c6e_f372_fe94_f82b);
         let msgs: [std::vec::Vec<u8>; W] = core::array::from_fn(|_| random_bytes(LEN, &mut rng));
 
         let mut expected = [[0u8; 64]; W];
@@ -2090,7 +2090,7 @@ mod tests {
 
     #[test]
     fn batched_sponge_matches_one_way_hash() {
-        let mut rng = StdRng::seed_from_u64(0x4528_21e6_38d0_1377);
+        let mut rng = ChaChaRng::seed_from_u64(0x4528_21e6_38d0_1377);
 
         for len in [0usize, 1, 7, 8, 135, 136, 137, 168, 169, 272, 1024, 4097, 8192] {
             let base: [std::vec::Vec<u8>; 4] = core::array::from_fn(|_| random_bytes(len, &mut rng));
@@ -2162,14 +2162,14 @@ mod tests {
 /// must not touch.
 #[cfg(test)]
 mod kernel_tests {
-    use rand::{Rng, SeedableRng, rngs::StdRng};
+    use random::{Rng, SeedableRng, rngs::ChaChaRng};
 
     use super::*;
     use crate::sha3::keccak::{p1600_soft, test_util::sponge};
 
     const DELIM: u8 = 0x1f;
 
-    fn random_state(rng: &mut StdRng) -> [u64; 25] {
+    fn random_state(rng: &mut ChaChaRng) -> [u64; 25] {
         let mut out = [0u64; 25];
         for lane in out.iter_mut() {
             *lane = rng.next_u64();
@@ -2293,7 +2293,7 @@ mod kernel_tests {
     /// permutations for every width, every supported round count, and every
     /// backend. Lanes outside `25 * W` are canaries and must stay untouched.
     fn check_permute<const W: usize, const ROUNDS: usize>(seed: u64) {
-        let mut rng = StdRng::seed_from_u64(seed);
+        let mut rng = ChaChaRng::seed_from_u64(seed);
         let backends = available_backends();
 
         for case in 0..16 {
@@ -2587,7 +2587,7 @@ mod kernel_tests {
     #[cfg(target_arch = "aarch64")]
     #[test]
     fn neon_xor_lanes_offsets_and_canaries() {
-        let mut rng = StdRng::seed_from_u64(0x243f_6a88_85a3_08d3);
+        let mut rng = ChaChaRng::seed_from_u64(0x243f_6a88_85a3_08d3);
         let msgs: [std::vec::Vec<u8>; 2] = core::array::from_fn(|_| {
             let mut msg = std::vec![0u8; 256];
             for byte in msg.iter_mut() {
@@ -2641,7 +2641,7 @@ mod kernel_tests {
             return;
         }
 
-        let mut rng = StdRng::seed_from_u64(0x7f4a_7c15_9e37_79b9);
+        let mut rng = ChaChaRng::seed_from_u64(0x7f4a_7c15_9e37_79b9);
         let msgs: [std::vec::Vec<u8>; 4] = core::array::from_fn(|_| {
             let mut msg = std::vec![0u8; 256];
             for byte in msg.iter_mut() {
@@ -2691,7 +2691,7 @@ mod kernel_tests {
             return;
         }
 
-        let mut rng = StdRng::seed_from_u64(0x9e37_79b9_7f4a_7c15);
+        let mut rng = ChaChaRng::seed_from_u64(0x9e37_79b9_7f4a_7c15);
         let msgs: [std::vec::Vec<u8>; 8] = core::array::from_fn(|_| {
             let mut msg = std::vec![0u8; 256];
             for byte in msg.iter_mut() {

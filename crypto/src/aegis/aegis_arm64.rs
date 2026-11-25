@@ -418,7 +418,7 @@ pub(crate) unsafe fn fill_state_sha3<const D: usize>(bytes: &mut [u8], out: &mut
 mod kernel_tests {
     use alloc::{vec, vec::Vec};
 
-    use rand::{RngExt, SeedableRng, rngs::StdRng};
+    use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
     use super::{
         Ne, Ne3, absorb_state, absorb_state_sha3, decrypt, decrypt_sha3, encrypt, encrypt_sha3, fill_state,
@@ -456,7 +456,7 @@ mod kernel_tests {
     /// Deterministic seeded random byte pattern; the seed is forced odd so that no
     /// seed degenerates to the all-zero sequence.
     fn pattern(len: usize, seed: u8) -> Vec<u8> {
-        let mut rng = StdRng::seed_from_u64(u64::from(seed));
+        let mut rng = ChaChaRng::seed_from_u64(u64::from(seed));
         let mut out = vec![0u8; len];
         rng.fill(&mut out);
         out

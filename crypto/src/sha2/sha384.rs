@@ -669,7 +669,7 @@ mod tests {
 /// and that the truncated output length is exact.
 #[cfg(test)]
 mod kernel_tests {
-    use rand::{RngExt, SeedableRng, rngs::StdRng};
+    use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
     use super::{
         Sha384,
@@ -690,7 +690,7 @@ mod kernel_tests {
     fn forced_software_path_matches_hardware_path() {
         let hw = detect_sha512_ext();
         eprintln!("detect_sha512_ext() = {hw}");
-        let mut rng = StdRng::seed_from_u64(0x384_C12);
+        let mut rng = ChaChaRng::seed_from_u64(0x384_C12);
         for len in [
             0usize, 1, 2, 63, 110, 111, 112, 113, 119, 120, 121, 127, 128, 129, 191, 239, 240, 241, 255, 256, 257,
             1000, 65536,
@@ -732,7 +732,7 @@ mod kernel_tests {
             return;
         }
         let iv = Sha384::new().state;
-        let mut rng = StdRng::seed_from_u64(0x0003_8411);
+        let mut rng = ChaChaRng::seed_from_u64(0x0003_8411);
         for _ in 0..16 {
             let block = {
                 let mut v = vec![0u8; 128];

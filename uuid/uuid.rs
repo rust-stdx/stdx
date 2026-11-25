@@ -26,8 +26,8 @@
 //! | Flag   | Description                                                       | Default |
 //! |--------|-------------------------------------------------------------------|---------|
 //! | `std`  | Enables `Uuid::new_v4` and `Uuid::new_v7` via `rand`            | Yes     |
-//! | `serde`| Enables `serde` serialization/deserialization                  | No      |
 //! | `cbor` | Enables CBOR serialization using IANA tag 37                   | No      |
+//! | `json` | Enables JSON serialization as the canonical string            | No      |
 //!
 //! When `std` is not enabled, the crate is `#![no_std]` compatible.
 //! Parsing, formatting, and version detection are all available.
@@ -61,15 +61,15 @@
 use core::{fmt, str::FromStr};
 
 #[cfg(feature = "std")]
-use rand::Rng as _;
+use random::Rng as _;
 
 mod hex;
 
 #[cfg(feature = "cbor")]
 mod cbor;
 
-#[cfg(feature = "serde")]
-mod serde;
+#[cfg(feature = "json")]
+mod json;
 
 #[cfg(feature = "std")]
 thread_local! {
@@ -154,7 +154,7 @@ impl Uuid {
     #[inline]
     pub fn new_v4() -> Uuid {
         let mut bytes = [0u8; 16];
-        rand::rng().fill_bytes(&mut bytes);
+        random::thread_rng().fill_bytes(&mut bytes);
 
         // Set version nibble (bits 48-51) to 0100 (4)
         bytes[6] = (bytes[6] & 0x0f) | 0x40;
@@ -256,7 +256,7 @@ fn new_v7_at(now_ms: u64) -> Uuid {
     });
 
     let mut bytes = [0u8; 16];
-    rand::rng().fill_bytes(&mut bytes);
+    random::thread_rng().fill_bytes(&mut bytes);
 
     // unix_ts_ms: 48-bit big-endian timestamp
     bytes[0..6].copy_from_slice(&timestamp.to_be_bytes()[2..8]);
@@ -313,7 +313,7 @@ impl Uuid {
     /// Parses the canonical form from raw bytes, without requiring valid UTF-8.
     ///
     /// This backs [`Uuid::parse`] and the byte-oriented entry points
-    /// (`TryFrom<&[u8]>` and `serde`'s `visit_bytes`).
+    /// (`TryFrom<&[u8]>`).
     const fn parse_bytes(input: &[u8]) -> Result<Uuid, Error> {
         if input.len() != 36 {
             return Err(Error::InvalidUuid);
@@ -681,7 +681,7 @@ fn v7_random_counter() -> u32 {
     // a freshly seeded counter always has at least 2^31 increments of headroom
     // before it can reach u32::MAX.
     let mut seed = [0u8; 4];
-    rand::rng().fill_bytes(&mut seed);
+    random::thread_rng().fill_bytes(&mut seed);
     u32::from_be_bytes(seed) & 0x7FFF_FFFF
 }
 
@@ -699,7 +699,7 @@ fn v7_get_state() -> (u64, u32) {
 
 #[cfg(test)]
 mod tests {
-    use rand::{Rng, SeedableRng, rngs::StdRng};
+    use random::{Rng, SeedableRng, rngs::ChaChaRng};
 
     use super::*;
 
@@ -1079,7 +1079,7 @@ mod tests {
 
     #[test]
     fn parse_random_garbage_never_panics() {
-        let mut state = StdRng::seed_from_u64(0xdead_beef_cafe_babe);
+        let mut state = ChaChaRng::seed_from_u64(0xdead_beef_cafe_babe);
         for _ in 0..100_000 {
             let len = (state.next_u64() % 65) as usize;
             let mut buf = [0u8; 64];
@@ -1093,7 +1093,7 @@ mod tests {
 
     #[test]
     fn roundtrip_pseudo_random() {
-        let mut state = StdRng::seed_from_u64(0x1234_5678_9abc_def0);
+        let mut state = ChaChaRng::seed_from_u64(0x1234_5678_9abc_def0);
         for _ in 0..100_000 {
             let v = ((state.next_u64() as u128) << 64) | state.next_u64() as u128;
             let uuid = Uuid::from_u128(v);

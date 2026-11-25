@@ -461,6 +461,65 @@ mod test {
     };
     use crate::{StreamCipher, StreamCipherError};
 
+    #[test]
+    fn fill_keystream_matches_zero_then_xor() {
+        let key = [0x11u8; 32];
+        let nonce = [0x22u8; 8];
+
+        for len in [0usize, 1, 15, 16, 63, 64, 65, 127, 128, 129, 255, 256, 1024] {
+            let mut by_keystream = ChaCha8Djb::new(&key, &nonce);
+            // The buffer starts non-zero to prove that `fill_keystream`
+            // overwrites it instead of XORing into it.
+            let mut keystream = vec![0xAAu8; len];
+            by_keystream.fill_keystream(&mut keystream).unwrap();
+
+            let mut by_xor = ChaCha8Djb::new(&key, &nonce);
+            let mut expected = vec![0u8; len];
+            by_xor.xor_keystream(&mut expected).unwrap();
+
+            assert_eq!(keystream, expected, "len {len}");
+        }
+    }
+
+    #[test]
+    fn fill_keystream_calls_are_continuous() {
+        let key = [0x33u8; 32];
+        let nonce = [0x44u8; 8];
+
+        let mut one_shot = ChaCha8Djb::new(&key, &nonce);
+        let mut expected = vec![0u8; 512];
+        one_shot.fill_keystream(&mut expected).unwrap();
+
+        for split in [1usize, 7, 15, 16, 63, 64, 65, 127, 128, 255] {
+            let mut split_rng = ChaCha8Djb::new(&key, &nonce);
+            let mut actual = vec![0u8; 512];
+            split_rng.fill_keystream(&mut actual[..split]).unwrap();
+            split_rng.fill_keystream(&mut actual[split..]).unwrap();
+            assert_eq!(actual, expected, "split {split}");
+        }
+    }
+
+    #[test]
+    fn fill_keystream_works_for_ietf_and_extended_nonce_variants() {
+        let key = [0x55u8; 32];
+
+        let mut by_keystream = ChaCha20Ietf::new(&key, &[0x66u8; 12]);
+        let mut keystream = vec![0u8; 97];
+        by_keystream.fill_keystream(&mut keystream).unwrap();
+        let mut by_xor = ChaCha20Ietf::new(&key, &[0x66u8; 12]);
+        let mut expected = vec![0u8; 97];
+        by_xor.xor_keystream(&mut expected).unwrap();
+        assert_eq!(keystream, expected);
+
+        let mut by_keystream = XChaCha20Djb::new(&key, &[0x77u8; 24]);
+        let mut keystream = vec![0u8; 97];
+        by_keystream.fill_keystream(&mut keystream).unwrap();
+        let mut by_xor = XChaCha20Djb::new(&key, &[0x77u8; 24]);
+        let mut expected = vec![0u8; 97];
+        by_xor.xor_keystream(&mut expected).unwrap();
+        assert_eq!(keystream, expected);
+    }
+
     struct TestDjb {
         key: [u8; 32],
         nonce: [u8; 8],
@@ -1718,7 +1777,7 @@ Expected: {}",
     /// final block are rejected by policy. They are asserted as such rather than silently skipped.
     #[test]
     fn wycheproof_stream_cipher_counter_vectors() {
-        let data: serde_json::Value = serde_json::from_str(include_str!(
+        let data: json::Value<'_> = json::from_str(include_str!(
             "../../testdata/wycheproof/testvectors_v1/chacha20_counter_test.json"
         ))
         .unwrap();

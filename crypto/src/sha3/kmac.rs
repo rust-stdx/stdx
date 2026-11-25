@@ -298,7 +298,7 @@ mod tests {
 
     #[test]
     fn wycheproof_kmac256() {
-        let data: serde_json::Value = serde_json::from_str(include_str!(
+        let data: json::Value<'_> = json::from_str(include_str!(
             "../../testdata/wycheproof/testvectors_v1/kmac256_no_customization_test.json"
         ))
         .unwrap();

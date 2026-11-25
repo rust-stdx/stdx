@@ -42,4 +42,4 @@ alloc_counter = { path = "../alloc_counter" }
 base64 = { path = "../base64" }
 hex = { path = "../hex" }
 
-serde_json = { workspace = true, features = ["std"] }
+json = { path = "../json" }

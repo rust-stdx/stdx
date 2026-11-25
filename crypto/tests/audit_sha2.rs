@@ -13,7 +13,7 @@ use crypto::{
     Hasher,
     sha2::{Sha256, Sha384, Sha512},
 };
-use rand::{RngExt, SeedableRng, rngs::StdRng};
+use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
 ////////////////////////////////////////////////////////////////////////////////
 // Independent reference implementations (FIPS 180-4), written from the spec.
@@ -275,7 +275,7 @@ fn ref_sha384_of(msg: &[u8]) -> [u8; 48] {
 ////////////////////////////////////////////////////////////////////////////////
 // Helpers
 ////////////////////////////////////////////////////////////////////////////////
-/// Deterministic seeded `StdRng` (deterministic and reproducible).
+/// Deterministic seeded `ChaChaRng` (deterministic and reproducible).
 fn sha256_chunked(data: &[u8], chunk: usize) -> [u8; 32] {
     let mut h = Sha256::new();
     for part in data.chunks(chunk) {
@@ -412,7 +412,7 @@ fn million_a_vectors() {
 /// padding/block boundaries, and covers `2 * 128 + 32`.
 #[test]
 fn length_sweep_matches_reference() {
-    let mut rng = StdRng::seed_from_u64(0xC12_5A256);
+    let mut rng = ChaChaRng::seed_from_u64(0xC12_5A256);
     for len in 0..=300usize {
         let data = {
             let mut v = vec![0u8; len];
@@ -440,7 +440,7 @@ fn length_sweep_matches_reference() {
 /// padding and block boundaries.
 #[test]
 fn every_split_point() {
-    let mut rng = StdRng::seed_from_u64(0x5A2_1234);
+    let mut rng = ChaChaRng::seed_from_u64(0x5A2_1234);
     for len in [
         0usize, 1, 54, 55, 56, 57, 63, 64, 65, 110, 111, 112, 113, 119, 120, 121, 126, 127, 128, 129, 191, 192, 193,
         239, 240, 241, 255, 256, 257, 288,
@@ -476,7 +476,7 @@ fn every_split_point() {
 /// Three-way and many-way splits, including zero-length updates in between.
 #[test]
 fn interleaved_zero_length_updates() {
-    let mut rng = StdRng::seed_from_u64(0x0BEE_FC12);
+    let mut rng = ChaChaRng::seed_from_u64(0x0BEE_FC12);
     for len in [0usize, 1, 63, 64, 65, 127, 128, 129, 255, 256, 257, 1000] {
         let data = {
             let mut v = vec![0u8; len];
@@ -501,7 +501,7 @@ fn interleaved_zero_length_updates() {
 #[test]
 fn large_input_matches_reference() {
     let data = {
-        let mut rng = StdRng::seed_from_u64(0xC12_C12_C12);
+        let mut rng = ChaChaRng::seed_from_u64(0xC12_C12_C12);
         let mut v = vec![0u8; 1024 * 1024];
         rng.fill(&mut v);
         v
@@ -523,7 +523,7 @@ fn large_input_matches_reference() {
 #[test]
 fn unaligned_inputs_with_canaries() {
     const CANARY: u8 = 0xA5;
-    let mut rng = StdRng::seed_from_u64(0xA11_6ED);
+    let mut rng = ChaChaRng::seed_from_u64(0xA11_6ED);
     for len in [
         0usize, 1, 3, 55, 56, 57, 63, 64, 65, 111, 112, 113, 127, 128, 129, 200, 256,
     ] {
@@ -610,7 +610,7 @@ mod guard_page {
         let lengths = [
             1usize, 3, 7, 63, 64, 65, 127, 128, 129, 192, 255, 256, 257, 320, 512, 1024, 2048, 4096,
         ];
-        let mut rng = StdRng::seed_from_u64(0x0600_DC12);
+        let mut rng = ChaChaRng::seed_from_u64(0x0600_DC12);
         for &len in &lengths {
             let msg = {
                 let mut v = vec![0u8; len];

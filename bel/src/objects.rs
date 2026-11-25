@@ -38,7 +38,6 @@ static MIN_TIMESTAMP: LazyLock<DateTime> =
     LazyLock::new(|| DateTime::from_parts(1, 1, 1, 0, 0, 0, 0, TimeZone::UTC).unwrap());
 
 #[derive(Debug, PartialEq, Clone)]
-// #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct Map {
     pub map: Arc<HashMap<Key, Value>>,
 }
@@ -68,7 +67,6 @@ impl Map {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash, Ord, Clone, PartialOrd)]
-#[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum Key {
     Int(i64),
     // Uint(u64),
@@ -112,20 +110,6 @@ impl From<i64> for Key {
 //         Key::Uint(v)
 //     }
 // }
-
-impl serde::Serialize for Key {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match self {
-            Key::Int(v) => v.serialize(serializer),
-            // Key::Uint(v) => v.serialize(serializer),
-            Key::Bool(v) => v.serialize(serializer),
-            Key::String(v) => v.serialize(serializer),
-        }
-    }
-}
 
 impl Display for Key {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -172,21 +156,14 @@ pub trait TryIntoValue {
     fn try_into_value(self) -> Result<Value, Self::Error>;
 }
 
-impl<T: serde::Serialize> TryIntoValue for T {
-    type Error = crate::ser::SerializationError;
-    fn try_into_value(self) -> Result<Value, Self::Error> {
-        crate::ser::to_value(self)
-    }
-}
-impl TryIntoValue for Value {
+impl<T: Into<Value>> TryIntoValue for T {
     type Error = Infallible;
     fn try_into_value(self) -> Result<Value, Self::Error> {
-        Ok(self)
+        Ok(self.into())
     }
 }
 
 #[derive(Debug, Clone)]
-// #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub enum Value {
     List(Arc<Vec<Value>>),
     Map(Map),

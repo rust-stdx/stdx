@@ -23,7 +23,7 @@ use crypto::{
         TURBOSHAKE256_DEFAULT_DOMAIN_SEPARATOR, TurboShake256, TurboShakeError,
     },
 };
-use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
+use random::{Rng, RngExt, SeedableRng, rngs::ChaChaRng};
 
 // ---------------------------------------------------------------------------
 // Independent reference implementation
@@ -545,7 +545,7 @@ fn xof_full_input_output_matrix() {
     // Deterministic "fuzz" sweep: every input length 0..=1024 crossed with
     // every output length 0..=256 for the three Xof types. Heavy; run this
     // file with `--release` if the scalar reference is too slow in debug.
-    let mut rng = StdRng::seed_from_u64(0x1234_5678_9abc_def0);
+    let mut rng = ChaChaRng::seed_from_u64(0x1234_5678_9abc_def0);
 
     for input_len in 0..=1024 {
         let data = pattern(input_len);
@@ -1086,7 +1086,7 @@ fn kmac_empty_key_and_customization() {
 
 #[test]
 fn kmac_wycheproof_vectors() {
-    let data: serde_json::Value = serde_json::from_str(include_str!(
+    let data: json::Value<'_> = json::from_str(include_str!(
         "../testdata/wycheproof/testvectors_v1/kmac256_no_customization_test.json"
     ))
     .unwrap();
@@ -1419,7 +1419,7 @@ fn kt256_output_length_sweep_and_prefix() {
 
 #[test]
 fn kt256_deterministic_random_sweep() {
-    let mut rng = StdRng::seed_from_u64(0x0ddc_0ffe_e123_4567);
+    let mut rng = ChaChaRng::seed_from_u64(0x0ddc_0ffe_e123_4567);
 
     for _ in 0..100 {
         let message_len = rng.random_range(0..4 * KT256_CHUNK_SIZE + 1);

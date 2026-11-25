@@ -212,11 +212,11 @@ unsafe fn get(a: &mut &[u8]) -> arch::__m128i {
 
 #[cfg(all(test, feature = "std"))]
 mod test {
-    use rand::{TryRng, rngs::SysRng};
+    use random::{TryRng, rngs::SystemRng};
 
     #[test]
     fn check_against_baseline() {
-        let mut rng = SysRng;
+        let mut rng = SystemRng;
         for _ in 0..100 {
             let mut init_bytes = [0u8; 4];
             rng.try_fill_bytes(&mut init_bytes).unwrap();

@@ -672,7 +672,7 @@ pub(crate) unsafe fn compress_xof(
 
 #[cfg(test)]
 mod tests {
-    use rand::{RngExt, SeedableRng, rngs::StdRng};
+    use random::{RngExt, SeedableRng, rngs::ChaChaRng};
 
     use super::*;
 
@@ -750,9 +750,9 @@ mod tests {
     // with a CPU that actually exposes AVX2 / AVX-512F (or under qemu). The
     // guard below skips the test when the kernel cannot legally be executed.
     ////////////////////////////////////////////////////////////////////////////////////////////////
-    /// Deterministic seeded `StdRng` stream: reproducible.
+    /// Deterministic seeded `ChaChaRng` stream: reproducible.
     fn pattern(len: usize, seed: u64) -> Vec<u8> {
-        let mut rng = StdRng::seed_from_u64(seed);
+        let mut rng = ChaChaRng::seed_from_u64(seed);
         let mut out = vec![0u8; len];
         rng.fill(&mut out);
         out

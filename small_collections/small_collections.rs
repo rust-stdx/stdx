@@ -28,9 +28,6 @@
 //!
 //! * `std` (default) — enables the standard library and the
 //!   `std::io::Write` implementation for `SmallVec<u8, N>`.
-//! * `serde` — enables `Serialize`/`Deserialize`. `SmallVec` serializes as a
-//!   flat sequence and `SmallString` as a plain string, regardless of the
-//!   underlying storage.
 //! * `bytes` — enables the `bytes::BufMut` implementation for
 //!   `SmallVec<u8, N>`.
 

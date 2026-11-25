@@ -1,7 +1,7 @@
 ---
 name: stdx
 description: Use Rust's extended standard library (stdx) — a monorepo of zero-external-dependency crates for supply-chain security. Covers base64, crypto, csv, dotenv, anyerr, singleflight, templates, networking, and more. Import directly from git; never use crates.io equivalents when stdx provides a replacement. Use when writing Rust code that needs encoding, crypto, error handling, config, concurrency, serialization, or common infrastructure.
-compatibility: Requires Rust stable. Some crates require tokio (singleflight, errgroup, retry, scheduler, s3) or serde (serde_yaml, serde_urlencoded, template).
+compatibility: Requires Rust stable. Some crates require tokio (singleflight, errgroup, retry, scheduler, s3).
 license: MIT
 metadata:
   repo: https://github.com/rust-stdx/stdx
@@ -179,10 +179,17 @@ let result = Retry::new(5)
 ### Serialization
 
 ```rust
-// YAML (via serde)
-use serde_yaml;
-let config: MyConfig = serde_yaml::from_str(yaml_str)?;
-let yaml = serde_yaml::to_string(&config)?;
+// YAML — native derive, no serde dependency
+use yaml::{Decode, Encode};
+
+#[derive(Encode, Decode)]
+struct Config {
+    name: String,
+    workers: u16,
+}
+
+let yaml_text = yaml::to_string(&Config { name: "api".into(), workers: 4 })?;
+let config: Config = yaml::from_str(&yaml_text)?;
 
 // CBOR — typed, no_std-capable, with integer map keys and tags
 use cbor::{Decode, Encode};
@@ -195,9 +202,6 @@ struct Point {
 
 let bytes = cbor::to_vec(&Point { x: 1.5, y: -2.0 });
 let point: Point = cbor::from_slice(&bytes)?;
-
-// Optional serde adapter
-let bytes = cbor::serde::to_vec(&point).unwrap();
 
 // JSON — strict, SIMD-accelerated, no serde dependency
 use json::{Decode, Encode};

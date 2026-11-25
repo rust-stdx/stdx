@@ -12,29 +12,21 @@ workspace = true
 
 [features]
 default = ["regex", "time", "ip"]
+derive = ["dep:bel_derive"]
 ip = ["dep:ipnetwork"]
 json = ["dep:json", "dep:base64"]
 regex = ["dep:regex"]
 time = ["dep:time", "dep:nom"]
-# arbitrary = ["dep:arbitrary", "time?/arbitrary", "time?/std"]
-# dhat-heap = [ ] # if you are doing heap profiling
-
 
 [dependencies]
+bel_derive = { path = "bel_derive", optional = true }
 base64 = { path = "../base64", optional = true }
-ipnetwork = { path = "../ipnetwork", optional = true, features = ["serde"] }
+ipnetwork = { path = "../ipnetwork", optional = true }
 json = { path = "../json", optional = true, default-features = false, features = ["alloc"] }
+paste = { path = "../paste" }
 thiserror = { path = "../thiserror" }
-time = { path = "../time", optional = true, features = ["serde"] }
+time = { path = "../time", optional = true }
 
 antlr4rust = { workspace = true }
-arbitrary = { workspace = true, optional = true, features = ["derive"] }
 nom = { workspace = true, optional = true, features = ["std"] }
-paste = { workspace = true }
 regex = { workspace = true, optional = true, features = ["std", "perf", "unicode"] }
-serde = { workspace = true, features = ["derive", "std"] }
-
-[dev-dependencies]
-serde_bytes = { path = "../serde_bytes" }
-
-serde_json = { workspace = true, features = ["std"] }

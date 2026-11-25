@@ -323,31 +323,6 @@ mod zones {
     }
 }
 
-#[cfg(feature = "serde")]
-mod serde_tests {
-    use super::*;
-
-    #[test]
-    fn roundtrip() {
-        let dt = parse("2024-01-01T12:34:56.789Z");
-        let json = serde_json::to_string(&dt).unwrap();
-        assert_eq!(json, "\"2024-01-01T12:34:56.789Z\"");
-        let back: DateTime = serde_json::from_str(&json).unwrap();
-        assert_eq!(back, dt);
-    }
-
-    #[cfg(feature = "timezone-db")]
-    #[test]
-    fn roundtrip_with_zone() {
-        let dt = parse("2024-01-01T12:34:56-05:00[America/New_York]");
-        let json = serde_json::to_string(&dt).unwrap();
-        assert_eq!(json, "\"2024-01-01T12:34:56-05:00[America/New_York]\"");
-        let back: DateTime = serde_json::from_str(&json).unwrap();
-        assert_eq!(back, dt);
-        assert_eq!(back.timezone_name(), Some("America/New_York"));
-    }
-}
-
 #[test]
 fn weekday_numbers() {
     assert_eq!(Weekday::Monday.number_from_monday(), 1);

@@ -227,7 +227,7 @@ fn cancel_when_stuck(completed: &Arc<AtomicBool>, cancel: Option<CancelToken>) {
     tokio::spawn(async move {
         let _slot = slot;
         let jitter_ms = (ABANDONED_QUERY_CANCEL_DELAY.as_millis() as u64) / 2;
-        let extra = rand::random_range(0..=jitter_ms);
+        let extra = random::random_range(0..=jitter_ms);
         tokio::time::sleep(ABANDONED_QUERY_CANCEL_DELAY + std::time::Duration::from_millis(extra)).await;
         if !completed.load(Ordering::Acquire) {
             let _ = token.cancel_with_timeout(CANCEL_TIMEOUT).await;

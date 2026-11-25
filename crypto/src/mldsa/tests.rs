@@ -6,7 +6,7 @@ use crate::{
     sha3::{Sha3_256, Shake128, Shake256},
 };
 
-fn flags_of(test: &serde_json::Value) -> Vec<String> {
+fn flags_of(test: &json::Value<'_>) -> Vec<String> {
     test["flags"]
         .as_array()
         .map(|a| a.iter().filter_map(|f| f.as_str().map(String::from)).collect())
@@ -43,7 +43,7 @@ const ZERO_RND: [u8; 32] = [0u8; 32];
 
 fn keygen_kat<const PK: usize>(param: &str, derive_pk: impl Fn(&[u8; 32]) -> [u8; PK]) {
     let key_gen_data = include_str!("../../testdata/mldsa/key-gen.json");
-    let v: serde_json::Value = serde_json::from_str(key_gen_data).unwrap();
+    let v: json::Value<'_> = json::from_str(key_gen_data).unwrap();
     let mut tested = 0;
 
     for group in v["testGroups"].as_array().unwrap() {
@@ -72,7 +72,7 @@ fn sigver_kat<const PK: usize, const SIG: usize>(
     verify_mu: impl Fn(&[u8; PK], &[u8; 64], &[u8; SIG]) -> Result<(), MlDsaError>,
 ) {
     let sig_ver_data = include_str!("../../testdata/mldsa/sig-ver.json");
-    let v: serde_json::Value = serde_json::from_str(sig_ver_data).unwrap();
+    let v: json::Value<'_> = json::from_str(sig_ver_data).unwrap();
 
     let mut tested = 0;
     for group in v["testGroups"].as_array().unwrap() {
@@ -222,7 +222,7 @@ fn wycheproof_sign_seed<const PK: usize, const SIG: usize>(
     verify: impl Fn(&[u8; PK], &[u8], &[u8; SIG], &[u8]) -> Result<(), MlDsaError>,
     verify_mu: impl Fn(&[u8; PK], &[u8; 64], &[u8; SIG]) -> Result<(), MlDsaError>,
 ) {
-    let v: serde_json::Value = serde_json::from_str(json).unwrap();
+    let v: json::Value<'_> = json::from_str(json).unwrap();
 
     let mut valid_tested = 0u32;
     let mut invalid_tested = 0u32;
@@ -332,7 +332,7 @@ fn wycheproof_sign_noseed<const PK: usize, const SIG: usize>(
     json: &str,
     verify: impl Fn(&[u8; PK], &[u8], &[u8; SIG], &[u8]) -> Result<(), MlDsaError>,
 ) {
-    let v: serde_json::Value = serde_json::from_str(json).unwrap();
+    let v: json::Value<'_> = json::from_str(json).unwrap();
 
     let mut valid_tested = 0u32;
     let mut invalid_tested = 0u32;
@@ -408,7 +408,7 @@ fn wycheproof_verify<const PK: usize, const SIG: usize>(
     verify: impl Fn(&[u8; PK], &[u8], &[u8; SIG], &[u8]) -> Result<(), MlDsaError>,
     pk_from_slice: impl Fn(&[u8]) -> Result<[u8; PK], MlDsaError>,
 ) {
-    let v: serde_json::Value = serde_json::from_str(json).unwrap();
+    let v: json::Value<'_> = json::from_str(json).unwrap();
 
     let mut valid_tested = 0u32;
     let mut invalid_tested = 0u32;
@@ -749,9 +749,9 @@ fn mldsa65_generate_uniqueness() {
 
 #[test]
 fn mldsa65_nistkats() {
-    use serde::Deserialize;
+    use json::Decode;
 
-    #[derive(Deserialize)]
+    #[derive(Decode)]
     struct KatRecord {
         key_generation_seed: String,
         sha3_256_hash_of_verification_key: String,
@@ -761,7 +761,7 @@ fn mldsa65_nistkats() {
     }
 
     let kat_json = include_str!("../../testdata/mldsa/nistkats-65.json");
-    let records: Vec<KatRecord> = serde_json::from_str(kat_json).unwrap();
+    let records: Vec<KatRecord> = json::from_str(kat_json).unwrap();
 
     let mut tested = 0;
     for record in &records {

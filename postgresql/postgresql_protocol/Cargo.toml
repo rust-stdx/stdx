@@ -17,7 +17,7 @@ path = "postgresql_protocol.rs"
 base64 = { path = "../../base64" }
 constant_time_eq = { path = "../../constant_time_eq" }
 crypto = { path = "../../crypto" }
-hex = { path = "../../hex" }
+random = { path = "../../random", default-features = false, features = ["system"] }
 small_collections = { path = "../../small_collections" }
 thiserror = { path = "../../thiserror" }
 zeroize = { path = "../../zeroize", default-features = false, features = ["derive", "alloc"] }

@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 
-use quick_xml::de::from_str;
-use serde::Deserialize;
-
-use crate::client::{
-    Client, HttpClient, HttpMethod, bytes_to_string, canonical_bucket_uri, canonical_query_string, collect_body,
-    consume_empty, xml_escape,
+use crate::{
+    client::{
+        Client, HttpClient, HttpMethod, bytes_to_string, canonical_bucket_uri, canonical_query_string, collect_body,
+        consume_empty, xml_escape,
+    },
+    xml::Element,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -48,18 +48,20 @@ impl<H: HttpClient> Client<H> {
     pub async fn list_buckets(&self) -> Result<ListBucketsOutput, crate::client::Error> {
         let response = self.execute(HttpMethod::Get, "/", "", b"", "").await?;
         let body = bytes_to_string(collect_body(response.body, self.max_response_bytes).await?)?;
-        let xml: ListAllMyBucketsResultXml = from_str(&body)?;
+        let root = Element::parse(&body)?;
 
         Ok(ListBucketsOutput {
-            buckets: xml
-                .buckets
-                .bucket
+            buckets: root
+                .child("Buckets")
                 .into_iter()
-                .map(|entry| Bucket {
-                    name: entry.name,
-                    creation_date: entry.creation_date,
+                .flat_map(|buckets| buckets.children_named("Bucket"))
+                .map(|entry| {
+                    Ok(Bucket {
+                        name: entry.required_text("Name")?.to_string(),
+                        creation_date: entry.child_text("CreationDate").map(str::to_string),
+                    })
                 })
-                .collect(),
+                .collect::<Result<_, crate::client::Error>>()?,
         })
     }
 
@@ -123,26 +125,27 @@ impl<H: HttpClient> Client<H> {
             .execute(HttpMethod::Get, &canonical_uri, &canonical_query, b"", bucket)
             .await?;
         let body = bytes_to_string(collect_body(response.body, self.max_response_bytes).await?)?;
-        let xml: ListBucketResultXml = from_str(&body)?;
+        let root = Element::parse(&body)?;
 
         Ok(ListObjectsOutput {
-            name: xml.name,
-            prefix: xml.prefix,
-            key_count: xml.key_count,
-            max_keys: xml.max_keys,
-            is_truncated: xml.is_truncated,
-            next_continuation_token: xml.next_continuation_token,
-            contents: xml
-                .contents
-                .into_iter()
-                .map(|entry| ListObject {
-                    key: entry.key,
-                    last_modified: entry.last_modified,
-                    e_tag: entry.e_tag,
-                    size: entry.size,
-                    storage_class: entry.storage_class,
+            name: root.required_text("Name")?.to_string(),
+            prefix: root.child_text("Prefix").map(str::to_string),
+            key_count: parse_optional(&root, "KeyCount")?,
+            max_keys: parse_optional(&root, "MaxKeys")?,
+            is_truncated: matches!(root.child_text("IsTruncated"), Some("true")),
+            next_continuation_token: root.child_text("NextContinuationToken").map(str::to_string),
+            contents: root
+                .children_named("Contents")
+                .map(|entry| {
+                    Ok(ListObject {
+                        key: entry.required_text("Key")?.to_string(),
+                        last_modified: entry.child_text("LastModified").map(str::to_string),
+                        e_tag: entry.child_text("ETag").map(str::to_string),
+                        size: parse_optional(entry, "Size")?,
+                        storage_class: entry.child_text("StorageClass").map(str::to_string),
+                    })
                 })
-                .collect(),
+                .collect::<Result<_, crate::client::Error>>()?,
         })
     }
 
@@ -152,85 +155,28 @@ impl<H: HttpClient> Client<H> {
             .execute(HttpMethod::Get, &canonical_uri, "location=", b"", bucket)
             .await?;
         let body = bytes_to_string(collect_body(response.body, self.max_response_bytes).await?)?;
-        let xml: LocationConstraintXml = from_str(&body)?;
+        let root = Element::parse(&body)?;
+        let location = root.text().trim();
         Ok(GetBucketLocationOutput {
-            location_constraint: xml.location_constraint.and_then(|s| {
-                let trimmed = s.trim();
-                if trimmed.is_empty() {
-                    None
-                } else {
-                    Some(trimmed.to_string())
-                }
-            }),
+            location_constraint: (!location.is_empty()).then(|| location.to_string()),
         })
     }
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename = "ListAllMyBucketsResult")]
-struct ListAllMyBucketsResultXml {
-    #[serde(rename = "Buckets")]
-    buckets: BucketsXml,
-}
-
-#[derive(Debug, Deserialize)]
-struct BucketsXml {
-    #[serde(rename = "Bucket", default)]
-    bucket: Vec<BucketXml>,
-}
-
-#[derive(Debug, Deserialize)]
-struct BucketXml {
-    #[serde(rename = "Name")]
-    name: String,
-    #[serde(rename = "CreationDate")]
-    creation_date: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename = "ListBucketResult")]
-struct ListBucketResultXml {
-    #[serde(rename = "Name")]
-    name: String,
-    #[serde(rename = "Prefix")]
-    prefix: Option<String>,
-    #[serde(rename = "KeyCount")]
-    key_count: Option<u64>,
-    #[serde(rename = "MaxKeys")]
-    max_keys: Option<u64>,
-    #[serde(rename = "IsTruncated")]
-    is_truncated: bool,
-    #[serde(rename = "NextContinuationToken")]
-    next_continuation_token: Option<String>,
-    #[serde(rename = "Contents", default)]
-    contents: Vec<ObjectXml>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ObjectXml {
-    #[serde(rename = "Key")]
-    key: String,
-    #[serde(rename = "LastModified")]
-    last_modified: Option<String>,
-    #[serde(rename = "ETag")]
-    e_tag: Option<String>,
-    #[serde(rename = "Size")]
-    size: Option<u64>,
-    #[serde(rename = "StorageClass")]
-    storage_class: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename = "LocationConstraint")]
-struct LocationConstraintXml {
-    #[serde(rename = "$text")]
-    location_constraint: Option<String>,
+fn parse_optional<T>(element: &Element, name: &str) -> Result<Option<T>, crate::client::Error>
+where
+    T: core::str::FromStr,
+    T::Err: core::fmt::Display,
+{
+    element
+        .child_text(name)
+        .map(str::parse)
+        .transpose()
+        .map_err(|error| crate::client::Error::Xml(format!("invalid <{name}>: {error}")))
 }
 
 #[cfg(test)]
 mod tests {
-    use quick_xml::de::from_str;
-
     use super::*;
 
     #[test]
@@ -252,14 +198,15 @@ mod tests {
 </ListBucketResult>
 "#;
 
-        let parsed: ListBucketResultXml = from_str(xml).unwrap();
-        assert_eq!(parsed.name, "my-bucket");
-        assert_eq!(parsed.prefix.as_deref(), Some("photos/"));
-        assert_eq!(parsed.key_count, Some(1));
-        assert_eq!(parsed.max_keys, Some(1000));
-        assert!(!parsed.is_truncated);
-        assert_eq!(parsed.contents.len(), 1);
-        assert_eq!(parsed.contents[0].key, "photos/a.jpg");
+        let root = Element::parse(xml).unwrap();
+        assert_eq!(root.child_text("Name"), Some("my-bucket"));
+        assert_eq!(root.child_text("Prefix"), Some("photos/"));
+        assert_eq!(root.child_text("KeyCount"), Some("1"));
+        assert_eq!(root.child_text("MaxKeys"), Some("1000"));
+        assert_eq!(root.child_text("IsTruncated"), Some("false"));
+        let contents: Vec<_> = root.children_named("Contents").collect();
+        assert_eq!(contents.len(), 1);
+        assert_eq!(contents[0].child_text("Key"), Some("photos/a.jpg"));
     }
 
     #[test]
@@ -278,20 +225,18 @@ mod tests {
 </ListAllMyBucketsResult>
 "#;
 
-        let parsed: ListAllMyBucketsResultXml = from_str(xml).unwrap();
-        assert_eq!(parsed.buckets.bucket.len(), 2);
-        assert_eq!(parsed.buckets.bucket[0].name, "bucket-a");
-        assert_eq!(
-            parsed.buckets.bucket[0].creation_date.as_deref(),
-            Some("2026-01-01T00:00:00.000Z")
-        );
-        assert_eq!(parsed.buckets.bucket[1].name, "bucket-b");
+        let root = Element::parse(xml).unwrap();
+        let buckets: Vec<_> = root.child("Buckets").unwrap().children_named("Bucket").collect();
+        assert_eq!(buckets.len(), 2);
+        assert_eq!(buckets[0].child_text("Name"), Some("bucket-a"));
+        assert_eq!(buckets[0].child_text("CreationDate"), Some("2026-01-01T00:00:00.000Z"));
+        assert_eq!(buckets[1].child_text("Name"), Some("bucket-b"));
     }
 
     #[test]
     fn parses_bucket_location_xml() {
         let xml = "<LocationConstraint>auto</LocationConstraint>";
-        let parsed: LocationConstraintXml = from_str(xml).unwrap();
-        assert_eq!(parsed.location_constraint.as_deref(), Some("auto"));
+        let root = Element::parse(xml).unwrap();
+        assert_eq!(root.text(), "auto");
     }
 }

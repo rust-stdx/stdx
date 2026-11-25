@@ -1,7 +1,7 @@
 //! HPKE tests, including the test vector corpus of `draft-ietf-hpke-hpke-05`
 //! (Appendices C and D) and the post-quantum vectors of `draft-ietf-hpke-pq-05`.
 
-use serde_json::Value;
+use json::Value;
 
 use crate::{
     HpkeError, Mode,
@@ -39,7 +39,7 @@ fn public_key_hex<K: Kem>(public_key: &K::PublicKey) -> String {
 /// vector's ephemeral key must reproduce `skEm`/`pkEm` and `shared_secret`, and
 /// opening the vector's ciphertexts and reproducing its exported values
 /// exercises the complete key schedule.
-fn check_vector<K: Kem, D: crate::kdf::Kdf, A: crate::aead::Aead>(vector: &Value) {
+fn check_vector<K: Kem, D: crate::kdf::Kdf, A: crate::aead::Aead>(vector: &Value<'_>) {
     let mode = vector["mode"].as_u64().unwrap() as u8;
     let info = hex_field(vector, "info");
 
@@ -188,7 +188,7 @@ macro_rules! check_aead {
 /// Unlike Appendix C, the edge vectors do not list the ephemeral key pair, so
 /// the ephemeral key is reconstructed from `ikmE` via `encap_deterministic`
 /// (`draft-ietf-hpke-hpke-05` Appendix C.1).
-fn check_edge_vector<K: Kem, D: crate::kdf::Kdf, A: crate::aead::Aead>(vector: &Value) {
+fn check_edge_vector<K: Kem, D: crate::kdf::Kdf, A: crate::aead::Aead>(vector: &Value<'_>) {
     let mode = vector["mode"].as_u64().unwrap() as u8;
     let info = hex_field(vector, "info");
 
@@ -282,7 +282,7 @@ fn check_edge_vector<K: Kem, D: crate::kdf::Kdf, A: crate::aead::Aead>(vector: &
 
 #[test]
 fn hpke_pq_vectors() {
-    let data: Value = serde_json::from_str(include_str!("testdata/hpke-pq-test-vectors.json")).unwrap();
+    let data: Value<'_> = json::from_str(include_str!("testdata/hpke-pq-test-vectors.json")).unwrap();
     let mut tested = 0usize;
 
     for vector in data.as_array().unwrap() {
@@ -312,7 +312,7 @@ fn hpke_pq_vectors() {
 /// Unlike the `draft-ietf-hpke-hpke` vectors, hybrid KEMs do not derive an
 /// ephemeral key pair from `ikmE`: `ikmE` is the KEM's deterministic
 /// encapsulation randomness, consumed by [`Kem::encap_deterministic`].
-fn check_pq_vector<D: crate::kdf::Kdf, A: crate::aead::Aead>(vector: &Value) {
+fn check_pq_vector<D: crate::kdf::Kdf, A: crate::aead::Aead>(vector: &Value<'_>) {
     let info = hex_field(vector, "info");
 
     // Recipient key pair.
@@ -380,7 +380,7 @@ fn check_pq_vector<D: crate::kdf::Kdf, A: crate::aead::Aead>(vector: &Value) {
 
 #[test]
 fn hpke_vectors() {
-    let data: Value = serde_json::from_str(include_str!("testdata/test-vectors.json")).unwrap();
+    let data: Value<'_> = json::from_str(include_str!("testdata/test-vectors.json")).unwrap();
     let mut tested = 0usize;
 
     for vector in data.as_array().unwrap() {
@@ -402,7 +402,7 @@ fn hpke_vectors() {
 
 #[test]
 fn hpke_edge_vectors() {
-    let data: Value = serde_json::from_str(include_str!("testdata/hpke-edge-test-vectors.json")).unwrap();
+    let data: Value<'_> = json::from_str(include_str!("testdata/hpke-edge-test-vectors.json")).unwrap();
     let mut tested = 0usize;
 
     for vector in data.as_array().unwrap() {

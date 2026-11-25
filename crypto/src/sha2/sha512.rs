@@ -1258,12 +1258,12 @@ mod tests {
 /// kernel because the comparison needs `compress_blocks` and the private state.
 #[cfg(test)]
 mod kernel_tests {
-    use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
+    use random::{Rng, RngExt, SeedableRng, rngs::ChaChaRng};
 
     use super::{Sha512, compress_block_software, compress_blocks, detect_sha512_ext};
     use crate::Hasher;
 
-    /// Deterministic seeded `StdRng`.
+    /// Deterministic seeded `ChaChaRng`.
     fn pattern_blocks() -> Vec<[u8; 128]> {
         let mut blocks = vec![
             [0x00u8; 128],
@@ -1279,7 +1279,7 @@ mod kernel_tests {
             // Only the last byte set.
             core::array::from_fn(|i| if i == 127 { 0xFF } else { 0x00 }),
         ];
-        let mut rng = StdRng::seed_from_u64(0x0123_4567_89AB_CDEF);
+        let mut rng = ChaChaRng::seed_from_u64(0x0123_4567_89AB_CDEF);
         for _ in 0..8 {
             let mut block = [0u8; 128];
             block.copy_from_slice(&{
@@ -1302,7 +1302,7 @@ mod kernel_tests {
             core::array::from_fn(|i| i as u64),
             core::array::from_fn(|i| 0x8000_0000_0000_0000u64 >> (i % 64)),
         ];
-        let mut rng = StdRng::seed_from_u64(0x0DEA_DBEE_FC12);
+        let mut rng = ChaChaRng::seed_from_u64(0x0DEA_DBEE_FC12);
         for _ in 0..8 {
             let mut state = [0u64; 8];
             for word in state.iter_mut() {
@@ -1346,7 +1346,7 @@ mod kernel_tests {
         }
 
         let blocks = pattern_blocks();
-        let mut rng = StdRng::seed_from_u64(0x0123_4C12);
+        let mut rng = ChaChaRng::seed_from_u64(0x0123_4C12);
         for count in [1usize, 2, 3, 4, 8, 17] {
             let mut data = Vec::with_capacity(count * 128 + 127);
             for i in 0..count {
@@ -1374,7 +1374,7 @@ mod kernel_tests {
     fn forced_software_path_matches_hardware_path() {
         let hw = detect_sha512_ext();
         eprintln!("detect_sha512_ext() = {hw}");
-        let mut rng = StdRng::seed_from_u64(0x050F_7C12);
+        let mut rng = ChaChaRng::seed_from_u64(0x050F_7C12);
         for len in [
             0usize, 1, 2, 3, 63, 110, 111, 112, 113, 118, 119, 120, 121, 126, 127, 128, 129, 130, 191, 192, 239, 240,
             241, 255, 256, 257, 1000, 4096, 65536,

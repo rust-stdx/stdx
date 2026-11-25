@@ -20,7 +20,7 @@ default = ["std"]
 std = []
 
 [dev-dependencies]
-rand = { workspace = true, features = ["std_rng"] }
+random = { path = "../random", default-features = false }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 alloc_counter = { path = "../alloc_counter" }

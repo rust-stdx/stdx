@@ -1,7 +1,7 @@
 //! Parser robustness: malformed and adversarial input must never panic, and a
 //! deterministic mini-fuzzer explores random template/expression sources.
 
-use rand::{Rng, SeedableRng, rngs::StdRng};
+use random::{Rng, SeedableRng, rngs::ChaChaRng};
 use template::{Engine, EscapeMode, context};
 
 fn try_parse(source: &str) -> bool {
@@ -112,7 +112,7 @@ fn nesting_limits_error_without_panic() {
 /// dependencies, so it runs on every `cargo test`.
 #[test]
 fn fuzz_parser_never_panics() {
-    let mut rng = StdRng::seed_from_u64(0x9E3779B97F4A7C15);
+    let mut rng = ChaChaRng::seed_from_u64(0x9E3779B97F4A7C15);
 
     const ALPHABET: &[u8] = b"{}%#'\"\\|(),.[]=<>!+-*/:; \tabcxyz019_ntruefalslr";
 
@@ -159,7 +159,7 @@ fn fuzz_fragments_never_panic() {
         "{{ range(3) }}",
     ];
 
-    let mut rng = StdRng::seed_from_u64(0x1234_5678_9ABC_DEF0);
+    let mut rng = ChaChaRng::seed_from_u64(0x1234_5678_9ABC_DEF0);
 
     for _ in 0..20_000 {
         let count = (rng.next_u64() % 12) as usize;

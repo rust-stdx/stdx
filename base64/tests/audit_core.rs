@@ -28,7 +28,7 @@
 #![cfg(feature = "alloc")]
 
 use base64::{Alphabet, DecodeError, EncodeError};
-use rand::{Rng, RngExt, SeedableRng, rngs::StdRng};
+use random::{Rng, RngExt, SeedableRng, rngs::ChaChaRng};
 
 const ALL_ALPHABETS: [Alphabet; 4] = [
     Alphabet::Standard,
@@ -218,14 +218,14 @@ fn ref_decode(encoded: &[u8], alphabet: Alphabet) -> Result<Vec<u8>, DecodeError
 ////////////////////////////////////////////////////////////////////////////////
 // Test helpers
 ////////////////////////////////////////////////////////////////////////////////
-/// Deterministic seeded `StdRng` generator.
+/// Deterministic seeded `ChaChaRng` generator.
 fn patterned(len: usize, pattern: usize) -> Vec<u8> {
     match pattern {
         0 => vec![0x00; len],
         1 => vec![0xFF; len],
         2 => (0..len).map(|i| (i % 256) as u8).collect(),
         3 => {
-            let mut rng = StdRng::seed_from_u64(0x1234_5678_9ABC_DEF0 ^ len as u64);
+            let mut rng = ChaChaRng::seed_from_u64(0x1234_5678_9ABC_DEF0 ^ len as u64);
             let mut v = vec![0u8; len];
             rng.fill(&mut v);
             v
@@ -419,7 +419,7 @@ fn exact_buffers_at_nonzero_offset() {
         0usize, 1, 2, 3, 4, 5, 23, 24, 25, 31, 32, 33, 47, 48, 49, 64, 65, 127, 128, 129,
     ] {
         let mut raw = vec![0x11u8; len + 9];
-        let mut rng = StdRng::seed_from_u64(0xDEAD_BEEF_0000_0001 ^ len as u64);
+        let mut rng = ChaChaRng::seed_from_u64(0xDEAD_BEEF_0000_0001 ^ len as u64);
         rng.fill(&mut raw[3..3 + len]);
         let input = &raw[3..3 + len];
 
@@ -798,7 +798,7 @@ fn structured_four_byte_inputs() {
 
 #[test]
 fn deterministic_fuzz_arbitrary_encoded_bytes() {
-    let mut rng = StdRng::seed_from_u64(0xA5A5_5A5A_1234_5678);
+    let mut rng = ChaChaRng::seed_from_u64(0xA5A5_5A5A_1234_5678);
     for case in 0..20_000usize {
         let len = (rng.next_u64() % 65) as usize;
         let mut input = vec![0u8; len];
@@ -825,7 +825,7 @@ fn deterministic_fuzz_arbitrary_encoded_bytes() {
     }
 
     // Longer inputs, including the SIMD block boundaries.
-    let mut rng = StdRng::seed_from_u64(0x0F0F_1111_2222_3333);
+    let mut rng = ChaChaRng::seed_from_u64(0x0F0F_1111_2222_3333);
     for case in 0..8_000usize {
         let len = (rng.next_u64() % 201) as usize;
         let mut input = vec![0u8; len];

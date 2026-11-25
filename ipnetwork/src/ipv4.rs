@@ -14,27 +14,6 @@ pub struct Ipv4Network {
     prefix: u8,
 }
 
-#[cfg(feature = "serde")]
-impl<'de> serde::Deserialize<'de> for Ipv4Network {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let s = <String>::deserialize(deserializer)?;
-        Ipv4Network::from_str(&s).map_err(serde::de::Error::custom)
-    }
-}
-
-#[cfg(feature = "serde")]
-impl serde::Serialize for Ipv4Network {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.collect_str(self)
-    }
-}
-
 #[cfg(feature = "schemars")]
 impl schemars::JsonSchema for Ipv4Network {
     fn schema_name() -> std::borrow::Cow<'static, str> {

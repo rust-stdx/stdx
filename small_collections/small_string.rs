@@ -35,12 +35,6 @@ use core::str::FromStr;
 ///   [`SmallString::shrink_to`]. [`SmallString::clear`] and
 ///   [`SmallString::truncate`] keep the current storage.
 ///
-/// # Serialization
-///
-/// With the `serde` feature enabled, a `SmallString` serializes exactly like a
-/// `str` (for example the JSON string `"hello"`), regardless of whether its
-/// contents are stored inline or on the heap. This matches the flat sequence
-/// representation used by [`SmallVec`](crate::SmallVec).
 #[derive(Clone)]
 pub enum SmallString<const N: usize> {
     /// Data stored inline, on the stack, with a fixed capacity of `N` bytes.
@@ -670,47 +664,6 @@ impl<const N: usize> FromStr for SmallString<N> {
         let mut out = Self::new();
         out.push_str(s);
         Ok(out)
-    }
-}
-
-#[cfg(feature = "serde")]
-impl<const N: usize> serde::Serialize for SmallString<N> {
-    #[inline]
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(self.as_str())
-    }
-}
-
-#[cfg(feature = "serde")]
-impl<'de, const N: usize> serde::Deserialize<'de> for SmallString<N> {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        struct SmallStringVisitor<const N: usize>;
-
-        impl<'de, const N: usize> serde::de::Visitor<'de> for SmallStringVisitor<N> {
-            type Value = SmallString<N>;
-
-            fn expecting(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-                formatter.write_str("a string")
-            }
-
-            fn visit_str<E: serde::de::Error>(self, v: &str) -> Result<Self::Value, E> {
-                Ok(SmallString::from_str(v))
-            }
-
-            fn visit_borrowed_str<E: serde::de::Error>(self, v: &'de str) -> Result<Self::Value, E> {
-                Ok(SmallString::from_str(v))
-            }
-
-            fn visit_string<E: serde::de::Error>(self, v: String) -> Result<Self::Value, E> {
-                Ok(if v.len() <= N {
-                    SmallString::from_str(&v)
-                } else {
-                    SmallString::from_string(v)
-                })
-            }
-        }
-
-        deserializer.deserialize_str(SmallStringVisitor::<N>)
     }
 }
 
@@ -1649,56 +1602,6 @@ mod tests {
         let dest: SmallString<4> = SmallString::from_small_string(source);
         assert!(dest.is_inline());
         assert_eq!(dest.as_str(), "abcd");
-    }
-
-    #[cfg(feature = "serde")]
-    #[test]
-    fn test_serde_serializes_as_flat_string() {
-        let inline: SmallString<16> = SmallString::from_str("hello");
-        let heap: SmallString<2> = SmallString::from_str("hello");
-        assert!(inline.is_inline());
-        assert!(!heap.is_inline());
-
-        // Both representations produce the same, plain JSON string.
-        assert_eq!(serde_json::to_string(&inline).unwrap(), "\"hello\"");
-        assert_eq!(serde_json::to_string(&heap).unwrap(), "\"hello\"");
-    }
-
-    #[cfg(feature = "serde")]
-    #[test]
-    fn test_serde_deserializes_into_inline_or_heap() {
-        let inline: SmallString<16> = serde_json::from_str("\"hello\"").unwrap();
-        assert!(inline.is_inline());
-        assert_eq!(inline.as_str(), "hello");
-
-        // The value doesn't fit inline, so it must land on the heap even
-        // though the source JSON is identical.
-        let heap: SmallString<2> = serde_json::from_str("\"hello\"").unwrap();
-        assert!(!heap.is_inline());
-        assert_eq!(heap.as_str(), "hello");
-    }
-
-    #[cfg(feature = "serde")]
-    #[test]
-    fn test_serde_roundtrip_both_variants() {
-        let inline: SmallString<16> = SmallString::from_str("hello");
-        let json = serde_json::to_string(&inline).unwrap();
-        let back: SmallString<16> = serde_json::from_str(&json).unwrap();
-        assert_eq!(back, inline);
-        assert!(back.is_inline());
-
-        let heap: SmallString<4> = SmallString::from_str("hello world");
-        let json = serde_json::to_string(&heap).unwrap();
-        let back: SmallString<4> = serde_json::from_str(&json).unwrap();
-        assert_eq!(back, heap);
-        assert!(!back.is_inline());
-    }
-
-    #[cfg(feature = "serde")]
-    #[test]
-    fn test_serde_rejects_non_string() {
-        let result: Result<SmallString<16>, _> = serde_json::from_str("42");
-        assert!(result.is_err());
     }
 
     // -----------------------------------------------------------------------

@@ -429,7 +429,7 @@ mod test {
 
     #[test]
     fn wycheproof_chacha20_poly1305_vectors() {
-        let data: serde_json::Value = serde_json::from_str(include_str!(
+        let data: json::Value<'_> = json::from_str(include_str!(
             "../../testdata/wycheproof/testvectors_v1/chacha20_poly1305_test.json"
         ))
         .unwrap();
@@ -618,7 +618,7 @@ mod xchacha20poly1305_tests {
 
     #[test]
     fn wycheproof_xchacha20_poly1305_vectors() {
-        let data: serde_json::Value = serde_json::from_str(include_str!(
+        let data: json::Value<'_> = json::from_str(include_str!(
             "../../testdata/wycheproof/testvectors_v1/xchacha20_poly1305_test.json"
         ))
         .unwrap();
