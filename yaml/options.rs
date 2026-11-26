@@ -22,12 +22,21 @@ pub struct Options {
     pub duplicate_keys: DuplicateKeys,
     /// Maximum nesting depth for sequences and mappings.
     pub max_depth: usize,
-    /// Maximum number of values in one document, or `None` for no limit.
+    /// Maximum number of values materialized in one document, or `None` for no
+    /// limit.
+    ///
+    /// This counts nodes produced by events as well as the copies the parser
+    /// materializes for anchors, aliases, and merge keys.
     pub max_values: Option<usize>,
     /// Maximum number of alias nodes in one document, or `None` for no limit.
     pub max_aliases: Option<usize>,
     /// Maximum number of documents in a stream, or `None` for no limit.
     pub max_documents: Option<usize>,
+    /// Maximum input size in bytes, or `None` for no limit.
+    ///
+    /// Applies to the slice/string parsers and to
+    /// [`from_reader_with_options`](crate::from_reader_with_options).
+    pub max_input_bytes: Option<usize>,
 }
 
 impl Default for Options {
@@ -38,6 +47,7 @@ impl Default for Options {
             max_values: Some(1_000_000),
             max_aliases: Some(10_000),
             max_documents: Some(1_024),
+            max_input_bytes: Some(64 * 1024 * 1024),
         }
     }
 }

@@ -69,6 +69,9 @@ fn emit_value(value: &Value, emitter: &mut Emitter) -> Result<()> {
             emitter.emit(EmitEvent::MappingEnd).map_err(convert_error)
         }
         Value::Tagged(tagged) => {
+            if tagged.tag == "!" {
+                return Err(Error::new("the non-specific `!` tag cannot be represented as a tagged value"));
+            }
             let tag = Some(tagged.tag.clone());
             match &tagged.value {
                 Value::Null => emit_scalar("null", EmitScalarStyle::Plain, tag, emitter),
@@ -100,10 +103,9 @@ fn emit_value(value: &Value, emitter: &mut Emitter) -> Result<()> {
                     }
                     emitter.emit(EmitEvent::MappingEnd).map_err(convert_error)
                 }
-                Value::Tagged(inner) => {
-                    let inner = Value::Tagged(inner.clone());
-                    emit_value(&inner, emitter)
-                }
+                // A YAML node carries at most one tag, so nested `Tagged`
+                // values cannot be represented without silently losing one.
+                Value::Tagged(_) => Err(Error::new("nested YAML tags are not supported")),
             }
         }
     }

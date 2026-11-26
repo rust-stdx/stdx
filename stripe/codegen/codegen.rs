@@ -95,6 +95,7 @@ pub fn generate(spec_path: &Path, out_dir: &Path, fetch: bool) -> Result<Report,
 
     prune_stale(out_dir, &written)?;
     check_features(out_dir, &model.modules)?;
+    check_generated_feature_wiring(out_dir)?;
     check_spec_version(out_dir, &model.spec_version)?;
 
     let mut by_module: Vec<(String, usize)> = model
@@ -213,6 +214,67 @@ fn check_features(out_dir: &Path, modules: &BTreeSet<String>) -> Result<(), Stri
     ))
 }
 
+/// Fails when a generated shard or method crate does not forward its module
+/// features to the shard crates it depends on.
+///
+/// Generated code references types from sibling shards, and those types are
+/// `#[cfg(feature = "...")]`-gated. Building one generated crate on its own with
+/// `--all-features` only enables that crate's own features, so each module
+/// feature must also enable the same feature on every `stripe_types_*`
+/// dependency. Without the forwarding the crate does not compile standalone,
+/// while a workspace-wide build hides the problem through feature unification.
+fn check_generated_feature_wiring(out_dir: &Path) -> Result<(), String> {
+    let manifests = std::iter::once("api/Cargo.toml".to_string())
+        .chain((0..split::SHARDS).map(|shard| format!("types_{shard:02}/Cargo.toml")));
+    for relative in manifests {
+        let manifest = out_dir.join(&relative);
+        let text = fs::read_to_string(&manifest).map_err(|error| format!("reading {manifest:?}: {error}"))?;
+        check_manifest_feature_wiring(&manifest, &text)?;
+    }
+    Ok(())
+}
+
+/// Checks one generated manifest for feature forwarding.
+fn check_manifest_feature_wiring(manifest: &Path, text: &str) -> Result<(), String> {
+    let dependencies: BTreeSet<&str> = text
+        .split("[dependencies]")
+        .nth(1)
+        .unwrap_or("")
+        .lines()
+        .filter_map(|line| line.split_once('='))
+        .map(|(name, _)| name.trim())
+        .filter(|name| name.starts_with("stripe_types_"))
+        .collect();
+    if dependencies.is_empty() {
+        return Ok(());
+    }
+
+    let features_section = text
+        .split("[features]")
+        .nth(1)
+        .and_then(|rest| rest.split("\n[").next())
+        .ok_or_else(|| format!("{manifest:?} has no [features] section"))?;
+    for line in features_section.lines() {
+        let Some((name, values)) = line.split_once('=') else {
+            continue;
+        };
+        let name = name.trim();
+        if name == "default" {
+            continue;
+        }
+        for dependency in &dependencies {
+            let expected = format!("\"{dependency}/{name}\"");
+            if !values.contains(&expected) {
+                return Err(format!(
+                    "{manifest:?} feature `{name}` does not enable `{dependency}/{name}`; \
+                     generated crates must forward each feature to their dependencies"
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Fails when the crate root does not declare the specification version the
 /// generated code was built from.
 fn check_spec_version(out_dir: &Path, spec_version: &str) -> Result<(), String> {
@@ -262,4 +324,30 @@ fn fetch_bytes(url: &str) -> Result<Vec<u8>, String> {
         return Err(format!("curl failed: {}", String::from_utf8_lossy(&output.stderr)));
     }
     Ok(output.stdout)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn feature_wiring_must_forward_to_every_dependency() {
+        let manifest = Path::new("api/Cargo.toml");
+        let valid = "[features]\n\
+                     default = []\n\
+                     account = [\"stripe_types_00/account\", \"stripe_types_01/account\"]\n\
+                     [dependencies]\n\
+                     stripe_types_00 = { path = \"../types_00\" }\n\
+                     stripe_types_01 = { path = \"../types_01\" }\n";
+        assert!(check_manifest_feature_wiring(manifest, valid).is_ok());
+
+        let invalid = "[features]\n\
+                       default = []\n\
+                       account = [\"stripe_types_00/account\"]\n\
+                       [dependencies]\n\
+                       stripe_types_00 = { path = \"../types_00\" }\n\
+                       stripe_types_01 = { path = \"../types_01\" }\n";
+        let error = check_manifest_feature_wiring(manifest, invalid).unwrap_err();
+        assert!(error.contains("stripe_types_01/account"), "{error}");
+    }
 }

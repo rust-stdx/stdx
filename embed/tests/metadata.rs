@@ -57,6 +57,10 @@ fn timestamps_match_the_file_system() {
         .as_secs();
     assert_eq!(file.metadata.last_modified(), Some(expected_modified));
 
+    // WASI backs `Metadata::created` with `ctime`, not the file's birth time,
+    // so it cannot match the value captured on the build host when the files
+    // are embedded. `modified` above is portable.
+    #[cfg(not(target_arch = "wasm32"))]
     if let Ok(created) = metadata.created() {
         let expected_created = created.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
         assert_eq!(file.metadata.created(), Some(expected_created));

@@ -71,7 +71,10 @@ impl Emitter {
             sys::yaml_emitter_set_unicode(emitter, true);
             sys::yaml_emitter_set_width(emitter, -1);
             addr_of_mut!((*owned.ptr).output).write(Vec::new());
-            sys::yaml_emitter_set_output(emitter, write_handler, owned.ptr.cast());
+            // Pass the `Vec` field itself, not the enclosing `EmitterPinned`:
+            // Rust does not guarantee field order, so `write_handler` cannot
+            // rely on `output` being the first field.
+            sys::yaml_emitter_set_output(emitter, write_handler, addr_of_mut!((*owned.ptr).output).cast());
             Owned::assume_init(owned)
         };
         Emitter {
@@ -111,7 +114,7 @@ impl Emitter {
                         tag.as_ptr()
                     });
                     let value = scalar.value.as_ptr();
-                    let length = scalar.value.len() as i32;
+                    let length = scalar_length(scalar.value.len())?;
                     let plain_implicit = tag.is_null();
                     let quoted_implicit = tag.is_null();
                     let style = match scalar.style {
@@ -187,8 +190,34 @@ unsafe fn write_handler(data: *mut c_void, buffer: *mut u8, size: u64) -> i32 {
     1
 }
 
+/// Converts a Rust string length to libyaml's `c_int` length.
+///
+/// A negative length tells libyaml to call `strlen`, which would read past the
+/// end of a non-NUL-terminated Rust string, so oversized scalars are rejected
+/// instead of truncated.
+fn scalar_length(length: usize) -> core::result::Result<i32, Error> {
+    // libyaml adds a byte for the NUL terminator internally, so leave room in
+    // `c_int` instead of letting that addition wrap.
+    match i32::try_from(length) {
+        Ok(length) if length < i32::MAX => Ok(length),
+        _ => Err(Error::writer("YAML scalar exceeds the emitter limit")),
+    }
+}
+
 impl Drop for EmitterPinned {
     fn drop(&mut self) {
         unsafe { sys::yaml_emitter_delete(&mut self.sys) }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::scalar_length;
+
+    #[test]
+    fn rejects_scalars_that_do_not_fit_in_c_int() {
+        assert!(scalar_length(i32::MAX as usize - 1).is_ok());
+        assert!(scalar_length(i32::MAX as usize).is_err());
+        assert!(scalar_length(i32::MAX as usize + 1).is_err());
     }
 }

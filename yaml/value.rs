@@ -1,10 +1,13 @@
 //! The dynamic YAML value model.
 
-use alloc::{boxed::Box, string::String, vec::Vec};
-use core::fmt;
+use alloc::{boxed::Box, collections::BTreeMap, string::String, vec::Vec};
+use core::{cmp::Ordering, fmt};
 
 /// A YAML number, whether integer or floating point.
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+///
+/// Equality follows YAML's canonical form: all `NaN` values compare equal to
+/// each other and `-0.0` compares equal to `0.0`.
+#[derive(Clone, Copy, Debug)]
 pub enum Number {
     /// A non-negative integer.
     PosInt(u64),
@@ -12,6 +15,36 @@ pub enum Number {
     NegInt(i64),
     /// A floating-point number, which may be infinite or NaN.
     Float(f64),
+}
+
+impl PartialEq for Number {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Number::PosInt(left), Number::PosInt(right)) => left == right,
+            (Number::NegInt(left), Number::NegInt(right)) => left == right,
+            (Number::Float(left), Number::Float(right)) => (left.is_nan() && right.is_nan()) || left == right,
+            _ => false,
+        }
+    }
+}
+
+impl PartialOrd for Number {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        fn rank(value: &Number) -> u8 {
+            match value {
+                Number::PosInt(_) => 0,
+                Number::NegInt(_) => 1,
+                Number::Float(_) => 2,
+            }
+        }
+        match (self, other) {
+            (Number::PosInt(left), Number::PosInt(right)) => Some(left.cmp(right)),
+            (Number::NegInt(left), Number::NegInt(right)) => Some(left.cmp(right)),
+            (Number::Float(left), Number::Float(right)) if left.is_nan() && right.is_nan() => Some(Ordering::Equal),
+            (Number::Float(left), Number::Float(right)) => left.partial_cmp(right),
+            _ => Some(rank(self).cmp(&rank(other))),
+        }
+    }
 }
 
 impl Number {
@@ -67,7 +100,12 @@ impl fmt::Display for Number {
         match self {
             Number::PosInt(value) => write!(formatter, "{value}"),
             Number::NegInt(value) => write!(formatter, "{value}"),
-            Number::Float(value) => write!(formatter, "{value}"),
+            Number::Float(value) if value.is_nan() => formatter.write_str(".nan"),
+            Number::Float(value) if value.is_infinite() && value.is_sign_positive() => formatter.write_str(".inf"),
+            Number::Float(value) if value.is_infinite() => formatter.write_str("-.inf"),
+            // `Debug` keeps a decimal point or an exponent, so the emitted
+            // scalar is always resolved as a float instead of an integer.
+            Number::Float(value) => write!(formatter, "{value:?}"),
         }
     }
 }
@@ -117,10 +155,31 @@ impl From<f64> for Number {
 
 /// A YAML mapping that preserves insertion order.
 ///
-/// Keys and values are arbitrary [`Value`]s, as required by YAML.
-#[derive(Clone, Debug, Default, PartialEq)]
+/// Keys and values are arbitrary [`Value`]s, as required by YAML. Equality is
+/// unordered, because a YAML mapping is a set of key/value pairs regardless of
+/// the order they were written in.
+#[derive(Clone, Default)]
 pub struct Mapping {
     entries: Vec<(Value, Value)>,
+    /// Hash bucket to entry indices. This keeps construction and lookup
+    /// logarithmic instead of quadratic for large mappings.
+    index: BTreeMap<u64, Vec<usize>>,
+}
+
+impl fmt::Debug for Mapping {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("Mapping")
+            .field("entries", &self.entries)
+            .finish()
+    }
+}
+
+impl PartialEq for Mapping {
+    fn eq(&self, other: &Self) -> bool {
+        self.entries.len() == other.entries.len()
+            && self.entries.iter().all(|(key, value)| other.get(key) == Some(value))
+    }
 }
 
 impl Mapping {
@@ -133,6 +192,7 @@ impl Mapping {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             entries: Vec::with_capacity(capacity),
+            index: BTreeMap::new(),
         }
     }
 
@@ -148,46 +208,161 @@ impl Mapping {
 
     /// Inserts a key-value pair, replacing an existing value for an equal key.
     pub fn insert(&mut self, key: Value, value: Value) -> Option<Value> {
-        if let Some((_, existing)) = self.entries.iter_mut().find(|(existing, _)| *existing == key) {
-            return Some(core::mem::replace(existing, value));
+        let hash = value_hash(&key);
+        if let Some(indices) = self.index.get(&hash) {
+            for &index in indices {
+                if self.entries[index].0 == key {
+                    return Some(core::mem::replace(&mut self.entries[index].1, value));
+                }
+            }
         }
+        let index = self.entries.len();
         self.entries.push((key, value));
+        self.index.entry(hash).or_default().push(index);
         None
     }
 
     /// Returns the value for `key`.
     pub fn get(&self, key: &Value) -> Option<&Value> {
-        self.entries
-            .iter()
-            .find(|(existing, _)| existing == key)
-            .map(|(_, value)| value)
+        let hash = value_hash(key);
+        self.index.get(&hash)?.iter().find_map(|&index| {
+            let (existing, value) = &self.entries[index];
+            (existing == key).then_some(value)
+        })
     }
 
     /// Returns the value for a string key.
     pub fn get_str(&self, key: &str) -> Option<&Value> {
-        self.entries
-            .iter()
-            .find(|(existing, _)| existing.as_str() == Some(key))
-            .map(|(_, value)| value)
+        let hash = string_hash(key);
+        self.index.get(&hash)?.iter().find_map(|&index| {
+            let (existing, value) = &self.entries[index];
+            (existing.as_str() == Some(key)).then_some(value)
+        })
     }
 
     /// Returns the mutable value for a string key.
     pub fn get_str_mut(&mut self, key: &str) -> Option<&mut Value> {
-        self.entries
-            .iter_mut()
-            .find(|(existing, _)| existing.as_str() == Some(key))
-            .map(|(_, value)| value)
+        let hash = string_hash(key);
+        let index = self
+            .index
+            .get(&hash)?
+            .iter()
+            .copied()
+            .find(|&index| self.entries[index].0.as_str() == Some(key))?;
+        Some(&mut self.entries[index].1)
     }
 
     /// Removes and returns the value for `key`.
     pub fn remove(&mut self, key: &Value) -> Option<Value> {
-        let index = self.entries.iter().position(|(existing, _)| existing == key)?;
-        Some(self.entries.remove(index).1)
+        let hash = value_hash(key);
+        let index = self
+            .index
+            .get(&hash)?
+            .iter()
+            .copied()
+            .find(|&index| self.entries[index].0 == *key)?;
+        let (_, value) = self.entries.remove(index);
+        self.rebuild_index();
+        Some(value)
     }
 
     /// Iterates over the entries in insertion order.
     pub fn iter(&self) -> core::slice::Iter<'_, (Value, Value)> {
         self.entries.iter()
+    }
+
+    fn rebuild_index(&mut self) {
+        self.index.clear();
+        for (index, (key, _)) in self.entries.iter().enumerate() {
+            self.index.entry(value_hash(key)).or_default().push(index);
+        }
+    }
+}
+
+/// A tiny FNV-style hash used only for the mapping index.
+fn hash_bytes(mut hash: u64, bytes: &[u8]) -> u64 {
+    for &byte in bytes {
+        hash ^= u64::from(byte);
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    hash
+}
+
+fn hash_mix(hash: u64, value: u64) -> u64 {
+    hash_bytes(hash, &value.to_le_bytes())
+}
+
+fn value_hash(value: &Value) -> u64 {
+    let mut hash = 0xcbf29ce484222325;
+    hash_value(value, &mut hash);
+    hash
+}
+
+fn string_hash(value: &str) -> u64 {
+    hash_bytes(hash_mix(0xcbf29ce484222325, 3), value.as_bytes())
+}
+
+fn hash_value(value: &Value, hash: &mut u64) {
+    match value {
+        Value::Null => *hash = hash_mix(*hash, 0),
+        Value::Bool(value) => {
+            *hash = hash_mix(*hash, 1);
+            *hash = hash_mix(*hash, u64::from(u8::from(*value)));
+        }
+        Value::Number(value) => {
+            *hash = hash_mix(*hash, 2);
+            match value {
+                Number::PosInt(value) => {
+                    *hash = hash_mix(*hash, 0);
+                    *hash = hash_mix(*hash, *value);
+                }
+                Number::NegInt(value) => {
+                    *hash = hash_mix(*hash, 1);
+                    *hash = hash_bytes(*hash, &value.to_le_bytes());
+                }
+                Number::Float(value) => {
+                    *hash = hash_mix(*hash, 2);
+                    let bits = if value.is_nan() {
+                        f64::NAN.to_bits()
+                    } else if *value == 0.0 {
+                        0.0f64.to_bits()
+                    } else {
+                        value.to_bits()
+                    };
+                    *hash = hash_mix(*hash, bits);
+                }
+            }
+        }
+        Value::String(value) => {
+            *hash = hash_mix(*hash, 3);
+            *hash = hash_bytes(*hash, value.as_bytes());
+        }
+        Value::Sequence(values) => {
+            *hash = hash_mix(*hash, 4);
+            *hash = hash_mix(*hash, values.len() as u64);
+            for value in values {
+                hash_value(value, hash);
+            }
+        }
+        Value::Mapping(mapping) => {
+            *hash = hash_mix(*hash, 5);
+            *hash = hash_mix(*hash, mapping.len() as u64);
+            // Mapping equality is unordered, so fold the entry hashes with an
+            // order-independent operation.
+            let mut combined = 0u64;
+            for (key, value) in mapping.iter() {
+                let mut entry = 0xcbf29ce484222325;
+                hash_value(key, &mut entry);
+                hash_value(value, &mut entry);
+                combined = combined.wrapping_add(entry);
+            }
+            *hash = hash_mix(*hash, combined);
+        }
+        Value::Tagged(tagged) => {
+            *hash = hash_mix(*hash, 6);
+            *hash = hash_bytes(*hash, tagged.tag.as_bytes());
+            hash_value(&tagged.value, hash);
+        }
     }
 }
 
@@ -229,16 +404,20 @@ impl core::ops::Index<usize> for Value {
 
 impl FromIterator<(Value, Value)> for Mapping {
     fn from_iter<T: IntoIterator<Item = (Value, Value)>>(iter: T) -> Self {
-        Self {
-            entries: iter.into_iter().collect(),
+        let mut mapping = Self::new();
+        for (key, value) in iter {
+            mapping.insert(key, value);
         }
+        mapping
     }
 }
 
 /// A value annotated with a YAML tag.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TaggedValue {
-    /// The tag, without the leading `!`.
+    /// The tag as written, including a leading `!` for local tags (for
+    /// example `!point`) and the full `tag:yaml.org,2002:...` URI for the
+    /// standard tags.
     pub tag: String,
     /// The tagged value.
     pub value: Value,

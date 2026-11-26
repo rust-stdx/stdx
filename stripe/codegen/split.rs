@@ -494,8 +494,28 @@ fn rewrite(text: &str, from: Option<usize>, parsed: &Parsed, shard_of: &[usize])
         .into_owned()
 }
 
-fn features(model: &Model) -> String {
-    model.modules.iter().map(|module| format!("{module} = []\n")).collect()
+/// Cargo features for a generated manifest.
+///
+/// Each module feature also enables the same feature on every generated shard
+/// this manifest depends on. Response types are gated by the modules that can
+/// reach them, so a crate built on its own with a module feature needs the
+/// matching feature on its dependencies too; otherwise the sibling types it
+/// references are compiled out.
+fn features(model: &Model, deps: &BTreeSet<usize>) -> String {
+    model
+        .modules
+        .iter()
+        .map(|module| {
+            if deps.is_empty() {
+                return format!("{module} = []\n");
+            }
+            let deps: Vec<String> = deps
+                .iter()
+                .map(|dep| format!("\"stripe_types_{dep:02}/{module}\""))
+                .collect();
+            format!("{module} = [{}]\n", deps.join(", "))
+        })
+        .collect()
 }
 
 /// Emits the sharded layout and the facade module block.
@@ -576,7 +596,7 @@ pub fn emit(model: &Model) -> Vec<OutputFile> {
             path: format!("types_{shard:02}/Cargo.toml"),
             contents: format!(
                 "[package]\nname = \"stripe_types_{shard:02}\"\nversion = \"0.1.0\"\ndescription = \"Generated Stripe API types (shard {shard}).\"\nedition.workspace = true\nrust-version.workspace = true\nlicense.workspace = true\nrepository.workspace = true\n\n[lints]\nworkspace = true\n\n[lib]\npath = \"lib.rs\"\n\n[features]\ndefault = []\n{}[dependencies]\nstripe_core = {{ path = \"../core\" }}\n{lower}\njson = {{ path = \"../../json\", features = [\"derive\"] }}\n",
-                features(model)
+                features(model, &shard_deps[shard])
             ),
         });
     }
@@ -621,7 +641,7 @@ pub fn emit(model: &Model) -> Vec<OutputFile> {
         path: "api/Cargo.toml".to_string(),
         contents: format!(
             "[package]\nname = \"stripe_api\"\nversion = \"0.1.0\"\ndescription = \"Generated Stripe API methods.\"\nedition.workspace = true\nrust-version.workspace = true\nlicense.workspace = true\nrepository.workspace = true\n\n[lints]\nworkspace = true\n\n[lib]\npath = \"lib.rs\"\n\n[features]\ndefault = []\n{}[dependencies]\nstripe_core = {{ path = \"../core\" }}\n{type_deps}",
-            features(model)
+            features(model, &api_deps)
         ),
     });
 

@@ -1,3 +1,4 @@
+use alloc::string::{String, ToString};
 use core::{
     fmt::{self, Debug, Display},
     mem::MaybeUninit,
@@ -12,10 +13,10 @@ pub(crate) type Result<T> = core::result::Result<T, Error>;
 
 pub(crate) struct Error {
     kind: sys::yaml_error_type_t,
-    problem: CStr<'static>,
+    problem: String,
     problem_offset: u64,
     problem_mark: Mark,
-    context: Option<CStr<'static>>,
+    context: Option<String>,
     context_mark: Mark,
 }
 
@@ -24,15 +25,17 @@ impl Error {
         Error {
             kind: unsafe { (&(*parser)).error },
             problem: match NonNull::new(unsafe { (&(*parser)).problem as *mut _ }) {
-                Some(problem) => unsafe { CStr::from_ptr(problem) },
-                None => CStr::from_bytes_with_nul(b"libyaml parser failed but there is no error\0"),
+                // Copy the message: the parser owns its allocation and may be
+                // dropped before the error is formatted.
+                Some(problem) => unsafe { CStr::from_ptr(problem) }.to_string(),
+                None => String::from("libyaml parser failed but there is no error"),
             },
             problem_offset: unsafe { (&(*parser)).problem_offset },
             problem_mark: Mark {
                 sys: unsafe { (&(*parser)).problem_mark },
             },
             context: match NonNull::new(unsafe { (&(*parser)).context as *mut _ }) {
-                Some(context) => Some(unsafe { CStr::from_ptr(context) }),
+                Some(context) => Some(unsafe { CStr::from_ptr(context) }.to_string()),
                 None => None,
             },
             context_mark: Mark {
@@ -45,9 +48,26 @@ impl Error {
         Error {
             kind: unsafe { (&(*emitter)).error },
             problem: match NonNull::new(unsafe { (&(*emitter)).problem as *mut _ }) {
-                Some(problem) => unsafe { CStr::from_ptr(problem) },
-                None => CStr::from_bytes_with_nul(b"libyaml emitter failed but there is no error\0"),
+                Some(problem) => unsafe { CStr::from_ptr(problem) }.to_string(),
+                None => String::from("libyaml emitter failed but there is no error"),
             },
+            problem_offset: 0,
+            problem_mark: Mark {
+                sys: unsafe { MaybeUninit::<sys::yaml_mark_t>::zeroed().assume_init() },
+            },
+            context: None,
+            context_mark: Mark {
+                sys: unsafe { MaybeUninit::<sys::yaml_mark_t>::zeroed().assume_init() },
+            },
+        }
+    }
+
+    /// Creates an emitter error detected by the safe wrapper rather than by
+    /// libyaml, such as a scalar that cannot be represented by the C API.
+    pub fn writer(problem: impl Into<String>) -> Self {
+        Error {
+            kind: sys::YAML_WRITER_ERROR,
+            problem: problem.into(),
             problem_offset: 0,
             problem_mark: Mark {
                 sys: unsafe { MaybeUninit::<sys::yaml_mark_t>::zeroed().assume_init() },
