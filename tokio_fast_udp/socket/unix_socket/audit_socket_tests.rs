@@ -9,7 +9,9 @@
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 
 use super::*;
-use crate::{Ecn, FastUdpSocket, ReceiveItem, SendItem};
+#[cfg(target_os = "linux")]
+use crate::Ecn;
+use crate::{FastUdpSocket, ReceiveItem, SendItem};
 
 // ---------------------------------------------------------------------------
 // Synthetic control-message buffers
@@ -21,9 +23,11 @@ use crate::{Ecn, FastUdpSocket, ReceiveItem, SendItem};
 /// (`align_of::<cmsghdr>() == 8` on 64-bit Linux). Because the slice length is
 /// exactly `N`, Miri reports any read past `N`, which is what we want when
 /// probing `decode_cmsgs` with adversarial `cmsg_len` values.
+#[cfg(target_os = "linux")]
 #[repr(align(8))]
 struct Ctrl<const N: usize>([u8; N]);
 
+#[cfg(target_os = "linux")]
 impl<const N: usize> Ctrl<N> {
     fn boxed() -> Box<Self> {
         Box::new(Ctrl([0u8; N]))
@@ -36,6 +40,7 @@ impl<const N: usize> Ctrl<N> {
 
 /// Write one well-formed control message at `offset`, returning its
 /// `CMSG_SPACE` stride.
+#[cfg(target_os = "linux")]
 fn write_cmsg(buf: *mut u8, offset: usize, level: libc::c_int, ty: libc::c_int, payload: &[u8]) -> usize {
     let space = unsafe { libc::CMSG_SPACE(payload.len() as u32) as usize };
     unsafe {
@@ -49,6 +54,7 @@ fn write_cmsg(buf: *mut u8, offset: usize, level: libc::c_int, ty: libc::c_int, 
 }
 
 /// Overwrite only the header fields of the cmsg at `offset`.
+#[cfg(target_os = "linux")]
 fn write_cmsg_header(buf: *mut u8, offset: usize, level: libc::c_int, ty: libc::c_int, cmsg_len: usize) {
     unsafe {
         let header = buf.add(offset) as *mut libc::cmsghdr;
@@ -58,6 +64,7 @@ fn write_cmsg_header(buf: *mut u8, offset: usize, level: libc::c_int, ty: libc::
     }
 }
 
+#[cfg(target_os = "linux")]
 fn make_msghdr(control: *mut u8, controllen: usize, flags: libc::c_int) -> libc::msghdr {
     let mut hdr: libc::msghdr = unsafe { std::mem::zeroed() };
     hdr.msg_control = control as *mut libc::c_void;
@@ -341,7 +348,7 @@ fn sockaddr_v4_round_trip_and_layout() {
             assert_eq!(sin.sin_family as libc::c_int, libc::AF_INET);
             assert_eq!(u16::from_be(sin.sin_port), port);
             assert_eq!(sin.sin_addr.s_addr.to_ne_bytes(), ip);
-            assert_eq!(sin.sin_zero, [0u8; 8]);
+            assert_eq!(sin.sin_zero, [0; 8]);
 
             assert_eq!(storage_to_addr(&ss), addr);
         }
@@ -402,7 +409,8 @@ fn storage_to_addr_unknown_family_falls_back() {
     ss.ss_family = libc::AF_UNIX as _;
     assert_eq!(storage_to_addr(&ss), SocketAddr::from(([0, 0, 0, 0], 0)));
 
-    ss.ss_family = 0x7fff;
+    // `sa_family_t` is `u16` on Linux and `u8` on Apple/BSD.
+    ss.ss_family = libc::sa_family_t::MAX;
     assert_eq!(storage_to_addr(&ss), SocketAddr::from(([0, 0, 0, 0], 0)));
 }
 

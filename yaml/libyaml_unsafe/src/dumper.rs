@@ -95,7 +95,7 @@ pub unsafe fn yaml_emitter_close(emitter: *mut yaml_emitter_t) -> Success {
 /// emitted. The document object is destroyed even if the function fails.
 ///
 /// Documents nested deeper than [`MAX_DUMP_DEPTH`] nodes (root included) are
-/// rejected: the function returns [`FAIL`] with `error` set to
+/// rejected: the function returns `FAIL` with `error` set to
 /// `YAML_EMITTER_ERROR` instead of recursing until the stack overflows.
 pub unsafe fn yaml_emitter_dump(emitter: *mut yaml_emitter_t, document: *mut yaml_document_t) -> Success {
     let current_block: u64;

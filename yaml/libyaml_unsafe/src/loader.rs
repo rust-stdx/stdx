@@ -40,7 +40,7 @@ struct loader_ctx {
 /// the parser.
 ///
 /// If the parser is already in an error state (for example after a failed
-/// load or a rejected input), this function returns [`FAIL`] without reading
+/// load or a rejected input), this function returns `FAIL` without reading
 /// more input. The document is still zeroed and its node stack released.
 pub unsafe fn yaml_parser_load(parser: *mut yaml_parser_t, document: *mut yaml_document_t) -> Success {
     let current_block: u64;
