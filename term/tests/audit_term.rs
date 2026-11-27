@@ -68,8 +68,8 @@ fn stdin_from_pty() -> (RawFd, RawFd) {
             &mut master,
             &mut slave,
             std::ptr::null_mut(),
-            std::ptr::null(),
-            std::ptr::null(),
+            std::ptr::null_mut::<libc::termios>(),
+            std::ptr::null_mut::<libc::winsize>(),
         )
     };
     assert_eq!(rc, 0, "openpty failed: {}", std::io::Error::last_os_error());

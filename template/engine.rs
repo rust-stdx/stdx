@@ -225,7 +225,9 @@ impl Engine {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{ToValue, context};
+    #[cfg(feature = "derive")]
+    use crate::ToValue;
+    use crate::context;
 
     #[test]
     fn test_simple_template() {

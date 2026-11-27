@@ -57,20 +57,21 @@ check: lock_check
 	RUSTFLAGS="-D warnings" cargo check $(LOCKED) --target=$(HOST_TARGET) --no-default-features
 
 
-# Check Tier 1 platofrms.
+# Check Tier 1 platforms. `--all-targets` includes test, bench and example
+# targets so that platform-specific test code is also type-checked here.
 .PHONY: check_tier1
 check_tier1:
-	RUSTFLAGS="-D warnings" cargo check $(LOCKED) --target=x86_64-unknown-linux-gnu
-	RUSTFLAGS="-D warnings" cargo check $(LOCKED) --target=x86_64-unknown-linux-gnu --all-features
-	RUSTFLAGS="-D warnings" cargo check $(LOCKED) --target=x86_64-unknown-linux-gnu --no-default-features
+	RUSTFLAGS="-D warnings" cargo check $(LOCKED) --target=x86_64-unknown-linux-gnu --all-targets
+	RUSTFLAGS="-D warnings" cargo check $(LOCKED) --target=x86_64-unknown-linux-gnu --all-features --all-targets
+	RUSTFLAGS="-D warnings" cargo check $(LOCKED) --target=x86_64-unknown-linux-gnu --no-default-features --all-targets
 
-	RUSTFLAGS="-D warnings" cargo check $(LOCKED) --target=aarch64-unknown-linux-gnu
-	RUSTFLAGS="-D warnings" cargo check $(LOCKED) --target=aarch64-unknown-linux-gnu --all-features
-	RUSTFLAGS="-D warnings" cargo check $(LOCKED) --target=aarch64-unknown-linux-gnu --no-default-features
+	RUSTFLAGS="-D warnings" cargo check $(LOCKED) --target=aarch64-unknown-linux-gnu --all-targets
+	RUSTFLAGS="-D warnings" cargo check $(LOCKED) --target=aarch64-unknown-linux-gnu --all-features --all-targets
+	RUSTFLAGS="-D warnings" cargo check $(LOCKED) --target=aarch64-unknown-linux-gnu --no-default-features --all-targets
 
-	RUSTFLAGS="-D warnings" cargo check $(LOCKED) --target=aarch64-apple-darwin
-	RUSTFLAGS="-D warnings" cargo check $(LOCKED) --target=aarch64-apple-darwin --all-features
-	RUSTFLAGS="-D warnings" cargo check $(LOCKED) --target=aarch64-apple-darwin --no-default-features
+	RUSTFLAGS="-D warnings" cargo check $(LOCKED) --target=aarch64-apple-darwin --all-targets
+	RUSTFLAGS="-D warnings" cargo check $(LOCKED) --target=aarch64-apple-darwin --all-features --all-targets
+	RUSTFLAGS="-D warnings" cargo check $(LOCKED) --target=aarch64-apple-darwin --no-default-features --all-targets
 
 
 .PHONY: check_tier2

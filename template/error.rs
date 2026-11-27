@@ -1,6 +1,6 @@
 //! Error types for parse, syntax, render, and type errors with source positions.
 
-#[cfg(any(feature = "std", test))]
+#[cfg(feature = "std")]
 use alloc::string::ToString;
 use alloc::{boxed::Box, string::String};
 use core::fmt;

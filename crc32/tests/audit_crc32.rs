@@ -252,22 +252,39 @@ fn specialized_handles_unaligned_inputs() {
     }
 }
 
-/// On targets where the specialized backend must exist, make sure the test
-/// above is not silently skipping it.
+/// The specialized backend must follow exactly the same feature rule as the
+/// implementation: runtime detection with `std`, compile-time target features
+/// without it. This keeps the differential tests honest without assuming the
+/// CI host or build configuration has the instructions.
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
 #[test]
-fn specialized_backend_is_present_on_x86() {
-    assert!(
+fn specialized_backend_matches_cpu_features_on_x86() {
+    #[cfg(feature = "std")]
+    let expected = std::arch::is_x86_feature_detected!("pclmulqdq")
+        && std::arch::is_x86_feature_detected!("sse2")
+        && std::arch::is_x86_feature_detected!("sse4.1");
+    #[cfg(not(feature = "std"))]
+    let expected =
+        cfg!(target_feature = "pclmulqdq") && cfg!(target_feature = "sse2") && cfg!(target_feature = "sse4.1");
+
+    assert_eq!(
         Hasher::internal_new_specialized(0, 0).is_some(),
-        "PCLMULQDQ/SSE4.1 should be available on this x86 test host"
+        expected,
+        "the specialized backend must follow the same CPU-feature rule"
     );
 }
 
 #[cfg(all(target_arch = "aarch64", feature = "nightly"))]
 #[test]
-fn specialized_backend_is_present_on_aarch64_crc() {
-    assert!(
+fn specialized_backend_matches_cpu_features_on_aarch64_crc() {
+    #[cfg(feature = "std")]
+    let expected = std::arch::is_aarch64_feature_detected!("crc");
+    #[cfg(not(feature = "std"))]
+    let expected = cfg!(target_feature = "crc");
+
+    assert_eq!(
         Hasher::internal_new_specialized(0, 0).is_some(),
-        "aarch64 CRC extension should be available with the `nightly` feature"
+        expected,
+        "the aarch64 specialized backend must follow the same CPU-feature rule"
     );
 }
