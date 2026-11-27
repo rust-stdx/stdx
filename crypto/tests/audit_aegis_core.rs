@@ -876,6 +876,83 @@ fn differential_public_vs_reference() {
     aead_sweep(&r, &Aegis256X4::<32>::new(&[0x42; 32]), 4, 32);
 }
 
+/// Exhaustive short-message / short-AAD sweep: every length 0..=129 crossed
+/// with every AAD length 0..=33. The existing sweep samples 0..=64 and a fixed
+/// AAD list; this covers the 65..=81 and 18..=33 gaps, every partial-block edge
+/// for the 16/32/64-byte rates, AAD-only messages (`len == 0`) and exact-rate
+/// multiples for all three variants and both tag sizes.
+#[test]
+fn exhaustive_lengths_0_to_129_and_aad_0_to_33() {
+    let r = Reference::new();
+    let key = [0x42u8; 32];
+
+    fn sweep<A: AeadOps>(r: &Reference, cipher: &A, d: usize, tag_len: usize) {
+        let key = [0x42u8; 32];
+        let nonce = [0x24u8; 32];
+        for len in 0..=129usize {
+            let plain = pattern(len, 0x11);
+            for ad_len in 0..=33usize {
+                let ad = pattern(ad_len, 0x33);
+                let (want_ct, want_tag) = r.aead(&key, &nonce, &ad, &plain, d, tag_len);
+                let mut got = plain.clone();
+                let tag = cipher.enc(&mut got, &nonce, &ad);
+                assert_eq!(got, want_ct, "ct d={d} tag={tag_len} len={len} ad={ad_len}");
+                assert_eq!(tag, want_tag, "tag d={d} tag={tag_len} len={len} ad={ad_len}");
+                let mut dec = got.clone();
+                cipher
+                    .dec(&mut dec, &nonce, &ad, &tag)
+                    .unwrap_or_else(|e| panic!("decrypt d={d} tag={tag_len} len={len} ad={ad_len}: {e:?}"));
+                assert_eq!(dec, plain, "pt d={d} tag={tag_len} len={len} ad={ad_len}");
+            }
+        }
+    }
+
+    sweep(&r, &Aegis256::<16>::new(&key), 1, 16);
+    sweep(&r, &Aegis256::<32>::new(&key), 1, 32);
+    sweep(&r, &Aegis256X2::<16>::new(&key), 2, 16);
+    sweep(&r, &Aegis256X2::<32>::new(&key), 2, 32);
+    sweep(&r, &Aegis256X4::<16>::new(&key), 4, 16);
+    sweep(&r, &Aegis256X4::<32>::new(&key), 4, 32);
+}
+
+/// Fill the remaining MAC/stream short-length gaps (81..=129) against the
+/// RFC 10032 reference for both tag sizes of all three variants.
+#[test]
+fn exhaustive_mac_and_stream_lengths_0_to_129() {
+    let r = Reference::new();
+
+    fn mac_sweep<M: MacOps>(r: &Reference, d: usize, tag_len: usize, new: impl Fn() -> M) {
+        let key = [0x42u8; 32];
+        let nonce = [0x24u8; 32];
+        for len in 0..=129usize {
+            let data = pattern(len, 0x51);
+            let want = r.mac(&key, &nonce, &data, d, tag_len);
+            let mut m = new();
+            m.feed(&data);
+            assert_eq!(m.finish(), want, "mac d={d} tag={tag_len} len={len}");
+        }
+    }
+
+    mac_sweep(&r, 1, 16, || Aegis256Mac::<16>::new_with_nonce(&[0x42; 32], &[0x24; 32]));
+    mac_sweep(&r, 1, 32, || Aegis256Mac::<32>::new_with_nonce(&[0x42; 32], &[0x24; 32]));
+    mac_sweep(&r, 2, 16, || Aegis256X2Mac::<16>::new_with_nonce(&[0x42; 32], &[0x24; 32]));
+    mac_sweep(&r, 2, 32, || Aegis256X2Mac::<32>::new_with_nonce(&[0x42; 32], &[0x24; 32]));
+    mac_sweep(&r, 4, 16, || Aegis256X4Mac::<16>::new_with_nonce(&[0x42; 32], &[0x24; 32]));
+    mac_sweep(&r, 4, 32, || Aegis256X4Mac::<32>::new_with_nonce(&[0x42; 32], &[0x24; 32]));
+
+    fn stream_sweep<S: StreamOps>(r: &Reference, d: usize, new: impl Fn() -> S) {
+        for len in 0..=129usize {
+            let want = r.stream(&[0x42u8; 32], &[0x24u8; 32], len, d);
+            let mut got = vec![0u8; len];
+            new().fill(&mut got);
+            assert_eq!(got, want, "stream d={d} len={len}");
+        }
+    }
+    stream_sweep(&r, 1, || Aegis256Stream::new(&[0x42; 32], &[0x24; 32]));
+    stream_sweep(&r, 2, || Aegis256X2Stream::new(&[0x42; 32], &[0x24; 32]));
+    stream_sweep(&r, 4, || Aegis256X4Stream::new(&[0x42; 32], &[0x24; 32]));
+}
+
 /// RFC 10032 §5.5.7: the 256-bit tag is
 /// `(S0^S1^S2) || (S3^S4^S5)`, while the 128-bit tag is
 /// `(S0^S1^S2) ^ (S3^S4^S5)`. The ciphertext must not depend on tag length.

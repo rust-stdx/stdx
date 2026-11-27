@@ -238,6 +238,7 @@ enum StoppedState {
     Group,
     Signal(c_int),
     SingleStep(usize),
+    PseudoStep,
 }
 
 /// Determines the stopped state of the tracee.
@@ -263,6 +264,20 @@ unsafe fn stopped_state(status: c_int, pid: pid_t, in_syscall: bool) -> Result<S
                 // SAFETY: the stop signal is `SIGTRAP`, which has `si_addr`
                 let addr = unsafe { siginfo.si_addr() };
                 StoppedState::SingleStep(addr as usize)
+            } else if siginfo.si_code == SI_USER && unsafe { siginfo.si_pid() } == 0 && unsafe { siginfo.si_uid() } == 0
+            {
+                // On architectures without `ARCH_HAS_USER_SINGLE_STEP_REPORT`
+                // (e.g. aarch64), the kernel reports the completion of a
+                // single-stepped syscall instruction as a kernel-generated
+                // `SIGTRAP` with `SI_USER` and no sender, *instead of* the
+                // usual single-step trap.  The architecture documents that
+                // this report is "in lieu of the normal trap that would
+                // follow the system call instruction", so it must not be
+                // forwarded to the tracee: doing so terminates it with
+                // `SIGTRAP`.  The address of the `svc` instruction was
+                // already reported by the preceding single-step stop, so
+                // there is no new address to record.
+                StoppedState::PseudoStep
             } else {
                 StoppedState::Signal(sig)
             }

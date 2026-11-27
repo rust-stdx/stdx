@@ -22,6 +22,13 @@ use crate::{
     yaml_mark_t, yaml_parser_t, yaml_simple_key_t, yaml_token_t, yaml_token_type_t,
 };
 
+/// Maximum combined block indentation and flow nesting depth.
+///
+/// Mirrors libyaml 0.2.6's `MAX_NESTING_LEVEL` (CVE-2026-44842). Without it a
+/// 1 MiB all-`[` document is accepted and materializes one simple-key entry and
+/// one token per level.
+const MAX_NESTING_LEVEL: libc::c_int = 1000;
+
 unsafe fn CACHE(parser: *mut yaml_parser_t, length: size_t) -> Success {
     if (*parser).unread >= length {
         OK
@@ -401,6 +408,16 @@ unsafe fn yaml_parser_increase_flow_level(parser: *mut yaml_parser_t) -> Success
             column: 0_u64,
         },
     };
+    let indent_depth = (*parser).indents.top.c_offset_from((*parser).indents.start) as libc::c_int;
+    if (*parser).flow_level + indent_depth >= MAX_NESTING_LEVEL {
+        yaml_parser_set_scanner_error(
+            parser,
+            b"while increasing flow level\0" as *const u8 as *const libc::c_char,
+            (*parser).mark,
+            b"exceeded maximum nesting depth\0" as *const u8 as *const libc::c_char,
+        );
+        return FAIL;
+    }
     PUSH!((*parser).simple_keys, empty_simple_key);
     if (*parser).flow_level == libc::c_int::MAX {
         (*parser).error = YAML_MEMORY_ERROR;
@@ -436,6 +453,16 @@ unsafe fn yaml_parser_roll_indent(
     }
     if ((*parser).indent as libc::c_long) < column {
         PUSH!((*parser).indents, (*parser).indent);
+        let indent_depth = (*parser).indents.top.c_offset_from((*parser).indents.start) as libc::c_int;
+        if indent_depth >= MAX_NESTING_LEVEL - (*parser).flow_level {
+            yaml_parser_set_scanner_error(
+                parser,
+                b"while increasing block level\0" as *const u8 as *const libc::c_char,
+                (*parser).mark,
+                b"exceeded maximum nesting depth\0" as *const u8 as *const libc::c_char,
+            );
+            return FAIL;
+        }
         if column > ptrdiff_t::from(libc::c_int::MAX) {
             (*parser).error = YAML_MEMORY_ERROR;
             return FAIL;

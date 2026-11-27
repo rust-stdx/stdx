@@ -13,7 +13,12 @@ pub struct Capabilities {
     /// `UDP_SEGMENT`. Linux only.
     pub gso: bool,
     /// Generic Receive Offload — receive coalesced datagrams via `recvmsg`
-    /// with `UDP_GRO`. Linux only.
+    /// with `UDP_GRO`. Linux only, and opt-in: this is `false` unless the
+    /// socket was built with `.gro(true)` on a kernel that supports it.
+    ///
+    /// A `true` value means [`receive`](crate::FastUdpSocket::receive) is
+    /// unavailable and [`receive_many`](crate::FastUdpSocket::receive_many)
+    /// requires at least 64 receive items.
     pub gro: bool,
     /// `sendmmsg` batch send — multiple UDP datagrams in a single syscall.
     /// Linux (and some other Unix) only.

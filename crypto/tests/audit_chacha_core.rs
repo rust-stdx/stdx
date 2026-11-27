@@ -1535,6 +1535,47 @@ fn aead_boundary_lengths() {
     }
 }
 
+/// Every AAD length 0..=33 (both partial-block edges 0/1/15/16/17/31/32/33)
+/// for every partial-block plaintext length and exact block multiples, for
+/// both AEADs. The existing boundary test only samples a subset of AAD
+/// lengths; the padding decision changes at *every* length modulo 16, so this
+/// checks all of them against the independent AEAD reference.
+#[test]
+fn aead_all_aad_lengths_0_to_33() {
+    let key = key32_random();
+    let nonce = nonce12();
+    let nonce24 = nonce24();
+    let c20 = ChaCha20Poly1305::new(&key);
+    let cx = XChaCha20Poly1305::new(&key);
+
+    for len in [
+        0usize, 1, 2, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 129, 255, 256, 257,
+    ] {
+        let pt = pattern(len);
+        for alen in 0..=33usize {
+            let aad = pattern(alen);
+
+            let (want_ct, want_tag) = ref_aead_with_key(&key, &nonce, &pt, &aad);
+            let mut buf = pt.clone();
+            let tag = c20.encrypt_in_place(&mut buf, &nonce, &aad).unwrap();
+            assert_eq!(buf, want_ct, "chacha ct len={len} aad={alen}");
+            assert_eq!(tag.as_ref(), &want_tag[..], "chacha tag len={len} aad={alen}");
+            let mut dec = buf.clone();
+            c20.decrypt_in_place(&mut dec, &nonce, &aad, tag.as_ref()).unwrap();
+            assert_eq!(dec, pt, "chacha roundtrip len={len} aad={alen}");
+
+            let (want_ct, want_tag) = ref_xaead(&key, &nonce24, &pt, &aad);
+            let mut buf = pt.clone();
+            let tag = cx.encrypt_in_place(&mut buf, &nonce24, &aad).unwrap();
+            assert_eq!(buf, want_ct, "xchacha ct len={len} aad={alen}");
+            assert_eq!(tag.as_ref(), &want_tag[..], "xchacha tag len={len} aad={alen}");
+            let mut dec = buf.clone();
+            cx.decrypt_in_place(&mut dec, &nonce24, &aad, tag.as_ref()).unwrap();
+            assert_eq!(dec, pt, "xchacha roundtrip len={len} aad={alen}");
+        }
+    }
+}
+
 #[test]
 fn aead_tamper_rejection() {
     let key = key32();

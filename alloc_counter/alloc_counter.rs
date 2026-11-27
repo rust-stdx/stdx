@@ -120,20 +120,24 @@ fn update(f: impl FnOnce(&mut Counters)) {
     });
 }
 
-fn record_allocation(size: usize) {
+fn record_allocation(size: usize, succeeded: bool) {
     update(|counters| {
         counters.calls += 1;
         counters.bytes += size as u64;
-        counters.live_bytes += size as i64;
-        counters.live_allocations += 1;
+        if succeeded {
+            counters.live_bytes += size as i64;
+            counters.live_allocations += 1;
+        }
     });
 }
 
-fn record_reallocation(old_size: usize, new_size: usize) {
+fn record_reallocation(old_size: usize, new_size: usize, succeeded: bool) {
     update(|counters| {
         counters.calls += 1;
         counters.bytes += new_size as u64;
-        counters.live_bytes += new_size as i64 - old_size as i64;
+        if succeeded {
+            counters.live_bytes += new_size as i64 - old_size as i64;
+        }
     });
 }
 
@@ -148,18 +152,23 @@ struct CountingAllocator;
 
 unsafe impl GlobalAlloc for CountingAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        record_allocation(layout.size());
-        unsafe { System.alloc(layout) }
+        let ptr = unsafe { System.alloc(layout) };
+        record_allocation(layout.size(), !ptr.is_null());
+        ptr
     }
 
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
-        record_allocation(layout.size());
-        unsafe { System.alloc_zeroed(layout) }
+        let ptr = unsafe { System.alloc_zeroed(layout) };
+        record_allocation(layout.size(), !ptr.is_null());
+        ptr
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
-        record_reallocation(layout.size(), new_size);
-        unsafe { System.realloc(ptr, layout, new_size) }
+        let new_ptr = unsafe { System.realloc(ptr, layout, new_size) };
+        // A failed reallocation leaves the original block live, so only the
+        // request counters move.
+        record_reallocation(layout.size(), new_size, !new_ptr.is_null());
+        new_ptr
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {

@@ -1118,31 +1118,52 @@ impl<'a, T: Decode<'a>, const N: usize> Decode<'a> for [T; N] {
     fn decode(decoder: &mut Decoder<'a>) -> Result<Self> {
         use core::mem::MaybeUninit;
 
+        /// Drops the initialised prefix on any early return, including a panic
+        /// inside `T::decode`, so a panicking element cannot leak the values
+        /// decoded before it.
+        struct Guard<'g, T> {
+            values: &'g mut [MaybeUninit<T>],
+            initialized: &'g mut usize,
+        }
+
+        impl<T> Drop for Guard<'_, T> {
+            fn drop(&mut self) {
+                for slot in &mut self.values[..*self.initialized] {
+                    // SAFETY: only slots written by the decoder loop are
+                    // exposed through `initialized`.
+                    unsafe { slot.assume_init_drop() };
+                }
+            }
+        }
+
         decoder.begin_array()?;
         let mut values: [MaybeUninit<T>; N] = [const { MaybeUninit::uninit() }; N];
         let mut initialized = 0usize;
+        let guard = Guard {
+            values: &mut values,
+            initialized: &mut initialized,
+        };
         let result = (|| -> Result<()> {
             let mut first = true;
-            for slot in &mut values {
+            let mut index = 0;
+            while index < N {
                 if !decoder.array_next(first)? {
                     return Err(decoder.error(ErrorKind::ExpectedValue));
                 }
                 first = false;
-                slot.write(decoder.decode_inline::<T>()?);
-                initialized += 1;
+                guard.values[index].write(decoder.decode_inline::<T>()?);
+                *guard.initialized += 1;
+                index += 1;
             }
             if decoder.array_next(first)? {
                 return Err(decoder.error(ErrorKind::ExpectedValue));
             }
             Ok(())
         })();
-        if let Err(error) = result {
-            for slot in &mut values[..initialized] {
-                // SAFETY: only slots written by the loop above are accessed.
-                unsafe { slot.assume_init_drop() };
-            }
-            return Err(error);
-        }
+        result?;
+        // Success: the values are moved out below, so the guard must not drop
+        // them.
+        core::mem::forget(guard);
         Ok(values.map(|slot| {
             // SAFETY: every slot was initialized before `result` succeeded.
             unsafe { slot.assume_init() }

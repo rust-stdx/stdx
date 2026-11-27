@@ -738,7 +738,12 @@ impl<B: BlockOps> Core<B> {
 /// buffers accordingly.
 #[inline(always)]
 pub(crate) fn init_state<B: BlockOps>(key: &[u8; 32], nonce: &[u8; 32], out: &mut [u8]) {
-    Core::<B>::new(key, nonce).to_bytes(out);
+    #[cfg_attr(not(feature = "zeroize"), allow(unused_mut))]
+    let mut core = Core::<B>::new(key, nonce);
+    core.to_bytes(out);
+    // The serialized copy is owned by the public object; wipe the temporary.
+    #[cfg(feature = "zeroize")]
+    core.wipe();
 }
 
 /// Absorb data into a serialized state (MAC updates).
@@ -747,6 +752,8 @@ pub(crate) fn absorb_state<B: BlockOps>(bytes: &mut [u8], ad: &[u8]) {
     let mut core = Core::<B>::from_bytes(bytes);
     core.absorb(ad);
     core.to_bytes(bytes);
+    #[cfg(feature = "zeroize")]
+    core.wipe();
 }
 
 /// Finalize a serialized MAC state. The state is consumed, so it is not written
@@ -755,6 +762,8 @@ pub(crate) fn absorb_state<B: BlockOps>(bytes: &mut [u8], ad: &[u8]) {
 pub(crate) fn finalize_mac_state<B: BlockOps>(bytes: &[u8], data_len: u64, tag: &mut [u8]) {
     let mut core = Core::<B>::from_bytes(bytes);
     core.finalize_mac(data_len, tag);
+    #[cfg(feature = "zeroize")]
+    core.wipe();
 }
 
 /// Generate one keystream block into `out` (`out.len() <= RATE`).
@@ -763,6 +772,8 @@ pub(crate) fn next_keystream_state<B: BlockOps>(bytes: &mut [u8], out: &mut [u8]
     let mut core = Core::<B>::from_bytes(bytes);
     core.next_keystream(out);
     core.to_bytes(bytes);
+    #[cfg(feature = "zeroize")]
+    core.wipe();
 }
 
 /// XOR the stream keystream into `in_out`, which must contain whole `RATE`
@@ -787,6 +798,8 @@ pub(crate) fn stream_xor_state<B: BlockOps>(bytes: &mut [u8], in_out: &mut [u8])
         core.update(B::zero());
     }
     core.to_bytes(bytes);
+    #[cfg(feature = "zeroize")]
+    core.wipe();
 }
 
 /// Write the stream keystream into `out`, which must contain whole `RATE`
@@ -809,6 +822,8 @@ pub(crate) fn stream_fill_state<B: BlockOps>(bytes: &mut [u8], out: &mut [u8]) {
         core.update(B::zero());
     }
     core.to_bytes(bytes);
+    #[cfg(feature = "zeroize")]
+    core.wipe();
 }
 
 #[inline(always)]

@@ -1,7 +1,8 @@
 use core::ptr::addr_of_mut;
 
 use crate::{
-    PointerExt, YAML_ANY_ENCODING, YAML_READER_ERROR, YAML_UTF8_ENCODING, YAML_UTF16BE_ENCODING, YAML_UTF16LE_ENCODING,
+    PointerExt, YAML_ANY_ENCODING, YAML_MAX_INPUT_LENGTH, YAML_READER_ERROR, YAML_UTF8_ENCODING, YAML_UTF16BE_ENCODING,
+    YAML_UTF16LE_ENCODING,
     externs::{memcmp, memmove},
     libc,
     ops::ForceAdd as _,
@@ -344,6 +345,14 @@ pub(crate) unsafe fn yaml_parser_update_buffer(parser: *mut yaml_parser_t, lengt
             *fresh14 = (*fresh14).wrapping_offset(width as isize);
             let fresh15 = addr_of_mut!((*parser).offset);
             *fresh15 = (*fresh15 as libc::c_ulong).force_add(width as libc::c_ulong) as size_t;
+            if (*parser).offset > YAML_MAX_INPUT_LENGTH {
+                return yaml_parser_set_reader_error(
+                    parser,
+                    b"input exceeds maximum supported length\0" as *const u8 as *const libc::c_char,
+                    (*parser).offset,
+                    -1,
+                );
+            }
             if value <= 0x7F {
                 let fresh16 = addr_of_mut!((*parser).buffer.last);
                 let fresh17 = *fresh16;

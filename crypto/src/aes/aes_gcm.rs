@@ -34,10 +34,10 @@ use crate::{
 /// [`AeadError::MessageTooLong`] when the plaintext exceeds the GCM limit,
 /// without modifying the buffer.
 ///
-/// On tag failure the buffer contents are unspecified: the ARMv8 single-pass
-/// decrypt may leave unauthenticated plaintext in it, while the software and
-/// x86 paths leave the ciphertext. Callers must not use the buffer after an
-/// `Err`.
+/// On tag failure the buffer is not meaningful to the caller: every backend
+/// now restores the input ciphertext (the ARMv8 fused path re-applies the CTR
+/// keystream before returning), but callers must still only use the buffer
+/// after `Ok`.
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Aes128Gcm(pub(crate) AesGcm<11>);
 
@@ -105,10 +105,10 @@ impl Aead for Aes128Gcm {
 /// [`AeadError::MessageTooLong`] when the plaintext exceeds the GCM limit,
 /// without modifying the buffer.
 ///
-/// On tag failure the buffer contents are unspecified: the ARMv8 single-pass
-/// decrypt may leave unauthenticated plaintext in it, while the software and
-/// x86 paths leave the ciphertext. Callers must not use the buffer after an
-/// `Err`.
+/// On tag failure the buffer is not meaningful to the caller: every backend
+/// now restores the input ciphertext (the ARMv8 fused path re-applies the CTR
+/// keystream before returning), but callers must still only use the buffer
+/// after `Ok`.
 #[cfg_attr(feature = "zeroize", derive(zeroize::Zeroize, zeroize::ZeroizeOnDrop))]
 pub struct Aes256Gcm(pub(crate) AesGcm<15>);
 
@@ -224,12 +224,24 @@ fn x86_h_powers<const N: usize>(
     h_powers
 }
 
+/// Maximum GCM associated-data length: `2^64 - 1` bits, i.e. `(1 << 61) - 1`
+/// bytes, so its bit length fits in the 64-bit GCM length block.
+const AAD_MAX_LEN: u64 = (1 << 61) - 1;
+
 /// Whether a GCM message length is within the NIST SP 800-38D limit of
 /// 2³² − 2 blocks. The comparison is performed in `u64`, so it is exact on
 /// 32-bit targets too and cannot overflow.
 #[inline]
 fn within_gcm_limit(len: usize) -> bool {
     len as u64 <= GCM_MAX_LEN
+}
+
+/// Whether an associated-data length is within the GCM limit of `2^64 - 1`
+/// bits. A `usize` cannot exceed this on any supported target, so the check is
+/// defensive, but it keeps the length computation safe from truncation.
+#[inline]
+fn within_aad_limit(len: usize) -> bool {
+    len as u64 <= AAD_MAX_LEN
 }
 
 impl<const N: usize> AesGcm<N> {
@@ -321,7 +333,7 @@ impl<const N: usize> AesGcm<N> {
     }
 
     fn encrypt_in_place(&self, in_out: &mut [u8], nonce: &[u8; 12], aad: &[u8]) -> Result<Hash, AeadError> {
-        if !within_gcm_limit(in_out.len()) {
+        if !within_gcm_limit(in_out.len()) || !within_aad_limit(aad.len()) {
             return Err(AeadError::MessageTooLong);
         }
 
@@ -363,7 +375,7 @@ impl<const N: usize> AesGcm<N> {
         aad: &[u8],
         tag: &[u8; 16],
     ) -> Result<(), AeadError> {
-        if !within_gcm_limit(in_out.len()) {
+        if !within_gcm_limit(in_out.len()) || !within_aad_limit(aad.len()) {
             return Err(AeadError::MessageTooLong);
         }
 
@@ -675,6 +687,29 @@ mod regression_tests {
         // overflow when widened to u64).
         #[cfg(target_pointer_width = "32")]
         assert!(within_gcm_limit(usize::MAX));
+    }
+
+    /// The associated-data limit is `2^64 - 1` bits. A `usize` can only exceed
+    /// it on 64-bit targets, where the check must reject instead of letting
+    /// the length block truncate.
+    #[test]
+    fn gcm_aad_limit_check_cannot_overflow() {
+        assert_eq!(AAD_MAX_LEN, (1u64 << 61) - 1);
+        assert_eq!(AAD_MAX_LEN, 2_305_843_009_213_693_951);
+
+        assert!(within_aad_limit(0));
+        assert!(within_aad_limit(1));
+        assert!(within_aad_limit(1024 * 1024));
+
+        #[cfg(target_pointer_width = "64")]
+        {
+            assert!(within_aad_limit(AAD_MAX_LEN as usize));
+            assert!(!within_aad_limit(AAD_MAX_LEN as usize + 1));
+            assert!(!within_aad_limit(usize::MAX));
+        }
+
+        #[cfg(target_pointer_width = "32")]
+        assert!(within_aad_limit(usize::MAX));
     }
 
     /// A mismatched `RoundKeys`/`GHashPowers` pair is impossible through the

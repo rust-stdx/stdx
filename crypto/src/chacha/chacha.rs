@@ -416,11 +416,15 @@ impl<const ROUNDS: usize> XChaCha<ROUNDS, true> {
     /// The first 16 bytes of the nonce are used with HChaCha20 to derive a subkey.
     /// The last 8 bytes of the nonce become the ChaCha20 IETF nonce (prefixed with 4 zero bytes).
     pub fn new(key: &[u8; 32], nonce: &[u8; 24]) -> XChaCha<ROUNDS, true> {
-        let subkey = super::hchacha20(key, nonce[..16].try_into().unwrap());
+        #[cfg_attr(not(feature = "zeroize"), allow(unused_mut))]
+        let mut subkey = super::hchacha20(key, nonce[..16].try_into().unwrap());
         let mut ietf_nonce = [0u8; 12];
         ietf_nonce[4..12].copy_from_slice(&nonce[16..24]);
+        let inner = ChaCha::<ROUNDS, true>::new(&subkey, &ietf_nonce);
+        #[cfg(feature = "zeroize")]
+        subkey.zeroize();
         XChaCha {
-            inner: ChaCha::<ROUNDS, true>::new(&subkey, &ietf_nonce),
+            inner,
         }
     }
 
@@ -436,9 +440,13 @@ impl<const ROUNDS: usize> XChaCha<ROUNDS, false> {
     /// The first 16 bytes of the nonce are used with HChaCha20 to derive a subkey.
     /// The last 8 bytes become the 64-bit nonce of the DJB ChaCha20 layout.
     pub fn new(key: &[u8; 32], nonce: &[u8; 24]) -> XChaCha<ROUNDS, false> {
-        let subkey = super::hchacha20(key, nonce[..16].try_into().unwrap());
+        #[cfg_attr(not(feature = "zeroize"), allow(unused_mut))]
+        let mut subkey = super::hchacha20(key, nonce[..16].try_into().unwrap());
+        let inner = ChaCha::<ROUNDS, false>::new(&subkey, nonce[16..24].try_into().unwrap());
+        #[cfg(feature = "zeroize")]
+        subkey.zeroize();
         XChaCha {
-            inner: ChaCha::<ROUNDS, false>::new(&subkey, nonce[16..24].try_into().unwrap()),
+            inner,
         }
     }
 

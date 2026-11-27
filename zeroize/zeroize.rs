@@ -465,7 +465,7 @@ where
         // The memory pointed to by `self` is valid for `size_of::<Self>()` bytes.
         // It is also properly aligned, because `u8` has an alignment of `1`.
         unsafe {
-            volatile_set(ptr::from_mut::<Self>(self).cast::<u8>(), 0, size_of::<Self>());
+            volatile_set_bytes(ptr::from_mut::<Self>(self).cast::<u8>(), 0, size_of::<Self>());
         }
 
         // Ensures self is overwritten with the `None` bit pattern. volatile_write can't be
@@ -515,7 +515,7 @@ impl<Z> Zeroize for [MaybeUninit<Z>] {
         // and it is backed by a single allocated object for at least `self.len() * size_of::<Z>()` bytes.
         // and 0 is a valid value for `MaybeUninit<Z>`
         // The memory of the slice should not wrap around the address space.
-        unsafe { volatile_set(ptr, MaybeUninit::zeroed(), size) }
+        unsafe { volatile_set_bytes(ptr.cast::<u8>(), 0, size) }
     }
 }
 
@@ -808,24 +808,6 @@ unsafe fn volatile_set<T: Copy + Sized>(dst: *mut T, src: T, count: usize) {
     //
     // Zero-sized types have nothing to write.
     if size_of::<T>() == 0 {
-        return;
-    }
-
-    // Fast path: for 1-byte types (e.g. `u8`, `i8`, `bool` or `MaybeUninit<u8>`) the value's
-    // bytes can be replicated across machine words and written with far fewer volatile stores.
-    // This is the common case for byte buffers such as `Vec<u8>` and `String`.
-    if size_of::<T>() == 1 {
-        // Safety:
-        //
-        // `T` has size 1 and implements `Copy`, so `src` consists of exactly one initialized,
-        // valid byte with no padding, and may be read as a `u8`.
-        let byte = unsafe { *(&src as *const T).cast::<u8>() };
-
-        // Safety:
-        //
-        // `dst` and `count` satisfy the requirements of `volatile_set_bytes` (which are the same
-        // as this function's), and `byte` is a valid `u8`.
-        unsafe { volatile_set_bytes(dst.cast::<u8>(), byte, count) };
         return;
     }
 

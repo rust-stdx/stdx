@@ -1,0 +1,18 @@
+[package]
+name = "wasm_harness"
+version = "0.0.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+crypto = { path = "../..", default-features = false, features = ["zeroize"] }
+
+[profile.release]
+panic = "abort"
+
+# Standalone workspace: this harness is intentionally not a member of the main
+# workspace so `cargo test`/`cargo build` at the repository root never builds it.
+[workspace]

@@ -149,6 +149,28 @@ test_wasm_simd:
 test_all_features:
 	cargo test $(LOCKED) --target=$(HOST_TARGET) --workspace --all-features
 
+# Focused Miri runs for the unsafe-heavy crates. This is a test tool only:
+# install the component with `rustup component add miri --toolchain <nightly>`.
+MIRIFLAGS ?= -Zmiri-strict-provenance -Zmiri-disable-isolation
+
+.PHONY: test_miri
+test_miri:
+	MIRIFLAGS="$(MIRIFLAGS)" cargo +$(NIGHTLY) miri test $(LOCKED) -p anyerr --test audit_downcast_mut --test audit_unsafe
+	MIRIFLAGS="$(MIRIFLAGS)" cargo +$(NIGHTLY) miri test $(LOCKED) -p zeroize --all-features --test audit_zeroize_uninit
+	MIRIFLAGS="$(MIRIFLAGS)" cargo +$(NIGHTLY) miri test $(LOCKED) -p constant_time_eq --test audit_constant_time_eq
+	MIRIFLAGS="$(MIRIFLAGS)" cargo +$(NIGHTLY) miri test $(LOCKED) -p indexmap --all-features --test audit_unsafe
+	MIRIFLAGS="$(MIRIFLAGS)" cargo +$(NIGHTLY) miri test $(LOCKED) -p small_collections --all-features --test audit_unsafe
+	MIRIFLAGS="$(MIRIFLAGS)" cargo +$(NIGHTLY) miri test $(LOCKED) -p json --test audit_json_miri
+	MIRIFLAGS="$(MIRIFLAGS)" cargo +$(NIGHTLY) miri test $(LOCKED) -p alloc_counter --test audit_alloc_counter
+	MIRIFLAGS="$(MIRIFLAGS)" cargo +$(NIGHTLY) miri test $(LOCKED) -p hyper_utils --test audit_hyper_io
+	MIRIFLAGS="$(MIRIFLAGS)" cargo +$(NIGHTLY) miri test $(LOCKED) -p utf8 --test audit_utf8 -- --exact miri_scalar_path
+	MIRIFLAGS="$(MIRIFLAGS)" cargo +$(NIGHTLY) miri test $(LOCKED) --manifest-path pin_project_lite/Cargo.toml --test audit_projection --test drop_order --test audit_macro_edge --test audit_unpin_matrix
+	MIRIFLAGS="$(MIRIFLAGS)" cargo +$(NIGHTLY) miri test $(LOCKED) -p yaml --test audit_raw_emitter -- --exact write_after_flush_error_overflows_raw_buffer
+	MIRIFLAGS="$(MIRIFLAGS)" cargo +$(NIGHTLY) miri test $(LOCKED) -p yaml --test audit_raw_emitter -- --exact dumper_shared_node_at_depth_two
+	MIRIFLAGS="$(MIRIFLAGS)" cargo +$(NIGHTLY) miri test $(LOCKED) -p yaml --test audit_raw_emitter -- --exact loader_second_load_after_error_returns_fail
+	MIRIFLAGS="$(MIRIFLAGS)" cargo +$(NIGHTLY) miri test $(LOCKED) -p yaml --test audit_raw_emitter -- --exact parser_rejects_input_longer_than_c_int_range
+	MIRIFLAGS="$(MIRIFLAGS)" cargo +$(NIGHTLY) miri test $(LOCKED) -p yaml --test audit_parser_safe -- --exact every_truncation_of_representative_document
+
 
 # Build the documentation warning-free and generate the landing page / index.
 .PHONY: docs

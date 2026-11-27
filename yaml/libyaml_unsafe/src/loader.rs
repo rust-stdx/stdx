@@ -5,9 +5,9 @@ use core::{
 
 use crate::{
     PointerExt, YAML_ALIAS_EVENT, YAML_COMPOSER_ERROR, YAML_DOCUMENT_END_EVENT, YAML_DOCUMENT_START_EVENT,
-    YAML_MAPPING_END_EVENT, YAML_MAPPING_NODE, YAML_MAPPING_START_EVENT, YAML_MEMORY_ERROR, YAML_SCALAR_EVENT,
-    YAML_SCALAR_NODE, YAML_SEQUENCE_END_EVENT, YAML_SEQUENCE_NODE, YAML_SEQUENCE_START_EVENT, YAML_STREAM_END_EVENT,
-    YAML_STREAM_START_EVENT,
+    YAML_MAPPING_END_EVENT, YAML_MAPPING_NODE, YAML_MAPPING_START_EVENT, YAML_MEMORY_ERROR, YAML_NO_ERROR,
+    YAML_SCALAR_EVENT, YAML_SCALAR_NODE, YAML_SEQUENCE_END_EVENT, YAML_SEQUENCE_NODE, YAML_SEQUENCE_START_EVENT,
+    YAML_STREAM_END_EVENT, YAML_STREAM_START_EVENT,
     api::{yaml_free, yaml_malloc, yaml_stack_extend, yaml_strdup},
     externs::{memset, strcmp},
     libc,
@@ -38,6 +38,10 @@ struct loader_ctx {
 /// An application must not alternate the calls of yaml_parser_load() with the
 /// calls of yaml_parser_scan() or yaml_parser_parse(). Doing this will break
 /// the parser.
+///
+/// If the parser is already in an error state (for example after a failed
+/// load or a rejected input), this function returns [`FAIL`] without reading
+/// more input. The document is still zeroed and its node stack released.
 pub unsafe fn yaml_parser_load(parser: *mut yaml_parser_t, document: *mut yaml_document_t) -> Success {
     let current_block: u64;
     let mut event = MaybeUninit::<yaml_event_t>::uninit();
@@ -46,6 +50,14 @@ pub unsafe fn yaml_parser_load(parser: *mut yaml_parser_t, document: *mut yaml_d
     __assert!(!document.is_null());
     memset(document as *mut libc::c_void, 0, size_of::<yaml_document_t>() as libc::c_ulong);
     STACK_INIT!((*document).nodes, yaml_node_t);
+    // `yaml_parser_parse` returns a zeroed event once the parser is in an
+    // error state (matching C's "no events after an error"). Do not feed that
+    // event into the loader's assertions: a second load after an error must
+    // return FAIL, not abort the process.
+    if (*parser).error != YAML_NO_ERROR {
+        yaml_document_delete(document);
+        return FAIL;
+    }
     if !(*parser).stream_start_produced {
         if yaml_parser_parse(parser, event).fail {
             current_block = 6234624449317607669;

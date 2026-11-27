@@ -5,9 +5,10 @@ use core::{
 
 use crate::{
     PointerExt, YAML_ALIAS_EVENT, YAML_ALIAS_TOKEN, YAML_ANCHOR_TOKEN, YAML_ANY_ENCODING, YAML_DOCUMENT_END_EVENT,
-    YAML_DOCUMENT_START_EVENT, YAML_MAPPING_END_EVENT, YAML_MAPPING_NODE, YAML_MAPPING_START_EVENT, YAML_SCALAR_EVENT,
-    YAML_SCALAR_NODE, YAML_SCALAR_TOKEN, YAML_SEQUENCE_END_EVENT, YAML_SEQUENCE_NODE, YAML_SEQUENCE_START_EVENT,
-    YAML_STREAM_END_EVENT, YAML_STREAM_START_EVENT, YAML_TAG_DIRECTIVE_TOKEN, YAML_TAG_TOKEN,
+    YAML_DOCUMENT_START_EVENT, YAML_MAPPING_END_EVENT, YAML_MAPPING_NODE, YAML_MAPPING_START_EVENT, YAML_READER_ERROR,
+    YAML_SCALAR_EVENT, YAML_SCALAR_NODE, YAML_SCALAR_TOKEN, YAML_SEQUENCE_END_EVENT, YAML_SEQUENCE_NODE,
+    YAML_SEQUENCE_START_EVENT, YAML_STREAM_END_EVENT, YAML_STREAM_START_EVENT, YAML_TAG_DIRECTIVE_TOKEN,
+    YAML_TAG_TOKEN,
     externs::{free, malloc, memcpy, memmove, memset, realloc, strdup, strlen},
     libc,
     ops::{ForceAdd as _, ForceMul as _},
@@ -219,10 +220,22 @@ unsafe fn yaml_string_read_handler(
 /// Note that the `input` pointer must be valid while the `parser` object
 /// exists. The application is responsible for destroying `input` after
 /// destroying the `parser`.
+///
+/// Inputs longer than [`YAML_MAX_INPUT_LENGTH`](crate::YAML_MAX_INPUT_LENGTH)
+/// bytes are rejected with `YAML_READER_ERROR` before any byte is read. The
+/// scanner stores token lengths in `c_int`, so this keeps every length
+/// representable.
 pub unsafe fn yaml_parser_set_input_string(parser: *mut yaml_parser_t, input: *const libc::c_uchar, size: size_t) {
     __assert!(!parser.is_null());
     __assert!(((*parser).read_handler).is_none());
     __assert!(!input.is_null());
+    if size > crate::YAML_MAX_INPUT_LENGTH {
+        (*parser).error = YAML_READER_ERROR;
+        (*parser).problem = b"input exceeds maximum supported length\0" as *const u8 as *const libc::c_char;
+        (*parser).problem_offset = 0;
+        (*parser).problem_value = -1;
+        return;
+    }
     let fresh81 = addr_of_mut!((*parser).read_handler);
     *fresh81 = Some(
         yaml_string_read_handler
@@ -484,8 +497,8 @@ unsafe fn yaml_check_utf8(start: *const yaml_char_t, length: size_t) -> Success 
         }
         if !(width == 1
             || width == 2 && value >= 0x80
-            || width == 3 && value >= 0x800
-            || width == 4 && value >= 0x10000)
+            || width == 3 && value >= 0x800 && !(0xD800..=0xDFFF).contains(&value)
+            || width == 4 && (0x10000..=0x10FFFF).contains(&value))
         {
             return FAIL;
         }

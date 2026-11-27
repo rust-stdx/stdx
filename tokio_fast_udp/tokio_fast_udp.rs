@@ -6,7 +6,8 @@
 //! - **GSO** (Generic Segmentation Offload) on Linux: send a single large
 //!   buffer that the kernel/NIC splits into multiple UDP datagrams.
 //! - **GRO** (Generic Receive Offload) on Linux: receive multiple coalesced
-//!   datagrams in one syscall.
+//!   datagrams in one syscall. Opt-in, with strict receive-batch requirements
+//!   (see [GRO (opt-in)](#gro-opt-in)).
 //! - **ECN** (Explicit Congestion Notification): send and receive IP-level
 //!   congestion marks.
 //! - **SO_REUSEPORT** (Linux): bind multiple sockets to the same address:port
@@ -90,13 +91,61 @@
 //! fn main() -> std::io::Result<()> {
 //!     let socket = FastUdpSocket::build("0.0.0.0:9000".parse().unwrap())
 //!         .gso(false) // no segmentation offload on send
-//!         .gro(false) // no coalescing on receive
+//!         .gro(false) // GRO is off by default; this is explicit
 //!         .ecn(false) // no ECN ancillary data
 //!         .max_batch_size(64)
 //!         .bind()?;
 //!     Ok(())
 //! }
 //! ```
+//!
+//! # GRO (opt-in)
+//!
+//! GRO is **disabled by default**. Enable it explicitly with
+//! [`FastUdpSocketBuilder::gro(true)`] on Linux; on other kernels the
+//! capability probe leaves [`Capabilities::gro`] `false` and the portable
+//! receive loop is used, so enabling it is harmless.
+//!
+//! Because one `recvmsg` can return an aggregate of many coalesced datagrams,
+//! a GRO-enabled socket imposes two rules:
+//!
+//! 1. [`FastUdpSocket::receive_many`] must be called with **at least 64
+//!    receive items** (`UDP_GRO_CNT_MAX`) and the socket must have
+//!    `max_batch_size >= 64`. Otherwise it returns
+//!    [`std::io::ErrorKind::InvalidInput`] *before* issuing the syscall, so no
+//!    datagram is consumed.
+//! 2. [`FastUdpSocket::receive`] is unavailable while GRO is enabled: a single
+//!    slot cannot hold an aggregate, so it returns
+//!    [`std::io::ErrorKind::InvalidInput`] without dropping any segments. Use
+//!    `receive_many` with 64+ slots, or disable GRO.
+//!
+//! The receive staging buffer is currently 64 KiB. A coalesced aggregate that
+//! exceeds it is reported as [`std::io::ErrorKind::InvalidData`] (as is
+//! malformed kernel segment metadata) instead of returning a truncated,
+//! silently lossy batch.
+//!
+//! ```no_run
+//! use tokio_fast_udp::{FastUdpSocket, ReceiveItem};
+//!
+//! #[tokio::main]
+//! async fn main() -> std::io::Result<()> {
+//!     let socket = FastUdpSocket::build("127.0.0.1:9000".parse().unwrap())
+//!         .gro(true)
+//!         .bind()?;
+//!     if !socket.capabilities().gro {
+//!         return Ok(()); // kernel does not support GRO
+//!     }
+//!
+//!     let mut bufs = vec![vec![0u8; 1500]; 64];
+//!     let mut items: Vec<ReceiveItem> = bufs.iter_mut().map(|b| ReceiveItem::new(b)).collect();
+//!     let n = socket.receive_many(&mut items).await?;
+//!     println!("received {n} datagrams");
+//!     Ok(())
+//! }
+//! ```
+//!
+//! [`FastUdpSocketBuilder::gro(true)`]: FastUdpSocketBuilder::gro
+//! [`Capabilities::gro`]: Capabilities::gro
 //!
 //! # Platform support
 //!
@@ -106,8 +155,9 @@
 //! | macOS    | —   | —   | yes | yes       | sendmsg loop | recvmsg loop |
 //! | iOS      | —   | —   | yes | yes       | sendmsg loop | recvmsg loop |
 //!
-//! **Linux** is the primary fast path. GSO and GRO are probed at build time and
-//! gracefully disabled if the kernel doesn't support them.
+//! **Linux** is the primary fast path. GSO is probed at build time and
+//! gracefully disabled if the kernel doesn't support it. GRO is probed only
+//! when explicitly enabled and is otherwise off.
 //!
 //! **macOS, iOS and other Unix** platforms use `sendmsg`/`recvmsg` with ECN
 //! ancillary data where supported. Segmented sends (`SendItem::segment_size`)
@@ -127,7 +177,9 @@
 //! }
 //! ```
 //!
-//! The single-item methods are thin wrappers over the batch methods.
+//! `send` is a thin wrapper over `send_many`. `receive` wraps `receive_many`
+//! only while GRO is disabled; with GRO enabled it is rejected (see
+//! [GRO (opt-in)](#gro-opt-in)).
 //!
 //! # Design
 //!

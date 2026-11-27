@@ -40,6 +40,14 @@ extern crate alloc;
 
 use core::mem::size_of;
 
+/// Maximum supported raw input size for the parser, in bytes.
+///
+/// The translated scanner uses `c_int` for token lengths, indentation and
+/// columns. Rejecting inputs above `i32::MAX` bytes keeps every such value
+/// representable, so a huge input cannot silently truncate and corrupt the
+/// parse. The safe `yaml` crate applies a much smaller 64 MiB default.
+pub const YAML_MAX_INPUT_LENGTH: u64 = i32::MAX as u64;
+
 mod libc {
     pub use core::{
         ffi::c_void,
@@ -275,7 +283,7 @@ pub use crate::{
         yaml_scalar_event_initialize, yaml_sequence_end_event_initialize, yaml_sequence_start_event_initialize,
         yaml_stream_end_event_initialize, yaml_stream_start_event_initialize, yaml_token_delete,
     },
-    dumper::{yaml_emitter_close, yaml_emitter_dump, yaml_emitter_open},
+    dumper::{MAX_DUMP_DEPTH, yaml_emitter_close, yaml_emitter_dump, yaml_emitter_open},
     emitter::yaml_emitter_emit,
     loader::yaml_parser_load,
     parser::yaml_parser_parse,

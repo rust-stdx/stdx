@@ -1,6 +1,6 @@
 [package]
 name = "pin-project-lite"
-version = "0.2.14"
+version = "0.2.18"
 description = "A lightweight version of pin-project written with declarative macros."
 edition.workspace = true
 rust-version.workspace = true

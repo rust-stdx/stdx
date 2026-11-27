@@ -38,3 +38,6 @@ required-features = ["derive"]
 name = "compat"
 path = "tests/compat.rs"
 required-features = ["derive"]
+
+[dev-dependencies]
+alloc_counter = { path = "../alloc_counter" }

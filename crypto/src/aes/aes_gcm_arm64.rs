@@ -195,6 +195,42 @@ pub(crate) unsafe fn gcm_encrypt_armv8<const N: usize>(
 
 // ── Decrypt ───────────────────────────────────────────────────────────────────
 
+/// XOR the GCM CTR keystream (starting at `J0 + 1 = nonce || 0x00000002`) over
+/// `in_out`, using the same `inc32` counter update as the fused decrypt loop.
+///
+/// This is only used on the failure path of [`gcm_decrypt_armv8`] to restore
+/// the ciphertext after the tag check fails, so that an unauthenticated
+/// plaintext is never left in the caller's buffer.
+#[inline]
+#[target_feature(enable = "aes,neon")]
+unsafe fn ctr_restore_armv8<const N: usize>(round_keys: &[uint8x16_t; N], j0: &[u8; 16], in_out: &mut [u8]) {
+    const {
+        assert!(N == 11 || N == 15);
+    }
+
+    let swap = vld1q_u8(SWAP_MASK.as_ptr());
+    let mut base = vqtbl1q_u8(increment_counter(vld1q_u8(j0.as_ptr())), swap);
+    let one = vsetq_lane_u32(1, vdupq_n_u32(0), 0);
+
+    let n = in_out.len();
+    let mut i = 0usize;
+    while i + 16 <= n {
+        let k = aes_encrypt_block::<N>(round_keys, vqtbl1q_u8(base, swap));
+        let p = vld1q_u8(in_out.as_ptr().add(i));
+        vst1q_u8(in_out.as_mut_ptr().add(i), veorq_u8(p, k));
+        base = vreinterpretq_u8_u32(vaddq_u32(vreinterpretq_u32_u8(base), one));
+        i += 16;
+    }
+    if i < n {
+        let k = aes_encrypt_block::<N>(round_keys, vqtbl1q_u8(base, swap));
+        let mut keystream = [0u8; 16];
+        vst1q_u8(keystream.as_mut_ptr(), k);
+        for j in 0..n - i {
+            in_out[i + j] ^= keystream[j];
+        }
+    }
+}
+
 #[target_feature(enable = "aes,neon")]
 pub(crate) unsafe fn gcm_decrypt_armv8<const N: usize>(
     round_keys: &[uint8x16_t; N],
@@ -347,6 +383,13 @@ pub(crate) unsafe fn gcm_decrypt_armv8<const N: usize>(
     vst1q_u8(computed.as_mut_ptr(), computed_tag);
 
     if !constant_time_eq(&computed, tag) {
+        // The CTR keystream was already XORed into `in_out` above, so the
+        // buffer now holds unauthenticated plaintext. Restore the ciphertext
+        // before returning, otherwise callers that inspect the buffer after an
+        // error are exposed to chosen-ciphertext attacks (RUSTSEC-2023-0096,
+        // CVE-2023-42811). CTR is an involution: XORing the same keystream
+        // (starting at J0 + 1) again restores the input.
+        ctr_restore_armv8(round_keys, &j0, in_out);
         return Err(AeadError::InvalidCiphertext);
     }
 

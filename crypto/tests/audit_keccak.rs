@@ -944,3 +944,35 @@ fn parallel_hash_rejects_zero_block_size() {
     assert_eq!(ParallelHash256::new(0, b"").err(), Some(ParallelHashError::ZeroBlockSize));
     assert!(ParallelHash256::new(1, b"").is_ok());
 }
+
+/// ParallelHash with tiny block sizes produces up to 130 leaves, far beyond the
+/// SIMD batch width (2/4/8). This closes the previous coverage gap where the
+/// largest tested leaf count was `3 * block_size + 5`, i.e. at most 8 leaves
+/// for `B = 1`; the short-final-batch lane-aliasing path is exercised with
+/// 0/1/2 leaves and with dozens of full batches.
+#[test]
+fn parallel_hash_many_leaves_matches_reference() {
+    for &(block_size, max_len) in &[(1usize, 130usize), (2, 260), (8, 520), (64, 300)] {
+        for len in 0..=max_len {
+            let data = pattern(len, 0x3A);
+            let expected = ref_parallel_hash(&data, block_size, b"", 64, false);
+            let mut out = [0u8; 64];
+            ParallelHash256::hash(&data, block_size, b"", &mut out).unwrap();
+            assert_eq!(
+                out[..],
+                expected[..],
+                "B={block_size} len={len} leaves={}",
+                len.div_ceil(block_size)
+            );
+        }
+    }
+
+    // Explicit 0/1/2/64-leaf cases against the same reference.
+    for &(block_size, data_len) in &[(1usize, 0usize), (1, 1), (1, 2), (1, 63), (1, 64), (1, 65), (64, 4096)] {
+        let data = pattern(data_len, 0xC4);
+        let expected = ref_parallel_hash(&data, block_size, b"edge", 64, false);
+        let mut out = [0u8; 64];
+        ParallelHash256::hash(&data, block_size, b"edge", &mut out).unwrap();
+        assert_eq!(out[..], expected[..], "B={block_size} len={data_len}");
+    }
+}

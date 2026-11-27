@@ -967,3 +967,82 @@ fn input_ending_at_a_guard_page_is_never_over_read() {
         );
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Additional boundary sweeps (audit gap closure)
+////////////////////////////////////////////////////////////////////////////////
+
+/// Every length in `0..=4096`, not just the first 2048. This brackets the
+/// 1024-byte chunk boundary, the 2048-byte two-chunk parent boundary and the
+/// 4096-byte four-chunk / SIMD-degree subtree boundary for every possible
+/// trailing offset.
+#[test]
+fn length_sweep_0_to_4096_matches_reference() {
+    for len in 0..=4096usize {
+        assert_hash_eq(&test_input(len));
+    }
+}
+
+/// Every two-way incremental split for every length in `0..=512`. This is the
+/// exhaustive version of the selected-length sweep above and covers the
+/// 64-byte block, 256-byte SIMD tail and 512-byte half-chunk transitions.
+#[test]
+fn every_split_for_every_length_up_to_512() {
+    for len in 0..=512usize {
+        let input = pseudo_random(len, len as u64 ^ 0x5EED_5EED);
+        let expected = reference::hash(&input);
+        for split in 0..=len {
+            let mut hasher = Blake3::new();
+            hasher.update(&input[..split]);
+            hasher.update(&input[split..]);
+            assert_eq!(&hasher.sum()[..], &expected[..], "two-way split {split}/{len} mismatched");
+        }
+    }
+}
+
+/// Every XOF output length in `0..=256` for inputs that sit on either side of
+/// every internal boundary. The reader is asked for the whole output in one
+/// call, so both the cached partial-block path and the wide `xof_many` path
+/// are exercised at each output length.
+#[test]
+fn xof_output_length_sweep_0_to_256() {
+    for &input_len in &[0usize, 1, 63, 64, 65, 1023, 1024, 1025, 2048, 2049] {
+        let input = pseudo_random(input_len, input_len as u64 ^ 0x0F0F_0F0F);
+        let mut expected = [0u8; 256];
+        reference::xof(&input, &mut expected);
+
+        for out_len in 0..=256usize {
+            let mut hasher = Blake3::new();
+            hasher.update(&input);
+            let mut out = vec![0u8; out_len];
+            hasher.finalize_xof().squeeze(&mut out);
+            assert_eq!(
+                out.as_slice(),
+                &expected[..out_len],
+                "xof input_len={input_len} out_len={out_len}"
+            );
+        }
+    }
+}
+
+/// Keyed and derive-key modes for every length in `0..=2048`, so the flag/key
+/// plumbing is checked at every chunk and parent boundary in both modes.
+#[test]
+fn keyed_and_derive_key_length_sweep_0_to_2048() {
+    let key: [u8; 32] = pseudo_random(32, 0x4B45_5945).try_into().unwrap();
+    let context = "blake3 exhaustive keyed/derive boundary context v1";
+
+    for len in 0..=2048usize {
+        let input = pseudo_random(len, len as u64 ^ 0xD1CE_D1CE);
+        assert_eq!(
+            &Blake3::keyed_hash(&key, &input)[..],
+            &reference::keyed_hash(&key, &input)[..],
+            "keyed hash mismatch at len {len}"
+        );
+        assert_eq!(
+            &Blake3::derive_key(context, &input)[..],
+            &reference::derive_key(context, &input)[..],
+            "derive_key mismatch at len {len}"
+        );
+    }
+}

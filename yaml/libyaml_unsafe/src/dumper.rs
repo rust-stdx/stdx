@@ -4,8 +4,8 @@ use core::{
 };
 
 use crate::{
-    PointerExt,
-    api::{yaml_free, yaml_malloc},
+    PointerExt, YAML_EMITTER_ERROR,
+    api::{yaml_free, yaml_malloc, yaml_stack_extend},
     externs::{memset, strcmp},
     fmt::WriteToPtr,
     libc,
@@ -20,6 +20,20 @@ use crate::{
     },
     yaml_document_delete, yaml_emitter_emit,
 };
+
+/// Maximum nesting depth for `yaml_emitter_dump`.
+///
+/// The dump path is recursive, so an explicit ceiling is used to turn a
+/// hostile or accidentally huge document tree into a normal `FAIL` instead of
+/// a stack-overflow abort. The scanner's nesting limit is also 1000.
+pub const MAX_DUMP_DEPTH: usize = 1000;
+
+/// Set the emitter's error state for an over-deep document.
+unsafe fn set_dump_depth_error(emitter: *mut yaml_emitter_t) -> Success {
+    (*emitter).error = YAML_EMITTER_ERROR;
+    (*emitter).problem = b"document nesting exceeds maximum depth\0" as *const u8 as *const libc::c_char;
+    FAIL
+}
 
 /// Start a YAML stream.
 ///
@@ -79,6 +93,10 @@ pub unsafe fn yaml_emitter_close(emitter: *mut yaml_emitter_t) -> Success {
 /// the yaml_document_initialize() function. The emitter takes the
 /// responsibility for the document object and destroys its content after it is
 /// emitted. The document object is destroyed even if the function fails.
+///
+/// Documents nested deeper than [`MAX_DUMP_DEPTH`] nodes (root included) are
+/// rejected: the function returns [`FAIL`] with `error` set to
+/// `YAML_EMITTER_ERROR` instead of recursing until the stack overflows.
 pub unsafe fn yaml_emitter_dump(emitter: *mut yaml_emitter_t, document: *mut yaml_document_t) -> Success {
     let current_block: u64;
     let mut event = MaybeUninit::<yaml_event_t>::uninit();
@@ -131,7 +149,7 @@ pub unsafe fn yaml_emitter_dump(emitter: *mut yaml_emitter_t, document: *mut yam
                 (*event).data.document_start.implicit = (*document).start_implicit;
                 if yaml_emitter_emit(emitter, event).ok {
                     yaml_emitter_anchor_node(emitter, 1);
-                    if yaml_emitter_dump_node(emitter, 1).ok {
+                    if yaml_emitter_dump_node(emitter, 1, 0).ok {
                         memset(event as *mut libc::c_void, 0, size_of::<yaml_event_t>() as libc::c_ulong);
                         (*event).type_ = YAML_DOCUMENT_END_EVENT;
                         (*event).start_mark = mark;
@@ -185,48 +203,59 @@ unsafe fn yaml_emitter_delete_document_and_anchors(emitter: *mut yaml_emitter_t)
     *fresh7 = ptr::null_mut::<yaml_document_t>();
 }
 
-unsafe fn yaml_emitter_anchor_node_sub(emitter: *mut yaml_emitter_t, index: libc::c_int) {
-    (*((*emitter).anchors).offset((index - 1) as isize)).references += 1;
-    if (*(*emitter).anchors.offset((index - 1) as isize)).references == 2 {
-        (*emitter).last_anchor_id += 1;
-        (*(*emitter).anchors.offset((index - 1) as isize)).anchor = (*emitter).last_anchor_id;
-    }
-}
-
 unsafe fn yaml_emitter_anchor_node(emitter: *mut yaml_emitter_t, index: libc::c_int) {
-    let node: *mut yaml_node_t = (*(*emitter).document)
-        .nodes
-        .start
-        .wrapping_offset(index as isize)
-        .wrapping_offset(-1_isize);
-    let mut item: *mut yaml_node_item_t;
-    let mut pair: *mut yaml_node_pair_t;
-    let fresh8 = addr_of_mut!((*((*emitter).anchors).wrapping_offset((index - 1) as isize)).references);
-    *fresh8 += 1;
-    if (*(*emitter).anchors.wrapping_offset((index - 1) as isize)).references == 1 {
-        match (*node).type_ {
-            YAML_SEQUENCE_NODE => {
-                item = (*node).data.sequence.items.start;
-                while item < (*node).data.sequence.items.top {
-                    yaml_emitter_anchor_node_sub(emitter, *item);
-                    item = item.wrapping_offset(1);
-                }
-            }
-            YAML_MAPPING_NODE => {
-                pair = (*node).data.mapping.pairs.start;
-                while pair < (*node).data.mapping.pairs.top {
-                    yaml_emitter_anchor_node_sub(emitter, (*pair).key);
-                    yaml_emitter_anchor_node_sub(emitter, (*pair).value);
-                    pair = pair.wrapping_offset(1);
-                }
-            }
-            _ => {}
-        }
-    } else if (*(*emitter).anchors.wrapping_offset((index - 1) as isize)).references == 2 {
-        let fresh9 = addr_of_mut!((*emitter).last_anchor_id);
-        *fresh9 += 1;
-        (*(*emitter).anchors.wrapping_offset((index - 1) as isize)).anchor = *fresh9;
+    struct Worklist {
+        start: *mut libc::c_int,
+        end: *mut libc::c_int,
+        top: *mut libc::c_int,
     }
+    // Iterative traversal of the document graph. The previous implementation
+    // only followed the root's immediate children (`anchor_node_sub`), so
+    // references to nodes at depth >= 2 were never counted and a repeated
+    // reference produced an ALIAS event with a null anchor.
+    let mut stack = Worklist {
+        start: ptr::null_mut::<libc::c_int>(),
+        end: ptr::null_mut::<libc::c_int>(),
+        top: ptr::null_mut::<libc::c_int>(),
+    };
+    STACK_INIT!(stack, libc::c_int);
+    PUSH!(stack, index);
+    while !STACK_EMPTY!(stack) {
+        let index = POP!(stack);
+        let node: *mut yaml_node_t = (*(*emitter).document)
+            .nodes
+            .start
+            .wrapping_offset(index as isize)
+            .wrapping_offset(-1_isize);
+        let references = addr_of_mut!((*((*emitter).anchors).wrapping_offset((index - 1) as isize)).references);
+        *references += 1;
+        let current = *references;
+        if current == 2 {
+            (*emitter).last_anchor_id += 1;
+            (*(*emitter).anchors.wrapping_offset((index - 1) as isize)).anchor = (*emitter).last_anchor_id;
+        }
+        if current == 1 {
+            match (*node).type_ {
+                YAML_SEQUENCE_NODE => {
+                    let mut item = (*node).data.sequence.items.start;
+                    while item < (*node).data.sequence.items.top {
+                        PUSH!(stack, *item);
+                        item = item.wrapping_offset(1);
+                    }
+                }
+                YAML_MAPPING_NODE => {
+                    let mut pair = (*node).data.mapping.pairs.start;
+                    while pair < (*node).data.mapping.pairs.top {
+                        PUSH!(stack, (*pair).key);
+                        PUSH!(stack, (*pair).value);
+                        pair = pair.wrapping_offset(1);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    STACK_DEL!(stack);
 }
 
 unsafe fn yaml_emitter_generate_anchor(_emitter: *mut yaml_emitter_t, anchor_id: libc::c_int) -> *mut yaml_char_t {
@@ -235,7 +264,10 @@ unsafe fn yaml_emitter_generate_anchor(_emitter: *mut yaml_emitter_t, anchor_id:
     anchor
 }
 
-unsafe fn yaml_emitter_dump_node(emitter: *mut yaml_emitter_t, index: libc::c_int) -> Success {
+unsafe fn yaml_emitter_dump_node(emitter: *mut yaml_emitter_t, index: libc::c_int, depth: usize) -> Success {
+    if depth >= MAX_DUMP_DEPTH {
+        return set_dump_depth_error(emitter);
+    }
     let node: *mut yaml_node_t = (*(*emitter).document)
         .nodes
         .start
@@ -252,8 +284,8 @@ unsafe fn yaml_emitter_dump_node(emitter: *mut yaml_emitter_t, index: libc::c_in
     (*(*emitter).anchors.wrapping_offset((index - 1) as isize)).serialized = true;
     match (*node).type_ {
         YAML_SCALAR_NODE => yaml_emitter_dump_scalar(emitter, node, anchor),
-        YAML_SEQUENCE_NODE => yaml_emitter_dump_sequence(emitter, node, anchor),
-        YAML_MAPPING_NODE => yaml_emitter_dump_mapping(emitter, node, anchor),
+        YAML_SEQUENCE_NODE => yaml_emitter_dump_sequence(emitter, node, anchor, depth),
+        YAML_MAPPING_NODE => yaml_emitter_dump_mapping(emitter, node, anchor, depth),
         _ => __assert!(false),
     }
 }
@@ -312,6 +344,7 @@ unsafe fn yaml_emitter_dump_sequence(
     emitter: *mut yaml_emitter_t,
     node: *mut yaml_node_t,
     anchor: *mut yaml_char_t,
+    depth: usize,
 ) -> Success {
     let mut event = MaybeUninit::<yaml_event_t>::uninit();
     let event = event.as_mut_ptr();
@@ -338,7 +371,7 @@ unsafe fn yaml_emitter_dump_sequence(
     }
     item = (*node).data.sequence.items.start;
     while item < (*node).data.sequence.items.top {
-        if yaml_emitter_dump_node(emitter, *item).fail {
+        if yaml_emitter_dump_node(emitter, *item, depth + 1).fail {
             return FAIL;
         }
         item = item.wrapping_offset(1);
@@ -354,6 +387,7 @@ unsafe fn yaml_emitter_dump_mapping(
     emitter: *mut yaml_emitter_t,
     node: *mut yaml_node_t,
     anchor: *mut yaml_char_t,
+    depth: usize,
 ) -> Success {
     let mut event = MaybeUninit::<yaml_event_t>::uninit();
     let event = event.as_mut_ptr();
@@ -380,10 +414,10 @@ unsafe fn yaml_emitter_dump_mapping(
     }
     pair = (*node).data.mapping.pairs.start;
     while pair < (*node).data.mapping.pairs.top {
-        if yaml_emitter_dump_node(emitter, (*pair).key).fail {
+        if yaml_emitter_dump_node(emitter, (*pair).key, depth + 1).fail {
             return FAIL;
         }
-        if yaml_emitter_dump_node(emitter, (*pair).value).fail {
+        if yaml_emitter_dump_node(emitter, (*pair).value, depth + 1).fail {
             return FAIL;
         }
         pair = pair.wrapping_offset(1);

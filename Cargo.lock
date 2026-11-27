@@ -557,7 +557,7 @@ dependencies = [
  "futures-sink",
  "futures-task",
  "memchr",
- "pin-project-lite 0.2.18",
+ "pin-project-lite 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab",
 ]
 
@@ -699,7 +699,7 @@ dependencies = [
  "futures-core",
  "http",
  "http-body",
- "pin-project-lite 0.2.18",
+ "pin-project-lite 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -730,7 +730,7 @@ dependencies = [
  "httparse",
  "httpdate",
  "itoa",
- "pin-project-lite 0.2.18",
+ "pin-project-lite 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "smallvec",
  "tokio",
  "want",
@@ -768,7 +768,7 @@ dependencies = [
  "ipnet",
  "libc",
  "percent-encoding",
- "pin-project-lite 0.2.18",
+ "pin-project-lite 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "socket2",
  "tokio",
  "tower-service",
@@ -782,7 +782,7 @@ dependencies = [
  "bytes",
  "futures-util",
  "hyper",
- "pin-project-lite 0.2.14",
+ "pin-project-lite 0.2.18",
  "tokio",
 ]
 
@@ -1222,7 +1222,7 @@ version = "2.3.2"
 
 [[package]]
 name = "pin-project-lite"
-version = "0.2.14"
+version = "0.2.18"
 
 [[package]]
 name = "pin-project-lite"
@@ -1417,7 +1417,7 @@ dependencies = [
  "js-sys",
  "log",
  "percent-encoding",
- "pin-project-lite 0.2.18",
+ "pin-project-lite 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustls",
  "rustls-pki-types",
  "rustls-platform-verifier",
@@ -2214,7 +2214,7 @@ dependencies = [
  "bytes",
  "libc",
  "mio",
- "pin-project-lite 0.2.18",
+ "pin-project-lite 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "socket2",
  "tokio-macros",
  "windows-sys 0.61.2",
@@ -2251,7 +2251,7 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "libc",
- "pin-project-lite 0.2.18",
+ "pin-project-lite 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio",
 ]
 
@@ -2271,7 +2271,7 @@ checksum = "ebe5ef63511595f1344e2d5cfa636d973292adc0eec1f0ad45fae9f0851ab1d4"
 dependencies = [
  "futures-core",
  "futures-util",
- "pin-project-lite 0.2.18",
+ "pin-project-lite 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "sync_wrapper",
  "tokio",
  "tower-layer",
@@ -2289,7 +2289,7 @@ dependencies = [
  "futures-util",
  "http",
  "http-body",
- "pin-project-lite 0.2.18",
+ "pin-project-lite 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "tower",
  "tower-layer",
  "tower-service",
@@ -2314,7 +2314,7 @@ version = "0.1.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63e71662fa4b2a2c3a26f570f037eb95bb1f85397f3cd8076caed2f026a6d100"
 dependencies = [
- "pin-project-lite 0.2.18",
+ "pin-project-lite 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)",
  "tracing-core",
 ]
 
@@ -2634,6 +2634,7 @@ dependencies = [
 name = "yaml"
 version = "0.1.0"
 dependencies = [
+ "alloc_counter",
  "libyaml_unsafe",
  "yaml_derive",
 ]

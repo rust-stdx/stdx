@@ -640,3 +640,79 @@ mod guard_page {
         assert_eq!(unsafe { munmap(base, 2 * page) }, 0);
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Additional exhaustive padding/alignment sweeps (audit gap closure)
+////////////////////////////////////////////////////////////////////////////////
+
+/// Every split point for every length in `0..=300`. The existing
+/// `every_split_point` test samples the boundary lengths; this one covers the
+/// whole range so a buffered update bug cannot hide between samples.
+#[test]
+fn every_split_for_every_length_0_to_300() {
+    let mut rng = ChaChaRng::seed_from_u64(0xA11_5A11_5A11);
+    for len in 0..=300usize {
+        let data = {
+            let mut v = vec![0u8; len];
+            rng.fill(&mut v);
+            v
+        };
+        let r256 = ref_sha256(&data);
+        let r512 = ref_sha512_of(&data);
+        let r384 = ref_sha384_of(&data);
+
+        for split in 0..=len {
+            let mut h = Sha256::new();
+            h.update(&data[..split]);
+            h.update(&data[split..]);
+            assert_eq!(h.sum().as_ref(), r256, "sha256 len={len} split={split}");
+
+            let mut h = Sha512::new();
+            h.update(&data[..split]);
+            h.update(&data[split..]);
+            assert_eq!(h.sum().as_ref(), r512, "sha512 len={len} split={split}");
+
+            let mut h = Sha384::new();
+            h.update(&data[..split]);
+            h.update(&data[split..]);
+            assert_eq!(h.sum().as_ref(), r384, "sha384 len={len} split={split}");
+        }
+    }
+}
+
+/// Every byte misalignment in `0..=64` for messages that end exactly on a
+/// padding or compression boundary. The SHA-NI/ARMv8 kernels load whole
+/// 16/32/64-byte vectors, so the whole alignment lattice matters, not just the
+/// first nine offsets.
+#[test]
+fn every_alignment_0_to_64_on_padding_boundaries() {
+    const CANARY: u8 = 0x5C;
+    let mut rng = ChaChaRng::seed_from_u64(0xA11_6E6D_0F00);
+
+    for len in [
+        0usize, 1, 54, 55, 56, 57, 63, 64, 65, 110, 111, 112, 113, 119, 120, 121, 126, 127, 128, 129, 191, 192, 193,
+        239, 240, 241, 255, 256, 257,
+    ] {
+        let msg = {
+            let mut v = vec![0u8; len];
+            rng.fill(&mut v);
+            v
+        };
+        let r256 = ref_sha256(&msg);
+        let r512 = ref_sha512_of(&msg);
+        let r384 = ref_sha384_of(&msg);
+
+        for offset in 0..=64usize {
+            let mut buf = vec![CANARY; offset + len + 17];
+            buf[offset..offset + len].copy_from_slice(&msg);
+            let input = &buf[offset..offset + len];
+
+            assert_eq!(sha256_chunked(input, 5), r256, "sha256 len={len} off={offset}");
+            assert_eq!(sha512_chunked(input, 5), r512, "sha512 len={len} off={offset}");
+            assert_eq!(sha384_chunked(input, 5), r384, "sha384 len={len} off={offset}");
+
+            assert!(buf[..offset].iter().all(|&b| b == CANARY));
+            assert!(buf[offset + len..].iter().all(|&b| b == CANARY));
+        }
+    }
+}

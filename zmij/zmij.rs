@@ -499,7 +499,10 @@ impl Pow10SignificandTable {
     #[cfg(test)]
     #[allow(dead_code)]
     fn get(&self, dec_exp: i32) -> uint128 {
-        const DEC_EXP_MIN: i32 = -292;
+        // Must match get_unchecked's DEC_EXP_MIN: with -292 the assertion
+        // admitted dec_exp == 325, whose index (325 + 293 == 618) is one past
+        // the 618-element table.
+        const DEC_EXP_MIN: i32 = -293;
         assert!((DEC_EXP_MIN..DEC_EXP_MIN + Self::NUM_POW10S as i32).contains(&dec_exp));
         unsafe { self.get_unchecked(dec_exp) }
     }
@@ -1791,5 +1794,25 @@ impl Default for Buffer {
     #[cfg_attr(feature = "no-panic", no_panic)]
     fn default() -> Self {
         Buffer::new()
+    }
+}
+
+#[cfg(test)]
+mod audit_pow10_get {
+    use super::STATIC_DATA;
+
+    /// Regression test for the test-only `Pow10SignificandTable::get` helper:
+    /// its `DEC_EXP_MIN` must match `get_unchecked`'s, otherwise the assertion
+    /// admits `dec_exp == 325`, whose index is one past the 618-element table.
+    #[test]
+    fn pow10_get_accepts_last_valid_index() {
+        let value = STATIC_DATA.pow10_significands.get(324);
+        assert_ne!((value.hi, value.lo), (0, 0));
+    }
+
+    #[test]
+    #[should_panic]
+    fn pow10_get_rejects_one_past_the_end() {
+        let _ = STATIC_DATA.pow10_significands.get(325);
     }
 }

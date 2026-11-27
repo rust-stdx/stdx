@@ -418,7 +418,8 @@ async fn test_ecn_marks_roundtrip() {
 #[cfg(target_os = "linux")]
 #[tokio::test]
 async fn test_gro_batch_receive() {
-    let receiver = FastUdpSocket::build(loop_addr(0)).bind().unwrap();
+    // GRO is opt-in and requires a full-size receive batch (64 slots).
+    let receiver = FastUdpSocket::build(loop_addr(0)).gro(true).bind().unwrap();
     let raddr = receiver.local_addr().unwrap();
     let sender = FastUdpSocket::build(loop_addr(0)).bind().unwrap();
 
@@ -433,7 +434,7 @@ async fn test_gro_batch_receive() {
 
     let expected: Vec<u8> = payloads.iter().flatten().copied().collect();
 
-    let mut bufs: Vec<Vec<u8>> = (0..16).map(|_| vec![0u8; 128]).collect();
+    let mut bufs: Vec<Vec<u8>> = (0..64).map(|_| vec![0u8; 128]).collect();
     let mut recv_items: Vec<ReceiveItem> = bufs.iter_mut().map(|b| ReceiveItem::new(b)).collect();
 
     // GRO coalesces back-to-back datagrams into fewer receive slots; the

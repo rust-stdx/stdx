@@ -108,6 +108,7 @@ impl Emitter {
                     sys::yaml_document_end_event_initialize(sys_event, implicit)
                 }
                 Event::Scalar(mut scalar) => {
+                    reject_nul_tag(scalar.tag.as_ref())?;
                     let anchor = ptr::null();
                     let tag = scalar.tag.as_mut().map_or_else(ptr::null, |tag| {
                         tag.push('\0');
@@ -136,6 +137,7 @@ impl Emitter {
                     )
                 }
                 Event::SequenceStart(mut sequence) => {
+                    reject_nul_tag(sequence.tag.as_ref())?;
                     let anchor = ptr::null();
                     let tag = sequence.tag.as_mut().map_or_else(ptr::null, |tag| {
                         tag.push('\0');
@@ -147,6 +149,7 @@ impl Emitter {
                 }
                 Event::SequenceEnd => sys::yaml_sequence_end_event_initialize(sys_event),
                 Event::MappingStart(mut mapping) => {
+                    reject_nul_tag(mapping.tag.as_ref())?;
                     let anchor = ptr::null();
                     let tag = mapping.tag.as_mut().map_or_else(ptr::null, |tag| {
                         tag.push('\0');
@@ -188,6 +191,17 @@ unsafe fn write_handler(data: *mut c_void, buffer: *mut u8, size: u64) -> i32 {
     let output = unsafe { &mut *(data as *mut Vec<u8>) };
     output.extend_from_slice(unsafe { slice::from_raw_parts(buffer, size as usize) });
     1
+}
+
+/// Tags reach libyaml as NUL-terminated C strings, so an interior NUL would
+/// silently truncate the tag (values are length-delimited and unaffected).
+fn reject_nul_tag(tag: Option<&String>) -> core::result::Result<(), Error> {
+    if let Some(tag) = tag {
+        if tag.as_bytes().contains(&0) {
+            return Err(Error::writer("YAML tag contains a NUL byte"));
+        }
+    }
+    Ok(())
 }
 
 /// Converts a Rust string length to libyaml's `c_int` length.

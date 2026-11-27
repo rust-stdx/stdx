@@ -71,11 +71,15 @@
 //!
 //! # Thread safety
 //!
-//! [`load`] and [`from_path`] call [`std::env::set_var`] internally, which is
-//! unsound to call while other threads are running or reading the environment.
-//! **Call them before spawning any threads** (typically at the very start of
-//! `main`). If you only need to inspect `.env` content, use [`parse`], which
-//! does not touch the process environment.
+//! [`load`] and [`from_path`] call [`std::env::set_var`] and
+//! [`std::env::vars_os`] internally. On Unix the process environment is shared
+//! with libc and foreign code; calling these functions after any other thread
+//! has been started (including an async runtime) is
+//! **unsound** and can cause a data race or use-after-free of the `environ`
+//! array. **Call them before spawning any threads** (typically at the very start of
+//! `main`). If you need to load configuration from a multi-threaded context,
+//! you may prefer[`parse`], which only inspects the input and never touches the process
+//! environment.
 //!
 //! # Performance
 //!
@@ -332,8 +336,12 @@ impl fmt::Display for ParseErrorKind {
 ///
 /// # Thread safety
 ///
-/// This function modifies the process environment. Call it before spawning any
-/// threads; see the [crate-level documentation](crate#thread-safety).
+/// This function modifies the process environment and snapshots its existing
+/// variable names. Calling it while any other thread is running or reading the
+/// environment is unsound (data race / use-after-free of `environ` on Unix).
+/// Call it before spawning any threads; see the
+/// [crate-level documentation](crate#thread-safety). In a multi-threaded
+/// context use [`parse`] and apply the values yourself.
 ///
 /// # Example
 ///
@@ -356,6 +364,15 @@ pub fn load() -> Result<(), Error> {
 /// # Errors
 ///
 /// Returns [`Error`] if the file cannot be read or is malformed.
+///
+/// # Thread safety
+///
+/// This function modifies the process environment and snapshots its existing
+/// variable names. Calling it while any other thread is running or reading the
+/// environment is unsound (data race / use-after-free of `environ` on Unix).
+/// Call it before spawning any threads; see the
+/// [crate-level documentation](crate#thread-safety). In a multi-threaded
+/// context use [`parse`] and apply the values yourself.
 ///
 /// # Example
 ///

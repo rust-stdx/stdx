@@ -13,15 +13,12 @@
 //!   the [`std::error::Error`] trait.
 //!
 //!   ```
+//!   # #[cfg(feature = "std")]
+//!   # fn main() -> anyerr::Result<()> {
 //!   # pub trait Decode {}
 //!   #
-//!   # mod json {
-//!   #     use super::Decode;
-//!   #     use std::io;
-//!   #
-//!   #     pub fn from_str<T: Decode>(json: &str) -> io::Result<T> {
-//!   #         unimplemented!()
-//!   #     }
+//!   # fn from_str<T: Decode>(_json: &str) -> std::io::Result<T> {
+//!   #     unimplemented!()
 //!   # }
 //!   #
 //!   # struct ClusterMap;
@@ -32,10 +29,15 @@
 //!
 //!   fn get_cluster_info() -> Result<ClusterMap> {
 //!       let config = std::fs::read_to_string("cluster.json")?;
-//!       let map: ClusterMap = json::from_str(&config)?;
+//!       let map: ClusterMap = from_str(&config)?;
 //!       Ok(map)
 //!   }
 //!   #
+//!   # let _ = get_cluster_info();
+//!   # Ok(())
+//!   # }
+//!   #
+//!   # #[cfg(not(feature = "std"))]
 //!   # fn main() {}
 //!   ```
 //!
@@ -55,6 +57,7 @@
 //!   #
 //!   use anyerr::{Context, Result};
 //!
+//!   # #[cfg(feature = "std")]
 //!   fn main() -> Result<()> {
 //!       # return Ok(());
 //!       #
@@ -76,6 +79,9 @@
 //!       #
 //!       # Ok(())
 //!   }
+//!   #
+//!   # #[cfg(not(feature = "std"))]
+//!   # fn main() {}
 //!   ```
 //!
 //!   ```console
@@ -341,6 +347,7 @@ pub use anyhow as format_err;
 /// ```
 /// use anyerr::{Context, Result};
 ///
+/// # #[cfg(feature = "std")]
 /// fn main() {
 ///     if let Err(err) = try_main() {
 ///         eprintln!("ERROR: {}", err);
@@ -348,6 +355,9 @@ pub use anyhow as format_err;
 ///         std::process::exit(1);
 ///     }
 /// }
+///
+/// # #[cfg(not(feature = "std"))]
+/// # fn main() {}
 ///
 /// fn try_main() -> Result<()> {
 ///     # const IGNORE: &str = stringify! {
@@ -428,6 +438,7 @@ pub struct Chain<'a> {
 /// #
 /// use anyerr::Result;
 ///
+/// # #[cfg(feature = "std")]
 /// fn main() -> Result<()> {
 ///     # return Ok(());
 ///     let config = std::fs::read_to_string("cluster.json")?;
@@ -435,6 +446,9 @@ pub struct Chain<'a> {
 ///     println!("cluster info: {:#?}", map);
 ///     Ok(())
 /// }
+/// #
+/// # #[cfg(not(feature = "std"))]
+/// # fn main() {}
 /// ```
 pub type Result<T, E = Error> = core::result::Result<T, E>;
 
@@ -465,6 +479,7 @@ pub type Result<T, E = Error> = core::result::Result<T, E>;
 ///     # }
 /// }
 ///
+/// # #[cfg(feature = "std")]
 /// pub fn do_it(mut it: ImportantThing) -> Result<Vec<u8>> {
 ///     it.detach().context("Failed to detach the important thing")?;
 ///

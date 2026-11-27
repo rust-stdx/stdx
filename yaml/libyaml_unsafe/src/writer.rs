@@ -99,7 +99,7 @@ pub unsafe fn yaml_emitter_flush(emitter: *mut yaml_emitter_t) -> Success {
                 0xD8_u32.force_add(value >> 18) as libc::c_uchar;
             *(*emitter).raw_buffer.last.wrapping_offset(low as isize) = (value >> 10 & 0xFF) as libc::c_uchar;
             *(*emitter).raw_buffer.last.wrapping_offset((high + 2) as isize) =
-                0xDC_u32.force_add(value >> 8 & 0xFF) as libc::c_uchar;
+                0xDC_u32.force_add(value >> 8 & 0x03) as libc::c_uchar;
             *(*emitter).raw_buffer.last.wrapping_offset((low + 2) as isize) = (value & 0xFF) as libc::c_uchar;
             let fresh7 = addr_of_mut!((*emitter).raw_buffer.last);
             *fresh7 = (*fresh7).wrapping_offset(4_isize);
@@ -121,6 +121,15 @@ pub unsafe fn yaml_emitter_flush(emitter: *mut yaml_emitter_t) -> Success {
         *fresh11 = (*emitter).raw_buffer.start;
         OK
     } else {
+        // Discard the partially converted UTF-16 payload. Without this reset a
+        // caller that retries `yaml_emitter_flush` (or keeps emitting) after a
+        // writer error converts the same working buffer again starting at the
+        // already-advanced `raw_buffer.last`, writing past the end of the
+        // 2*OUTPUT_BUFFER_SIZE+2 byte allocation.
+        let fresh12 = addr_of_mut!((*emitter).raw_buffer.last);
+        *fresh12 = (*emitter).raw_buffer.start;
+        let fresh13 = addr_of_mut!((*emitter).raw_buffer.pointer);
+        *fresh13 = (*emitter).raw_buffer.start;
         yaml_emitter_set_writer_error(emitter, b"write error\0" as *const u8 as *const libc::c_char)
     }
 }

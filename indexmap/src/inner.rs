@@ -444,10 +444,25 @@ impl<K, V> Core<K, V> {
     where
         F: FnMut(&mut K, &mut V) -> bool,
     {
-        self.entries.retain_mut(|entry| keep(&mut entry.key, &mut entry.value));
-        if self.entries.len() < self.indices.len() {
-            self.rebuild_hash_table();
+        // `Vec::retain_mut` is panic-safe for the vector itself: on unwind it
+        // backshifts the tail and commits the removals done so far. Our hash
+        // table must be rebuilt in that case too, or later lookups would use
+        // stale indices. Do it in a guard so it also runs while unwinding.
+        struct Rebuild<'a, K, V>(&'a mut Core<K, V>);
+
+        impl<K, V> Drop for Rebuild<'_, K, V> {
+            fn drop(&mut self) {
+                if self.0.entries.len() < self.0.indices.len() {
+                    self.0.rebuild_hash_table();
+                }
+            }
         }
+
+        let guard = Rebuild(self);
+        guard
+            .0
+            .entries
+            .retain_mut(|entry| keep(&mut entry.key, &mut entry.value));
     }
 
     fn rebuild_hash_table(&mut self) {

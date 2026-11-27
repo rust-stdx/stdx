@@ -24,6 +24,25 @@ mod unix_socket {
         item::{ReceiveItem, SendItem},
     };
 
+    /// Minimum number of receive items [`FastUdpSocket::receive_many`] requires
+    /// while GRO is enabled.
+    ///
+    /// One `recvmsg` can return a coalesced aggregate of many datagrams, so a
+    /// short `items` slice could not hold the whole aggregate. Requiring the
+    /// maximum number of segments the kernel coalesces into one datagram
+    /// guarantees that every received segment has a destination slot.
+    pub(crate) const UDP_GRO_CNT_MAX: usize = 64;
+
+    /// Error returned when GRO is enabled but the receive call cannot hold a
+    /// maximum-size coalesced aggregate.
+    fn gro_slots_error() -> io::Error {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "GRO is enabled: receive_many() requires at least 64 receive items and max_batch_size >= 64; \
+             no datagram was consumed. Disable GRO with FastUdpSocketBuilder::gro(false) to use shorter batches",
+        )
+    }
+
     // -- FastUdpSocket ---------------------------------------------------------
     pub struct FastUdpSocket {
         fd: AsyncFd<OwnedFd>,
@@ -35,7 +54,9 @@ mod unix_socket {
             FastUdpSocketBuilder {
                 addr,
                 disable_gso: false,
-                disable_gro: false,
+                // GRO is opt-in: enabling it constrains the receive API (see
+                // `receive_many`), so callers must ask for it explicitly.
+                disable_gro: true,
                 disable_sendmmsg: false,
                 disable_ecn: false,
                 max_batch: 64,
@@ -66,16 +87,46 @@ mod unix_socket {
                 .await
         }
 
+        /// Receive one datagram into `item`.
+        ///
+        /// This is only supported while GRO is disabled (the default). When
+        /// GRO is enabled the kernel may hand back a coalesced aggregate that
+        /// a single receive slot cannot hold, so this method returns
+        /// [`io::ErrorKind::InvalidInput`] without consuming a datagram. Call
+        /// [`receive_many`](Self::receive_many) with at least 64 items, or
+        /// build the socket with `gro(false)`.
         pub async fn receive(&self, item: &mut ReceiveItem<'_>) -> io::Result<()> {
+            if self.caps.gro {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "GRO is enabled: receive() cannot hold a coalesced batch; \
+                     call receive_many() with at least 64 receive items, or disable GRO with FastUdpSocketBuilder::gro(false)",
+                ));
+            }
             self.receive_many(std::slice::from_mut(item)).await?;
             Ok(())
         }
 
+        /// Receive up to `items.len()` datagrams in one syscall.
+        ///
+        /// When GRO is enabled (opt-in via
+        /// [`FastUdpSocketBuilder::gro(true)`](FastUdpSocketBuilder::gro)),
+        /// the kernel may coalesce several datagrams into one `recvmsg`, so
+        /// `items` must contain at least 64 slots and the socket must have
+        /// `max_batch_size >= 64`. Otherwise this returns
+        /// [`io::ErrorKind::InvalidInput`] *before* reading from the socket, so
+        /// no coalesced data is consumed. An aggregate that does not fit the
+        /// 64 KiB staging buffer (or that yields more segments than slots)
+        /// fails with [`io::ErrorKind::InvalidData`] rather than silently
+        /// dropping the tail.
         pub async fn receive_many(&self, items: &mut [ReceiveItem<'_>]) -> io::Result<usize> {
+            let caps = &self.caps;
+            if caps.gro && (items.len() < UDP_GRO_CNT_MAX || caps.max_batch < UDP_GRO_CNT_MAX) {
+                return Err(gro_slots_error());
+            }
             if items.is_empty() {
                 return Ok(0);
             }
-            let caps = &self.caps;
             let limit = items.len().min(caps.max_batch);
             let items = &mut items[..limit];
             self.fd
@@ -109,6 +160,16 @@ mod unix_socket {
             self
         }
 
+        /// Enable or disable UDP Generic Receive Offload. Disabled by default.
+        ///
+        /// With GRO enabled the kernel may coalesce several datagrams into a
+        /// single `recvmsg`, so [`FastUdpSocket::receive_many`] requires at
+        /// least 64 receive items (and `max_batch_size >= 64`), and
+        /// [`FastUdpSocket::receive`] is not available. Enabling GRO on a
+        /// kernel without support is harmless: [`Capabilities::gro`] stays
+        /// `false` and the portable receive loop is used.
+        ///
+        /// [`Capabilities::gro`]: crate::Capabilities::gro
         pub fn gro(mut self, enable: bool) -> Self {
             self.disable_gro = !enable;
             self
@@ -152,7 +213,9 @@ mod unix_socket {
                 disable_gro: self.disable_gro,
                 disable_sendmmsg: self.disable_sendmmsg,
                 disable_ecn: self.disable_ecn,
-                max_batch: self.max_batch,
+                // A batch of zero would make `send`/`receive` return success
+                // without issuing any syscall; treat it as "no batching".
+                max_batch: self.max_batch.max(1),
             };
 
             let caps = plat::setup_and_probe(&fd, &config, is_ipv6)?;
@@ -372,7 +435,7 @@ mod unix_socket {
                     (*sin6).sin6_family = libc::AF_INET6 as libc::sa_family_t;
                     (*sin6).sin6_port = v6.port().to_be();
                     (*sin6).sin6_addr.s6_addr = v6.ip().octets();
-                    (*sin6).sin6_flowinfo = v6.flowinfo().to_be();
+                    (*sin6).sin6_flowinfo = v6.flowinfo();
                     (*sin6).sin6_scope_id = v6.scope_id();
                 }
                 #[cfg(any(
@@ -406,7 +469,7 @@ mod unix_socket {
                 SocketAddr::V6(SocketAddrV6::new(
                     ip,
                     u16::from_be(sin6.sin6_port),
-                    u32::from_be(sin6.sin6_flowinfo),
+                    sin6.sin6_flowinfo,
                     sin6.sin6_scope_id,
                 ))
             }
@@ -443,14 +506,16 @@ mod unix_socket {
 
     /// Receive one datagram into `buf`.
     ///
-    /// Returns the number of bytes received, the source address, and the decoded
-    /// ancillary data: the GRO segment size and the ECN codepoint, if present.
+    /// Returns the number of bytes received, the source address, the decoded
+    /// ancillary data (the GRO segment size and the ECN codepoint, if present),
+    /// and the kernel's `msg_flags`. Callers that cannot tolerate a truncated
+    /// datagram must inspect `MSG_TRUNC` in `msg_flags`.
     fn recvmsg_raw(
         fd: std::os::fd::RawFd,
         buf: &mut [u8],
         cmsg_buf: &mut RecvCmsgBuf,
         ecn_enabled: bool,
-    ) -> io::Result<(usize, SocketAddr, Option<u32>, Option<Ecn>)> {
+    ) -> io::Result<(usize, SocketAddr, Option<u32>, Option<Ecn>, libc::c_int)> {
         let mut iov = libc::iovec {
             iov_base: buf.as_mut_ptr() as *mut libc::c_void,
             iov_len: buf.len(),
@@ -471,7 +536,7 @@ mod unix_socket {
         }
 
         let (gro_seg, ecn) = decode_cmsgs(&mhdr, ecn_enabled);
-        Ok((ret as usize, storage_to_addr(&addr), gro_seg, ecn))
+        Ok((ret as usize, storage_to_addr(&addr), gro_seg, ecn, mhdr.msg_flags))
     }
 
     /// Decode the GRO/ECN ancillary data attached to a received datagram.
@@ -484,13 +549,35 @@ mod unix_socket {
         let mut gro_seg = None;
         let mut ecn = None;
 
+        let header_len = unsafe { libc::CMSG_LEN(0) } as usize;
+        let control_start = mhdr.msg_control as usize;
+        // `msg_controllen` is `size_t` on Linux and `socklen_t` on the BSDs,
+        // so the cast is required on some targets and a no-op on others.
+        #[allow(clippy::unnecessary_cast)]
+        let control_len = mhdr.msg_controllen as usize;
+        let control_end = control_start.saturating_add(control_len);
+
         let mut cmsg = unsafe { libc::CMSG_FIRSTHDR(mhdr) };
         while !cmsg.is_null() {
+            // Never trust `cmsg_len`: it is kernel-provided data that can be
+            // inconsistent after `MSG_CTRUNC` (or on a buggy/hostile kernel).
+            // Validate the header and payload bounds before reading either,
+            // and refuse to follow a link that does not fit in the control
+            // buffer (which also guarantees forward progress on Apple, whose
+            // `CMSG_NXTHDR` does not reject zero-length messages).
+            let cmsg_addr = cmsg as usize;
+            if cmsg_addr < control_start || cmsg_addr + std::mem::size_of::<libc::cmsghdr>() > control_end {
+                break;
+            }
+            let cmsg_len = unsafe { (*cmsg).cmsg_len } as usize;
+            if cmsg_len < header_len || cmsg_len > control_end - cmsg_addr {
+                break;
+            }
+
             let level = unsafe { (*cmsg).cmsg_level };
             let ty = unsafe { (*cmsg).cmsg_type };
             let data = unsafe { libc::CMSG_DATA(cmsg) };
-            let header_len = unsafe { libc::CMSG_LEN(0) } as usize;
-            let payload_len = (unsafe { (*cmsg).cmsg_len } as usize).saturating_sub(header_len);
+            let payload_len = cmsg_len - header_len;
 
             // UDP Generic Receive Offload (Linux): the segment size is an `int`.
             #[cfg(target_os = "linux")]
@@ -590,8 +677,8 @@ mod unix_socket {
         };
 
         use super::{
-            BuildConfig, CmsgBuf, RecvCmsgBuf, fill_sockaddr, get_int_opt, push_ecn_cmsg, push_gso_cmsg, recvmsg_raw,
-            reject_zero_segment_size, sendmsg_raw, set_bool_opt,
+            BuildConfig, CmsgBuf, RecvCmsgBuf, UDP_GRO_CNT_MAX, fill_sockaddr, get_int_opt, gro_slots_error,
+            push_ecn_cmsg, push_gso_cmsg, recvmsg_raw, reject_zero_segment_size, sendmsg_raw, set_bool_opt,
         };
         use crate::{
             capability::Capabilities,
@@ -605,6 +692,7 @@ mod unix_socket {
         pub struct SendState {
             pub gso_einval: bool,
             pub chunk_offset: usize,
+            pub sendmmsg_enosys: bool,
         }
 
         fn send_one(fd: std::os::fd::RawFd, item: &SendItem, ecn_enabled: bool, gso_enabled: bool) -> io::Result<()> {
@@ -713,8 +801,21 @@ mod unix_socket {
             }
 
             // Multi-item non-segmented batch via sendmmsg
-            if caps.sendmmsg && items.len() > 1 && !items.iter().any(|i| i.segment_size.is_some()) {
-                return sendmmsg_batch(fd, items, caps);
+            if caps.sendmmsg
+                && !state.sendmmsg_enosys
+                && items.len() > 1
+                && !items.iter().any(|i| i.segment_size.is_some())
+            {
+                match sendmmsg_batch(fd, items, caps) {
+                    Ok(n) => return Ok(n),
+                    // `sendmmsg` is unavailable (old kernel, seccomp policy,
+                    // or a libc without the wrapper): fall back to one
+                    // `sendmsg` per item for the rest of the call.
+                    Err(e) if e.raw_os_error() == Some(libc::ENOSYS) => {
+                        state.sendmmsg_enosys = true;
+                    }
+                    Err(e) => return Err(e),
+                }
             }
 
             let mut count = 0usize;
@@ -759,7 +860,7 @@ mod unix_socket {
 
         fn recv_one(fd: std::os::fd::RawFd, item: &mut ReceiveItem<'_>, ecn_enabled: bool) -> io::Result<()> {
             let mut cmsg_buf = RecvCmsgBuf::new();
-            let (len, source, _gro_seg, ecn) = recvmsg_raw(fd, item.buf, &mut cmsg_buf, ecn_enabled)?;
+            let (len, source, _gro_seg, ecn, _msg_flags) = recvmsg_raw(fd, item.buf, &mut cmsg_buf, ecn_enabled)?;
 
             item.len = len;
             item.source = source;
@@ -768,13 +869,36 @@ mod unix_socket {
             Ok(())
         }
 
+        /// Receive one GRO aggregate and split it across `items`.
+        ///
+        /// The aggregate is first read into a fixed 64 KiB staging buffer. A
+        /// truncated read (`MSG_TRUNC`) means the aggregate did not fit, and
+        /// the segments cannot be reconstructed, so this returns
+        /// [`io::ErrorKind::InvalidData`] instead of delivering a partial
+        /// stream. Malformed segment metadata (zero size, a segment larger
+        /// than the aggregate, or more segments than slots) is rejected the
+        /// same way, so data is never silently dropped.
         fn recv_gro(fd: std::os::fd::RawFd, items: &mut [ReceiveItem<'_>], ecn_enabled: bool) -> io::Result<usize> {
+            debug_assert!(items.len() >= UDP_GRO_CNT_MAX);
+
             let mut gro_buf = [0u8; 65536];
             let mut cmsg_buf = RecvCmsgBuf::new();
 
-            let (total, source, seg_size, ecn_val) = recvmsg_raw(fd, &mut gro_buf, &mut cmsg_buf, ecn_enabled)?;
+            let (total, source, seg_size, ecn_val, msg_flags) =
+                recvmsg_raw(fd, &mut gro_buf, &mut cmsg_buf, ecn_enabled)?;
 
-            if seg_size.is_none() {
+            // A truncated aggregate cannot be split: segment boundaries beyond
+            // the staging buffer were lost. Report it rather than returning a
+            // short, silently incomplete batch.
+            if msg_flags & libc::MSG_TRUNC != 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "coalesced GRO datagram exceeded the 64 KiB staging buffer (MSG_TRUNC); the aggregate was dropped",
+                ));
+            }
+
+            let Some(seg_size) = seg_size else {
+                // No GRO control message: a single datagram fits the first slot.
                 if items.is_empty() {
                     return Ok(0);
                 }
@@ -784,16 +908,41 @@ mod unix_socket {
                 items[0].source = source;
                 items[0].ecn = ecn_val;
                 return Ok(1);
+            };
+
+            let seg = seg_size as usize;
+            if seg == 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "kernel reported a zero UDP_GRO segment size",
+                ));
+            }
+            if seg > total {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "kernel reported a UDP_GRO segment size larger than the coalesced datagram",
+                ));
             }
 
-            let seg = seg_size.unwrap() as usize;
-            let mut offset = 0;
-            let mut count = 0;
-            for item in items.iter_mut() {
+            // `seg > 0`, so `div_ceil` is well-defined and cannot loop.
+            let segments = total.div_ceil(seg);
+            if segments > items.len() {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "coalesced GRO datagram contains more segments than receive items",
+                ));
+            }
+
+            let mut offset = 0usize;
+            let mut count = 0usize;
+            for item in items.iter_mut().take(segments) {
                 if offset >= total {
                     break;
                 }
-                let seg_end = (offset + seg).min(total);
+                let seg_end = offset
+                    .checked_add(seg)
+                    .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "UDP_GRO segment offset overflow"))?
+                    .min(total);
                 let copy_len = (seg_end - offset).min(item.buf.len());
                 item.buf[..copy_len].copy_from_slice(&gro_buf[offset..offset + copy_len]);
                 item.len = copy_len;
@@ -802,6 +951,7 @@ mod unix_socket {
                 count += 1;
                 offset = seg_end;
             }
+            debug_assert_eq!(offset, total);
             Ok(count)
         }
 
@@ -810,12 +960,18 @@ mod unix_socket {
             items: &mut [ReceiveItem<'_>],
             caps: &Capabilities,
         ) -> io::Result<usize> {
-            if items.is_empty() {
-                return Ok(0);
+            if caps.gro {
+                // Defence in depth: `receive_many` validates this before
+                // reaching the syscall, but `recv_batch` must never consume a
+                // coalesced aggregate it cannot fully deliver.
+                if items.len() < UDP_GRO_CNT_MAX || caps.max_batch < UDP_GRO_CNT_MAX {
+                    return Err(gro_slots_error());
+                }
+                return recv_gro(fd, items, caps.ecn);
             }
 
-            if caps.gro {
-                return recv_gro(fd, items, caps.ecn);
+            if items.is_empty() {
+                return Ok(0);
             }
 
             let mut count = 0;
@@ -972,7 +1128,7 @@ mod unix_socket {
 
         fn recv_one(fd: std::os::fd::RawFd, item: &mut ReceiveItem<'_>, ecn_enabled: bool) -> io::Result<()> {
             let mut cmsg_buf = RecvCmsgBuf::new();
-            let (len, source, _gro_seg, ecn) = recvmsg_raw(fd, item.buf, &mut cmsg_buf, ecn_enabled)?;
+            let (len, source, _gro_seg, ecn, _msg_flags) = recvmsg_raw(fd, item.buf, &mut cmsg_buf, ecn_enabled)?;
 
             item.len = len;
             item.source = source;
@@ -1042,6 +1198,10 @@ mod unix_socket {
             })
         }
     }
+
+    #[cfg(test)]
+    #[path = "audit_socket_tests.rs"]
+    mod audit_socket_tests;
 }
 
 // -- re-exports ------------------------------------------------------------

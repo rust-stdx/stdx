@@ -6,7 +6,7 @@ use core::{
 use std::{
     io,
     os::fd::{AsRawFd, FromRawFd, OwnedFd},
-    panic::resume_unwind,
+    panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
     sync::Mutex,
     thread,
 };
@@ -200,27 +200,49 @@ pub fn count_instructions(f: &mut dyn FnMut(), counter: &mut (dyn FnMut(&Instruc
             // Wait for child PTRACE_SEIZE call before releasing the mutex.
             let mut buf = [0; size_of::<Address>()];
             let size = read(&data_read, &mut buf)?;
-            assert_eq!(size, buf.len());
+            if size != buf.len() {
+                // The tracer exited before attaching (ptrace denied, blocking
+                // seccomp filter, already traced, ...).  Report it as an error
+                // instead of panicking in this thread.
+                return Err(io::Error::other("the tracer could not attach to the thread"));
+            }
             if cfg!(target_os = "linux") {
                 // On Linux, multiple threads can be traced independently,
                 // so the mutex can be released early.
                 drop(guard);
             }
 
+            let mut panic_payload = None;
+
             loop {
                 let size = read(&data_read, &mut buf)?;
                 if size == 0 {
                     break;
                 }
-                assert_eq!(size, buf.len());
+                if size != buf.len() {
+                    return Err(io::Error::other("short read from the tracer"));
+                }
 
-                let address = Address::from_ne_bytes(buf);
-                let instruction = Instruction::new(address);
-                counter(&instruction);
+                if panic_payload.is_none() {
+                    let address = Address::from_ne_bytes(buf);
+                    let instruction = Instruction::new(address);
+                    // A panicking counter must not tear down the tracing
+                    // protocol early: dropping the data pipe would make the
+                    // tracer fail while the tracee is still single-stepped,
+                    // and the tracee would then die from an unhandled
+                    // `SIGTRAP` trap.  Remember the panic, keep draining the
+                    // pipe until the tracer exits, and rethrow afterwards.
+                    if let Err(payload) = catch_unwind(AssertUnwindSafe(|| counter(&instruction))) {
+                        panic_payload = Some(payload);
+                    }
+                }
             }
             drop(data_read);
 
             let status = pid.wait()?;
+            if let Some(payload) = panic_payload {
+                resume_unwind(payload);
+            }
             if libc::WIFEXITED(status) && libc::WEXITSTATUS(status) == 0 {
                 Ok(())
             } else {
@@ -229,17 +251,40 @@ pub fn count_instructions(f: &mut dyn FnMut(), counter: &mut (dyn FnMut(&Instruc
         })?;
 
         write_state(STATE_READY);
-        read(control_read, &mut [0])?;
+        // Ensures the tracer detaches even when `f` panics or an early return
+        // happens after the tracer has been attached.  Otherwise the tracee
+        // would keep being single-stepped after `f` has unwound, and joining
+        // the helper thread would deadlock.
+        let stop_on_drop = StopOnDrop(state);
+        let mut control = [0u8; 1];
+        if read(control_read, &mut control)? != control.len() {
+            // The tracer never confirmed the attach; `f` must not run
+            // untraced.
+            return Err(io::Error::other("the tracer failed to start"));
+        }
 
         write_state(STATE_COUNT);
         f();
         write_state(STATE_STOP);
+        drop(stop_on_drop);
 
         match helper.join() {
             Ok(result) => result,
             Err(e) => resume_unwind(e),
         }
     })
+}
+
+/// Stores [`STATE_STOP`] when dropped, so that the tracer releases the
+/// traced thread even if the counted function panics or the counting path
+/// returns early.
+struct StopOnDrop<'a>(&'a AtomicState);
+
+impl Drop for StopOnDrop<'_> {
+    #[inline]
+    fn drop(&mut self) {
+        self.0.store(STATE_STOP, SeqCst);
+    }
 }
 
 struct PidGuard(libc::pid_t);
