@@ -13,7 +13,7 @@
 //! Run:
 //!   CARGO_BUILD_JOBS=3 cargo test -p pin-project-lite --test audit_compile
 
-#![cfg(not(miri))] // Miri cannot spawn processes.
+#![cfg(all(not(miri), not(target_arch = "wasm32")))] // Miri and wasm cannot spawn processes.
 
 use std::{
     env, fs,

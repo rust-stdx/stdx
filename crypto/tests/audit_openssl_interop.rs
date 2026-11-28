@@ -114,8 +114,12 @@ fn poly1305_matches_openssl() {
 fn chacha20_keystream_matches_openssl() {
     let mut rng = ChaChaRng::seed_from_u64(0xcc_cc_20_00_00_00_00_01);
 
-    // Probe availability against the RFC 8439 A.2 #1 vector.
-    let probe = openssl_chacha20(&[0u8; 32], &[0u8; 12], 0, &[0u8; 64]).expect("openssl chacha20");
+    // Probe availability against the RFC 8439 A.2 #1 vector. This also skips
+    // targets where spawning `openssl` is unavailable, such as WebAssembly.
+    let Some(probe) = openssl_chacha20(&[0u8; 32], &[0u8; 12], 0, &[0u8; 64]) else {
+        eprintln!("skipping: openssl chacha20 unavailable");
+        return;
+    };
     assert_eq!(
         hex::encode(probe),
         "76b8e0ada0f13d90405d6ae55386bd28bdd219b8a08ded1aa836efcc8b770dc7\

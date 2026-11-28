@@ -240,6 +240,7 @@ fn plain_drop_order_is_declaration_order() {
 //     exactly once (the projection only holds references, no drop glue).
 // ---------------------------------------------------------------------------
 
+#[cfg(panic = "unwind")]
 #[test]
 fn panic_while_projection_alive_drops_once() {
     let log = RefCell::new(Vec::new());
@@ -288,6 +289,7 @@ pin_project! {
     }
 }
 
+#[cfg(panic = "unwind")]
 #[test]
 fn panic_in_pinned_drop_runs_once() {
     let drops = RefCell::new(0);
@@ -325,6 +327,7 @@ pin_project! {
     }
 }
 
+#[cfg(panic = "unwind")]
 #[test]
 fn project_replace_panic_in_pinned_field_drop() {
     let count = RefCell::new(0);

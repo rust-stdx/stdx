@@ -204,6 +204,7 @@ fn decoding_edge_cases_do_not_panic() {
     assert_eq!(got, b"%4z%");
 }
 
+#[cfg(panic = "unwind")]
 #[test]
 fn add_non_ascii_panics_instead_of_ub() {
     // The public `add`/`remove` functions document an ASCII-range argument but

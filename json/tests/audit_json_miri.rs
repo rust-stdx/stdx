@@ -103,6 +103,7 @@ fn array_maybeuninit_success_and_error_at_each_element() {
     assert_eq!(drops(), 32);
 }
 
+#[cfg(panic = "unwind")]
 #[test]
 fn array_panic_during_decode_drops_initialised_prefix() {
     // The element type allocates so Miri's leak checker also observes any

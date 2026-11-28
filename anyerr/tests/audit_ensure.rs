@@ -273,6 +273,7 @@ fn fancy_comparison_requires_both_debug() {
     assert_eq!(got, PLAIN);
 }
 
+#[cfg(panic = "unwind")]
 #[test]
 fn fancy_comparison_panic_in_debug_is_not_swallowed() {
     let res = std::panic::catch_unwind(|| -> anyerr::Result<()> {
@@ -477,6 +478,7 @@ impl Drop for CountedDbg<'_> {
     }
 }
 
+#[cfg(panic = "unwind")]
 #[test]
 fn formatting_path_drops_operands_once() {
     use std::sync::atomic::{AtomicUsize, Ordering};

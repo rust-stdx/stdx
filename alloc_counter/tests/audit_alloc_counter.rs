@@ -101,6 +101,7 @@ fn delta_is_additive_across_nested_measurements() {
     assert_eq!(outer.1.calls, 1, "the outer measurement includes the inner one");
 }
 
+#[cfg(panic = "unwind")]
 #[test]
 fn a_panic_inside_measure_still_records_the_allocation() {
     let before = counters();
@@ -169,6 +170,7 @@ fn the_global_allocator_is_the_counting_one() {
 /// builds panic (release wraps).  This is a documentation/contract bug, not
 /// memory unsafety.
 #[cfg(debug_assertions)]
+#[cfg(panic = "unwind")]
 #[test]
 #[should_panic(expected = "attempt to subtract with overflow")]
 fn delta_of_a_larger_snapshot_panics_in_debug() {

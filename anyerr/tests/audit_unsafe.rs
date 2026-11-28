@@ -469,6 +469,7 @@ fn auto_traits() {
     assert_unwind_safe::<Error>();
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn error_moves_across_threads_and_drops_once() {
     let (counter, drops) = DropCounter::new();
@@ -481,6 +482,7 @@ fn error_moves_across_threads_and_drops_once() {
     assert_eq!(drops.load(Ordering::SeqCst), 1);
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn shared_error_read_across_threads() {
     let err = Error::new(ZstError).context("ctx");
@@ -514,6 +516,7 @@ impl Debug for PanicDisplay {
 }
 impl StdError for PanicDisplay {}
 
+#[cfg(panic = "unwind")]
 #[test]
 fn panic_in_display_then_drop_error() {
     let err = Error::new(PanicDisplay).context("ctx");
@@ -546,6 +549,7 @@ fn panic_in_display_then_drop_error() {
     assert_eq!(drops.load(Ordering::SeqCst), 1);
 }
 
+#[cfg(panic = "unwind")]
 #[test]
 fn panic_in_source_traversal_then_drop() {
     struct PanicSource;

@@ -803,6 +803,7 @@ fn dump_document(doc: &mut Document) -> Vec<u8> {
     em.bytes()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn dumper_emits_shared_nodes_as_aliases() {
     // Measure on a dedicated thread: libtest bookkeeping on the test thread can
@@ -1341,6 +1342,7 @@ fn dumper_multiple_documents_on_one_emitter() {
     );
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn dumper_after_closed_stream_fails_without_leaking() {
     // Empty document closes the stream; a later non-empty document can no longer
@@ -1450,6 +1452,7 @@ fn random_malformed_event_sequences_do_not_crash_or_leak() {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn dumper_write_error_mid_document_frees_everything() {
     std::thread::spawn(|| {
@@ -1879,6 +1882,7 @@ fn dumper_shared_node_at_depth_two() {
 
 /// End-to-end regression for F-7: parse a perfectly ordinary document with an
 /// alias one level below the root, then re-emit it with the dumper.
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn dumper_roundtrip_of_parsed_nested_alias() {
     const ENV: &str = "YAML_AUDIT_NESTED_ALIAS";

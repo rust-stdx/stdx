@@ -216,6 +216,7 @@ mod bufmut {
         one::<64>();
     }
 
+    #[cfg(panic = "unwind")]
     #[test]
     fn advance_mut_past_capacity_panics_without_mutation() {
         fn one<const N: usize>() {
@@ -440,6 +441,7 @@ fn small_string_push_str_and_insert() {
     string_push_str_insert::<16>();
 }
 
+#[cfg(panic = "unwind")]
 fn string_truncate_non_boundary<const N: usize>() {
     let mut v: SmallString<N> = SmallString::new();
     v.push_str("aé");
@@ -453,6 +455,7 @@ fn string_truncate_non_boundary<const N: usize>() {
     assert_eq!(v.as_str(), before, "string unchanged after panicking truncate");
 }
 
+#[cfg(panic = "unwind")]
 #[test]
 fn small_string_truncate_non_boundary_panics_cleanly() {
     // Inline and heap variants.

@@ -598,18 +598,21 @@ fn sponge_other_round_counts_match_reference() {
     }
 }
 
+#[cfg(panic = "unwind")]
 #[test]
 #[should_panic(expected = "the Keccak rate must be in 1..200 bytes")]
 fn sponge_rejects_zero_rate() {
     let _ = KeccakSponge::<24>::new(0, 0x06);
 }
 
+#[cfg(panic = "unwind")]
 #[test]
 #[should_panic(expected = "the Keccak rate must be in 1..200 bytes")]
 fn sponge_rejects_rate_200() {
     let _ = KeccakSponge::<24>::new(200, 0x06);
 }
 
+#[cfg(panic = "unwind")]
 #[test]
 #[should_panic(expected = "absorb can't be called after squeezing")]
 fn sponge_rejects_absorb_after_squeeze() {

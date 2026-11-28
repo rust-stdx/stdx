@@ -320,6 +320,7 @@ fn extract_early_drop_every_prefix() {
     }
 }
 
+#[cfg(panic = "unwind")]
 #[test]
 fn extract_predicate_panic_every_position() {
     for n in 1..=MAX_N {
@@ -370,6 +371,7 @@ fn extract_in_range_bounds_forms() {
     }
 }
 
+#[cfg(panic = "unwind")]
 #[test]
 // The reversed `3..2` range is the point of this test.
 #[allow(clippy::reversed_empty_ranges)]
@@ -476,6 +478,7 @@ fn set_extract_matrix() {
 // retain (panic safety + exactly-once drops)
 // ---------------------------------------------------------------------------
 
+#[cfg(panic = "unwind")]
 #[test]
 fn extract_predicate_mutation_and_panic() {
     // Mutating values through `&mut V` must persist for kept entries, and for
@@ -523,6 +526,7 @@ fn extract_predicate_mutation_and_panic() {
     }
 }
 
+#[cfg(panic = "unwind")]
 #[test]
 fn retain_panic_drops_exactly_once() {
     let log = Log::new();
@@ -555,6 +559,7 @@ fn retain_panic_drops_exactly_once() {
 /// panic from `IndexMap::retain` used to leave the hash table pointing at
 /// stale positions, so surviving keys were no longer found. The rebuild guard
 /// makes the map consistent again while unwinding.
+#[cfg(panic = "unwind")]
 #[test]
 fn retain_panic_must_keep_lookups_working() {
     let mut map: IndexMap<i32, i32> = (0..4).map(|i| (i, i * 10)).collect();
@@ -579,6 +584,7 @@ fn retain_panic_must_keep_lookups_working() {
 
 /// Same regression, observed through `len()`: before the fix the index table
 /// still reported 4 while only 3 entries survived.
+#[cfg(panic = "unwind")]
 #[test]
 fn retain_panic_must_have_consistent_len() {
     let mut map: IndexMap<i32, i32> = (0..4).map(|i| (i, i * 10)).collect();
@@ -600,6 +606,7 @@ fn retain_panic_must_have_consistent_len() {
 /// Regression test: before the fix, key 3's stale table entry pointed past the
 /// end of `entries` (`entries.len() == 3`) and a lookup panicked in the
 /// bounds-checked index path. The rebuild guard keeps the table in bounds.
+#[cfg(panic = "unwind")]
 #[test]
 fn retain_panic_no_stale_out_of_bounds_lookup() {
     let mut map: IndexMap<i32, i32> = (0..4).map(|i| (i, i * 10)).collect();
@@ -736,6 +743,7 @@ fn get_disjoint_indices_larger_n() {
     ));
 }
 
+#[cfg(panic = "unwind")]
 #[test]
 fn get_disjoint_mut_by_key_duplicates_and_none() {
     let mut map: IndexMap<i32, i32> = (0..6).map(|i| (i, i * 10)).collect();

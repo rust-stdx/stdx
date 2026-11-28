@@ -1131,6 +1131,7 @@ fn duplicate_key_policies() {
     );
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn relaxed_depth_limit_stack_overflow_is_reachable() {
     // The child process is this same test binary, filtered to the worker test.
@@ -1412,6 +1413,7 @@ fn fixed_size_array_zst_and_nested() {
     assert_eq!(large[63], 63);
 }
 
+#[cfg(panic = "unwind")]
 #[test]
 fn fixed_size_array_panic_during_decode_drops_initialised_elements() {
     struct Panic(String);

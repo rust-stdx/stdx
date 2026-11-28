@@ -137,6 +137,7 @@ fn parse_matrix() {
     assert_eq!((err.line, err.kind), (4, ParseErrorKind::MissingEquals));
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 #[cfg_attr(miri, ignore = "writes temporary files, which Miri isolation forbids")]
 fn parsing_is_atomic_and_does_not_touch_env() {
@@ -150,6 +151,7 @@ fn parsing_is_atomic_and_does_not_touch_env() {
     let _ = fs::remove_file(&p);
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 #[test]
 #[cfg_attr(miri, ignore = "mutates the process environment and writes files")]
 fn from_path_precedence_and_values() {

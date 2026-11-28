@@ -26,6 +26,16 @@ When reviewing a package, always ensure that the documentation is up-to-date and
 
 After doing changes, run the tests and checks only for the updated code. Running tests and all checks may be very slow and will be run by CI/CD, but sensure that `make lint` passes.
 
+### WebAssembly tests
+
+`wasm32-wasip1` uses `panic = "abort"` and lacks threads, child processes and
+WASI support for `std::env::temp_dir`/`set_var`. Gate panic-expecting tests
+(`catch_unwind` returning `Err`, `#[should_panic]`) with
+`#[cfg(panic = "unwind")]`, and gate tests that spawn threads or processes,
+mutate the environment, or use `temp_dir` with
+`#[cfg(not(target_arch = "wasm32"))]`. Tests that only assert "does not panic"
+can stay enabled: a real panic still fails the wasm test run.
+
 
 ### Cargo.toml conventions
 
